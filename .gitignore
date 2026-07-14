@@ -1,0 +1,59 @@
+# Gradle
+.gradle/
+**/build/
+
+# Local Android SDK configuration
+local.properties
+
+# Android Studio / IntelliJ IDEA
+.idea/caches/
+.idea/libraries/
+.idea/modules.xml
+.idea/workspace.xml
+.idea/usage.statistics.xml
+.idea/dictionaries/
+.idea/shelf/
+*.iml
+*.ipr
+*.iws
+
+# VS Code local settings
+.vscode/*
+!.vscode/extensions.json
+!.vscode/settings.json
+!.vscode/tasks.json
+!.vscode/launch.json
+
+# Kotlin / Java / Android generated files
+*.class
+*.log
+captures/
+.externalNativeBuild/
+.cxx/
+
+# Packaging and signing artifacts
+*.apk
+*.aab
+*.ap_
+*.dex
+*.keystore
+*.jks
+
+# Native build outputs
+obj/
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Temporary and editor files
+*.tmp
+*.temp
+*.swp
+*.swo
+*~
+
+# Crash reports and profiling output
+hs_err_pid*
+replay_pid*
