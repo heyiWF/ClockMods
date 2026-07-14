@@ -30,6 +30,13 @@ public class ClockPreferences {
     private static final String KEY_USE_NETWORK_TIME = "use_network_time";
     private static final String KEY_SYNC_INTERVAL_MINUTES = "sync_interval_minutes";
     private static final String KEY_TIME_ZONE_ID = "time_zone_id";
+    private static final String KEY_WEATHER_ENABLED = "weather_enabled";
+    private static final String KEY_WEATHER_INTERVAL_MINUTES = "weather_interval_minutes";
+    private static final String KEY_WEATHER_LOCATION_MODE = "weather_location_mode";
+    private static final String KEY_WEATHER_LOCATION_ID = "weather_location_id";
+    private static final String KEY_WEATHER_PROVINCE = "weather_province";
+    private static final String KEY_WEATHER_CITY = "weather_city";
+    private static final String KEY_WEATHER_DISTRICT = "weather_district";
 
     /** Sentinel value meaning "follow the device's own time zone". */
     public static final String TIME_ZONE_FOLLOW_SYSTEM = "";
@@ -59,6 +66,11 @@ public class ClockPreferences {
     public static final int DEFAULT_SYNC_INTERVAL_MINUTES = 60;
     /** Time zone is set to follow the system by default. */
     public static final String DEFAULT_TIME_ZONE_ID = TIME_ZONE_FOLLOW_SYSTEM;
+    public static final boolean DEFAULT_WEATHER_ENABLED = false;
+    public static final int DEFAULT_WEATHER_INTERVAL_MINUTES = 30;
+    public static final String WEATHER_LOCATION_AUTOMATIC = "automatic";
+    public static final String WEATHER_LOCATION_MANUAL = "manual";
+    public static final String DEFAULT_WEATHER_LOCATION_MODE = WEATHER_LOCATION_AUTOMATIC;
 
     /** Allowed range for the width-based font scale (fraction of screen width). */
     public static final float MIN_FONT_SCALE = 0.20f;
@@ -250,6 +262,55 @@ public class ClockPreferences {
         preferences.edit().putString(KEY_TIME_ZONE_ID, timeZoneId == null ? TIME_ZONE_FOLLOW_SYSTEM : timeZoneId).apply();
     }
 
+    public boolean isWeatherEnabled() {
+        return preferences.getBoolean(KEY_WEATHER_ENABLED, DEFAULT_WEATHER_ENABLED);
+    }
+
+    public void setWeatherEnabled(boolean enabled) {
+        preferences.edit().putBoolean(KEY_WEATHER_ENABLED, enabled).apply();
+    }
+
+    public int getWeatherIntervalMinutes() {
+        int value = preferences.getInt(KEY_WEATHER_INTERVAL_MINUTES, DEFAULT_WEATHER_INTERVAL_MINUTES);
+        return isValidWeatherInterval(value) ? value : DEFAULT_WEATHER_INTERVAL_MINUTES;
+    }
+
+    public void setWeatherIntervalMinutes(int minutes) {
+        preferences.edit().putInt(KEY_WEATHER_INTERVAL_MINUTES,
+                isValidWeatherInterval(minutes) ? minutes : DEFAULT_WEATHER_INTERVAL_MINUTES).apply();
+    }
+
+    public static boolean isValidWeatherInterval(int minutes) {
+        return minutes == 10 || minutes == 30 || minutes == 60 || minutes == 180
+                || minutes == 360 || minutes == 720;
+    }
+
+    public String getWeatherLocationMode() {
+        String mode = preferences.getString(KEY_WEATHER_LOCATION_MODE, DEFAULT_WEATHER_LOCATION_MODE);
+        return WEATHER_LOCATION_MANUAL.equals(mode) && getWeatherLocationId().length() > 0
+                ? WEATHER_LOCATION_MANUAL : WEATHER_LOCATION_AUTOMATIC;
+    }
+
+    public void setWeatherLocationMode(String mode) {
+        preferences.edit().putString(KEY_WEATHER_LOCATION_MODE,
+                WEATHER_LOCATION_MANUAL.equals(mode) ? WEATHER_LOCATION_MANUAL
+                        : WEATHER_LOCATION_AUTOMATIC).apply();
+    }
+
+    public String getWeatherLocationId() { return preferences.getString(KEY_WEATHER_LOCATION_ID, ""); }
+    public String getWeatherProvince() { return preferences.getString(KEY_WEATHER_PROVINCE, ""); }
+    public String getWeatherCity() { return preferences.getString(KEY_WEATHER_CITY, ""); }
+    public String getWeatherDistrict() { return preferences.getString(KEY_WEATHER_DISTRICT, ""); }
+
+    public void setManualWeatherLocation(String locationId, String province, String city, String district) {
+        preferences.edit()
+                .putString(KEY_WEATHER_LOCATION_ID, locationId == null ? "" : locationId)
+                .putString(KEY_WEATHER_PROVINCE, province == null ? "" : province)
+                .putString(KEY_WEATHER_CITY, city == null ? "" : city)
+                .putString(KEY_WEATHER_DISTRICT, district == null ? "" : district)
+                .apply();
+    }
+
     /** Restores background, font size and font color settings to their defaults (black background, white text). */
     public void restoreDefaults() {
         preferences.edit()
@@ -272,6 +333,13 @@ public class ClockPreferences {
                 .putBoolean(KEY_SMALL_SECONDS, DEFAULT_SMALL_SECONDS)
                 .putBoolean(KEY_USE_24_HOUR, DEFAULT_USE_24_HOUR)
                 .putBoolean(KEY_CLOCK_USE_ENGLISH, DEFAULT_CLOCK_USE_ENGLISH)
+                .putBoolean(KEY_WEATHER_ENABLED, DEFAULT_WEATHER_ENABLED)
+                .putInt(KEY_WEATHER_INTERVAL_MINUTES, DEFAULT_WEATHER_INTERVAL_MINUTES)
+                .putString(KEY_WEATHER_LOCATION_MODE, DEFAULT_WEATHER_LOCATION_MODE)
+                .remove(KEY_WEATHER_LOCATION_ID)
+                .remove(KEY_WEATHER_PROVINCE)
+                .remove(KEY_WEATHER_CITY)
+                .remove(KEY_WEATHER_DISTRICT)
                 .apply();
     }
 

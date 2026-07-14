@@ -18,6 +18,8 @@ import com.clockmods.background.BackgroundDimSchedule;
 import com.clockmods.background.ClockPreferences;
 import com.clockmods.calendar.LunarCalendar;
 import com.clockmods.time.NetworkTimeProvider;
+import com.clockmods.weather.WeatherModels;
+import com.clockmods.weather.WeatherModels.WeatherState;
 
 import java.io.IOException;
 import java.text.SimpleDateFormat;
@@ -76,6 +78,7 @@ public class ClockView extends View {
     private long timeTransitionStartedAt;
     private float clockShadowRadius;
     private float clockShadowDy;
+    private WeatherState weatherState;
 
     public ClockView(Context context) {
         this(context, null);
@@ -110,6 +113,16 @@ public class ClockView extends View {
     public void setBackgroundRepository(BackgroundRepository repository) {
         backgroundRepository = repository;
         requestBackgroundReload();
+        invalidate();
+    }
+
+    public void setWeatherState(WeatherState state) {
+        weatherState = state;
+        invalidate();
+    }
+
+    public void setWeatherMessage(String message) {
+        weatherState = WeatherState.of(WeatherModels.Status.IDLE, message);
         invalidate();
     }
 
@@ -228,6 +241,7 @@ public class ClockView extends View {
         float dateBaseline = timeBaseline + timeMetrics.ascent - gap - dateMetrics.descent;
 
         drawAnimatedTime(canvas, displayTime, centerX, timeBaseline);
+        drawWeather(canvas, centerX, timeBaseline, dateSize, timeMetrics, gap);
         if (lunarText.length() == 0) {
             canvas.drawText(dateText, centerX, dateBaseline, datePaint);
             return;
@@ -239,6 +253,51 @@ public class ClockView extends View {
             canvas.drawText(dateText, centerX, dateBaseline, datePaint);
             canvas.drawText(lunarText, centerX, dateBaseline - dateMetrics.ascent + gap * 0.5f, datePaint);
         }
+    }
+
+        private void drawWeather(Canvas canvas, float centerX, float timeBaseline,
+            float dateSize, Paint.FontMetrics timeMetrics, float gap) {
+        if (weatherState == null || backgroundRepository == null || !backgroundRepository.isWeatherEnabled()) return;
+        String text = weatherState.message;
+        String leftText = null;
+        String rightText = null;
+        WeatherIcon icon = null;
+        if (weatherState.data != null) {
+            leftText = WeatherModels.locationText(weatherState.data.city, weatherState.data.district);
+            rightText = weatherState.data.text + " " + weatherState.data.temperature + "℃";
+            icon = WeatherIcon.load(getContext(), weatherState.data.icon);
+            text = leftText + "  " + rightText;
+        }
+        if (text == null || text.length() == 0) return;
+        float originalSize = datePaint.getTextSize();
+        float iconSize = dateSize * 0.95f;
+        float iconGap = dateSize * 0.25f;
+        float measured = icon == null ? datePaint.measureText(text)
+                : datePaint.measureText(leftText) + datePaint.measureText(rightText) + iconSize + iconGap * 2f;
+        float available = getWidth() * 0.92f;
+        float scale = measured > available ? Math.max(available / measured, 0.65f) : 1f;
+        datePaint.setTextSize(dateSize * scale);
+        iconSize *= scale;
+        iconGap *= scale;
+        Paint.FontMetrics weatherMetrics = datePaint.getFontMetrics();
+        float baseline = timeBaseline + timeMetrics.descent + gap - weatherMetrics.ascent;
+        if (icon == null) {
+            canvas.drawText(text, centerX, baseline, datePaint);
+        } else {
+            float leftWidth = datePaint.measureText(leftText);
+            float rightWidth = datePaint.measureText(rightText);
+            float total = leftWidth + rightWidth + iconSize + iconGap * 2f;
+            float cursor = centerX - total / 2f;
+            datePaint.setTextAlign(Paint.Align.LEFT);
+            canvas.drawText(leftText, cursor, baseline, datePaint);
+            cursor += leftWidth + iconGap;
+            float iconTop = baseline + (weatherMetrics.ascent + weatherMetrics.descent) / 2f - iconSize / 2f;
+            icon.draw(canvas, cursor, iconTop, iconSize, datePaint);
+            cursor += iconSize + iconGap;
+            canvas.drawText(rightText, cursor, baseline, datePaint);
+            datePaint.setTextAlign(Paint.Align.CENTER);
+        }
+        datePaint.setTextSize(originalSize);
     }
 
     private void applyTextStyles() {

@@ -45,4 +45,22 @@
     <string name="select_region">选择地区</string>
     <string name="clock_language_settings_group">时钟界面语言</string>
     <string name="clock_use_english">时钟界面使用英文</string>
+    <string name="weather_settings_group">天气</string>
+    <string name="show_weather">显示实时天气</string>
+    <string name="weather_update_interval">更新频率</string>
+    <string name="weather_location">天气位置</string>
+    <string name="weather_location_automatic">自动定位</string>
+    <string name="weather_location_manual">手动指定</string>
+    <string name="weather_choose_location">选择天气位置</string>
+    <string name="weather_location_not_selected">请选择省、市、区县</string>
+    <string name="weather_location_list_error">无法读取天气位置列表</string>
+    <string name="weather_interval_10min">每 10 分钟</string>
+    <string name="weather_interval_30min">每 30 分钟</string>
+    <string name="weather_interval_1hour">每小时</string>
+    <string name="weather_interval_3hour">每 3 小时</string>
+    <string name="weather_interval_6hour">每 6 小时</string>
+    <string name="weather_interval_12hour">每 12 小时</string>
+    <string name="weather_attribution">天气服务由和风天气驱动</string>
+    <string name="weather_attribution_prefix">天气服务由</string>
+    <string name="weather_attribution_brand">和风天气 驱动</string>
 </resources>

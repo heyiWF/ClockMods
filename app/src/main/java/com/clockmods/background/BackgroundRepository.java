@@ -202,6 +202,20 @@ public class BackgroundRepository {
         preferences.setTimeZoneId(timeZoneId);
     }
 
+    public boolean isWeatherEnabled() { return preferences.isWeatherEnabled(); }
+    public void setWeatherEnabled(boolean enabled) { preferences.setWeatherEnabled(enabled); }
+    public int getWeatherIntervalMinutes() { return preferences.getWeatherIntervalMinutes(); }
+    public void setWeatherIntervalMinutes(int minutes) { preferences.setWeatherIntervalMinutes(minutes); }
+    public String getWeatherLocationMode() { return preferences.getWeatherLocationMode(); }
+    public void setWeatherLocationMode(String mode) { preferences.setWeatherLocationMode(mode); }
+    public String getWeatherLocationId() { return preferences.getWeatherLocationId(); }
+    public String getWeatherProvince() { return preferences.getWeatherProvince(); }
+    public String getWeatherCity() { return preferences.getWeatherCity(); }
+    public String getWeatherDistrict() { return preferences.getWeatherDistrict(); }
+    public void setManualWeatherLocation(String locationId, String province, String city, String district) {
+        preferences.setManualWeatherLocation(locationId, province, city, district);
+    }
+
     /** Resets background, font size and font colors to defaults (black background, white text). */
     public void restoreDefaults() {
         preferences.restoreDefaults();

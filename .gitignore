@@ -1,3 +1,5 @@
+.qweather.properties
+qweather.properties
 # Gradle
 .gradle/
 **/build/

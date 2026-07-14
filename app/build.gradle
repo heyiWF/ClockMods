@@ -2,6 +2,16 @@ plugins {
     id 'com.android.application'
 }
 
+def qweatherProperties = new Properties()
+def qweatherFile = rootProject.file('qweather.properties')
+if (qweatherFile.isFile()) {
+    qweatherFile.withInputStream { qweatherProperties.load(it) }
+}
+def qweatherValue = { String key, String fallback ->
+    def value = qweatherProperties.getProperty(key, fallback)
+    return value.replace('\\', '\\\\').replace('"', '\\"')
+}
+
 android {
     namespace 'com.clockmods'
     compileSdk = 36
@@ -54,6 +64,13 @@ android {
         buildConfig true
     }
 
+    defaultConfig {
+        buildConfigField 'String', 'QWEATHER_API_HOST', '"' + qweatherValue('apiHost', 'devapi.qweather.com') + '"'
+        buildConfigField 'String', 'QWEATHER_CREDENTIAL_ID', '"' + qweatherValue('credentialId', '') + '"'
+        buildConfigField 'String', 'QWEATHER_PROJECT_ID', '"' + qweatherValue('projectId', '') + '"'
+        buildConfigField 'String', 'QWEATHER_PRIVATE_KEY_BASE64', '"' + qweatherValue('privateKeyBase64', '') + '"'
+    }
+
     lint {
         abortOnError true
         checkReleaseBuilds false
@@ -69,4 +86,8 @@ dependencies {
     modernImplementation 'com.google.android.material:material:1.14.0'
 
     testImplementation 'junit:junit:4.13.2'
+    implementation 'net.i2p.crypto:eddsa:0.3.0'
+    implementation 'commons-codec:commons-codec:1.17.1'
+    implementation 'org.apache.commons:commons-csv:1.10.0'
+    testImplementation 'org.json:json:20240303'
 }

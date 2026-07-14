@@ -1,0 +1,5 @@
+# QWeather client configuration. Keep the real qweather.properties local and ignored.
+apiHost=devapi.qweather.com
+credentialId=replace-with-credential-id
+projectId=replace-with-project-id
+privateKeyBase64=replace-with-base64-ed25519-private-key

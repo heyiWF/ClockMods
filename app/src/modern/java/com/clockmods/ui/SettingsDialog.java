@@ -10,10 +10,13 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.HorizontalScrollView;
+import android.widget.AdapterView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.SeekBar;
+import android.widget.Spinner;
+import android.widget.ArrayAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -21,6 +24,7 @@ import com.clockmods.R;
 import com.clockmods.background.BackgroundRepository;
 import com.clockmods.background.ClockPreferences;
 import com.clockmods.time.RegionTimeZones;
+import com.clockmods.weather.WeatherLocationCatalog;
 import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
@@ -89,6 +93,14 @@ public class SettingsDialog extends BottomSheetDialog {
     private final View functionLockedControls;
     private final MaterialButtonToggleGroup syncIntervalGroup;
     private final MaterialButton regionButton;
+    private final MaterialSwitch weatherSwitch;
+    private final Spinner weatherLocationModeSpinner;
+    private final MaterialButton weatherLocationButton;
+    private final Spinner weatherIntervalSpinner;
+    private String selectedWeatherLocationId;
+    private String selectedWeatherProvince;
+    private String selectedWeatherCity;
+    private String selectedWeatherDistrict;
     private int timeColor;
     private int dateColor;
     private int selectedRegionIndex;
@@ -108,6 +120,10 @@ public class SettingsDialog extends BottomSheetDialog {
         this.dateColor = repository.getDateColor();
         this.dimStartMinutes = repository.getDimStartMinutes();
         this.dimEndMinutes = repository.getDimEndMinutes();
+        this.selectedWeatherLocationId = repository.getWeatherLocationId();
+        this.selectedWeatherProvince = repository.getWeatherProvince();
+        this.selectedWeatherCity = repository.getWeatherCity();
+        this.selectedWeatherDistrict = repository.getWeatherDistrict();
         BottomSheetBehavior<?> behavior = getBehavior();
         behavior.setDraggable(false);
         behavior.setHideable(false);
@@ -374,6 +390,64 @@ public class SettingsDialog extends BottomSheetDialog {
         clockUseEnglishSwitch.setChecked(repository.isClockUseEnglish());
         functionContent.addView(clockUseEnglishSwitch, topMargin(matchWrap(dp(48)), dp(8)));
 
+        functionContent.addView(createSectionLabel(context, R.string.weather_settings_group),
+            topMargin(sectionLabelParams(), dp(20)));
+        weatherSwitch = new MaterialSwitch(context);
+        weatherSwitch.setText(R.string.show_weather);
+        weatherSwitch.setTextAppearance(
+            com.google.android.material.R.style.TextAppearance_Material3_BodyLarge);
+        weatherSwitch.setChecked(repository.isWeatherEnabled());
+        functionContent.addView(weatherSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        functionContent.addView(createSubLabel(context, R.string.weather_location),
+            topMargin(subLabelParams(), dp(4)));
+        weatherLocationModeSpinner = new Spinner(context);
+        weatherLocationModeSpinner.setAdapter(new ArrayAdapter<>(context,
+            android.R.layout.simple_spinner_dropdown_item, new String[] {
+                context.getString(R.string.weather_location_automatic),
+                context.getString(R.string.weather_location_manual)
+            }));
+        weatherLocationModeSpinner.setSelection(ClockPreferences.WEATHER_LOCATION_MANUAL.equals(
+            repository.getWeatherLocationMode()) ? 1 : 0);
+        functionContent.addView(weatherLocationModeSpinner, topMargin(matchWrap(dp(48)), dp(4)));
+        weatherLocationButton = new MaterialButton(context, null,
+            com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        weatherLocationButton.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        updateWeatherLocationSummary();
+        weatherLocationButton.setOnClickListener(view -> WeatherLocationChooser.show(context,
+            selectedWeatherProvince, selectedWeatherCity, selectedWeatherDistrict,
+            new WeatherLocationChooser.Listener() {
+                @Override public void onLocationSelected(WeatherLocationCatalog.LocationEntry location) {
+                    selectedWeatherLocationId = location.locationId;
+                    selectedWeatherProvince = location.province;
+                    selectedWeatherCity = location.city;
+                    selectedWeatherDistrict = location.district;
+                    updateWeatherLocationSummary();
+                }
+            }));
+        functionContent.addView(weatherLocationButton, topMargin(matchWrap(dp(52)), dp(4)));
+        functionContent.addView(createSubLabel(context, R.string.weather_update_interval),
+            topMargin(subLabelParams(), dp(4)));
+        weatherIntervalSpinner = new Spinner(context);
+        weatherIntervalSpinner.setAdapter(new ArrayAdapter<>(context,
+            android.R.layout.simple_spinner_dropdown_item, new String[] {
+                context.getString(R.string.weather_interval_10min),
+                context.getString(R.string.weather_interval_30min),
+                context.getString(R.string.weather_interval_1hour),
+                context.getString(R.string.weather_interval_3hour),
+                context.getString(R.string.weather_interval_6hour),
+                context.getString(R.string.weather_interval_12hour)
+            }));
+        weatherIntervalSpinner.setSelection(weatherIntervalIndex(repository.getWeatherIntervalMinutes()));
+        functionContent.addView(weatherIntervalSpinner, topMargin(matchWrap(dp(48)), dp(4)));
+        weatherSwitch.setOnCheckedChangeListener((button, checked) -> updateWeatherState(checked));
+        weatherLocationModeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                updateWeatherState(weatherSwitch.isChecked());
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent) { }
+        });
+        updateWeatherState(weatherSwitch.isChecked());
+
         networkTimeSwitch.setOnCheckedChangeListener((button, checked) -> updateFunctionLockedState(checked));
         updateFunctionLockedState(networkTimeSwitch.isChecked());
 
@@ -455,6 +529,33 @@ public class SettingsDialog extends BottomSheetDialog {
     private void updateSmallSecondsState(boolean showSeconds) {
         smallSecondsSwitch.setEnabled(showSeconds);
         smallSecondsSwitch.setAlpha(showSeconds ? 1f : 0.4f);
+    }
+
+    private void updateWeatherState(boolean enabled) {
+        weatherLocationModeSpinner.setEnabled(enabled);
+        weatherLocationModeSpinner.setAlpha(enabled ? 1f : 0.4f);
+        boolean manual = enabled && weatherLocationModeSpinner.getSelectedItemPosition() == 1;
+        weatherLocationButton.setVisibility(manual ? View.VISIBLE : View.GONE);
+        weatherLocationButton.setEnabled(manual);
+        weatherIntervalSpinner.setEnabled(enabled);
+        weatherIntervalSpinner.setAlpha(enabled ? 1f : 0.4f);
+    }
+
+    private void updateWeatherLocationSummary() {
+        weatherLocationButton.setText(selectedWeatherLocationId.length() == 0
+            ? getContext().getString(R.string.weather_location_not_selected)
+            : selectedWeatherProvince + " / " + selectedWeatherCity + " / " + selectedWeatherDistrict);
+    }
+
+    private static int weatherIntervalIndex(int minutes) {
+        int[] values = {10, 30, 60, 180, 360, 720};
+        for (int index = 0; index < values.length; index++) if (values[index] == minutes) return index;
+        return 1;
+    }
+
+    private static int weatherIntervalMinutes(int index) {
+        int[] values = {10, 30, 60, 180, 360, 720};
+        return index >= 0 && index < values.length ? values[index] : 30;
     }
 
     private View createSizeRow(Context context, int labelRes, SeekBar bar, TextView valueLabel) {
@@ -683,6 +784,15 @@ public class SettingsDialog extends BottomSheetDialog {
         showLunarSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_LUNAR);
         use24HourSwitch.setChecked(ClockPreferences.DEFAULT_USE_24_HOUR);
         clockUseEnglishSwitch.setChecked(ClockPreferences.DEFAULT_CLOCK_USE_ENGLISH);
+        weatherSwitch.setChecked(ClockPreferences.DEFAULT_WEATHER_ENABLED);
+        weatherLocationModeSpinner.setSelection(0);
+        selectedWeatherLocationId = "";
+        selectedWeatherProvince = "";
+        selectedWeatherCity = "";
+        selectedWeatherDistrict = "";
+        updateWeatherLocationSummary();
+        weatherIntervalSpinner.setSelection(weatherIntervalIndex(
+            ClockPreferences.DEFAULT_WEATHER_INTERVAL_MINUTES));
         dimBackgroundSwitch.setChecked(ClockPreferences.DEFAULT_DIM_BACKGROUND);
         scheduleDimBackgroundSwitch.setChecked(ClockPreferences.DEFAULT_SCHEDULE_DIM_BACKGROUND);
         dimStartMinutes = ClockPreferences.DEFAULT_DIM_START_MINUTES;
@@ -693,6 +803,11 @@ public class SettingsDialog extends BottomSheetDialog {
     }
 
     private void applySelection() {
+        boolean manualWeather = weatherLocationModeSpinner.getSelectedItemPosition() == 1;
+        if (weatherSwitch.isChecked() && manualWeather && selectedWeatherLocationId.length() == 0) {
+            Toast.makeText(getContext(), R.string.weather_location_not_selected, Toast.LENGTH_SHORT).show();
+            return;
+        }
         repository.setTimeFontScale(progressToScale(timeSizeBar.getProgress()));        repository.setDateFontScale(progressToScale(dateSizeBar.getProgress()));
         repository.setTimeColor(timeColor);
         repository.setDateColor(dateColor);
@@ -712,6 +827,13 @@ public class SettingsDialog extends BottomSheetDialog {
         repository.setUseNetworkTime(networkTimeSwitch.isChecked());
         repository.setSyncIntervalMinutes(minutesForSyncIntervalId(syncIntervalGroup.getCheckedButtonId()));
         repository.setTimeZoneId(RegionTimeZones.ZONE_IDS[selectedRegionIndex]);
+        repository.setWeatherEnabled(weatherSwitch.isChecked());
+        repository.setManualWeatherLocation(selectedWeatherLocationId, selectedWeatherProvince,
+            selectedWeatherCity, selectedWeatherDistrict);
+        repository.setWeatherLocationMode(manualWeather
+            ? ClockPreferences.WEATHER_LOCATION_MANUAL : ClockPreferences.WEATHER_LOCATION_AUTOMATIC);
+        repository.setWeatherIntervalMinutes(weatherIntervalMinutes(
+            weatherIntervalSpinner.getSelectedItemPosition()));
         listener.onFontSettingsApplied();
 
         if (modeGroup.getCheckedButtonId() == IMAGE_MODE_ID) {

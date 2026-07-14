@@ -7,6 +7,8 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.Uri;
+import android.Manifest;
+import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
 import android.view.View;
@@ -14,12 +16,16 @@ import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
 import android.widget.Toast;
+import android.widget.TextView;
 
 import com.clockmods.background.BackgroundRepository;
+import com.clockmods.background.ClockPreferences;
 import com.clockmods.platform.ExperienceBridge;
 import com.clockmods.ui.ClockView;
 import com.clockmods.ui.SettingsDialog;
 import com.clockmods.ui.StatusBarView;
+import com.clockmods.weather.WeatherController;
+import com.clockmods.weather.WeatherModels.WeatherState;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -28,10 +34,13 @@ import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     private static final int REQUEST_IMAGE = 1001;
+    private static final int REQUEST_LOCATION = 1002;
 
     private ClockView clockView;
     private StatusBarView statusBarView;
     private BackgroundRepository backgroundRepository;
+    private View weatherAttribution;
+    private WeatherController weatherController;
     private final ExecutorService imageExecutor = Executors.newSingleThreadExecutor();
     private boolean timeReceiverRegistered;
     private final BroadcastReceiver timeReceiver = new BroadcastReceiver() {
@@ -51,10 +60,20 @@ public class MainActivity extends Activity {
 
         clockView = findViewById(R.id.clock_view);
         statusBarView = findViewById(R.id.status_bar_view);
+        weatherAttribution = findViewById(R.id.weather_attribution);
         backgroundRepository = new BackgroundRepository(this);
+        weatherController = new WeatherController(this, new WeatherController.Listener() {
+            @Override public void onWeatherState(WeatherState state) { clockView.setWeatherState(state); }
+        });
         clockView.setBackgroundRepository(backgroundRepository);
         statusBarView.setBackgroundRepository(backgroundRepository);
         applyStatusIconVisibility();
+        applyWeatherEnabled();
+        weatherAttribution.setOnClickListener(new View.OnClickListener() {
+            @Override public void onClick(View view) {
+                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.qweather.com")));
+            }
+        });
         clockView.setOnClickListener(new View.OnClickListener() {
             @Override
             public void onClick(View view) {
@@ -70,6 +89,7 @@ public class MainActivity extends Activity {
         clockView.start();
         statusBarView.start();
         registerTimeReceiver();
+        startWeatherIfEnabled();
     }
 
     @Override
@@ -77,12 +97,14 @@ public class MainActivity extends Activity {
         clockView.stop();
         statusBarView.stop();
         unregisterTimeReceiver();
+        weatherController.stop();
         super.onPause();
     }
 
     @Override
     protected void onDestroy() {
         imageExecutor.shutdownNow();
+        weatherController.shutdown();
         super.onDestroy();
     }
 
@@ -121,6 +143,8 @@ public class MainActivity extends Activity {
                 clockView.invalidate();
                 applyStatusIconVisibility();
                 statusBarView.invalidate();
+                applyWeatherEnabled();
+                startWeatherIfEnabled();
             }
 
             @Override
@@ -134,6 +158,42 @@ public class MainActivity extends Activity {
     private void applyStatusIconVisibility() {
         statusBarView.setVisibility(
                 backgroundRepository.isShowStatusIcons() ? View.VISIBLE : View.GONE);
+    }
+
+    private void applyWeatherEnabled() {
+        boolean enabled = backgroundRepository.isWeatherEnabled();
+        weatherAttribution.setVisibility(enabled ? View.VISIBLE : View.GONE);
+        if (!enabled) {
+            weatherController.stop();
+            clockView.setWeatherState(null);
+        }
+    }
+
+    private void startWeatherIfEnabled() {
+        if (!backgroundRepository.isWeatherEnabled()) return;
+        boolean automatic = ClockPreferences.WEATHER_LOCATION_AUTOMATIC.equals(
+            backgroundRepository.getWeatherLocationMode());
+        if (automatic && Build.VERSION.SDK_INT >= 23
+            && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED
+                && checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
+                != PackageManager.PERMISSION_GRANTED) {
+            requestPermissions(new String[] {Manifest.permission.ACCESS_COARSE_LOCATION,
+                    Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION);
+            clockView.setWeatherMessage("等待定位权限…");
+            return;
+        }
+        weatherController.start(backgroundRepository.getWeatherIntervalMinutes());
+    }
+
+    @Override
+    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode != REQUEST_LOCATION) return;
+        boolean granted = false;
+        for (int result : grantResults) if (result == PackageManager.PERMISSION_GRANTED) granted = true;
+        if (granted) weatherController.start(backgroundRepository.getWeatherIntervalMinutes());
+        else clockView.setWeatherMessage("未授予定位权限");
     }
 
     private void launchImagePicker() {
