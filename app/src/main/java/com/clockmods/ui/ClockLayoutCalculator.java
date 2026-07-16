@@ -27,6 +27,16 @@ public final class ClockLayoutCalculator {
         return Math.max(1f, Math.min(widthLimited, heightLimited));
     }
 
+    public static float calculateTimeGroupWidth(float mainWidth, float leftAccessoryWidth,
+            float rightAccessoryWidth) {
+        return mainWidth + leftAccessoryWidth + rightAccessoryWidth;
+    }
+
+    public static float calculateMainCenterOffset(float leftAccessoryWidth,
+            float rightAccessoryWidth) {
+        return (leftAccessoryWidth - rightAccessoryWidth) / 2f;
+    }
+
     public static boolean shouldUseSingleDateLine(boolean landscape, float fullTextWidth, int availableWidth) {
         return landscape && fullTextWidth <= availableWidth * 0.9f;
     }

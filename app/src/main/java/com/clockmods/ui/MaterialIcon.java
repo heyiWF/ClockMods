@@ -1,10 +1,10 @@
 package com.clockmods.ui;
 
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
-import android.graphics.RectF;
 
 /**
  * Holds a single Google Material Symbols glyph (defined on a 960x960 viewport)
@@ -20,6 +20,11 @@ final class MaterialIcon {
     private final Path basePath;
     private final Path scaledPath = new Path();
     private final Matrix matrix = new Matrix();
+        private final Paint iconPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private Bitmap bitmap;
+        private int bitmapSize;
+        private int bitmapColor;
+        private int bitmapAlpha;
 
     MaterialIcon(String pathData) {
         basePath = SvgPath.parse(pathData);
@@ -36,13 +41,25 @@ final class MaterialIcon {
      * @param paint  fill paint (color/alpha/shadow already configured)
      */
     void draw(Canvas canvas, float left, float top, float size, Paint paint) {
-        float scale = size / VIEWPORT;
-        matrix.reset();
-        matrix.setScale(scale, scale);
-        matrix.postTranslate(left, top);
-        scaledPath.reset();
-        basePath.transform(matrix, scaledPath);
-        canvas.drawPath(scaledPath, paint);
+                int targetSize = Math.max(1, (int) Math.ceil(size));
+                int color = paint.getColor();
+                int alpha = paint.getAlpha();
+                if (bitmap == null || bitmapSize != targetSize || bitmapColor != color || bitmapAlpha != alpha) {
+                        bitmap = Bitmap.createBitmap(targetSize, targetSize, Bitmap.Config.ARGB_8888);
+                        Canvas bitmapCanvas = new Canvas(bitmap);
+                        matrix.reset();
+                        matrix.setScale(targetSize / VIEWPORT, targetSize / VIEWPORT);
+                        scaledPath.reset();
+                        basePath.transform(matrix, scaledPath);
+                        iconPaint.setColor(color);
+                        iconPaint.setAlpha(alpha);
+                        iconPaint.setStyle(Paint.Style.FILL);
+                        bitmapCanvas.drawPath(scaledPath, iconPaint);
+                        bitmapSize = targetSize;
+                        bitmapColor = color;
+                        bitmapAlpha = alpha;
+                }
+                canvas.drawBitmap(bitmap, left, top, null);
     }
 
     // --- Battery Android series (fill proportional to level 0..6). ---

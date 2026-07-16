@@ -67,4 +67,14 @@ public class ClockLayoutCalculatorTest {
         Assert.assertEquals(2f, ClockLayoutCalculator.centerCropScale(1000, 500, 1000, 1000), 0.001f);
         Assert.assertEquals(2f, ClockLayoutCalculator.centerCropScale(500, 1000, 1000, 1000), 0.001f);
     }
+
+    @Test
+    public void timeGroupUsesOnlyVisibleAccessoryWidths() {
+        Assert.assertEquals(800f,
+                ClockLayoutCalculator.calculateTimeGroupWidth(600f, 0f, 200f), 0.001f);
+        Assert.assertEquals(-100f,
+                ClockLayoutCalculator.calculateMainCenterOffset(0f, 200f), 0.001f);
+        Assert.assertEquals(75f,
+                ClockLayoutCalculator.calculateMainCenterOffset(150f, 0f), 0.001f);
+    }
 }

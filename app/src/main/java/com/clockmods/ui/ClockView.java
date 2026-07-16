@@ -211,7 +211,7 @@ public class ClockView extends View {
         secondsPaint.setTextSize(0.6f);
         periodPaint.setTextSize(0.3f);
         datePaint.setTextSize(1f);
-        float measuredTimeWidth = stableTextWidth(displayTime.mainText, timePaint);
+        float measuredMainWidth = stableTextWidth(displayTime.mainText, timePaint);
         float leftAccessoryWidth = displayTime.hasPeriod()
             ? smallSecondsGapWidth() + periodPaint.measureText(displayTime.periodText) : 0f;
         float rightAccessoryWidth = 0f;
@@ -219,7 +219,8 @@ public class ClockView extends View {
             rightAccessoryWidth = smallSecondsGapWidth()
                 + stableTextWidth(displayTime.secondsText, secondsPaint);
         }
-        measuredTimeWidth += 2f * Math.max(leftAccessoryWidth, rightAccessoryWidth);
+        float measuredTimeWidth = ClockLayoutCalculator.calculateTimeGroupWidth(
+                measuredMainWidth, leftAccessoryWidth, rightAccessoryWidth);
         float timeSize = ClockLayoutCalculator.calculateWidthBasedTextSize(
             width, height, measuredTimeWidth, timeFontScale, 1f);
         float dateSize = ClockLayoutCalculator.calculateWidthBasedTextSize(
@@ -230,6 +231,8 @@ public class ClockView extends View {
         datePaint.setTextSize(dateSize);
 
         float centerX = width / 2f;
+        float timeCenterX = centerX + ClockLayoutCalculator.calculateMainCenterOffset(
+            leftAccessoryWidth * timeSize, rightAccessoryWidth * timeSize);
         float centerY = height / 2f;
         Paint.FontMetrics timeMetrics = timePaint.getFontMetrics();
         Paint.FontMetrics dateMetrics = datePaint.getFontMetrics();
@@ -239,7 +242,7 @@ public class ClockView extends View {
         float gap = Math.max(portrait ? 32f : 12f, dateSize * gapFactor);
         float dateBaseline = timeBaseline + timeMetrics.ascent - gap - dateMetrics.descent;
 
-        drawAnimatedTime(canvas, displayTime, centerX, timeBaseline);
+        drawAnimatedTime(canvas, displayTime, timeCenterX, timeBaseline);
         drawWeather(canvas, centerX, timeBaseline, dateSize, timeMetrics, gap);
         if (lunarText.length() == 0) {
             applySupportingTypeface(dateText);
