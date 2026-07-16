@@ -138,7 +138,7 @@ public final class WeatherController {
         executor.execute(new Runnable() {
             @Override public void run() {
                 try {
-                    final WeatherDisplayData data = new QWeatherClient(QWeatherConfig.apiHost())
+                    final WeatherDisplayData data = new QWeatherClient(context, QWeatherConfig.apiHost())
                             .fetch(location.getLatitude(), location.getLongitude());
                         repository.save(data, ClockPreferences.WEATHER_LOCATION_AUTOMATIC);
                     handler.post(new Runnable() {
@@ -148,11 +148,12 @@ public final class WeatherController {
                             schedule(intervalMinutes * 60L * 1000L);
                         }
                     });
-                } catch (final Exception ignored) {
+                } catch (final Exception error) {
                     handler.post(new Runnable() {
                         @Override public void run() {
                             if (!running || requestGeneration != generation) return;
-                            listener.onWeatherState(WeatherState.of(Status.NETWORK_ERROR, "天气获取失败"));
+                            listener.onWeatherState(WeatherState.of(Status.NETWORK_ERROR,
+                                    "天气获取失败：" + describeError(error)));
                             schedule(intervalMinutes * 60L * 1000L);
                         }
                     });
@@ -172,7 +173,7 @@ public final class WeatherController {
         executor.execute(new Runnable() {
             @Override public void run() {
                 try {
-                    final WeatherDisplayData data = new QWeatherClient(QWeatherConfig.apiHost())
+                    final WeatherDisplayData data = new QWeatherClient(context, QWeatherConfig.apiHost())
                             .fetchLocation(locationId, city, district);
                     repository.save(data, ClockPreferences.WEATHER_LOCATION_MANUAL);
                     handler.post(new Runnable() {
@@ -182,11 +183,12 @@ public final class WeatherController {
                             schedule(intervalMinutes * 60L * 1000L);
                         }
                     });
-                } catch (final Exception ignored) {
+                } catch (final Exception error) {
                     handler.post(new Runnable() {
                         @Override public void run() {
                             if (!running || requestGeneration != generation) return;
-                            listener.onWeatherState(WeatherState.of(Status.NETWORK_ERROR, "天气获取失败"));
+                            listener.onWeatherState(WeatherState.of(Status.NETWORK_ERROR,
+                                    "天气获取失败：" + describeError(error)));
                             schedule(intervalMinutes * 60L * 1000L);
                         }
                     });
@@ -227,5 +229,11 @@ public final class WeatherController {
         if (first == null) return second;
         if (second == null) return first;
         return first.getTime() >= second.getTime() ? first : second;
+    }
+
+    private static String describeError(Throwable error) {
+        String message = error.getMessage();
+        if (message != null && message.trim().length() > 0) return message.trim();
+        return error.getClass().getSimpleName();
     }
 }

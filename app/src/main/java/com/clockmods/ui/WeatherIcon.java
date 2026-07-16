@@ -1,6 +1,7 @@
 package com.clockmods.ui;
 
 import android.content.Context;
+import android.graphics.Bitmap;
 import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Paint;
@@ -20,6 +21,11 @@ final class WeatherIcon {
     private final Path path;
     private final Matrix matrix = new Matrix();
     private final Path scaled = new Path();
+    private final Paint iconPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private Bitmap bitmap;
+    private int bitmapSize;
+    private int bitmapColor;
+    private int bitmapAlpha;
 
     private WeatherIcon(Path path) { this.path = path; }
 
@@ -50,11 +56,24 @@ final class WeatherIcon {
     }
 
     void draw(Canvas canvas, float left, float top, float size, Paint paint) {
-        matrix.reset();
-        matrix.setScale(size / 16f, size / 16f);
-        matrix.postTranslate(left, top);
-        scaled.reset();
-        path.transform(matrix, scaled);
-        canvas.drawPath(scaled, paint);
+        int targetSize = Math.max(1, (int) Math.ceil(size));
+        int color = paint.getColor();
+        int alpha = paint.getAlpha();
+        if (bitmap == null || bitmapSize != targetSize || bitmapColor != color || bitmapAlpha != alpha) {
+            bitmap = Bitmap.createBitmap(targetSize, targetSize, Bitmap.Config.ARGB_8888);
+            Canvas bitmapCanvas = new Canvas(bitmap);
+            matrix.reset();
+            matrix.setScale(targetSize / 16f, targetSize / 16f);
+            scaled.reset();
+            path.transform(matrix, scaled);
+            iconPaint.setColor(color);
+            iconPaint.setAlpha(alpha);
+            iconPaint.setStyle(Paint.Style.FILL);
+            bitmapCanvas.drawPath(scaled, iconPaint);
+            bitmapSize = targetSize;
+            bitmapColor = color;
+            bitmapAlpha = alpha;
+        }
+        canvas.drawBitmap(bitmap, left, top, null);
     }
 }

@@ -52,15 +52,6 @@ public class SettingsDialog extends BottomSheetDialog {
     private static final int COLOR_MODE_ID = 10001;
     private static final int IMAGE_MODE_ID = 10002;
     private static final int SEEK_MAX = 100;
-    private static final int[] BACKGROUND_COLORS = {
-            0xFF101418, 0xFF334155, 0xFF1D4ED8, 0xFF0F766E,
-            0xFF3F6212, 0xFF9F1239, 0xFFB45309, 0xFFF8FAFC
-    };
-    private static final int[] TEXT_COLORS = {
-            0xFFFFFFFF, 0xFFF8FAFC, 0xFFFACC15, 0xFF38BDF8,
-            0xFF34D399, 0xFFF472B6, 0xFFF87171, 0xFF111827
-    };
-
     private final BackgroundRepository repository;
     private final Listener listener;
     private final ColorPickerView backgroundPicker;
@@ -83,6 +74,7 @@ public class SettingsDialog extends BottomSheetDialog {
     private final MaterialSwitch blinkColonSwitch;
     private final MaterialSwitch animateTimeChangesSwitch;
     private final MaterialSwitch boldTextSwitch;
+    private final Spinner fontFamilySpinner;
     private final MaterialSwitch showSecondsSwitch;
     private final MaterialSwitch smallSecondsSwitch;
     private final MaterialSwitch showLunarSwitch;
@@ -124,6 +116,8 @@ public class SettingsDialog extends BottomSheetDialog {
         this.selectedWeatherProvince = repository.getWeatherProvince();
         this.selectedWeatherCity = repository.getWeatherCity();
         this.selectedWeatherDistrict = repository.getWeatherDistrict();
+        int[] backgroundColors = createBackgroundColors(context);
+        int[] textColors = createTextColors(context);
         BottomSheetBehavior<?> behavior = getBehavior();
         behavior.setDraggable(false);
         behavior.setHideable(false);
@@ -197,13 +191,12 @@ public class SettingsDialog extends BottomSheetDialog {
             setSwatchColor(backgroundPreview, color);
             modeGroup.check(COLOR_MODE_ID);
         });
-        colorControlsLayout.addView(backgroundPicker, topMargin(matchWrap(dp(200)), dp(12)));
-
-        colorControlsLayout.addView(createColorSwatches(context, BACKGROUND_COLORS, color -> {
+        colorControlsLayout.addView(createColorSwatches(context, backgroundColors, color -> {
             backgroundPicker.setColor(color);
             setSwatchColor(backgroundPreview, color);
             modeGroup.check(COLOR_MODE_ID);
-        }), topMargin(matchWrap(dp(52)), dp(8)));
+        }), topMargin(matchWrap(dp(52)), dp(12)));
+        addAdvancedPicker(context, colorControlsLayout, backgroundPicker);
         styleContent.addView(colorControlsLayout, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
 
         LinearLayout imageControlsLayout = new LinearLayout(context);
@@ -261,6 +254,10 @@ public class SettingsDialog extends BottomSheetDialog {
         styleContent.addView(createSectionLabel(context, R.string.font_settings_group),
                 topMargin(sectionLabelParams(), dp(20)));
 
+        styleContent.addView(createSubLabel(context, R.string.font_family), subLabelParams());
+        fontFamilySpinner = createFontFamilySpinner(context, repository.getFontFamily());
+        styleContent.addView(fontFamilySpinner, topMargin(matchWrap(dp(48)), dp(4)));
+
         // Time font
         styleContent.addView(createSubLabel(context, R.string.time_font_settings), subLabelParams());
         timeSizeValue = new TextView(context);
@@ -271,11 +268,11 @@ public class SettingsDialog extends BottomSheetDialog {
         timeColorPicker = new ColorPickerView(context);
         timeColorPicker.setColor(timeColor);
         timeColorPicker.setOnColorChangedListener(color -> timeColor = color);
-        styleContent.addView(timeColorPicker, topMargin(matchWrap(dp(180)), dp(4)));
-        styleContent.addView(createColorSwatches(context, TEXT_COLORS, color -> {
+        styleContent.addView(createColorSwatches(context, textColors, color -> {
             timeColor = color;
             timeColorPicker.setColor(color);
-        }), topMargin(matchWrap(dp(52)), dp(8)));
+        }), topMargin(matchWrap(dp(52)), dp(4)));
+        addAdvancedPicker(context, styleContent, timeColorPicker);
 
         blinkColonSwitch = createStyleSwitch(context, R.string.blink_colon, repository.isBlinkColon());
         styleContent.addView(blinkColonSwitch, topMargin(matchWrap(dp(48)), dp(12)));
@@ -305,11 +302,11 @@ public class SettingsDialog extends BottomSheetDialog {
         dateColorPicker = new ColorPickerView(context);
         dateColorPicker.setColor(dateColor);
         dateColorPicker.setOnColorChangedListener(color -> dateColor = color);
-        styleContent.addView(dateColorPicker, topMargin(matchWrap(dp(180)), dp(4)));
-        styleContent.addView(createColorSwatches(context, TEXT_COLORS, color -> {
+        styleContent.addView(createColorSwatches(context, textColors, color -> {
             dateColor = color;
             dateColorPicker.setColor(color);
-        }), topMargin(matchWrap(dp(52)), dp(8)));
+        }), topMargin(matchWrap(dp(52)), dp(4)));
+        addAdvancedPicker(context, styleContent, dateColorPicker);
 
         // Status bar section
         styleContent.addView(createSectionLabel(context, R.string.status_settings_group),
@@ -696,6 +693,37 @@ public class SettingsDialog extends BottomSheetDialog {
         return scroll;
     }
 
+    private void addAdvancedPicker(Context context, LinearLayout parent, ColorPickerView picker) {
+        MaterialSwitch advancedSwitch = createStyleSwitch(context, R.string.advanced, false);
+        picker.setVisibility(View.GONE);
+        advancedSwitch.setOnCheckedChangeListener((button, checked) ->
+                picker.setVisibility(checked ? View.VISIBLE : View.GONE));
+        parent.addView(advancedSwitch, topMargin(matchWrap(dp(48)), dp(4)));
+        parent.addView(picker, matchWrap(dp(128)));
+    }
+
+    private static int[] createBackgroundColors(Context context) {
+        return new int[] {
+                themeColor(context, androidx.appcompat.R.attr.colorPrimary, 0xFF1D4ED8),
+                themeColor(context, com.google.android.material.R.attr.colorSecondary, 0xFF0F766E),
+                themeColor(context, com.google.android.material.R.attr.colorTertiary, 0xFF9F1239),
+                0xFF101418, 0xFF334155, 0xFF3F6212, 0xFFB45309, 0xFFF8FAFC
+        };
+    }
+
+    private static int[] createTextColors(Context context) {
+        return new int[] {
+                themeColor(context, androidx.appcompat.R.attr.colorPrimary, 0xFF38BDF8),
+                themeColor(context, com.google.android.material.R.attr.colorSecondary, 0xFF34D399),
+                themeColor(context, com.google.android.material.R.attr.colorTertiary, 0xFFF472B6),
+                0xFFFFFFFF, 0xFFF8FAFC, 0xFFFACC15, 0xFFF87171, 0xFF111827
+        };
+    }
+
+    private static int themeColor(Context context, int attribute, int fallback) {
+        return MaterialColors.getColor(context, attribute, fallback);
+    }
+
     private static int syncIntervalIdForMinutes(int minutes) {
         switch (minutes) {
             case 30:
@@ -779,6 +807,7 @@ public class SettingsDialog extends BottomSheetDialog {
         blinkColonSwitch.setChecked(ClockPreferences.DEFAULT_BLINK_COLON);
         animateTimeChangesSwitch.setChecked(ClockPreferences.DEFAULT_ANIMATE_TIME_CHANGES);
         boldTextSwitch.setChecked(ClockPreferences.DEFAULT_BOLD_TEXT);
+        fontFamilySpinner.setSelection(0);
         showSecondsSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_SECONDS);
         smallSecondsSwitch.setChecked(ClockPreferences.DEFAULT_SMALL_SECONDS);
         showLunarSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_LUNAR);
@@ -815,6 +844,7 @@ public class SettingsDialog extends BottomSheetDialog {
         repository.setBlinkColon(blinkColonSwitch.isChecked());
         repository.setAnimateTimeChanges(animateTimeChangesSwitch.isChecked());
         repository.setBoldText(boldTextSwitch.isChecked());
+        repository.setFontFamily(fontFamilyForIndex(fontFamilySpinner.getSelectedItemPosition()));
         repository.setShowSeconds(showSecondsSwitch.isChecked());
         repository.setSmallSeconds(showSecondsSwitch.isChecked() && smallSecondsSwitch.isChecked());
         repository.setShowLunar(showLunarSwitch.isChecked());
@@ -860,6 +890,26 @@ public class SettingsDialog extends BottomSheetDialog {
 
     private static int progressToPercent(int progress) {
         return Math.round(progressToScale(progress) * 100f);
+    }
+
+    private Spinner createFontFamilySpinner(Context context, String family) {
+        Spinner spinner = new Spinner(context);
+        spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item,
+                new String[] {context.getString(R.string.font_system), "Roboto", "Google Sans"}));
+        spinner.setSelection(fontFamilyIndex(family));
+        return spinner;
+    }
+
+    private static int fontFamilyIndex(String family) {
+        if (ClockPreferences.FONT_ROBOTO.equals(family)) return 1;
+        if (ClockPreferences.FONT_GOOGLE_SANS.equals(family)) return 2;
+        return 0;
+    }
+
+    private static String fontFamilyForIndex(int index) {
+        if (index == 1) return ClockPreferences.FONT_ROBOTO;
+        if (index == 2) return ClockPreferences.FONT_GOOGLE_SANS;
+        return ClockPreferences.FONT_SYSTEM;
     }
 
     private LinearLayout.LayoutParams weightedButtonParams() {

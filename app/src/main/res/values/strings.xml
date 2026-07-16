@@ -14,8 +14,11 @@
     <string name="image_error">无法读取所选图片</string>
     <string name="select_image_first">请先选择一张图片</string>
     <string name="use_color">使用此颜色</string>
+    <string name="advanced">高级</string>
     <string name="background_settings_group">背景</string>
     <string name="font_settings_group">字体</string>
+    <string name="font_family">字体系列</string>
+    <string name="font_system">系统字体</string>
     <string name="time_font_settings">时间字体</string>
     <string name="date_font_settings">日期字体</string>
     <string name="font_size">字体大小</string>

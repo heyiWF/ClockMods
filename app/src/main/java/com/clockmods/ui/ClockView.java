@@ -34,8 +34,6 @@ public class ClockView extends View {
     private static final float SMALL_SECONDS_GAP_SPACE_FRACTION = 0.35f;
     private static final int CLOCK_SHADOW_ALPHA = 0x66;
     private static final int DIM_BACKGROUND_OVERLAY_COLOR = 0x80000000;
-        private static final Typeface TIME_BLACK_TYPEFACE =
-            Typeface.create("sans-serif-black", Typeface.NORMAL);
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable ticker = new Runnable() {
@@ -207,18 +205,19 @@ public class ClockView extends View {
         // actually spans the full line so it fits the requested screen-width %.
         boolean singleDateLine = lunarText.length() == 0 || width > height;
         String widestDateText = singleDateLine ? fullDate : longerOf(dateText, lunarText);
+        applySupportingTypeface(widestDateText);
 
         timePaint.setTextSize(1f);
         secondsPaint.setTextSize(0.6f);
         periodPaint.setTextSize(0.3f);
         datePaint.setTextSize(1f);
-        float measuredTimeWidth = timePaint.measureText(displayTime.mainText);
+        float measuredTimeWidth = stableTextWidth(displayTime.mainText, timePaint);
         float leftAccessoryWidth = displayTime.hasPeriod()
             ? smallSecondsGapWidth() + periodPaint.measureText(displayTime.periodText) : 0f;
         float rightAccessoryWidth = 0f;
         if (displayTime.hasSmallSeconds()) {
             rightAccessoryWidth = smallSecondsGapWidth()
-                + secondsPaint.measureText(displayTime.secondsText);
+                + stableTextWidth(displayTime.secondsText, secondsPaint);
         }
         measuredTimeWidth += 2f * Math.max(leftAccessoryWidth, rightAccessoryWidth);
         float timeSize = ClockLayoutCalculator.calculateWidthBasedTextSize(
@@ -243,14 +242,18 @@ public class ClockView extends View {
         drawAnimatedTime(canvas, displayTime, centerX, timeBaseline);
         drawWeather(canvas, centerX, timeBaseline, dateSize, timeMetrics, gap);
         if (lunarText.length() == 0) {
+            applySupportingTypeface(dateText);
             canvas.drawText(dateText, centerX, dateBaseline, datePaint);
             return;
         }
 
         if (singleDateLine) {
+            applySupportingTypeface(fullDate);
             canvas.drawText(fullDate, centerX, dateBaseline, datePaint);
         } else {
+            applySupportingTypeface(dateText);
             canvas.drawText(dateText, centerX, dateBaseline, datePaint);
+            applySupportingTypeface(lunarText);
             canvas.drawText(lunarText, centerX, dateBaseline - dateMetrics.ascent + gap * 0.5f, datePaint);
         }
     }
@@ -270,6 +273,8 @@ public class ClockView extends View {
         }
         if (text == null || text.length() == 0) return;
         float originalSize = datePaint.getTextSize();
+        Typeface originalTypeface = datePaint.getTypeface();
+        applySupportingTypeface(text);
         float iconSize = dateSize * 0.95f;
         float iconGap = dateSize * 0.25f;
         float measured = icon == null ? datePaint.measureText(text)
@@ -298,6 +303,7 @@ public class ClockView extends View {
             datePaint.setTextAlign(Paint.Align.CENTER);
         }
         datePaint.setTextSize(originalSize);
+        datePaint.setTypeface(originalTypeface);
     }
 
     private void applyTextStyles() {
@@ -313,11 +319,13 @@ public class ClockView extends View {
         blinkColon = backgroundRepository.isBlinkColon();
         animateTimeChanges = backgroundRepository.isAnimateTimeChanges();
         boldText = backgroundRepository.isBoldText();
-        Typeface timeTypeface = boldText ? TIME_BLACK_TYPEFACE : Typeface.DEFAULT;
+        String fontFamily = backgroundRepository.getFontFamily();
+        Typeface timeTypeface = ClockTypefaceResolver.resolveTime(getContext(), fontFamily, boldText);
         timePaint.setTypeface(timeTypeface);
         secondsPaint.setTypeface(timeTypeface);
         periodPaint.setTypeface(timeTypeface);
-        datePaint.setTypeface(boldText ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT);
+        datePaint.setTypeface(ClockTypefaceResolver.resolveSupporting(
+            getContext(), fontFamily, boldText, true));
         showSeconds = backgroundRepository.isShowSeconds();
         showLunar = backgroundRepository.isShowLunar();
         smallSeconds = backgroundRepository.isSmallSeconds();
@@ -325,6 +333,28 @@ public class ClockView extends View {
         clockUseEnglish = backgroundRepository.isClockUseEnglish();
         networkTimeProvider.setEnabled(backgroundRepository.isUseNetworkTime());
         networkTimeProvider.setSyncIntervalMinutes(backgroundRepository.getSyncIntervalMinutes());
+    }
+
+    private void applySupportingTypeface(String text) {
+        datePaint.setTypeface(ClockTypefaceResolver.resolveSupporting(
+                getContext(), backgroundRepository.getFontFamily(), boldText, containsChinese(text)));
+    }
+
+    static boolean containsChinese(String text) {
+        if (text == null) {
+            return false;
+        }
+        for (int offset = 0; offset < text.length();) {
+            int codePoint = text.codePointAt(offset);
+            Character.UnicodeBlock block = Character.UnicodeBlock.of(codePoint);
+            if (block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS
+                    || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A
+                    || block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS) {
+                return true;
+            }
+            offset += Character.charCount(codePoint);
+        }
+        return false;
     }
 
     private java.util.TimeZone resolveTimeZone() {
@@ -410,7 +440,7 @@ public class ClockView extends View {
             return;
         }
 
-        float mainWidth = timePaint.measureText(newTime.mainText);
+        float mainWidth = stableTextWidth(newTime.mainText, timePaint);
         float gapWidth = smallSecondsGapWidth();
         drawTextTransition(canvas, oldTime.mainText, newTime.mainText,
             centerX, mainBaseline, timePaint, progress,
@@ -423,7 +453,7 @@ public class ClockView extends View {
                 periodPaint, progress, true, true);
         }
         if (newTime.hasSmallSeconds()) {
-            float secondsWidth = secondsPaint.measureText(newTime.secondsText);
+            float secondsWidth = stableTextWidth(newTime.secondsText, secondsPaint);
             drawTextTransition(canvas, oldTime.secondsText, newTime.secondsText,
                     centerX + mainWidth / 2f + gapWidth + secondsWidth / 2f,
                 bottomAlignedBaseline(mainBaseline, timePaint, secondsPaint),
@@ -435,11 +465,14 @@ public class ClockView extends View {
             float centerX, float baseline, Paint paint, float progress,
             boolean oldColonsVisible, boolean newColonsVisible) {
         int originalAlpha = paint.getAlpha();
-        float cursor = centerX - paint.measureText(newText) / 2f;
+        float digitWidth = widestDigitWidth(paint);
+        float cursor = centerX - stableTextWidth(newText, paint, digitWidth) / 2f;
         for (int index = 0; index < newText.length(); index++) {
             String newCharacter = newText.substring(index, index + 1);
             String oldCharacter = oldText.substring(index, index + 1);
-            float characterWidth = paint.measureText(newCharacter);
+            float characterWidth = Math.max(
+                stableCharacterWidth(newCharacter, paint, digitWidth),
+                stableCharacterWidth(oldCharacter, paint, digitWidth));
             float characterCenter = cursor + characterWidth / 2f;
             boolean colonVisibilityChanged = ":".equals(newCharacter)
                     && oldColonsVisible != newColonsVisible;
@@ -488,7 +521,7 @@ public class ClockView extends View {
             return;
         }
 
-        float mainWidth = timePaint.measureText(displayTime.mainText);
+        float mainWidth = stableTextWidth(displayTime.mainText, timePaint);
         float gapWidth = smallSecondsGapWidth();
         drawMainTimeText(canvas, displayTime.mainText, centerX, mainBaseline,
             displayTime.colonVisible);
@@ -499,8 +532,8 @@ public class ClockView extends View {
                 bottomAlignedBaseline(mainBaseline, timePaint, periodPaint), periodPaint);
         }
         if (displayTime.hasSmallSeconds()) {
-            float secondsWidth = secondsPaint.measureText(displayTime.secondsText);
-            canvas.drawText(displayTime.secondsText,
+            float secondsWidth = stableTextWidth(displayTime.secondsText, secondsPaint);
+            drawStableText(canvas, displayTime.secondsText,
                 centerX + mainWidth / 2f + gapWidth + secondsWidth / 2f,
                 bottomAlignedBaseline(mainBaseline, timePaint, secondsPaint), secondsPaint);
         }
@@ -511,16 +544,56 @@ public class ClockView extends View {
 
     private void drawMainTimeText(Canvas canvas, String text, float centerX, float baseline,
             boolean colonsVisible) {
-        float cursor = centerX - timePaint.measureText(text) / 2f;
+        float digitWidth = widestDigitWidth(timePaint);
+        float cursor = centerX - stableTextWidth(text, timePaint, digitWidth) / 2f;
         for (int index = 0; index < text.length(); index++) {
             String character = text.substring(index, index + 1);
-            float characterWidth = timePaint.measureText(character);
+            float characterWidth = stableCharacterWidth(character, timePaint, digitWidth);
             if (colonsVisible || !":".equals(character)) {
                 canvas.drawText(character, cursor + characterWidth / 2f,
                     alignedCharacterBaseline(character, baseline, timePaint), timePaint);
             }
             cursor += characterWidth;
         }
+    }
+
+    private static void drawStableText(Canvas canvas, String text, float centerX,
+            float baseline, Paint paint) {
+        float digitWidth = widestDigitWidth(paint);
+        float cursor = centerX - stableTextWidth(text, paint, digitWidth) / 2f;
+        for (int index = 0; index < text.length(); index++) {
+            String character = text.substring(index, index + 1);
+            float characterWidth = stableCharacterWidth(character, paint, digitWidth);
+            canvas.drawText(character, cursor + characterWidth / 2f, baseline, paint);
+            cursor += characterWidth;
+        }
+    }
+
+    private static float stableTextWidth(String text, Paint paint) {
+        return stableTextWidth(text, paint, widestDigitWidth(paint));
+    }
+
+    private static float stableTextWidth(String text, Paint paint, float digitWidth) {
+        float width = 0f;
+        for (int index = 0; index < text.length(); index++) {
+            width += stableCharacterWidth(text.substring(index, index + 1), paint, digitWidth);
+        }
+        return width;
+    }
+
+    private static float stableCharacterWidth(String character, Paint paint, float digitWidth) {
+        if (character.length() != 1 || character.charAt(0) < '0' || character.charAt(0) > '9') {
+            return paint.measureText(character);
+        }
+        return digitWidth;
+    }
+
+    private static float widestDigitWidth(Paint paint) {
+        float widestDigit = 0f;
+        for (char digit = '0'; digit <= '9'; digit++) {
+            widestDigit = Math.max(widestDigit, paint.measureText(String.valueOf(digit)));
+        }
+        return widestDigit;
     }
 
     private float alignedCharacterBaseline(String character, float baseline, Paint paint) {

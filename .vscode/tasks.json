@@ -1,0 +1,37 @@
+{
+	"version": "2.0.0",
+	"tasks": [
+		{
+			"label": "Assemble compat debug",
+			"type": "shell",
+			"command": ".\\gradlew.bat",
+			"args": [
+				"--stop",
+				";",
+				"$env:JAVA_HOME='C:\\Program Files\\Android\\Android Studio\\jbr'",
+				";",
+				".\\gradlew.bat",
+				"--no-daemon",
+				"--console=plain",
+				"--rerun-tasks",
+				":app:assembleCompatDebug"
+			],
+			"isBackground": false,
+			"problemMatcher": [
+				"$javac"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Package fixed compat APK",
+			"type": "shell",
+			"command": "set \"JAVA_HOME=C:\\Program Files\\Android\\Android Studio\\jbr\" & call gradlew.bat --no-daemon --console=plain :app:assembleCompatDebug",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [
+				"$javac"
+			],
+			"group": "build"
+		}
+	]
+}

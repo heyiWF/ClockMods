@@ -41,7 +41,7 @@ public class ColorPickerView extends View {
         markerPaint.setStyle(Paint.Style.STROKE);
         markerPaint.setStrokeWidth(dp(2));
         markerPaint.setColor(Color.WHITE);
-        setMinimumHeight((int) dp(220));
+        setMinimumHeight((int) dp(128));
     }
 
     public void setColor(int color) {

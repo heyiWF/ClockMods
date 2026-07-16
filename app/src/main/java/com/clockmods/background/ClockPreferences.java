@@ -6,6 +6,9 @@ import android.content.SharedPreferences;
 public class ClockPreferences {
     public static final String MODE_COLOR = "color";
     public static final String MODE_IMAGE = "image";
+    public static final String FONT_SYSTEM = "system";
+    public static final String FONT_ROBOTO = "roboto";
+    public static final String FONT_GOOGLE_SANS = "google_sans";
 
     private static final String PREFS_NAME = "clock_prefs";
     private static final String KEY_BACKGROUND_MODE = "background_mode";
@@ -22,6 +25,7 @@ public class ClockPreferences {
     private static final String KEY_BLINK_COLON = "blink_colon";
     private static final String KEY_ANIMATE_TIME_CHANGES = "animate_time_changes";
     private static final String KEY_BOLD_TEXT = "bold_text";
+    private static final String KEY_FONT_FAMILY = "font_family";
     private static final String KEY_SHOW_SECONDS = "show_seconds";
     private static final String KEY_SHOW_LUNAR = "show_lunar";
     private static final String KEY_SMALL_SECONDS = "small_seconds";
@@ -55,6 +59,7 @@ public class ClockPreferences {
     public static final boolean DEFAULT_BLINK_COLON = false;
     public static final boolean DEFAULT_ANIMATE_TIME_CHANGES = true;
     public static final boolean DEFAULT_BOLD_TEXT = false;
+    public static final String DEFAULT_FONT_FAMILY = FONT_SYSTEM;
     public static final boolean DEFAULT_SHOW_SECONDS = true;
     public static final boolean DEFAULT_SHOW_LUNAR = true;
     public static final boolean DEFAULT_SMALL_SECONDS = false;
@@ -197,6 +202,21 @@ public class ClockPreferences {
         preferences.edit().putBoolean(KEY_BOLD_TEXT, boldText).apply();
     }
 
+    public String getFontFamily() {
+        return normalizeFontFamily(preferences.getString(KEY_FONT_FAMILY, DEFAULT_FONT_FAMILY));
+    }
+
+    public void setFontFamily(String fontFamily) {
+        preferences.edit().putString(KEY_FONT_FAMILY, normalizeFontFamily(fontFamily)).apply();
+    }
+
+    public static String normalizeFontFamily(String fontFamily) {
+        if (FONT_ROBOTO.equals(fontFamily) || FONT_GOOGLE_SANS.equals(fontFamily)) {
+            return fontFamily;
+        }
+        return FONT_SYSTEM;
+    }
+
     public boolean isShowSeconds() {
         return preferences.getBoolean(KEY_SHOW_SECONDS, DEFAULT_SHOW_SECONDS);
     }
@@ -328,6 +348,7 @@ public class ClockPreferences {
                 .putBoolean(KEY_BLINK_COLON, DEFAULT_BLINK_COLON)
                 .putBoolean(KEY_ANIMATE_TIME_CHANGES, DEFAULT_ANIMATE_TIME_CHANGES)
                 .putBoolean(KEY_BOLD_TEXT, DEFAULT_BOLD_TEXT)
+                .putString(KEY_FONT_FAMILY, DEFAULT_FONT_FAMILY)
                 .putBoolean(KEY_SHOW_SECONDS, DEFAULT_SHOW_SECONDS)
                 .putBoolean(KEY_SHOW_LUNAR, DEFAULT_SHOW_LUNAR)
                 .putBoolean(KEY_SMALL_SECONDS, DEFAULT_SMALL_SECONDS)

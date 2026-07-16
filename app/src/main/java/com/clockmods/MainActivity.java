@@ -11,6 +11,8 @@ import android.Manifest;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
+import android.view.GestureDetector;
+import android.view.MotionEvent;
 import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
@@ -74,12 +76,21 @@ public class MainActivity extends Activity {
                 startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.qweather.com")));
             }
         });
-        clockView.setOnClickListener(new View.OnClickListener() {
+        GestureDetector settingsGestureDetector = new GestureDetector(this,
+                new GestureDetector.SimpleOnGestureListener() {
             @Override
-            public void onClick(View view) {
+            public boolean onDown(MotionEvent event) {
+                return true;
+            }
+
+            @Override
+            public boolean onDoubleTap(MotionEvent event) {
                 showSettings();
+                return true;
             }
         });
+        clockView.setOnTouchListener((view, event) ->
+                settingsGestureDetector.onTouchEvent(event));
     }
 
     @Override
@@ -207,7 +218,10 @@ public class MainActivity extends Activity {
                 boolean success = false;
                 try (InputStream inputStream = getContentResolver().openInputStream(uri)) {
                     if (inputStream != null) {
-                        backgroundRepository.saveImage(inputStream);
+                        int displayLongSide = Math.max(
+                            getResources().getDisplayMetrics().widthPixels,
+                            getResources().getDisplayMetrics().heightPixels);
+                        backgroundRepository.saveImage(inputStream, displayLongSide);
                         success = true;
                     }
                 } catch (IOException | SecurityException ignored) {

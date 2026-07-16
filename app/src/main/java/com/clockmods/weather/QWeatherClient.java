@@ -1,5 +1,7 @@
 package com.clockmods.weather;
 
+import android.content.Context;
+
 import org.json.JSONArray;
 import org.json.JSONObject;
 
@@ -11,15 +13,19 @@ import java.net.HttpURLConnection;
 import java.net.URL;
 import java.util.Locale;
 
+import javax.net.ssl.HttpsURLConnection;
+
 import static com.clockmods.weather.WeatherModels.WeatherDisplayData;
 
 public final class QWeatherClient {
     private final String host;
     private final int timeoutMs;
+    private final TlsSocketFactory socketFactory;
 
-    public QWeatherClient(String host) { this(host, 15000); }
-    public QWeatherClient(String host, int timeoutMs) {
+    public QWeatherClient(Context context, String host) { this(context, host, 15000); }
+    public QWeatherClient(Context context, String host, int timeoutMs) {
         this.host = host; this.timeoutMs = timeoutMs;
+        this.socketFactory = TlsSocketFactory.create(context.getApplicationContext());
     }
 
     public WeatherDisplayData fetch(double latitude, double longitude) throws Exception {
@@ -52,6 +58,9 @@ public final class QWeatherClient {
     private JSONObject request(String path) throws Exception {
         HttpURLConnection connection = (HttpURLConnection) new URL("https://" + host + path).openConnection();
         try {
+            if (connection instanceof HttpsURLConnection && socketFactory != null) {
+                ((HttpsURLConnection) connection).setSSLSocketFactory(socketFactory);
+            }
             connection.setRequestMethod("GET");
             connection.setConnectTimeout(timeoutMs);
             connection.setReadTimeout(timeoutMs);

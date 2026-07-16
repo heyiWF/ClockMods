@@ -2,8 +2,11 @@ package com.clockmods.calendar;
 
 import java.util.Calendar;
 import java.util.GregorianCalendar;
+import java.util.TimeZone;
 
 public final class LunarCalendar {
+    private static final long MILLIS_PER_DAY = 24L * 60L * 60L * 1000L;
+    private static final TimeZone UTC = TimeZone.getTimeZone("UTC");
     private static final long[] LUNAR_INFO = new long[] {
             0x04bd8, 0x04ae0, 0x0a570, 0x054d5, 0x0d260, 0x0d950, 0x16554, 0x056a0, 0x09ad0, 0x055d2,
             0x04ae0, 0x0a5b6, 0x0a4d0, 0x0d250, 0x1d255, 0x0b540, 0x0d6a0, 0x0ada2, 0x095b0, 0x14977,
@@ -49,8 +52,9 @@ public final class LunarCalendar {
             return null;
         }
 
-        Calendar baseDate = new GregorianCalendar(1900, Calendar.JANUARY, 31);
-        long offset = (solar.getTimeInMillis() - baseDate.getTimeInMillis()) / 86400000L;
+        long offset = utcDateMillis(year, solar.get(Calendar.MONTH), solar.get(Calendar.DAY_OF_MONTH))
+                - utcDateMillis(1900, Calendar.JANUARY, 31);
+        offset /= MILLIS_PER_DAY;
 
         int lunarYear;
         for (lunarYear = 1900; lunarYear < 2051 && offset > 0; lunarYear++) {
@@ -85,6 +89,13 @@ public final class LunarCalendar {
         }
 
         return new LunarDate(lunarYear, lunarMonth, (int) offset + 1, leap);
+    }
+
+    private static long utcDateMillis(int year, int month, int dayOfMonth) {
+        Calendar date = new GregorianCalendar(UTC);
+        date.clear();
+        date.set(year, month, dayOfMonth);
+        return date.getTimeInMillis();
     }
 
     private static int yearDays(int year) {

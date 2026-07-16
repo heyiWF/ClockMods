@@ -138,6 +138,14 @@ public class BackgroundRepository {
         preferences.setBoldText(boldText);
     }
 
+    public String getFontFamily() {
+        return preferences.getFontFamily();
+    }
+
+    public void setFontFamily(String fontFamily) {
+        preferences.setFontFamily(fontFamily);
+    }
+
     public boolean isShowSeconds() {
         return preferences.isShowSeconds();
     }
@@ -231,11 +239,12 @@ public class BackgroundRepository {
         }
     }
 
-    public void saveImage(InputStream inputStream) throws IOException {
+    public void saveImage(InputStream inputStream, int displayLongSide) throws IOException {
         File tempFile = new File(appContext.getFilesDir(), TEMP_FILE_NAME);
         File imageFile = getImageFile();
         File backupFile = new File(appContext.getFilesDir(), BACKUP_FILE_NAME);
         copyToFile(inputStream, tempFile);
+        compressForDisplay(tempFile, displayLongSide);
 
         if (backupFile.exists() && !backupFile.delete()) {
             tempFile.delete();
@@ -298,6 +307,74 @@ public class BackgroundRepository {
             sampleSize *= 2;
         }
         return sampleSize;
+    }
+
+    static int calculateCompressedShortSide(int sourceWidth, int sourceHeight, int displayLongSide) {
+        if (sourceWidth <= 0 || sourceHeight <= 0 || displayLongSide <= 0) {
+            return 0;
+        }
+        int sourceShortSide = Math.min(sourceWidth, sourceHeight);
+        return Math.min(sourceShortSide, displayLongSide);
+    }
+
+    private static void compressForDisplay(File file, int displayLongSide) throws IOException {
+        if (displayLongSide <= 0) {
+            return;
+        }
+        BitmapFactory.Options bounds = new BitmapFactory.Options();
+        bounds.inJustDecodeBounds = true;
+        decodeFile(file, bounds);
+        if (bounds.outWidth <= 0 || bounds.outHeight <= 0) {
+            throw new IOException("Unsupported background image");
+        }
+
+        int rotation = readRotation(file.getAbsolutePath());
+        int normalizedWidth = rotation == 90 || rotation == 270 ? bounds.outHeight : bounds.outWidth;
+        int normalizedHeight = rotation == 90 || rotation == 270 ? bounds.outWidth : bounds.outHeight;
+        int targetShortSide = calculateCompressedShortSide(
+                normalizedWidth, normalizedHeight, displayLongSide);
+        if (targetShortSide <= 0 || Math.min(normalizedWidth, normalizedHeight) <= targetShortSide) {
+            return;
+        }
+
+        float scale = targetShortSide / (float) Math.min(normalizedWidth, normalizedHeight);
+        int targetWidth = Math.max(1, Math.round(normalizedWidth * scale));
+        int targetHeight = Math.max(1, Math.round(normalizedHeight * scale));
+        BitmapFactory.Options options = new BitmapFactory.Options();
+        options.inSampleSize = calculateInSampleSize(
+                bounds.outWidth, bounds.outHeight,
+                rotation == 90 || rotation == 270 ? targetHeight : targetWidth,
+                rotation == 90 || rotation == 270 ? targetWidth : targetHeight);
+        options.inPreferredConfig = Bitmap.Config.ARGB_8888;
+        Bitmap bitmap = decodeFile(file, options);
+        if (bitmap == null) {
+            throw new IOException("Unable to decode background image");
+        }
+        try {
+            if (rotation != 0) {
+                Matrix matrix = new Matrix();
+                matrix.postRotate(rotation);
+                Bitmap rotated = Bitmap.createBitmap(
+                        bitmap, 0, 0, bitmap.getWidth(), bitmap.getHeight(), matrix, true);
+                if (rotated != bitmap) {
+                    bitmap.recycle();
+                    bitmap = rotated;
+                }
+            }
+            Bitmap scaled = Bitmap.createScaledBitmap(bitmap, targetWidth, targetHeight, true);
+            if (scaled != bitmap) {
+                bitmap.recycle();
+                bitmap = scaled;
+            }
+            try (OutputStream outputStream = new FileOutputStream(file, false)) {
+                if (!bitmap.compress(Bitmap.CompressFormat.JPEG, 90, outputStream)) {
+                    throw new IOException("Unable to compress background image");
+                }
+                outputStream.flush();
+            }
+        } finally {
+            bitmap.recycle();
+        }
     }
 
     private File getImageFile() {

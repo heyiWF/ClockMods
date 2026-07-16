@@ -50,6 +50,11 @@ public class SettingsDialog extends Dialog {
 
     private static final int SEEK_MAX = 100;
 
+    private static final int TAB_STYLE_ID = 30001;
+    private static final int TAB_FUNCTION_ID = 30002;
+    private static final int MODE_COLOR_ID = 30003;
+    private static final int MODE_IMAGE_ID = 30004;
+
     // ---- Dark theme palette ----
     private static final int COLOR_SURFACE = 0xFF1B1D22;
     private static final int COLOR_TITLE = 0xFFF3F4F6;
@@ -91,6 +96,7 @@ public class SettingsDialog extends Dialog {
     private final Switch blinkColonSwitch;
     private final Switch animateTimeChangesSwitch;
     private final Switch boldTextSwitch;
+    private final Spinner fontFamilySpinner;
     private final Switch showSecondsSwitch;
     private final Switch smallSecondsSwitch;
     private final Switch showLunarSwitch;
@@ -172,6 +178,8 @@ public class SettingsDialog extends Dialog {
         tabGroup.setOrientation(RadioGroup.HORIZONTAL);
         final RadioButton styleTab = createTabButton(context, R.string.tab_style);
         final RadioButton functionTab = createTabButton(context, R.string.tab_function);
+        styleTab.setId(TAB_STYLE_ID);
+        functionTab.setId(TAB_FUNCTION_ID);
         tabGroup.addView(styleTab, new RadioGroup.LayoutParams(0, dp(42), 1f));
         tabGroup.addView(functionTab, new RadioGroup.LayoutParams(0, dp(42), 1f));
         content.addView(tabGroup, topMargin(matchWrap(dp(46)), dp(20)));
@@ -188,10 +196,12 @@ public class SettingsDialog extends Dialog {
         colorMode = new RadioButton(context);
         colorMode.setText(R.string.solid_color);
         colorMode.setTextColor(COLOR_PRIMARY_TEXT);
+        colorMode.setId(MODE_COLOR_ID);
         tintCompoundButton(colorMode);
         imageMode = new RadioButton(context);
         imageMode.setText(R.string.background_image);
         imageMode.setTextColor(COLOR_PRIMARY_TEXT);
+        imageMode.setId(MODE_IMAGE_ID);
         tintCompoundButton(imageMode);
         modeGroup.addView(colorMode, new RadioGroup.LayoutParams(0, dp(46), 1f));
         modeGroup.addView(imageMode, new RadioGroup.LayoutParams(0, dp(46), 1f));
@@ -210,13 +220,12 @@ public class SettingsDialog extends Dialog {
             setSwatchColor(backgroundPreview, color);
             colorMode.setChecked(true);
         });
-        colorControlsLayout.addView(backgroundPicker, topMargin(matchWrap(dp(200)), dp(12)));
-
         colorControlsLayout.addView(createColorSwatches(context, BACKGROUND_COLORS, color -> {
             backgroundPicker.setColor(color);
             setSwatchColor(backgroundPreview, color);
             colorMode.setChecked(true);
-        }), topMargin(matchWrap(dp(50)), dp(8)));
+        }), topMargin(matchWrap(dp(50)), dp(12)));
+        addAdvancedPicker(context, colorControlsLayout, backgroundPicker);
         styleContent.addView(colorControlsLayout, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
 
         LinearLayout imageControlsLayout = new LinearLayout(context);
@@ -271,6 +280,11 @@ public class SettingsDialog extends Dialog {
         styleContent.addView(createSectionLabel(context, R.string.font_settings_group),
                 topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(18)));
 
+        styleContent.addView(createSubLabel(context, R.string.font_family),
+            topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(8)));
+        fontFamilySpinner = createFontFamilySpinner(context, repository.getFontFamily());
+        styleContent.addView(fontFamilySpinner, topMargin(matchWrap(dp(48)), dp(4)));
+
         styleContent.addView(createSubLabel(context, R.string.time_font_settings),
                 topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(8)));
         timeSizeValue = new TextView(context);
@@ -283,11 +297,11 @@ public class SettingsDialog extends Dialog {
         timeColorPicker = new ColorPickerView(context);
         timeColorPicker.setColor(timeColor);
         timeColorPicker.setOnColorChangedListener(color -> timeColor = color);
-        styleContent.addView(timeColorPicker, topMargin(matchWrap(dp(180)), dp(4)));
         styleContent.addView(createColorSwatches(context, TEXT_COLORS, color -> {
             timeColor = color;
             timeColorPicker.setColor(color);
-        }), topMargin(matchWrap(dp(50)), dp(8)));
+        }), topMargin(matchWrap(dp(50)), dp(4)));
+        addAdvancedPicker(context, styleContent, timeColorPicker);
 
         blinkColonSwitch = createStyleSwitch(context, R.string.blink_colon, repository.isBlinkColon());
         styleContent.addView(blinkColonSwitch, topMargin(matchWrap(dp(48)), dp(10)));
@@ -318,11 +332,11 @@ public class SettingsDialog extends Dialog {
         dateColorPicker = new ColorPickerView(context);
         dateColorPicker.setColor(dateColor);
         dateColorPicker.setOnColorChangedListener(color -> dateColor = color);
-        styleContent.addView(dateColorPicker, topMargin(matchWrap(dp(180)), dp(4)));
         styleContent.addView(createColorSwatches(context, TEXT_COLORS, color -> {
             dateColor = color;
             dateColorPicker.setColor(color);
-        }), topMargin(matchWrap(dp(50)), dp(8)));
+        }), topMargin(matchWrap(dp(50)), dp(4)));
+        addAdvancedPicker(context, styleContent, dateColorPicker);
 
         // Status bar section
         styleContent.addView(createSectionLabel(context, R.string.status_settings_group),
@@ -710,6 +724,15 @@ public class SettingsDialog extends Dialog {
         return scroll;
     }
 
+    private void addAdvancedPicker(Context context, LinearLayout parent, ColorPickerView picker) {
+        Switch advancedSwitch = createStyleSwitch(context, R.string.advanced, false);
+        picker.setVisibility(View.GONE);
+        advancedSwitch.setOnCheckedChangeListener((button, checked) ->
+                picker.setVisibility(checked ? View.VISIBLE : View.GONE));
+        parent.addView(advancedSwitch, topMargin(matchWrap(dp(48)), dp(4)));
+        parent.addView(picker, matchWrap(dp(128)));
+    }
+
     private RadioButton createTabButton(Context context, int textRes) {
         RadioButton tab = new RadioButton(context);
         tab.setButtonDrawable(null);
@@ -816,6 +839,7 @@ public class SettingsDialog extends Dialog {
         blinkColonSwitch.setChecked(ClockPreferences.DEFAULT_BLINK_COLON);
         animateTimeChangesSwitch.setChecked(ClockPreferences.DEFAULT_ANIMATE_TIME_CHANGES);
         boldTextSwitch.setChecked(ClockPreferences.DEFAULT_BOLD_TEXT);
+        fontFamilySpinner.setSelection(0);
         showSecondsSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_SECONDS);
         smallSecondsSwitch.setChecked(ClockPreferences.DEFAULT_SMALL_SECONDS);
         showLunarSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_LUNAR);
@@ -853,6 +877,7 @@ public class SettingsDialog extends Dialog {
         repository.setBlinkColon(blinkColonSwitch.isChecked());
         repository.setAnimateTimeChanges(animateTimeChangesSwitch.isChecked());
         repository.setBoldText(boldTextSwitch.isChecked());
+        repository.setFontFamily(fontFamilyForIndex(fontFamilySpinner.getSelectedItemPosition()));
         repository.setShowSeconds(showSecondsSwitch.isChecked());
         repository.setSmallSeconds(showSecondsSwitch.isChecked() && smallSecondsSwitch.isChecked());
         repository.setShowLunar(showLunarSwitch.isChecked());
@@ -898,6 +923,26 @@ public class SettingsDialog extends Dialog {
 
     private static int progressToPercent(int progress) {
         return Math.round(progressToScale(progress) * 100f);
+    }
+
+    private Spinner createFontFamilySpinner(Context context, String family) {
+        Spinner spinner = new Spinner(context);
+        spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item,
+                new String[] {context.getString(R.string.font_system), "Roboto", "Google Sans"}));
+        spinner.setSelection(fontFamilyIndex(family));
+        return spinner;
+    }
+
+    private static int fontFamilyIndex(String family) {
+        if (ClockPreferences.FONT_ROBOTO.equals(family)) return 1;
+        if (ClockPreferences.FONT_GOOGLE_SANS.equals(family)) return 2;
+        return 0;
+    }
+
+    private static String fontFamilyForIndex(int index) {
+        if (index == 1) return ClockPreferences.FONT_ROBOTO;
+        if (index == 2) return ClockPreferences.FONT_GOOGLE_SANS;
+        return ClockPreferences.FONT_SYSTEM;
     }
 
     private LinearLayout.LayoutParams matchWrap(int height) {
