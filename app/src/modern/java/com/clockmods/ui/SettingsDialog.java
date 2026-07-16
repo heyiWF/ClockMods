@@ -20,6 +20,7 @@ import android.widget.ArrayAdapter;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import com.clockmods.BuildConfig;
 import com.clockmods.R;
 import com.clockmods.background.BackgroundRepository;
 import com.clockmods.background.ClockPreferences;
@@ -34,7 +35,6 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.shape.MaterialShapeDrawable;
 import com.google.android.material.shape.ShapeAppearanceModel;
 import com.google.android.material.materialswitch.MaterialSwitch;
-import com.google.android.material.tabs.TabLayout;
 
 public class SettingsDialog extends BottomSheetDialog {
     public interface Listener {
@@ -73,6 +73,14 @@ public class SettingsDialog extends BottomSheetDialog {
     private final TextView dateSizeValue;
     private final MaterialSwitch blinkColonSwitch;
     private final MaterialSwitch animateTimeChangesSwitch;
+    private final Spinner proThemeSpinner;
+    private final Spinner proTransitionSpinner;
+    private final MaterialSwitch proHourlyChimeSwitch;
+    private final MaterialSwitch proHourlyQuietSwitch;
+    private final MaterialButton proQuietStartButton;
+    private final MaterialButton proQuietEndButton;
+    private int proQuietStartMinutes;
+    private int proQuietEndMinutes;
     private final MaterialSwitch boldTextSwitch;
     private final Spinner fontFamilySpinner;
     private final MaterialSwitch showSecondsSwitch;
@@ -116,6 +124,8 @@ public class SettingsDialog extends BottomSheetDialog {
         this.selectedWeatherProvince = repository.getWeatherProvince();
         this.selectedWeatherCity = repository.getWeatherCity();
         this.selectedWeatherDistrict = repository.getWeatherDistrict();
+        this.proQuietStartMinutes = repository.getHourlyChimeQuietStart();
+        this.proQuietEndMinutes = repository.getHourlyChimeQuietEnd();
         int[] backgroundColors = createBackgroundColors(context);
         int[] textColors = createTextColors(context);
         BottomSheetBehavior<?> behavior = getBehavior();
@@ -156,11 +166,15 @@ public class SettingsDialog extends BottomSheetDialog {
         scrollContent.setPadding(0, 0, 0, dp(28));
 
         // ---- Tabs ----
-        final TabLayout tabLayout = new TabLayout(context);
-        tabLayout.setTabMode(TabLayout.MODE_FIXED);
-        tabLayout.addTab(tabLayout.newTab().setText(R.string.tab_style));
-        tabLayout.addTab(tabLayout.newTab().setText(R.string.tab_function));
-        scrollContent.addView(tabLayout, topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(32)));
+        final SegmentedSelector boardSelector = new SegmentedSelector(context,
+            new CharSequence[] {
+                context.getString(R.string.tab_style),
+                context.getString(R.string.tab_function)
+                }, themeColor(context, androidx.appcompat.R.attr.colorPrimary, 0xFF6750A4),
+                themeColor(context, com.google.android.material.R.attr.colorSurfaceVariant, 0xFFECE6F0),
+                themeColor(context, com.google.android.material.R.attr.colorOnPrimary, Color.WHITE),
+                themeColor(context, com.google.android.material.R.attr.colorOnSurfaceVariant, 0xFF49454F));
+        scrollContent.addView(boardSelector, topMargin(matchWrap(dp(48)), dp(32)));
 
         // ---- Style board ----
         final LinearLayout styleContent = new LinearLayout(context);
@@ -279,6 +293,41 @@ public class SettingsDialog extends BottomSheetDialog {
         animateTimeChangesSwitch = createStyleSwitch(context, R.string.animate_time_changes,
             repository.isAnimateTimeChanges());
         styleContent.addView(animateTimeChangesSwitch, matchWrap(dp(48)));
+        if ("pro".equals(BuildConfig.FLAVOR)) {
+            styleContent.addView(createSubLabel(context, R.string.pro_clock_theme), subLabelParams());
+            proThemeSpinner = createStringSpinner(context, R.array.pro_clock_themes,
+                    themeIndex(repository.getClockTheme()));
+            styleContent.addView(proThemeSpinner, topMargin(matchWrap(dp(48)), dp(4)));
+            styleContent.addView(createSubLabel(context, R.string.pro_time_transition), subLabelParams());
+            proTransitionSpinner = createStringSpinner(context, R.array.pro_time_transitions,
+                    transitionIndex(repository.getTimeTransition()));
+            styleContent.addView(proTransitionSpinner, topMargin(matchWrap(dp(48)), dp(4)));
+                proHourlyChimeSwitch = createStyleSwitch(context, R.string.pro_hourly_chime,
+                    repository.isHourlyChimeEnabled());
+                styleContent.addView(proHourlyChimeSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+                proHourlyQuietSwitch = createStyleSwitch(context, R.string.pro_hourly_chime_quiet,
+                    repository.isHourlyChimeQuietEnabled());
+                styleContent.addView(proHourlyQuietSwitch, matchWrap(dp(48)));
+                LinearLayout quietRow = new LinearLayout(context);
+                quietRow.setOrientation(LinearLayout.HORIZONTAL);
+                proQuietStartButton = new MaterialButton(context);
+                proQuietEndButton = new MaterialButton(context);
+                updateProQuietLabels();
+                proQuietStartButton.setOnClickListener(view -> showProQuietTimePicker(true));
+                proQuietEndButton.setOnClickListener(view -> showProQuietTimePicker(false));
+                quietRow.addView(proQuietStartButton, weightedButtonParams());
+                LinearLayout.LayoutParams quietEndParams = weightedButtonParams();
+                quietEndParams.leftMargin = dp(8);
+                quietRow.addView(proQuietEndButton, quietEndParams);
+                styleContent.addView(quietRow, topMargin(matchWrap(dp(50)), dp(4)));
+        } else {
+            proThemeSpinner = null;
+            proTransitionSpinner = null;
+                proHourlyChimeSwitch = null;
+                proHourlyQuietSwitch = null;
+                proQuietStartButton = null;
+                proQuietEndButton = null;
+        }
         boldTextSwitch = createStyleSwitch(context, R.string.bold_text, repository.isBoldText());
         styleContent.addView(boldTextSwitch, matchWrap(dp(48)));
         showSecondsSwitch = createStyleSwitch(context, R.string.show_seconds, repository.isShowSeconds());
@@ -454,21 +503,10 @@ public class SettingsDialog extends BottomSheetDialog {
         boards.addView(styleContent, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
         boards.addView(functionContent, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        tabLayout.addOnTabSelectedListener(new TabLayout.OnTabSelectedListener() {
-            @Override
-            public void onTabSelected(TabLayout.Tab tab) {
-                boolean style = tab.getPosition() == 0;
-                styleContent.setVisibility(style ? View.VISIBLE : View.GONE);
-                functionContent.setVisibility(style ? View.GONE : View.VISIBLE);
-            }
-
-            @Override
-            public void onTabUnselected(TabLayout.Tab tab) {
-            }
-
-            @Override
-            public void onTabReselected(TabLayout.Tab tab) {
-            }
+        boardSelector.setOnSelectionChangedListener(index -> {
+            boolean style = index == 0;
+            styleContent.setVisibility(style ? View.VISIBLE : View.GONE);
+            functionContent.setVisibility(style ? View.GONE : View.VISIBLE);
         });
 
         LinearLayout content = new LinearLayout(context);
@@ -806,6 +844,15 @@ public class SettingsDialog extends BottomSheetDialog {
         statusIconsSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_STATUS_ICONS);
         blinkColonSwitch.setChecked(ClockPreferences.DEFAULT_BLINK_COLON);
         animateTimeChangesSwitch.setChecked(ClockPreferences.DEFAULT_ANIMATE_TIME_CHANGES);
+        if (proThemeSpinner != null) proThemeSpinner.setSelection(0);
+        if (proTransitionSpinner != null) proTransitionSpinner.setSelection(0);
+        if (proHourlyChimeSwitch != null) {
+            proHourlyChimeSwitch.setChecked(ClockPreferences.DEFAULT_HOURLY_CHIME);
+            proHourlyQuietSwitch.setChecked(ClockPreferences.DEFAULT_HOURLY_CHIME_QUIET);
+            proQuietStartMinutes = ClockPreferences.DEFAULT_HOURLY_CHIME_QUIET_START;
+            proQuietEndMinutes = ClockPreferences.DEFAULT_HOURLY_CHIME_QUIET_END;
+            updateProQuietLabels();
+        }
         boldTextSwitch.setChecked(ClockPreferences.DEFAULT_BOLD_TEXT);
         fontFamilySpinner.setSelection(0);
         showSecondsSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_SECONDS);
@@ -837,12 +884,34 @@ public class SettingsDialog extends BottomSheetDialog {
             Toast.makeText(getContext(), R.string.weather_location_not_selected, Toast.LENGTH_SHORT).show();
             return;
         }
+        if (modeGroup.getCheckedButtonId() == IMAGE_MODE_ID && !repository.hasImage()) {
+            Toast.makeText(getContext(), R.string.select_image_first, Toast.LENGTH_SHORT).show();
+            return;
+        }
         repository.setTimeFontScale(progressToScale(timeSizeBar.getProgress()));        repository.setDateFontScale(progressToScale(dateSizeBar.getProgress()));
         repository.setTimeColor(timeColor);
         repository.setDateColor(dateColor);
         repository.setShowStatusIcons(statusIconsSwitch.isChecked());
         repository.setBlinkColon(blinkColonSwitch.isChecked());
         repository.setAnimateTimeChanges(animateTimeChangesSwitch.isChecked());
+        if (proThemeSpinner != null) {
+            String theme = themeForIndex(proThemeSpinner.getSelectedItemPosition());
+            repository.setClockTheme(theme);
+            int[] colors = themeColors(theme);
+            repository.setCurrentColor(colors[0]);
+            repository.setTimeColor(colors[1]);
+            repository.setDateColor(colors[2]);
+        }
+        if (proTransitionSpinner != null) {
+            repository.setTimeTransition(transitionForIndex(
+                    proTransitionSpinner.getSelectedItemPosition()));
+        }
+        if (proHourlyChimeSwitch != null) {
+            repository.setHourlyChimeEnabled(proHourlyChimeSwitch.isChecked());
+            repository.setHourlyChimeQuietEnabled(proHourlyQuietSwitch.isChecked());
+            repository.setHourlyChimeQuietStart(proQuietStartMinutes);
+            repository.setHourlyChimeQuietEnd(proQuietEndMinutes);
+        }
         repository.setBoldText(boldTextSwitch.isChecked());
         repository.setFontFamily(fontFamilyForIndex(fontFamilySpinner.getSelectedItemPosition()));
         repository.setShowSeconds(showSecondsSwitch.isChecked());
@@ -867,10 +936,6 @@ public class SettingsDialog extends BottomSheetDialog {
         listener.onFontSettingsApplied();
 
         if (modeGroup.getCheckedButtonId() == IMAGE_MODE_ID) {
-            if (!repository.hasImage()) {
-                Toast.makeText(getContext(), R.string.select_image_first, Toast.LENGTH_SHORT).show();
-                return;
-            }
             listener.onImageModeApplied();
         } else {
             listener.onColorApplied(backgroundPicker.getColor());
@@ -910,6 +975,73 @@ public class SettingsDialog extends BottomSheetDialog {
         if (index == 1) return ClockPreferences.FONT_ROBOTO;
         if (index == 2) return ClockPreferences.FONT_GOOGLE_SANS;
         return ClockPreferences.FONT_SYSTEM;
+    }
+
+    private Spinner createStringSpinner(Context context, int arrayRes, int selection) {
+        Spinner spinner = new Spinner(context);
+        ArrayAdapter<CharSequence> adapter = ArrayAdapter.createFromResource(context, arrayRes,
+                android.R.layout.simple_spinner_item);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        spinner.setAdapter(adapter);
+        spinner.setSelection(selection);
+        return spinner;
+    }
+
+    private static int themeIndex(String theme) {
+        if (ClockPreferences.THEME_PAPER.equals(theme)) return 1;
+        if (ClockPreferences.THEME_FOREST.equals(theme)) return 2;
+        if (ClockPreferences.THEME_OCEAN.equals(theme)) return 3;
+        if (ClockPreferences.THEME_SUNSET.equals(theme)) return 4;
+        if (ClockPreferences.THEME_MONOCHROME.equals(theme)) return 5;
+        return 0;
+    }
+
+    private static String themeForIndex(int index) {
+        String[] themes = {ClockPreferences.THEME_MIDNIGHT, ClockPreferences.THEME_PAPER,
+                ClockPreferences.THEME_FOREST, ClockPreferences.THEME_OCEAN,
+                ClockPreferences.THEME_SUNSET, ClockPreferences.THEME_MONOCHROME};
+        return themes[Math.max(0, Math.min(index, themes.length - 1))];
+    }
+
+    private static int[] themeColors(String theme) {
+        if (ClockPreferences.THEME_PAPER.equals(theme)) return new int[] {0xFFF3F0E8, 0xFF151515, 0xFF4B4B46};
+        if (ClockPreferences.THEME_FOREST.equals(theme)) return new int[] {0xFF0D241B, 0xFFEAF7D5, 0xFF9EC5A5};
+        if (ClockPreferences.THEME_OCEAN.equals(theme)) return new int[] {0xFF071D2B, 0xFFE7F8FF, 0xFF75C9E8};
+        if (ClockPreferences.THEME_SUNSET.equals(theme)) return new int[] {0xFF32151B, 0xFFFFF0D6, 0xFFFFA36C};
+        if (ClockPreferences.THEME_MONOCHROME.equals(theme)) return new int[] {0xFF050505, 0xFFFFFFFF, 0xFFB8B8B8};
+        return new int[] {0xFF101418, 0xFFFFFFFF, 0xFFB8C4CE};
+    }
+
+    private static int transitionIndex(String transition) {
+        if (ClockPreferences.TRANSITION_SLIDE_UP.equals(transition)) return 1;
+        if (ClockPreferences.TRANSITION_SLIDE_DOWN.equals(transition)) return 2;
+        if (ClockPreferences.TRANSITION_SCALE.equals(transition)) return 3;
+        if (ClockPreferences.TRANSITION_FLIP.equals(transition)) return 4;
+        return 0;
+    }
+
+    private static String transitionForIndex(int index) {
+        String[] transitions = {ClockPreferences.TRANSITION_FADE,
+                ClockPreferences.TRANSITION_SLIDE_UP, ClockPreferences.TRANSITION_SLIDE_DOWN,
+                ClockPreferences.TRANSITION_SCALE, ClockPreferences.TRANSITION_FLIP};
+        return transitions[Math.max(0, Math.min(index, transitions.length - 1))];
+    }
+
+    private void showProQuietTimePicker(boolean start) {
+        int current = start ? proQuietStartMinutes : proQuietEndMinutes;
+        new TimePickerDialog(getContext(), (view, hour, minute) -> {
+            if (start) proQuietStartMinutes = hour * 60 + minute;
+            else proQuietEndMinutes = hour * 60 + minute;
+            updateProQuietLabels();
+        }, current / 60, current % 60, true).show();
+    }
+
+    private void updateProQuietLabels() {
+        if (proQuietStartButton == null || proQuietEndButton == null) return;
+        proQuietStartButton.setText(getContext().getString(R.string.pro_quiet_start,
+                formatMinutes(proQuietStartMinutes)));
+        proQuietEndButton.setText(getContext().getString(R.string.pro_quiet_end,
+                formatMinutes(proQuietEndMinutes)));
     }
 
     private LinearLayout.LayoutParams weightedButtonParams() {

@@ -32,6 +32,28 @@
 				"$javac"
 			],
 			"group": "build"
+		},
+		{
+			"label": "Assemble Pro debug",
+			"type": "shell",
+			"command": "$env:JAVA_HOME='C:\\Program Files\\Android\\Android Studio\\jbr'; .\\gradlew.bat --no-daemon --console=plain :app:assembleProDebug",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [
+				"$gradle"
+			],
+			"group": "build"
+		},
+		{
+			"label": "Package Pro debug APK",
+			"type": "shell",
+			"command": "set \"JAVA_HOME=C:\\Program Files\\Android\\Android Studio\\jbr\" & call gradlew.bat --no-daemon --console=plain :app:assembleProDebug",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [
+				"$gradle"
+			],
+			"group": "build"
 		}
 	]
 }

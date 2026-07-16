@@ -130,6 +130,19 @@ public class BackgroundRepository {
         preferences.setAnimateTimeChanges(animate);
     }
 
+    public String getClockTheme() { return preferences.getClockTheme(); }
+    public void setClockTheme(String theme) { preferences.setClockTheme(theme); }
+    public String getTimeTransition() { return preferences.getTimeTransition(); }
+    public void setTimeTransition(String transition) { preferences.setTimeTransition(transition); }
+    public boolean isHourlyChimeEnabled() { return preferences.isHourlyChimeEnabled(); }
+    public void setHourlyChimeEnabled(boolean enabled) { preferences.setHourlyChimeEnabled(enabled); }
+    public boolean isHourlyChimeQuietEnabled() { return preferences.isHourlyChimeQuietEnabled(); }
+    public void setHourlyChimeQuietEnabled(boolean enabled) { preferences.setHourlyChimeQuietEnabled(enabled); }
+    public int getHourlyChimeQuietStart() { return preferences.getHourlyChimeQuietStart(); }
+    public void setHourlyChimeQuietStart(int minutes) { preferences.setHourlyChimeQuietStart(minutes); }
+    public int getHourlyChimeQuietEnd() { return preferences.getHourlyChimeQuietEnd(); }
+    public void setHourlyChimeQuietEnd(int minutes) { preferences.setHourlyChimeQuietEnd(minutes); }
+
     public boolean isBoldText() {
         return preferences.isBoldText();
     }

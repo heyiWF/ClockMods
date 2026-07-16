@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:gravity="center_horizontal"
+    android:orientation="vertical"
+    android:padding="24dp">
+
+    <TextView
+        android:layout_width="wrap_content"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="28dp"
+        android:text="@string/pro_page_alarm"
+        android:textAppearance="?attr/textAppearanceTitleLarge" />
+
+    <TextView
+        android:id="@+id/alarm_time"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:fontFamily="sans-serif-light"
+        android:gravity="center"
+        android:text="07:30"
+        android:textSize="72sp" />
+
+    <com.google.android.material.switchmaterial.SwitchMaterial
+        android:id="@+id/alarm_enabled"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="@string/alarm_enabled" />
+
+    <TextView
+        android:id="@+id/alarm_next"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:gravity="center"
+        android:padding="12dp"
+        android:textAppearance="?attr/textAppearanceBodyLarge" />
+
+    <com.google.android.material.button.MaterialButton
+        android:id="@+id/alarm_edit"
+        android:layout_width="match_parent"
+        android:layout_height="56dp"
+        android:text="@string/alarm_choose_time" />
+
+</LinearLayout>

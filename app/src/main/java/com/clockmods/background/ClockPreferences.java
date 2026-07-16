@@ -9,6 +9,17 @@ public class ClockPreferences {
     public static final String FONT_SYSTEM = "system";
     public static final String FONT_ROBOTO = "roboto";
     public static final String FONT_GOOGLE_SANS = "google_sans";
+    public static final String THEME_MIDNIGHT = "midnight";
+    public static final String THEME_PAPER = "paper";
+    public static final String THEME_FOREST = "forest";
+    public static final String THEME_OCEAN = "ocean";
+    public static final String THEME_SUNSET = "sunset";
+    public static final String THEME_MONOCHROME = "monochrome";
+    public static final String TRANSITION_FADE = "fade";
+    public static final String TRANSITION_SLIDE_UP = "slide_up";
+    public static final String TRANSITION_SLIDE_DOWN = "slide_down";
+    public static final String TRANSITION_SCALE = "scale";
+    public static final String TRANSITION_FLIP = "flip";
 
     private static final String PREFS_NAME = "clock_prefs";
     private static final String KEY_BACKGROUND_MODE = "background_mode";
@@ -24,6 +35,12 @@ public class ClockPreferences {
     private static final String KEY_SHOW_STATUS_ICONS = "show_status_icons";
     private static final String KEY_BLINK_COLON = "blink_colon";
     private static final String KEY_ANIMATE_TIME_CHANGES = "animate_time_changes";
+    private static final String KEY_CLOCK_THEME = "clock_theme";
+    private static final String KEY_TIME_TRANSITION = "time_transition";
+    private static final String KEY_HOURLY_CHIME = "hourly_visual_chime";
+    private static final String KEY_HOURLY_CHIME_QUIET = "hourly_chime_quiet";
+    private static final String KEY_HOURLY_CHIME_QUIET_START = "hourly_chime_quiet_start";
+    private static final String KEY_HOURLY_CHIME_QUIET_END = "hourly_chime_quiet_end";
     private static final String KEY_BOLD_TEXT = "bold_text";
     private static final String KEY_FONT_FAMILY = "font_family";
     private static final String KEY_SHOW_SECONDS = "show_seconds";
@@ -58,6 +75,12 @@ public class ClockPreferences {
     public static final boolean DEFAULT_SHOW_STATUS_ICONS = false;
     public static final boolean DEFAULT_BLINK_COLON = false;
     public static final boolean DEFAULT_ANIMATE_TIME_CHANGES = true;
+    public static final String DEFAULT_CLOCK_THEME = THEME_MIDNIGHT;
+    public static final String DEFAULT_TIME_TRANSITION = TRANSITION_FADE;
+    public static final boolean DEFAULT_HOURLY_CHIME = true;
+    public static final boolean DEFAULT_HOURLY_CHIME_QUIET = true;
+    public static final int DEFAULT_HOURLY_CHIME_QUIET_START = 22 * 60;
+    public static final int DEFAULT_HOURLY_CHIME_QUIET_END = 7 * 60;
     public static final boolean DEFAULT_BOLD_TEXT = false;
     public static final String DEFAULT_FONT_FAMILY = FONT_SYSTEM;
     public static final boolean DEFAULT_SHOW_SECONDS = true;
@@ -192,6 +215,75 @@ public class ClockPreferences {
 
     public void setAnimateTimeChanges(boolean animate) {
         preferences.edit().putBoolean(KEY_ANIMATE_TIME_CHANGES, animate).apply();
+    }
+
+    public String getClockTheme() {
+        return normalizeClockTheme(preferences.getString(KEY_CLOCK_THEME, DEFAULT_CLOCK_THEME));
+    }
+
+    public void setClockTheme(String theme) {
+        preferences.edit().putString(KEY_CLOCK_THEME, normalizeClockTheme(theme)).apply();
+    }
+
+    public String getTimeTransition() {
+        return normalizeTimeTransition(preferences.getString(
+                KEY_TIME_TRANSITION, DEFAULT_TIME_TRANSITION));
+    }
+
+    public void setTimeTransition(String transition) {
+        preferences.edit().putString(KEY_TIME_TRANSITION,
+                normalizeTimeTransition(transition)).apply();
+    }
+
+    public boolean isHourlyChimeEnabled() {
+        return preferences.getBoolean(KEY_HOURLY_CHIME, DEFAULT_HOURLY_CHIME);
+    }
+
+    public void setHourlyChimeEnabled(boolean enabled) {
+        preferences.edit().putBoolean(KEY_HOURLY_CHIME, enabled).apply();
+    }
+
+    public boolean isHourlyChimeQuietEnabled() {
+        return preferences.getBoolean(KEY_HOURLY_CHIME_QUIET, DEFAULT_HOURLY_CHIME_QUIET);
+    }
+
+    public void setHourlyChimeQuietEnabled(boolean enabled) {
+        preferences.edit().putBoolean(KEY_HOURLY_CHIME_QUIET, enabled).apply();
+    }
+
+    public int getHourlyChimeQuietStart() {
+        return preferences.getInt(KEY_HOURLY_CHIME_QUIET_START,
+                DEFAULT_HOURLY_CHIME_QUIET_START);
+    }
+
+    public void setHourlyChimeQuietStart(int minutes) {
+        preferences.edit().putInt(KEY_HOURLY_CHIME_QUIET_START, minutes).apply();
+    }
+
+    public int getHourlyChimeQuietEnd() {
+        return preferences.getInt(KEY_HOURLY_CHIME_QUIET_END,
+                DEFAULT_HOURLY_CHIME_QUIET_END);
+    }
+
+    public void setHourlyChimeQuietEnd(int minutes) {
+        preferences.edit().putInt(KEY_HOURLY_CHIME_QUIET_END, minutes).apply();
+    }
+
+    public static String normalizeClockTheme(String theme) {
+        if (THEME_PAPER.equals(theme) || THEME_FOREST.equals(theme)
+                || THEME_OCEAN.equals(theme) || THEME_SUNSET.equals(theme)
+                || THEME_MONOCHROME.equals(theme)) {
+            return theme;
+        }
+        return THEME_MIDNIGHT;
+    }
+
+    public static String normalizeTimeTransition(String transition) {
+        if (TRANSITION_SLIDE_UP.equals(transition) || TRANSITION_SLIDE_DOWN.equals(transition)
+                || TRANSITION_SCALE.equals(transition) || TRANSITION_FLIP.equals(transition)) {
+            return transition;
+        }
+        return TRANSITION_FADE;
     }
 
     public boolean isBoldText() {
@@ -347,6 +439,12 @@ public class ClockPreferences {
                 .putBoolean(KEY_SHOW_STATUS_ICONS, DEFAULT_SHOW_STATUS_ICONS)
                 .putBoolean(KEY_BLINK_COLON, DEFAULT_BLINK_COLON)
                 .putBoolean(KEY_ANIMATE_TIME_CHANGES, DEFAULT_ANIMATE_TIME_CHANGES)
+                .putString(KEY_CLOCK_THEME, DEFAULT_CLOCK_THEME)
+                .putString(KEY_TIME_TRANSITION, DEFAULT_TIME_TRANSITION)
+                .putBoolean(KEY_HOURLY_CHIME, DEFAULT_HOURLY_CHIME)
+                .putBoolean(KEY_HOURLY_CHIME_QUIET, DEFAULT_HOURLY_CHIME_QUIET)
+                .putInt(KEY_HOURLY_CHIME_QUIET_START, DEFAULT_HOURLY_CHIME_QUIET_START)
+                .putInt(KEY_HOURLY_CHIME_QUIET_END, DEFAULT_HOURLY_CHIME_QUIET_END)
                 .putBoolean(KEY_BOLD_TEXT, DEFAULT_BOLD_TEXT)
                 .putString(KEY_FONT_FAMILY, DEFAULT_FONT_FAMILY)
                 .putBoolean(KEY_SHOW_SECONDS, DEFAULT_SHOW_SECONDS)

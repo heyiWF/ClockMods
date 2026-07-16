@@ -50,8 +50,6 @@ public class SettingsDialog extends Dialog {
 
     private static final int SEEK_MAX = 100;
 
-    private static final int TAB_STYLE_ID = 30001;
-    private static final int TAB_FUNCTION_ID = 30002;
     private static final int MODE_COLOR_ID = 30003;
     private static final int MODE_IMAGE_ID = 30004;
 
@@ -174,15 +172,12 @@ public class SettingsDialog extends Dialog {
         content.setBackgroundColor(COLOR_SURFACE);
 
         // ---- Segmented tab header (样式 / 功能) ----
-        final RadioGroup tabGroup = new RadioGroup(context);
-        tabGroup.setOrientation(RadioGroup.HORIZONTAL);
-        final RadioButton styleTab = createTabButton(context, R.string.tab_style);
-        final RadioButton functionTab = createTabButton(context, R.string.tab_function);
-        styleTab.setId(TAB_STYLE_ID);
-        functionTab.setId(TAB_FUNCTION_ID);
-        tabGroup.addView(styleTab, new RadioGroup.LayoutParams(0, dp(42), 1f));
-        tabGroup.addView(functionTab, new RadioGroup.LayoutParams(0, dp(42), 1f));
-        content.addView(tabGroup, topMargin(matchWrap(dp(46)), dp(20)));
+        final SegmentedSelector boardSelector = new SegmentedSelector(context,
+            new CharSequence[] {
+                context.getString(R.string.tab_style),
+                context.getString(R.string.tab_function)
+            }, COLOR_ACCENT, 0xFF252830, Color.WHITE, COLOR_SECONDARY_TEXT);
+        content.addView(boardSelector, topMargin(matchWrap(dp(46)), dp(20)));
 
         // ---- Style board ----
         final LinearLayout styleContent = new LinearLayout(context);
@@ -482,12 +477,11 @@ public class SettingsDialog extends Dialog {
         content.addView(styleContent, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
         content.addView(functionContent, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        tabGroup.setOnCheckedChangeListener((group, checkedId) -> {
-            boolean style = checkedId == styleTab.getId();
+        boardSelector.setOnSelectionChangedListener(index -> {
+            boolean style = index == 0;
             styleContent.setVisibility(style ? View.VISIBLE : View.GONE);
             functionContent.setVisibility(style ? View.GONE : View.VISIBLE);
         });
-        styleTab.setChecked(true);
 
         ScrollView scrollView = new ScrollView(context);
         scrollView.setFillViewport(true);

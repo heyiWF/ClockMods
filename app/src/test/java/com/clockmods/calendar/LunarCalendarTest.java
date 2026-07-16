@@ -22,6 +22,14 @@ public class LunarCalendarTest {
     }
 
     @Test
+    public void formatsShortLabelForCalendarCell() {
+        Calendar firstDay = new GregorianCalendar(2026, Calendar.JULY, 14);
+        Calendar secondDay = new GregorianCalendar(2026, Calendar.JULY, 15);
+        Assert.assertEquals("六月", LunarCalendar.formatShort(firstDay));
+        Assert.assertEquals("初二", LunarCalendar.formatShort(secondDay));
+    }
+
+    @Test
     public void usesLocalDateWhenSameInstantFallsOnDifferentDays() {
         Calendar instant = new GregorianCalendar(TimeZone.getTimeZone("UTC"));
         instant.clear();

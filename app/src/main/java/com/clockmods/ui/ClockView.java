@@ -65,6 +65,7 @@ public class ClockView extends View {
     private float dateFontScale = ClockPreferences.DEFAULT_DATE_FONT_SCALE;
     private boolean blinkColon = ClockPreferences.DEFAULT_BLINK_COLON;
     private boolean animateTimeChanges = ClockPreferences.DEFAULT_ANIMATE_TIME_CHANGES;
+    private String timeTransition = ClockPreferences.DEFAULT_TIME_TRANSITION;
     private boolean boldText = ClockPreferences.DEFAULT_BOLD_TEXT;
     private boolean showSeconds = ClockPreferences.DEFAULT_SHOW_SECONDS;
     private boolean showLunar = ClockPreferences.DEFAULT_SHOW_LUNAR;
@@ -321,6 +322,7 @@ public class ClockView extends View {
         datePaint.setColor(backgroundRepository.getDateColor());
         blinkColon = backgroundRepository.isBlinkColon();
         animateTimeChanges = backgroundRepository.isAnimateTimeChanges();
+        timeTransition = backgroundRepository.getTimeTransition();
         boldText = backgroundRepository.isBoldText();
         String fontFamily = backgroundRepository.getFontFamily();
         Typeface timeTypeface = ClockTypefaceResolver.resolveTime(getContext(), fontFamily, boldText);
@@ -416,12 +418,62 @@ public class ClockView extends View {
 
         float progress = Math.min(1f, (SystemClock.uptimeMillis() - timeTransitionStartedAt)
                 / (float) TIME_TRANSITION_DURATION_MILLIS);
-        drawTimeTransition(canvas, previousTime, displayedTime, centerX, mainBaseline, progress);
+        drawConfiguredTimeTransition(canvas, previousTime, displayedTime,
+            centerX, mainBaseline, progress);
         if (progress < 1f) {
             postInvalidateDelayed(16L);
         } else {
             previousTime = null;
         }
+    }
+
+    private void drawConfiguredTimeTransition(Canvas canvas,
+            ClockTimeFormatter.DisplayTime oldTime, ClockTimeFormatter.DisplayTime newTime,
+            float centerX, float mainBaseline, float progress) {
+        float eased = 1f - (float) Math.pow(1f - progress, 3);
+        if (ClockPreferences.TRANSITION_SLIDE_UP.equals(timeTransition)
+                || ClockPreferences.TRANSITION_SLIDE_DOWN.equals(timeTransition)) {
+            float direction = ClockPreferences.TRANSITION_SLIDE_UP.equals(timeTransition) ? -1f : 1f;
+            float distance = timePaint.getTextSize() * 0.24f;
+            canvas.save();
+            canvas.translate(0f, direction * distance * eased);
+            drawTime(canvas, oldTime, centerX, mainBaseline, Math.round(255f * (1f - eased)));
+            canvas.restore();
+            canvas.save();
+            canvas.translate(0f, -direction * distance * (1f - eased));
+            drawTime(canvas, newTime, centerX, mainBaseline, Math.round(255f * eased));
+            canvas.restore();
+            return;
+        }
+        if (ClockPreferences.TRANSITION_SCALE.equals(timeTransition)) {
+            canvas.save();
+            canvas.scale(1f + 0.08f * eased, 1f + 0.08f * eased, centerX, mainBaseline);
+            drawTime(canvas, oldTime, centerX, mainBaseline, Math.round(255f * (1f - eased)));
+            canvas.restore();
+            canvas.save();
+            float scale = 0.88f + 0.12f * eased;
+            canvas.scale(scale, scale, centerX, mainBaseline);
+            drawTime(canvas, newTime, centerX, mainBaseline, Math.round(255f * eased));
+            canvas.restore();
+            return;
+        }
+        if (ClockPreferences.TRANSITION_FLIP.equals(timeTransition)) {
+            if (eased < 0.5f) {
+                float scaleY = Math.max(0.05f, 1f - eased * 2f);
+                canvas.save();
+                canvas.scale(1f, scaleY, centerX, mainBaseline - timePaint.getTextSize() / 2f);
+                drawTime(canvas, oldTime, centerX, mainBaseline, 255);
+                canvas.restore();
+            } else {
+                float scaleY = Math.max(0.05f, (eased - 0.5f) * 2f);
+                canvas.save();
+                canvas.scale(1f, scaleY, centerX, mainBaseline - timePaint.getTextSize() / 2f);
+                drawTime(canvas, newTime, centerX, mainBaseline, 255);
+                canvas.restore();
+            }
+            return;
+        }
+        drawTimeTransition(canvas, oldTime, newTime, centerX, mainBaseline, eased);
     }
 
     private static boolean sameDisplayTime(ClockTimeFormatter.DisplayTime first,

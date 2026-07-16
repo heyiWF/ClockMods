@@ -1,4 +1,59 @@
 <resources>
+    <string name="pro_navigation">Pro 功能导航</string>
+    <string name="pro_page_clock">时钟</string>
+    <string name="pro_page_calendar">月历</string>
+    <string name="pro_page_pomodoro">番茄钟</string>
+    <string name="pro_page_alarm">闹钟</string>
+    <string name="pro_page_countdown">倒计时</string>
+    <string name="pro_page_stopwatch">秒表</string>
+    <string name="pro_feature_in_progress">功能正在接入</string>
+    <string name="calendar_previous_month">上个月</string>
+    <string name="calendar_next_month">下个月</string>
+    <string name="calendar_today">今天</string>
+    <string name="pro_clock_theme">时钟主题</string>
+    <string name="pro_time_transition">数字切换动效</string>
+    <string name="timer_start">开始</string>
+    <string name="timer_pause">暂停</string>
+    <string name="timer_reset">重置</string>
+    <string name="timer_skip">跳过</string>
+    <string name="timer_ready">准备就绪</string>
+    <string name="timer_minutes">%1$d 分钟</string>
+    <string name="pomodoro_focus">专注</string>
+    <string name="pomodoro_short_break">短休息</string>
+    <string name="pomodoro_long_break">长休息</string>
+    <string name="stopwatch_lap">计次</string>
+    <string name="stopwatch_lap_value">第 %1$d 圈  %2$s</string>
+    <string name="alarm_enabled">启用每日闹钟</string>
+    <string name="alarm_choose_time">选择闹钟时间</string>
+    <string name="alarm_disabled">闹钟已关闭</string>
+    <string name="alarm_next_trigger">下次响铃：%1$s</string>
+    <string name="alarm_channel">闹钟</string>
+    <string name="alarm_ringing">闹钟正在响铃</string>
+    <string name="alarm_open_to_dismiss">打开 ClockMods Pro 停止闹钟</string>
+    <string name="alarm_dismiss">停止闹钟</string>
+    <string name="pro_hourly_chime">整点视觉报时</string>
+    <string name="pro_hourly_chime_quiet">启用勿扰时段</string>
+    <string name="pro_quiet_start">开始 %1$s</string>
+    <string name="pro_quiet_end">结束 %1$s</string>
+    <string name="timer_channel">计时提醒</string>
+    <string name="pomodoro_complete">番茄钟阶段完成</string>
+    <string name="countdown_complete">倒计时结束</string>
+    <string name="timer_complete_open">打开 ClockMods Pro 查看</string>
+    <string-array name="pro_clock_themes">
+        <item>午夜</item>
+        <item>纸页</item>
+        <item>森林</item>
+        <item>海洋</item>
+        <item>落日</item>
+        <item>黑白</item>
+    </string-array>
+    <string-array name="pro_time_transitions">
+        <item>淡变</item>
+        <item>上滑</item>
+        <item>下滑</item>
+        <item>缩放</item>
+        <item>翻页</item>
+    </string-array>
     <string name="background_settings">设置</string>
     <string name="solid_color">纯色</string>
     <string name="background_image">图片</string>
