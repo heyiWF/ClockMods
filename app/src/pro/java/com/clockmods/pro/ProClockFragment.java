@@ -1,11 +1,13 @@
 package com.clockmods.pro;
 
+import android.annotation.SuppressLint;
 import android.os.Bundle;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.accessibility.AccessibilityNodeInfo;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
@@ -22,6 +24,7 @@ public final class ProClockFragment extends Fragment {
 
     @Nullable
     @Override
+    @SuppressLint("ClickableViewAccessibility")
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,
             @Nullable Bundle savedInstanceState) {
         View root = inflater.inflate(R.layout.fragment_pro_clock, container, false);
@@ -41,6 +44,24 @@ public final class ProClockFragment extends Fragment {
                     }
                 });
         clockView.setOnTouchListener((view, event) -> detector.onTouchEvent(event));
+        clockView.setContentDescription(getString(R.string.open_settings_accessibility));
+        clockView.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+            @Override
+            public void onInitializeAccessibilityNodeInfo(View host, AccessibilityNodeInfo info) {
+                super.onInitializeAccessibilityNodeInfo(host, info);
+                info.setClickable(true);
+                info.addAction(AccessibilityNodeInfo.ACTION_CLICK);
+            }
+
+            @Override
+            public boolean performAccessibilityAction(View host, int action, Bundle arguments) {
+                if (action == AccessibilityNodeInfo.ACTION_CLICK) {
+                    ((ProMainActivity) requireActivity()).showSettings();
+                    return true;
+                }
+                return super.performAccessibilityAction(host, action, arguments);
+            }
+        });
         return root;
     }
 

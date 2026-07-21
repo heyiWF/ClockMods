@@ -17,6 +17,7 @@ import android.view.View;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.WindowManager;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.Toast;
 import android.widget.TextView;
 
@@ -52,6 +53,7 @@ public class MainActivity extends Activity {
         }
     };
 
+    @SuppressLint("ClickableViewAccessibility")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         ExperienceBridge.applyThemeFeatures(this);
@@ -91,6 +93,24 @@ public class MainActivity extends Activity {
         });
         clockView.setOnTouchListener((view, event) ->
                 settingsGestureDetector.onTouchEvent(event));
+        clockView.setContentDescription(getString(R.string.open_settings_accessibility));
+        clockView.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+            @Override
+            public void onInitializeAccessibilityNodeInfo(View host, AccessibilityNodeInfo info) {
+                super.onInitializeAccessibilityNodeInfo(host, info);
+                info.setClickable(true);
+                info.addAction(AccessibilityNodeInfo.ACTION_CLICK);
+            }
+
+            @Override
+            public boolean performAccessibilityAction(View host, int action, Bundle arguments) {
+                if (action == AccessibilityNodeInfo.ACTION_CLICK) {
+                    showSettings();
+                    return true;
+                }
+                return super.performAccessibilityAction(host, action, arguments);
+            }
+        });
     }
 
     @Override

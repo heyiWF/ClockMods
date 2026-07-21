@@ -54,6 +54,46 @@
 				"$gradle"
 			],
 			"group": "build"
+		},
+		{
+			"label": "Package modern debug APK",
+			"type": "shell",
+			"command": "set \"JAVA_HOME=C:\\Program Files\\Android\\Android Studio\\jbr\" & call gradlew.bat --no-daemon --console=plain :app:assembleModernDebug",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
+		},
+		{
+			"label": "Lint Pro accessibility",
+			"type": "shell",
+			"command": "set \"JAVA_HOME=C:\\Program Files\\Android\\Android Studio\\jbr\" & call gradlew.bat --no-daemon --console=plain :app:lintProDebug",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [
+				"$gradle"
+			],
+			"group": "verification"
+		},
+		{
+			"label": "Test Wi-Fi signal levels",
+			"type": "shell",
+			"command": "set \"JAVA_HOME=C:\\Program Files\\Android\\Android Studio\\jbr\" & call gradlew.bat --no-daemon --console=plain :app:testModernDebugUnitTest --tests com.clockmods.ui.StatusBarViewTest",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [
+				"$gradle"
+			],
+			"group": "verification"
+		},
+		{
+			"label": "Package Modern debug APK",
+			"type": "shell",
+			"command": "set \"JAVA_HOME=C:\\Program Files\\Android\\Android Studio\\jbr\" & call gradlew.bat --no-daemon --console=plain :app:assembleModernDebug",
+			"args": [],
+			"isBackground": false,
+			"problemMatcher": [],
+			"group": "build"
 		}
 	]
 }

@@ -14,7 +14,7 @@ import androidx.fragment.app.Fragment;
 import com.clockmods.R;
 import com.clockmods.pro.alarm.AlarmScheduler;
 import com.clockmods.pro.alarm.AlarmStore;
-import com.google.android.material.switchmaterial.SwitchMaterial;
+import com.google.android.material.materialswitch.MaterialSwitch;
 
 import java.text.DateFormat;
 import java.util.Date;
@@ -24,7 +24,7 @@ public final class ProAlarmFragment extends Fragment {
     private AlarmStore store;
     private TextView time;
     private TextView next;
-    private SwitchMaterial enabled;
+    private MaterialSwitch enabled;
 
     @Nullable @Override
     public View onCreateView(@NonNull LayoutInflater inflater, @Nullable ViewGroup container,

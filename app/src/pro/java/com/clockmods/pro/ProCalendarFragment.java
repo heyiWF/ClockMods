@@ -34,6 +34,7 @@ public final class ProCalendarFragment extends Fragment {
             @Nullable Bundle savedInstanceState) {
         View root = inflater.inflate(R.layout.fragment_pro_calendar, container, false);
         title = root.findViewById(R.id.calendar_month_title);
+        if (android.os.Build.VERSION.SDK_INT >= 28) title.setAccessibilityHeading(true);
         grid = root.findViewById(R.id.calendar_grid);
         populateWeekdays(root.findViewById(R.id.calendar_weekdays));
         root.findViewById(R.id.calendar_previous).setOnClickListener(view -> changeMonth(-1));
@@ -83,11 +84,17 @@ public final class ProCalendarFragment extends Fragment {
         if (day.today) {
             cell.setBackgroundResource(R.drawable.calendar_today_background);
         }
+        cell.setContentDescription(getString(day.today
+            ? R.string.calendar_day_today_accessibility
+            : R.string.calendar_day_accessibility,
+            day.dayOfMonth, day.lunarLabel));
+        cell.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
 
         TextView solar = new TextView(requireContext());
         solar.setText(String.valueOf(day.dayOfMonth));
         solar.setTextSize(16);
         solar.setGravity(Gravity.CENTER);
+        solar.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         if (day.today) solar.setTextColor(Color.WHITE);
         cell.addView(solar, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
@@ -98,6 +105,7 @@ public final class ProCalendarFragment extends Fragment {
         lunar.setGravity(Gravity.CENTER);
         lunar.setSingleLine(true);
         lunar.setAlpha(0.76f);
+        lunar.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         if (day.today) lunar.setTextColor(Color.WHITE);
         cell.addView(lunar, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));

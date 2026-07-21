@@ -48,7 +48,9 @@ public class SettingsDialog extends Dialog {
         void onPicked(int color);
     }
 
-    private static final int SEEK_MAX = 100;
+    private static final int MIN_FONT_PERCENT = 20;
+    private static final int MAX_FONT_PERCENT = 100;
+    private static final int FONT_PERCENT_RANGE = MAX_FONT_PERCENT - MIN_FONT_PERCENT;
 
     private static final int MODE_COLOR_ID = 30003;
     private static final int MODE_IMAGE_ID = 30004;
@@ -177,7 +179,10 @@ public class SettingsDialog extends Dialog {
                 context.getString(R.string.tab_style),
                 context.getString(R.string.tab_function)
             }, COLOR_ACCENT, 0xFF252830, Color.WHITE, COLOR_SECONDARY_TEXT);
-        content.addView(boardSelector, topMargin(matchWrap(dp(46)), dp(20)));
+        LinearLayout fixedTabs = new LinearLayout(context);
+        fixedTabs.setPadding(padding, 0, padding, 0);
+        fixedTabs.addView(boardSelector, topMargin(matchWrap(dp(46)), dp(12)));
+        dialogRoot.addView(fixedTabs, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
 
         // ---- Style board ----
         final LinearLayout styleContent = new LinearLayout(context);
@@ -488,8 +493,10 @@ public class SettingsDialog extends Dialog {
         scrollView.setBackgroundColor(COLOR_SURFACE);
         scrollView.addView(content, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        dialogRoot.addView(scrollView, new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+        scrollParams.topMargin = dp(12);
+        dialogRoot.addView(scrollView, scrollParams);
         setContentView(dialogRoot);
 
         boolean usingImage = ClockPreferences.MODE_IMAGE.equals(repository.getBackgroundMode());
@@ -581,7 +588,7 @@ public class SettingsDialog extends Dialog {
         label.setTextSize(13);
         row.addView(label, new LinearLayout.LayoutParams(dp(64), ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        bar.setMax(SEEK_MAX);
+        bar.setMax(FONT_PERCENT_RANGE);
         tintSeekBar(bar);
         row.addView(bar, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
@@ -906,17 +913,17 @@ public class SettingsDialog extends Dialog {
     }
 
     private static int scaleToProgress(float scale) {
-        float range = ClockPreferences.MAX_FONT_SCALE - ClockPreferences.MIN_FONT_SCALE;
-        return Math.round((scale - ClockPreferences.MIN_FONT_SCALE) / range * SEEK_MAX);
+        int percent = Math.round(Math.max(ClockPreferences.MIN_FONT_SCALE,
+                Math.min(ClockPreferences.MAX_FONT_SCALE, scale)) * 100f);
+        return percent - MIN_FONT_PERCENT;
     }
 
     private static float progressToScale(int progress) {
-        float range = ClockPreferences.MAX_FONT_SCALE - ClockPreferences.MIN_FONT_SCALE;
-        return ClockPreferences.MIN_FONT_SCALE + (progress / (float) SEEK_MAX) * range;
+        return (progress + MIN_FONT_PERCENT) / 100f;
     }
 
     private static int progressToPercent(int progress) {
-        return Math.round(progressToScale(progress) * 100f);
+        return progress + MIN_FONT_PERCENT;
     }
 
     private Spinner createFontFamilySpinner(Context context, String family) {

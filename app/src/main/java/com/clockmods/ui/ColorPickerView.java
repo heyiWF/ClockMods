@@ -8,8 +8,12 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 import android.graphics.Shader;
 import android.util.AttributeSet;
+import android.os.Bundle;
+import android.os.Build;
+import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.accessibility.AccessibilityNodeInfo;
 
 public class ColorPickerView extends View {
     public interface OnColorChangedListener {
@@ -31,6 +35,7 @@ public class ColorPickerView extends View {
         private LinearGradient hueGradient;
     private OnColorChangedListener listener;
     private boolean adjustingHue;
+    private CharSequence accessibilityLabel;
 
     public ColorPickerView(Context context) {
         this(context, null);
@@ -42,11 +47,14 @@ public class ColorPickerView extends View {
         markerPaint.setStrokeWidth(dp(2));
         markerPaint.setColor(Color.WHITE);
         setMinimumHeight((int) dp(128));
+        setFocusable(true);
+        updateAccessibilityDescription();
     }
 
     public void setColor(int color) {
         Color.colorToHSV(color, hsv);
         rebuildSaturationGradient();
+        updateAccessibilityDescription();
         invalidate();
     }
 
@@ -56,6 +64,11 @@ public class ColorPickerView extends View {
 
     public void setOnColorChangedListener(OnColorChangedListener listener) {
         this.listener = listener;
+    }
+
+    public void setAccessibilityLabel(CharSequence label) {
+        accessibilityLabel = label;
+        updateAccessibilityDescription();
     }
 
     @Override
@@ -119,6 +132,55 @@ public class ColorPickerView extends View {
         return true;
     }
 
+    @Override
+    public void onInitializeAccessibilityNodeInfo(AccessibilityNodeInfo info) {
+        super.onInitializeAccessibilityNodeInfo(info);
+        info.setClassName(android.widget.SeekBar.class.getName());
+        if (Build.VERSION.SDK_INT >= 19) {
+            info.setRangeInfo(AccessibilityNodeInfo.RangeInfo.obtain(
+                AccessibilityNodeInfo.RangeInfo.RANGE_TYPE_FLOAT, 0f, 360f, hsv[0]));
+        }
+        info.addAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD);
+        info.addAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD);
+        if (Build.VERSION.SDK_INT >= 24) {
+            info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS);
+        }
+    }
+
+    @Override
+    public boolean performAccessibilityAction(int action, Bundle arguments) {
+        if (Build.VERSION.SDK_INT >= 24
+            && action == AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS.getId()
+            && arguments != null) {
+            float hue = arguments.getFloat(
+                    AccessibilityNodeInfo.ACTION_ARGUMENT_PROGRESS_VALUE, hsv[0]);
+            setHue(hue);
+            return true;
+        }
+        if (action == AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD) {
+            setHue(hsv[0] - 5f);
+            return true;
+        }
+        if (action == AccessibilityNodeInfo.ACTION_SCROLL_FORWARD) {
+            setHue(hsv[0] + 5f);
+            return true;
+        }
+        return super.performAccessibilityAction(action, arguments);
+    }
+
+    @Override
+    public boolean onKeyDown(int keyCode, KeyEvent event) {
+        if (keyCode == KeyEvent.KEYCODE_DPAD_LEFT || keyCode == KeyEvent.KEYCODE_DPAD_DOWN) {
+            setHue(hsv[0] - 5f);
+            return true;
+        }
+        if (keyCode == KeyEvent.KEYCODE_DPAD_RIGHT || keyCode == KeyEvent.KEYCODE_DPAD_UP) {
+            setHue(hsv[0] + 5f);
+            return true;
+        }
+        return super.onKeyDown(keyCode, event);
+    }
+
     private void updateFromTouch(float x, float y) {
         if (adjustingHue) {
             hsv[0] = clamp(x / Math.max(1f, hueRect.width())) * 360f;
@@ -128,8 +190,28 @@ public class ColorPickerView extends View {
             hsv[2] = 1f - clamp(y / Math.max(1f, saturationValueRect.height()));
         }
         invalidate();
+        updateAccessibilityDescription();
         if (listener != null) {
             listener.onColorChanged(getColor());
+        }
+    }
+
+    private void setHue(float hue) {
+        hsv[0] = (hue % 360f + 360f) % 360f;
+        rebuildSaturationGradient();
+        invalidate();
+        updateAccessibilityDescription();
+        if (listener != null) listener.onColorChanged(getColor());
+        sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_VIEW_SELECTED);
+    }
+
+    private void updateAccessibilityDescription() {
+        String value = String.format(java.util.Locale.ROOT, "#%06X", getColor() & 0xFFFFFF);
+        if (Build.VERSION.SDK_INT >= 30) {
+            setContentDescription(accessibilityLabel);
+            setStateDescription(value);
+        } else if (accessibilityLabel != null) {
+            setContentDescription(accessibilityLabel + "，" + value);
         }
     }
 

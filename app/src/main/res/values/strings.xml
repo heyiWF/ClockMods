@@ -10,6 +10,8 @@
     <string name="calendar_previous_month">上个月</string>
     <string name="calendar_next_month">下个月</string>
     <string name="calendar_today">今天</string>
+    <string name="calendar_day_accessibility">%1$d 日，农历 %2$s</string>
+    <string name="calendar_day_today_accessibility">今天，%1$d 日，农历 %2$s</string>
     <string name="pro_clock_theme">时钟主题</string>
     <string name="pro_time_transition">数字切换动效</string>
     <string name="timer_start">开始</string>
@@ -55,6 +57,7 @@
         <item>翻页</item>
     </string-array>
     <string name="background_settings">设置</string>
+    <string name="open_settings_accessibility">打开设置</string>
     <string name="solid_color">纯色</string>
     <string name="background_image">图片</string>
     <string name="choose_image">选择相册图片</string>
@@ -69,6 +72,10 @@
     <string name="image_error">无法读取所选图片</string>
     <string name="select_image_first">请先选择一张图片</string>
     <string name="use_color">使用此颜色</string>
+    <string name="use_color_value">选择颜色 %1$s</string>
+    <string name="background_color_picker">背景颜色</string>
+    <string name="time_color_picker">时间文字颜色</string>
+    <string name="date_color_picker">日期文字颜色</string>
     <string name="advanced">高级</string>
     <string name="background_settings_group">背景</string>
     <string name="font_settings_group">字体</string>
@@ -87,6 +94,13 @@
     <string name="font_size_percent">占屏幕宽度 %1$d%%</string>
     <string name="status_settings_group">状态栏</string>
     <string name="show_status_icons">显示网络与电量</string>
+    <string name="status_wifi_signal">Wi-Fi 信号 %1$d，共 %2$d 级</string>
+    <string name="status_mobile_signal">移动网络信号 %1$d，共 %2$d 级</string>
+    <string name="status_no_network">无网络连接</string>
+    <string name="status_battery">电量 %1$d%%</string>
+    <string name="status_battery_charging">正在充电，电量 %1$d%%</string>
+    <string name="status_battery_unknown">电量未知</string>
+    <string name="status_network_and_battery">%1$s，%2$s</string>
     <string name="time_settings_group">时间</string>
     <string name="use_24_hour">使用 24 小时制</string>
     <string name="use_network_time">使用网络时间</string>

@@ -431,48 +431,6 @@ public class ClockView extends View {
             ClockTimeFormatter.DisplayTime oldTime, ClockTimeFormatter.DisplayTime newTime,
             float centerX, float mainBaseline, float progress) {
         float eased = 1f - (float) Math.pow(1f - progress, 3);
-        if (ClockPreferences.TRANSITION_SLIDE_UP.equals(timeTransition)
-                || ClockPreferences.TRANSITION_SLIDE_DOWN.equals(timeTransition)) {
-            float direction = ClockPreferences.TRANSITION_SLIDE_UP.equals(timeTransition) ? -1f : 1f;
-            float distance = timePaint.getTextSize() * 0.24f;
-            canvas.save();
-            canvas.translate(0f, direction * distance * eased);
-            drawTime(canvas, oldTime, centerX, mainBaseline, Math.round(255f * (1f - eased)));
-            canvas.restore();
-            canvas.save();
-            canvas.translate(0f, -direction * distance * (1f - eased));
-            drawTime(canvas, newTime, centerX, mainBaseline, Math.round(255f * eased));
-            canvas.restore();
-            return;
-        }
-        if (ClockPreferences.TRANSITION_SCALE.equals(timeTransition)) {
-            canvas.save();
-            canvas.scale(1f + 0.08f * eased, 1f + 0.08f * eased, centerX, mainBaseline);
-            drawTime(canvas, oldTime, centerX, mainBaseline, Math.round(255f * (1f - eased)));
-            canvas.restore();
-            canvas.save();
-            float scale = 0.88f + 0.12f * eased;
-            canvas.scale(scale, scale, centerX, mainBaseline);
-            drawTime(canvas, newTime, centerX, mainBaseline, Math.round(255f * eased));
-            canvas.restore();
-            return;
-        }
-        if (ClockPreferences.TRANSITION_FLIP.equals(timeTransition)) {
-            if (eased < 0.5f) {
-                float scaleY = Math.max(0.05f, 1f - eased * 2f);
-                canvas.save();
-                canvas.scale(1f, scaleY, centerX, mainBaseline - timePaint.getTextSize() / 2f);
-                drawTime(canvas, oldTime, centerX, mainBaseline, 255);
-                canvas.restore();
-            } else {
-                float scaleY = Math.max(0.05f, (eased - 0.5f) * 2f);
-                canvas.save();
-                canvas.scale(1f, scaleY, centerX, mainBaseline - timePaint.getTextSize() / 2f);
-                drawTime(canvas, newTime, centerX, mainBaseline, 255);
-                canvas.restore();
-            }
-            return;
-        }
         drawTimeTransition(canvas, oldTime, newTime, centerX, mainBaseline, eased);
     }
 
@@ -547,17 +505,65 @@ public class ClockView extends View {
                 canvas.drawText(newCharacter, characterCenter,
                         alignedCharacterBaseline(newCharacter, baseline, paint), paint);
             } else {
-                setClockTextAlpha(paint, Math.round(255f * (1f - progress)));
-                canvas.drawText(oldCharacter, characterCenter,
-                    alignedCharacterBaseline(oldCharacter, baseline, paint), paint);
-                setClockTextAlpha(paint, Math.round(255f * progress));
-                canvas.drawText(newCharacter, characterCenter,
-                    alignedCharacterBaseline(newCharacter, baseline, paint), paint);
+                drawChangedCharacterTransition(canvas, oldCharacter, newCharacter,
+                    characterCenter, baseline, paint, progress);
             }
             cursor += characterWidth;
         }
         setClockTextAlpha(paint, originalAlpha);
     }
+
+            private void drawChangedCharacterTransition(Canvas canvas, String oldCharacter,
+                String newCharacter, float centerX, float baseline, Paint paint, float progress) {
+            float pivotY = baseline - paint.getTextSize() / 2f;
+            if (ClockPreferences.TRANSITION_SLIDE_UP.equals(timeTransition)
+                || ClockPreferences.TRANSITION_SLIDE_DOWN.equals(timeTransition)) {
+                float direction = ClockPreferences.TRANSITION_SLIDE_UP.equals(timeTransition) ? -1f : 1f;
+                float distance = paint.getTextSize() * 0.24f;
+                drawTransformedCharacter(canvas, oldCharacter, centerX, baseline, paint,
+                    Math.round(255f * (1f - progress)), 1f,
+                    direction * distance * progress, pivotY);
+                drawTransformedCharacter(canvas, newCharacter, centerX, baseline, paint,
+                    Math.round(255f * progress), 1f,
+                    -direction * distance * (1f - progress), pivotY);
+                return;
+            }
+            if (ClockPreferences.TRANSITION_SCALE.equals(timeTransition)) {
+                drawTransformedCharacter(canvas, oldCharacter, centerX, baseline, paint,
+                    Math.round(255f * (1f - progress)), 1f + 0.08f * progress, 0f, pivotY);
+                drawTransformedCharacter(canvas, newCharacter, centerX, baseline, paint,
+                    Math.round(255f * progress), 0.88f + 0.12f * progress, 0f, pivotY);
+                return;
+            }
+            if (ClockPreferences.TRANSITION_FLIP.equals(timeTransition)) {
+                if (progress < 0.5f) {
+                drawTransformedCharacter(canvas, oldCharacter, centerX, baseline, paint,
+                    255, Math.max(0.05f, 1f - progress * 2f), 0f, pivotY);
+                } else {
+                drawTransformedCharacter(canvas, newCharacter, centerX, baseline, paint,
+                    255, Math.max(0.05f, (progress - 0.5f) * 2f), 0f, pivotY);
+                }
+                return;
+            }
+            setClockTextAlpha(paint, Math.round(255f * (1f - progress)));
+            canvas.drawText(oldCharacter, centerX,
+                alignedCharacterBaseline(oldCharacter, baseline, paint), paint);
+            setClockTextAlpha(paint, Math.round(255f * progress));
+            canvas.drawText(newCharacter, centerX,
+                alignedCharacterBaseline(newCharacter, baseline, paint), paint);
+            }
+
+            private void drawTransformedCharacter(Canvas canvas, String character,
+                float centerX, float baseline, Paint paint, int alpha, float scaleY,
+                float translateY, float pivotY) {
+            setClockTextAlpha(paint, alpha);
+            canvas.save();
+            canvas.translate(0f, translateY);
+            canvas.scale(1f, scaleY, centerX, pivotY);
+            canvas.drawText(character, centerX,
+                alignedCharacterBaseline(character, baseline, paint), paint);
+            canvas.restore();
+            }
 
     private void drawTime(Canvas canvas, ClockTimeFormatter.DisplayTime displayTime,
             float centerX, float mainBaseline, int alpha) {

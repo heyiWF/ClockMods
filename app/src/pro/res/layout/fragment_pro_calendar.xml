@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:orientation="vertical"
@@ -20,7 +21,9 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:contentDescription="@string/calendar_previous_month"
-            android:text="&lt;" />
+            app:icon="@drawable/ic_chevron_left"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp" />
 
         <TextView
             android:id="@+id/calendar_month_title"
@@ -43,7 +46,9 @@
             android:layout_width="48dp"
             android:layout_height="48dp"
             android:contentDescription="@string/calendar_next_month"
-            android:text=">" />
+            app:icon="@drawable/ic_chevron_right"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp" />
 
     </LinearLayout>
 

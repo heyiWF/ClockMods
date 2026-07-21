@@ -6,6 +6,7 @@ import android.content.res.ColorStateList;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.app.TimePickerDialog;
+import android.os.Build;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -14,7 +15,6 @@ import android.widget.AdapterView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
-import android.widget.SeekBar;
 import android.widget.Spinner;
 import android.widget.ArrayAdapter;
 import android.widget.TextView;
@@ -35,6 +35,7 @@ import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.shape.MaterialShapeDrawable;
 import com.google.android.material.shape.ShapeAppearanceModel;
 import com.google.android.material.materialswitch.MaterialSwitch;
+import com.google.android.material.slider.Slider;
 
 public class SettingsDialog extends BottomSheetDialog {
     public interface Listener {
@@ -51,7 +52,8 @@ public class SettingsDialog extends BottomSheetDialog {
 
     private static final int COLOR_MODE_ID = 10001;
     private static final int IMAGE_MODE_ID = 10002;
-    private static final int SEEK_MAX = 100;
+    private static final int MIN_FONT_PERCENT = 20;
+    private static final int MAX_FONT_PERCENT = 100;
     private final BackgroundRepository repository;
     private final Listener listener;
     private final ColorPickerView backgroundPicker;
@@ -67,8 +69,8 @@ public class SettingsDialog extends BottomSheetDialog {
 
     private final ColorPickerView timeColorPicker;
     private final ColorPickerView dateColorPicker;
-    private final SeekBar timeSizeBar;
-    private final SeekBar dateSizeBar;
+    private final Slider timeSizeBar;
+    private final Slider dateSizeBar;
     private final TextView timeSizeValue;
     private final TextView dateSizeValue;
     private final MaterialSwitch blinkColonSwitch;
@@ -166,15 +168,17 @@ public class SettingsDialog extends BottomSheetDialog {
         scrollContent.setPadding(0, 0, 0, dp(28));
 
         // ---- Tabs ----
-        final SegmentedSelector boardSelector = new SegmentedSelector(context,
-            new CharSequence[] {
-                context.getString(R.string.tab_style),
-                context.getString(R.string.tab_function)
-                }, themeColor(context, androidx.appcompat.R.attr.colorPrimary, 0xFF6750A4),
-                themeColor(context, com.google.android.material.R.attr.colorSurfaceVariant, 0xFFECE6F0),
-                themeColor(context, com.google.android.material.R.attr.colorOnPrimary, Color.WHITE),
-                themeColor(context, com.google.android.material.R.attr.colorOnSurfaceVariant, 0xFF49454F));
-        scrollContent.addView(boardSelector, topMargin(matchWrap(dp(48)), dp(32)));
+        final MaterialButtonToggleGroup boardSelector = new MaterialButtonToggleGroup(context);
+        boardSelector.setSingleSelection(true);
+        boardSelector.setSelectionRequired(true);
+        int styleTabId = View.generateViewId();
+        int functionTabId = View.generateViewId();
+        boardSelector.addView(createModeButton(context, styleTabId, R.string.tab_style),
+            weightedButtonParams());
+        boardSelector.addView(createModeButton(context, functionTabId, R.string.tab_function),
+            weightedButtonParams());
+        boardSelector.check(styleTabId);
+        root.addView(boardSelector, topMargin(matchWrap(dp(48)), dp(12)));
 
         // ---- Style board ----
         final LinearLayout styleContent = new LinearLayout(context);
@@ -200,6 +204,7 @@ public class SettingsDialog extends BottomSheetDialog {
         colorControlsLayout.addView(backgroundPreview, topMargin(matchWrap(dp(40)), dp(16)));
 
         backgroundPicker = new ColorPickerView(context);
+        backgroundPicker.setAccessibilityLabel(context.getString(R.string.background_color_picker));
         backgroundPicker.setColor(repository.getCurrentColor());
         backgroundPicker.setOnColorChangedListener(color -> {
             setSwatchColor(backgroundPreview, color);
@@ -275,11 +280,12 @@ public class SettingsDialog extends BottomSheetDialog {
         // Time font
         styleContent.addView(createSubLabel(context, R.string.time_font_settings), subLabelParams());
         timeSizeValue = new TextView(context);
-        timeSizeBar = new SeekBar(context);
+        timeSizeBar = new Slider(context);
         styleContent.addView(createSizeRow(context, R.string.font_size, timeSizeBar, timeSizeValue), sizeRowParams());
         configureSizeBar(timeSizeBar, timeSizeValue, repository.getTimeFontScale());
         styleContent.addView(createSubLabel(context, R.string.font_color), subLabelParams());
         timeColorPicker = new ColorPickerView(context);
+        timeColorPicker.setAccessibilityLabel(context.getString(R.string.time_color_picker));
         timeColorPicker.setColor(timeColor);
         timeColorPicker.setOnColorChangedListener(color -> timeColor = color);
         styleContent.addView(createColorSwatches(context, textColors, color -> {
@@ -344,11 +350,12 @@ public class SettingsDialog extends BottomSheetDialog {
         styleContent.addView(createSubLabel(context, R.string.date_font_settings),
                 topMargin(subLabelParams(), dp(16)));
         dateSizeValue = new TextView(context);
-        dateSizeBar = new SeekBar(context);
+        dateSizeBar = new Slider(context);
         styleContent.addView(createSizeRow(context, R.string.font_size, dateSizeBar, dateSizeValue), sizeRowParams());
         configureSizeBar(dateSizeBar, dateSizeValue, repository.getDateFontScale());
         styleContent.addView(createSubLabel(context, R.string.font_color), subLabelParams());
         dateColorPicker = new ColorPickerView(context);
+        dateColorPicker.setAccessibilityLabel(context.getString(R.string.date_color_picker));
         dateColorPicker.setColor(dateColor);
         dateColorPicker.setOnColorChangedListener(color -> dateColor = color);
         styleContent.addView(createColorSwatches(context, textColors, color -> {
@@ -503,8 +510,9 @@ public class SettingsDialog extends BottomSheetDialog {
         boards.addView(styleContent, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
         boards.addView(functionContent, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        boardSelector.setOnSelectionChangedListener(index -> {
-            boolean style = index == 0;
+        boardSelector.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
+            if (!isChecked) return;
+            boolean style = checkedId == styleTabId;
             styleContent.setVisibility(style ? View.VISIBLE : View.GONE);
             functionContent.setVisibility(style ? View.GONE : View.VISIBLE);
         });
@@ -519,8 +527,10 @@ public class SettingsDialog extends BottomSheetDialog {
         scrollView.setFillViewport(true);
         scrollView.addView(scrollContent, new ScrollView.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        root.addView(scrollView, new LinearLayout.LayoutParams(
-            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
+        LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
+            ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
+        scrollParams.topMargin = dp(12);
+        root.addView(scrollView, scrollParams);
         setContentView(root);
 
         boolean usingImage = ClockPreferences.MODE_IMAGE.equals(repository.getBackgroundMode());
@@ -593,7 +603,7 @@ public class SettingsDialog extends BottomSheetDialog {
         return index >= 0 && index < values.length ? values[index] : 30;
     }
 
-    private View createSizeRow(Context context, int labelRes, SeekBar bar, TextView valueLabel) {
+    private View createSizeRow(Context context, int labelRes, Slider bar, TextView valueLabel) {
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
@@ -601,9 +611,17 @@ public class SettingsDialog extends BottomSheetDialog {
         TextView label = new TextView(context);
         label.setText(labelRes);
         label.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyMedium);
+        if (bar.getId() == View.NO_ID) {
+            bar.setId(View.generateViewId());
+        }
+        label.setLabelFor(bar.getId());
         row.addView(label, new LinearLayout.LayoutParams(dp(64), ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        bar.setMax(SEEK_MAX);
+        bar.setValueFrom(MIN_FONT_PERCENT);
+        bar.setValueTo(MAX_FONT_PERCENT);
+        bar.setStepSize(1f);
+        bar.setTickVisible(false);
+        bar.setContentDescription(context.getString(labelRes));
         row.addView(bar, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
 
         valueLabel.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_LabelMedium);
@@ -612,27 +630,20 @@ public class SettingsDialog extends BottomSheetDialog {
         return row;
     }
 
-    private void configureSizeBar(SeekBar bar, TextView valueLabel, float currentScale) {
-        bar.setProgress(scaleToProgress(currentScale));
-        updateSizeLabel(valueLabel, bar.getProgress());
-        bar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                updateSizeLabel(valueLabel, progress);
-            }
-
-            @Override
-            public void onStartTrackingTouch(SeekBar seekBar) {
-            }
-
-            @Override
-            public void onStopTrackingTouch(SeekBar seekBar) {
-            }
-        });
+    private void configureSizeBar(Slider bar, TextView valueLabel, float currentScale) {
+        bar.setValue(scaleToProgress(currentScale));
+        updateSizeLabel(bar, valueLabel, bar.getValue());
+        bar.addOnChangeListener((slider, value, fromUser) ->
+            updateSizeLabel(slider, valueLabel, value));
     }
 
-    private void updateSizeLabel(TextView valueLabel, int progress) {
-        valueLabel.setText(getContext().getString(R.string.font_size_percent, progressToPercent(progress)));
+        private void updateSizeLabel(Slider bar, TextView valueLabel, float progress) {
+        String value = getContext().getString(
+                R.string.font_size_percent, progressToPercent(progress));
+        valueLabel.setText(value);
+        if (Build.VERSION.SDK_INT >= 30) {
+            bar.setStateDescription(value);
+        }
     }
 
     private MaterialButton createModeButton(Context context, int id, int textRes) {
@@ -641,6 +652,7 @@ public class SettingsDialog extends BottomSheetDialog {
         button.setId(id);
         button.setText(textRes);
         button.setCheckable(true);
+        button.setContentDescription(context.getString(textRes));
         return button;
     }
 
@@ -655,6 +667,7 @@ public class SettingsDialog extends BottomSheetDialog {
 
     private View createImagePreview(Context context) {
         ImageView preview = new ImageView(context);
+        preview.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         preview.setScaleType(ImageView.ScaleType.CENTER_CROP);
         preview.setBackgroundColor(MaterialColors.getColor(context,
                 com.google.android.material.R.attr.colorSurfaceVariant, Color.DKGRAY));
@@ -713,7 +726,8 @@ public class SettingsDialog extends BottomSheetDialog {
         row.setGravity(Gravity.CENTER_VERTICAL);
         for (final int color : colors) {
             MaterialButton swatch = new MaterialButton(context);
-            swatch.setContentDescription(getContext().getString(R.string.use_color));
+            swatch.setContentDescription(getContext().getString(
+                    R.string.use_color_value, String.format("#%06X", color & 0xFFFFFF)));
             swatch.setBackgroundTintList(ColorStateList.valueOf(color));
             swatch.setStrokeColor(ColorStateList.valueOf(0x33000000));
             swatch.setStrokeWidth(dp(1));
@@ -836,10 +850,10 @@ public class SettingsDialog extends BottomSheetDialog {
         timeColorPicker.setColor(defaultTextColor);
         dateColorPicker.setColor(defaultTextColor);
 
-        timeSizeBar.setProgress(scaleToProgress(ClockPreferences.DEFAULT_TIME_FONT_SCALE));
-        updateSizeLabel(timeSizeValue, timeSizeBar.getProgress());
-        dateSizeBar.setProgress(scaleToProgress(ClockPreferences.DEFAULT_DATE_FONT_SCALE));
-        updateSizeLabel(dateSizeValue, dateSizeBar.getProgress());
+        timeSizeBar.setValue(scaleToProgress(ClockPreferences.DEFAULT_TIME_FONT_SCALE));
+        updateSizeLabel(timeSizeBar, timeSizeValue, timeSizeBar.getValue());
+        dateSizeBar.setValue(scaleToProgress(ClockPreferences.DEFAULT_DATE_FONT_SCALE));
+        updateSizeLabel(dateSizeBar, dateSizeValue, dateSizeBar.getValue());
 
         statusIconsSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_STATUS_ICONS);
         blinkColonSwitch.setChecked(ClockPreferences.DEFAULT_BLINK_COLON);
@@ -888,7 +902,8 @@ public class SettingsDialog extends BottomSheetDialog {
             Toast.makeText(getContext(), R.string.select_image_first, Toast.LENGTH_SHORT).show();
             return;
         }
-        repository.setTimeFontScale(progressToScale(timeSizeBar.getProgress()));        repository.setDateFontScale(progressToScale(dateSizeBar.getProgress()));
+        repository.setTimeFontScale(progressToScale(timeSizeBar.getValue()));
+        repository.setDateFontScale(progressToScale(dateSizeBar.getValue()));
         repository.setTimeColor(timeColor);
         repository.setDateColor(dateColor);
         repository.setShowStatusIcons(statusIconsSwitch.isChecked());
@@ -943,18 +958,17 @@ public class SettingsDialog extends BottomSheetDialog {
         dismiss();
     }
 
-    private static int scaleToProgress(float scale) {
-        float range = ClockPreferences.MAX_FONT_SCALE - ClockPreferences.MIN_FONT_SCALE;
-        return Math.round((scale - ClockPreferences.MIN_FONT_SCALE) / range * SEEK_MAX);
+    private static float scaleToProgress(float scale) {
+        return Math.round(Math.max(ClockPreferences.MIN_FONT_SCALE,
+                Math.min(ClockPreferences.MAX_FONT_SCALE, scale)) * 100f);
     }
 
-    private static float progressToScale(int progress) {
-        float range = ClockPreferences.MAX_FONT_SCALE - ClockPreferences.MIN_FONT_SCALE;
-        return ClockPreferences.MIN_FONT_SCALE + (progress / (float) SEEK_MAX) * range;
+    private static float progressToScale(float progress) {
+        return Math.round(progress) / 100f;
     }
 
-    private static int progressToPercent(int progress) {
-        return Math.round(progressToScale(progress) * 100f);
+    private static int progressToPercent(float progress) {
+        return Math.round(progress);
     }
 
     private Spinner createFontFamilySpinner(Context context, String family) {

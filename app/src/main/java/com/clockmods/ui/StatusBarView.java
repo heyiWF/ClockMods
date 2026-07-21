@@ -10,9 +10,14 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiManager;
 import android.os.BatteryManager;
+import android.os.Build;
+import android.telephony.PhoneStateListener;
+import android.telephony.SignalStrength;
+import android.telephony.TelephonyManager;
 import android.util.AttributeSet;
 import android.view.View;
 
+import com.clockmods.R;
 import com.clockmods.background.BackgroundRepository;
 
 /**
@@ -22,6 +27,8 @@ import com.clockmods.background.BackgroundRepository;
  * identical on API 14+.
  */
 public class StatusBarView extends View {
+    private static final int INVALID_RSSI = -127;
+
     private enum NetworkState {
         NONE, MOBILE, WIFI
     }
@@ -35,9 +42,24 @@ public class StatusBarView extends View {
     private int batteryLevel = -1;
     private boolean batteryCharging;
     private NetworkState networkState = NetworkState.NONE;
-    private int signalStrength = 4; // 0..4 bars
+    private int signalStrength;
+    private int mobileSignalStrength;
 
     private boolean receiverRegistered;
+    private TelephonyManager telephonyManager;
+
+    private final PhoneStateListener phoneStateListener = new PhoneStateListener() {
+        @Override
+        public void onSignalStrengthsChanged(SignalStrength strength) {
+            super.onSignalStrengthsChanged(strength);
+            mobileSignalStrength = mobileSignalLevel(strength);
+            if (networkState == NetworkState.MOBILE) {
+                signalStrength = mobileSignalStrength;
+                updateAccessibilityDescription();
+                invalidate();
+            }
+        }
+    };
 
     private final BroadcastReceiver batteryReceiver = new BroadcastReceiver() {
         @Override
@@ -74,12 +96,14 @@ public class StatusBarView extends View {
 
     public void start() {
         registerReceivers();
+        registerPhoneStateListener();
         refreshNetworkState();
         invalidate();
     }
 
     public void stop() {
         unregisterReceivers();
+        unregisterPhoneStateListener();
     }
 
     private void registerReceivers() {
@@ -92,8 +116,9 @@ public class StatusBarView extends View {
         if (sticky != null) {
             updateBatteryFromIntent(sticky);
         }
-        context.registerReceiver(connectivityReceiver,
-                new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION));
+        IntentFilter networkFilter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
+        networkFilter.addAction(WifiManager.RSSI_CHANGED_ACTION);
+        context.registerReceiver(connectivityReceiver, networkFilter);
         receiverRegistered = true;
     }
 
@@ -111,6 +136,24 @@ public class StatusBarView extends View {
         receiverRegistered = false;
     }
 
+    @SuppressWarnings("deprecation")
+    private void registerPhoneStateListener() {
+        telephonyManager = (TelephonyManager) getContext().getSystemService(Context.TELEPHONY_SERVICE);
+        if (telephonyManager == null) return;
+        try {
+            telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_SIGNAL_STRENGTHS);
+        } catch (SecurityException ignored) {
+            telephonyManager = null;
+        }
+    }
+
+    @SuppressWarnings("deprecation")
+    private void unregisterPhoneStateListener() {
+        if (telephonyManager == null) return;
+        telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE);
+        telephonyManager = null;
+    }
+
     private void updateBatteryFromIntent(Intent intent) {
         int level = intent.getIntExtra(BatteryManager.EXTRA_LEVEL, -1);
         int scale = intent.getIntExtra(BatteryManager.EXTRA_SCALE, -1);
@@ -120,6 +163,7 @@ public class StatusBarView extends View {
         int status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
         batteryCharging = status == BatteryManager.BATTERY_STATUS_CHARGING
                 || status == BatteryManager.BATTERY_STATUS_FULL;
+        updateAccessibilityDescription();
     }
 
     private void refreshNetworkState() {
@@ -128,31 +172,88 @@ public class StatusBarView extends View {
                 (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
         if (cm == null) {
             networkState = NetworkState.NONE;
+            updateAccessibilityDescription();
             return;
         }
         NetworkInfo active = cm.getActiveNetworkInfo();
         if (active == null || !active.isConnected()) {
             networkState = NetworkState.NONE;
+            updateAccessibilityDescription();
             return;
         }
         int type = active.getType();
-        if (type == ConnectivityManager.TYPE_WIFI || type == ConnectivityManager.TYPE_ETHERNET) {
+        if (type == ConnectivityManager.TYPE_WIFI) {
             networkState = NetworkState.WIFI;
             signalStrength = wifiSignalLevel(context);
-        } else {
+        } else if (type == ConnectivityManager.TYPE_MOBILE) {
             networkState = NetworkState.MOBILE;
-            signalStrength = 4;
+            signalStrength = mobileSignalStrength;
+        } else {
+            networkState = NetworkState.NONE;
         }
+        updateAccessibilityDescription();
+    }
+
+    private void updateAccessibilityDescription() {
+        String network;
+        if (networkState == NetworkState.WIFI) {
+            network = getContext().getString(R.string.status_wifi_signal, signalStrength + 1, 5);
+        } else if (networkState == NetworkState.MOBILE) {
+            network = getContext().getString(R.string.status_mobile_signal, signalStrength + 1, 5);
+        } else {
+            network = getContext().getString(R.string.status_no_network);
+        }
+        String battery = batteryLevel >= 0
+                ? getContext().getString(batteryCharging
+                        ? R.string.status_battery_charging : R.string.status_battery, batteryLevel)
+                : getContext().getString(R.string.status_battery_unknown);
+        setContentDescription(getContext().getString(
+                R.string.status_network_and_battery, network, battery));
     }
 
     private int wifiSignalLevel(Context context) {
         WifiManager wifiManager =
                 (WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
         if (wifiManager == null || wifiManager.getConnectionInfo() == null) {
-            return 4;
+            return 0;
         }
         int rssi = wifiManager.getConnectionInfo().getRssi();
+        if (rssi == INVALID_RSSI) {
+            return 0;
+        }
+        if (Build.VERSION.SDK_INT >= 30) {
+            return normalizeSignalLevel(
+                    wifiManager.calculateSignalLevel(rssi), wifiManager.getMaxSignalLevel());
+        }
         return WifiManager.calculateSignalLevel(rssi, 5); // 0..4
+    }
+
+    static int normalizeSignalLevel(int level, int maxLevel) {
+        if (maxLevel <= 0) return 0;
+        int clamped = Math.max(0, Math.min(maxLevel, level));
+        return Math.round(clamped * 4f / maxLevel);
+    }
+
+    @SuppressWarnings("deprecation")
+    static int mobileSignalLevel(SignalStrength strength) {
+        if (strength == null) return 0;
+        if (Build.VERSION.SDK_INT >= 23) {
+            return Math.max(0, Math.min(4, strength.getLevel()));
+        }
+        if (strength.isGsm()) {
+            int asu = strength.getGsmSignalStrength();
+            if (asu == 99 || asu <= 2) return 0;
+            if (asu >= 20) return 4;
+            if (asu >= 13) return 3;
+            if (asu >= 8) return 2;
+            return 1;
+        }
+        int dbm = strength.getCdmaDbm();
+        if (dbm >= -75) return 4;
+        if (dbm >= -85) return 3;
+        if (dbm >= -95) return 2;
+        if (dbm >= -100) return 1;
+        return 0;
     }
 
     private int resolveTint() {
