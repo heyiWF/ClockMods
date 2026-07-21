@@ -107,6 +107,7 @@
     <string name="reset_default">恢复默认</string>
     <string name="tab_style">样式</string>
     <string name="tab_function">功能</string>
+    <string name="force_landscape">强制横屏</string>
     <string name="sync_interval">同步频率</string>
     <string name="sync_interval_30min">每 30 分钟</string>
     <string name="sync_interval_1hour">每小时</string>

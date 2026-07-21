@@ -48,6 +48,7 @@ public class ClockPreferences {
     private static final String KEY_SMALL_SECONDS = "small_seconds";
     private static final String KEY_USE_24_HOUR = "use_24_hour";
     private static final String KEY_CLOCK_USE_ENGLISH = "clock_use_english";
+    private static final String KEY_FORCE_LANDSCAPE = "force_landscape";
     private static final String KEY_USE_NETWORK_TIME = "use_network_time";
     private static final String KEY_SYNC_INTERVAL_MINUTES = "sync_interval_minutes";
     private static final String KEY_TIME_ZONE_ID = "time_zone_id";
@@ -88,6 +89,7 @@ public class ClockPreferences {
     public static final boolean DEFAULT_SMALL_SECONDS = false;
     public static final boolean DEFAULT_USE_24_HOUR = true;
     public static final boolean DEFAULT_CLOCK_USE_ENGLISH = false;
+    public static final boolean DEFAULT_FORCE_LANDSCAPE = false;
     /** Network time is disabled by default; the device local time is used. */
     public static final boolean DEFAULT_USE_NETWORK_TIME = false;
     /** Default interval, in minutes, between network time synchronizations. */
@@ -349,6 +351,14 @@ public class ClockPreferences {
         preferences.edit().putBoolean(KEY_CLOCK_USE_ENGLISH, useEnglish).apply();
     }
 
+    public boolean isForceLandscape() {
+        return preferences.getBoolean(KEY_FORCE_LANDSCAPE, DEFAULT_FORCE_LANDSCAPE);
+    }
+
+    public void setForceLandscape(boolean forceLandscape) {
+        preferences.edit().putBoolean(KEY_FORCE_LANDSCAPE, forceLandscape).apply();
+    }
+
     public boolean isUseNetworkTime() {
         return preferences.getBoolean(KEY_USE_NETWORK_TIME, DEFAULT_USE_NETWORK_TIME);
     }
@@ -452,6 +462,7 @@ public class ClockPreferences {
                 .putBoolean(KEY_SMALL_SECONDS, DEFAULT_SMALL_SECONDS)
                 .putBoolean(KEY_USE_24_HOUR, DEFAULT_USE_24_HOUR)
                 .putBoolean(KEY_CLOCK_USE_ENGLISH, DEFAULT_CLOCK_USE_ENGLISH)
+                .putBoolean(KEY_FORCE_LANDSCAPE, DEFAULT_FORCE_LANDSCAPE)
                 .putBoolean(KEY_WEATHER_ENABLED, DEFAULT_WEATHER_ENABLED)
                 .putInt(KEY_WEATHER_INTERVAL_MINUTES, DEFAULT_WEATHER_INTERVAL_MINUTES)
                 .putString(KEY_WEATHER_LOCATION_MODE, DEFAULT_WEATHER_LOCATION_MODE)

@@ -32,6 +32,7 @@ public class ClockView extends View {
     private static final long MILLIS_PER_SECOND = 1000L;
     private static final long TIME_TRANSITION_DURATION_MILLIS = 300L;
     private static final float SMALL_SECONDS_GAP_SPACE_FRACTION = 0.35f;
+    private static final float SUPPORTING_TEXT_LETTER_SPACING = 0.025f;
     private static final int CLOCK_SHADOW_ALPHA = 0x66;
     private static final int DIM_BACKGROUND_OVERLAY_COLOR = 0x80000000;
 
@@ -225,7 +226,7 @@ public class ClockView extends View {
         float timeSize = ClockLayoutCalculator.calculateWidthBasedTextSize(
             width, height, measuredTimeWidth, timeFontScale, 1f);
         float dateSize = ClockLayoutCalculator.calculateWidthBasedTextSize(
-                width, height, datePaint.measureText(widestDateText), dateFontScale, 0.14f);
+            width, height, measureSupportingText(widestDateText), dateFontScale, 0.14f);
         timePaint.setTextSize(timeSize);
         secondsPaint.setTextSize(timeSize * 0.6f);
         periodPaint.setTextSize(timeSize * 0.3f);
@@ -247,18 +248,19 @@ public class ClockView extends View {
         drawWeather(canvas, centerX, timeBaseline, dateSize, timeMetrics, gap);
         if (lunarText.length() == 0) {
             applySupportingTypeface(dateText);
-            canvas.drawText(dateText, centerX, dateBaseline, datePaint);
+            drawSupportingText(canvas, dateText, centerX, dateBaseline, Paint.Align.CENTER);
             return;
         }
 
         if (singleDateLine) {
             applySupportingTypeface(fullDate);
-            canvas.drawText(fullDate, centerX, dateBaseline, datePaint);
+            drawSupportingText(canvas, fullDate, centerX, dateBaseline, Paint.Align.CENTER);
         } else {
             applySupportingTypeface(dateText);
-            canvas.drawText(dateText, centerX, dateBaseline, datePaint);
+            drawSupportingText(canvas, dateText, centerX, dateBaseline, Paint.Align.CENTER);
             applySupportingTypeface(lunarText);
-            canvas.drawText(lunarText, centerX, dateBaseline - dateMetrics.ascent + gap * 0.5f, datePaint);
+            drawSupportingText(canvas, lunarText, centerX,
+                dateBaseline - dateMetrics.ascent + gap * 0.5f, Paint.Align.CENTER);
         }
     }
 
@@ -281,8 +283,9 @@ public class ClockView extends View {
         applySupportingTypeface(text);
         float iconSize = dateSize * 0.95f;
         float iconGap = dateSize * 0.25f;
-        float measured = icon == null ? datePaint.measureText(text)
-                : datePaint.measureText(leftText) + datePaint.measureText(rightText) + iconSize + iconGap * 2f;
+        float measured = icon == null ? measureSupportingText(text)
+            : measureSupportingText(leftText) + measureSupportingText(rightText)
+                + iconSize + iconGap * 2f;
         float available = getWidth() * 0.92f;
         float scale = measured > available ? Math.max(available / measured, 0.65f) : 1f;
         datePaint.setTextSize(dateSize * scale);
@@ -291,23 +294,48 @@ public class ClockView extends View {
         Paint.FontMetrics weatherMetrics = datePaint.getFontMetrics();
         float baseline = timeBaseline + timeMetrics.descent + gap - weatherMetrics.ascent;
         if (icon == null) {
-            canvas.drawText(text, centerX, baseline, datePaint);
+            drawSupportingText(canvas, text, centerX, baseline, Paint.Align.CENTER);
         } else {
-            float leftWidth = datePaint.measureText(leftText);
-            float rightWidth = datePaint.measureText(rightText);
+            float leftWidth = measureSupportingText(leftText);
+            float rightWidth = measureSupportingText(rightText);
             float total = leftWidth + rightWidth + iconSize + iconGap * 2f;
             float cursor = centerX - total / 2f;
-            datePaint.setTextAlign(Paint.Align.LEFT);
-            canvas.drawText(leftText, cursor, baseline, datePaint);
+            drawSupportingText(canvas, leftText, cursor, baseline, Paint.Align.LEFT);
             cursor += leftWidth + iconGap;
             float iconTop = baseline + (weatherMetrics.ascent + weatherMetrics.descent) / 2f - iconSize / 2f;
             icon.draw(canvas, cursor, iconTop, iconSize, datePaint);
             cursor += iconSize + iconGap;
-            canvas.drawText(rightText, cursor, baseline, datePaint);
-            datePaint.setTextAlign(Paint.Align.CENTER);
+            drawSupportingText(canvas, rightText, cursor, baseline, Paint.Align.LEFT);
         }
         datePaint.setTextSize(originalSize);
         datePaint.setTypeface(originalTypeface);
+    }
+
+    private float measureSupportingText(String text) {
+        if (text == null || text.length() == 0) return 0f;
+        int characterCount = text.codePointCount(0, text.length());
+        return datePaint.measureText(text)
+            + Math.max(0, characterCount - 1)
+                * datePaint.getTextSize() * SUPPORTING_TEXT_LETTER_SPACING;
+    }
+
+    private void drawSupportingText(Canvas canvas, String text, float x, float baseline,
+            Paint.Align align) {
+        if (text == null || text.length() == 0) return;
+        float width = measureSupportingText(text);
+        float cursor = align == Paint.Align.CENTER ? x - width / 2f
+            : align == Paint.Align.RIGHT ? x - width : x;
+        Paint.Align originalAlign = datePaint.getTextAlign();
+        datePaint.setTextAlign(Paint.Align.LEFT);
+        float spacing = datePaint.getTextSize() * SUPPORTING_TEXT_LETTER_SPACING;
+        for (int start = 0; start < text.length();) {
+            int end = start + Character.charCount(text.codePointAt(start));
+            canvas.drawText(text, start, end, cursor, baseline, datePaint);
+            cursor += datePaint.measureText(text, start, end);
+            if (end < text.length()) cursor += spacing;
+            start = end;
+        }
+        datePaint.setTextAlign(originalAlign);
     }
 
     private void applyTextStyles() {

@@ -91,6 +91,7 @@ public class SettingsDialog extends BottomSheetDialog {
     private final MaterialSwitch statusIconsSwitch;
     private final MaterialSwitch use24HourSwitch;
     private final MaterialSwitch clockUseEnglishSwitch;
+    private final MaterialSwitch forceLandscapeSwitch;
     private final MaterialSwitch networkTimeSwitch;
     private final View functionLockedControls;
     private final MaterialButtonToggleGroup syncIntervalGroup;
@@ -385,6 +386,10 @@ public class SettingsDialog extends BottomSheetDialog {
         final LinearLayout functionContent = new LinearLayout(context);
         functionContent.setOrientation(LinearLayout.VERTICAL);
         functionContent.setVisibility(View.GONE);
+
+        forceLandscapeSwitch = createStyleSwitch(context, R.string.force_landscape,
+            repository.isForceLandscape());
+        functionContent.addView(forceLandscapeSwitch, topMargin(matchWrap(dp(48)), dp(8)));
 
         functionContent.addView(createSectionLabel(context, R.string.time_settings_group), sectionLabelParams());
         use24HourSwitch = new MaterialSwitch(context);
@@ -874,6 +879,7 @@ public class SettingsDialog extends BottomSheetDialog {
         showLunarSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_LUNAR);
         use24HourSwitch.setChecked(ClockPreferences.DEFAULT_USE_24_HOUR);
         clockUseEnglishSwitch.setChecked(ClockPreferences.DEFAULT_CLOCK_USE_ENGLISH);
+        forceLandscapeSwitch.setChecked(ClockPreferences.DEFAULT_FORCE_LANDSCAPE);
         weatherSwitch.setChecked(ClockPreferences.DEFAULT_WEATHER_ENABLED);
         weatherLocationModeSpinner.setSelection(0);
         selectedWeatherLocationId = "";
@@ -934,6 +940,7 @@ public class SettingsDialog extends BottomSheetDialog {
         repository.setShowLunar(showLunarSwitch.isChecked());
         repository.setUse24Hour(use24HourSwitch.isChecked());
         repository.setClockUseEnglish(clockUseEnglishSwitch.isChecked());
+        repository.setForceLandscape(forceLandscapeSwitch.isChecked());
         repository.setDimBackground(dimBackgroundSwitch.isChecked());
         repository.setScheduleDimBackground(scheduleDimBackgroundSwitch.isChecked());
         repository.setDimStartMinutes(dimStartMinutes);

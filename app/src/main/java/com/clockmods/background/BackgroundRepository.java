@@ -199,6 +199,14 @@ public class BackgroundRepository {
         preferences.setClockUseEnglish(useEnglish);
     }
 
+    public boolean isForceLandscape() {
+        return preferences.isForceLandscape();
+    }
+
+    public void setForceLandscape(boolean forceLandscape) {
+        preferences.setForceLandscape(forceLandscape);
+    }
+
     public boolean isUseNetworkTime() {
         return preferences.isUseNetworkTime();
     }

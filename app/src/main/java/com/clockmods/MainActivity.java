@@ -8,6 +8,7 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.Uri;
 import android.Manifest;
+import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -58,6 +59,7 @@ public class MainActivity extends Activity {
     protected void onCreate(Bundle savedInstanceState) {
         ExperienceBridge.applyThemeFeatures(this);
         super.onCreate(savedInstanceState);
+        applyScreenOrientation();
         enableEdgeToEdgeCompat();
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_main);
@@ -171,6 +173,7 @@ public class MainActivity extends Activity {
 
             @Override
             public void onFontSettingsApplied() {
+                applyScreenOrientation();
                 clockView.invalidate();
                 applyStatusIconVisibility();
                 statusBarView.invalidate();
@@ -184,6 +187,13 @@ public class MainActivity extends Activity {
             }
         });
         dialog.show();
+    }
+
+    private void applyScreenOrientation() {
+        boolean forceLandscape = new ClockPreferences(this).isForceLandscape();
+        setRequestedOrientation(forceLandscape
+                ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
+                : ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
     }
 
     private void applyStatusIconVisibility() {
