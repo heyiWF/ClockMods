@@ -224,9 +224,9 @@ public class ClockView extends View {
         float measuredTimeWidth = ClockLayoutCalculator.calculateTimeGroupWidth(
                 measuredMainWidth, leftAccessoryWidth, rightAccessoryWidth);
         float timeSize = ClockLayoutCalculator.calculateWidthBasedTextSize(
-            width, height, measuredTimeWidth, timeFontScale, 1f);
+            width, height, measuredTimeWidth, timeFontScale, 0.55f, 0.98f);
         float dateSize = ClockLayoutCalculator.calculateWidthBasedTextSize(
-            width, height, measureSupportingText(widestDateText), dateFontScale, 0.14f);
+            width, height, measureSupportingText(widestDateText), dateFontScale, 0.14f, 0.92f);
         timePaint.setTextSize(timeSize);
         secondsPaint.setTextSize(timeSize * 0.6f);
         periodPaint.setTextSize(timeSize * 0.3f);
@@ -314,7 +314,17 @@ public class ClockView extends View {
     private float measureSupportingText(String text) {
         if (text == null || text.length() == 0) return 0f;
         int characterCount = text.codePointCount(0, text.length());
-        return datePaint.measureText(text)
+        Typeface originalTypeface = datePaint.getTypeface();
+        float width = 0f;
+        for (int start = 0; start < text.length();) {
+            int codePoint = text.codePointAt(start);
+            int end = start + Character.charCount(codePoint);
+            datePaint.setTypeface(supportingTypefaceFor(codePoint));
+            width += datePaint.measureText(text, start, end);
+            start = end;
+        }
+        datePaint.setTypeface(originalTypeface);
+        return width
             + Math.max(0, characterCount - 1)
                 * datePaint.getTextSize() * SUPPORTING_TEXT_LETTER_SPACING;
     }
@@ -326,16 +336,25 @@ public class ClockView extends View {
         float cursor = align == Paint.Align.CENTER ? x - width / 2f
             : align == Paint.Align.RIGHT ? x - width : x;
         Paint.Align originalAlign = datePaint.getTextAlign();
+        Typeface originalTypeface = datePaint.getTypeface();
         datePaint.setTextAlign(Paint.Align.LEFT);
         float spacing = datePaint.getTextSize() * SUPPORTING_TEXT_LETTER_SPACING;
         for (int start = 0; start < text.length();) {
-            int end = start + Character.charCount(text.codePointAt(start));
+            int codePoint = text.codePointAt(start);
+            int end = start + Character.charCount(codePoint);
+            datePaint.setTypeface(supportingTypefaceFor(codePoint));
             canvas.drawText(text, start, end, cursor, baseline, datePaint);
             cursor += datePaint.measureText(text, start, end);
             if (end < text.length()) cursor += spacing;
             start = end;
         }
+        datePaint.setTypeface(originalTypeface);
         datePaint.setTextAlign(originalAlign);
+    }
+
+    private Typeface supportingTypefaceFor(int codePoint) {
+        return ClockTypefaceResolver.resolveSupportingForCodePoint(
+            getContext(), backgroundRepository.getFontFamily(), boldText, codePoint);
     }
 
     private void applyTextStyles() {
