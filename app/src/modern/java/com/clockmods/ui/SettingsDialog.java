@@ -309,6 +309,20 @@ public class SettingsDialog extends BottomSheetDialog {
             styleContent.addView(createSubLabel(context, R.string.pro_clock_theme), subLabelParams());
             proThemeSpinner = createStringSpinner(context, R.array.pro_clock_themes,
                     themeIndex(repository.getClockTheme()));
+            proThemeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+                private boolean initialized;
+
+                @Override
+                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
+                    if (!initialized) {
+                        initialized = true;
+                        return;
+                    }
+                    applyProThemeColors(position);
+                }
+
+                @Override public void onNothingSelected(AdapterView<?> parent) { }
+            });
             styleContent.addView(proThemeSpinner, topMargin(matchWrap(dp(48)), dp(4)));
             styleContent.addView(createSubLabel(context, R.string.pro_time_transition), subLabelParams());
             proTransitionSpinner = createStringSpinner(context, R.array.pro_time_transitions,
@@ -933,10 +947,6 @@ public class SettingsDialog extends BottomSheetDialog {
         if (proThemeSpinner != null) {
             String theme = themeForIndex(proThemeSpinner.getSelectedItemPosition());
             repository.setClockTheme(theme);
-            int[] colors = themeColors(theme);
-            repository.setCurrentColor(colors[0]);
-            repository.setTimeColor(colors[1]);
-            repository.setDateColor(colors[2]);
         }
         if (proTransitionSpinner != null) {
             repository.setTimeTransition(transitionForIndex(
@@ -1030,6 +1040,16 @@ public class SettingsDialog extends BottomSheetDialog {
                 ClockPreferences.THEME_FOREST, ClockPreferences.THEME_OCEAN,
                 ClockPreferences.THEME_SUNSET, ClockPreferences.THEME_MONOCHROME};
         return themes[Math.max(0, Math.min(index, themes.length - 1))];
+    }
+
+    private void applyProThemeColors(int themeIndex) {
+        int[] colors = themeColors(themeForIndex(themeIndex));
+        backgroundPicker.setColor(colors[0]);
+        setSwatchColor(backgroundPreview, colors[0]);
+        timeColor = colors[1];
+        timeColorPicker.setColor(timeColor);
+        dateColor = colors[2];
+        dateColorPicker.setColor(dateColor);
     }
 
     private static int[] themeColors(String theme) {
