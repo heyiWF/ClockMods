@@ -53,12 +53,15 @@ public class ClockPreferences {
     private static final String KEY_SYNC_INTERVAL_MINUTES = "sync_interval_minutes";
     private static final String KEY_TIME_ZONE_ID = "time_zone_id";
     private static final String KEY_WEATHER_ENABLED = "weather_enabled";
+    private static final String KEY_WEATHER_DETAILED = "weather_detailed";
     private static final String KEY_WEATHER_INTERVAL_MINUTES = "weather_interval_minutes";
     private static final String KEY_WEATHER_LOCATION_MODE = "weather_location_mode";
     private static final String KEY_WEATHER_LOCATION_ID = "weather_location_id";
     private static final String KEY_WEATHER_PROVINCE = "weather_province";
     private static final String KEY_WEATHER_CITY = "weather_city";
     private static final String KEY_WEATHER_DISTRICT = "weather_district";
+    private static final String KEY_WEATHER_LATITUDE = "weather_latitude";
+    private static final String KEY_WEATHER_LONGITUDE = "weather_longitude";
 
     /** Sentinel value meaning "follow the device's own time zone". */
     public static final String TIME_ZONE_FOLLOW_SYSTEM = "";
@@ -97,6 +100,7 @@ public class ClockPreferences {
     /** Time zone is set to follow the system by default. */
     public static final String DEFAULT_TIME_ZONE_ID = TIME_ZONE_FOLLOW_SYSTEM;
     public static final boolean DEFAULT_WEATHER_ENABLED = false;
+    public static final boolean DEFAULT_WEATHER_DETAILED = false;
     public static final int DEFAULT_WEATHER_INTERVAL_MINUTES = 30;
     public static final String WEATHER_LOCATION_AUTOMATIC = "automatic";
     public static final String WEATHER_LOCATION_MANUAL = "manual";
@@ -104,7 +108,7 @@ public class ClockPreferences {
 
     /** Allowed range for the width-based font scale (fraction of screen width). */
     public static final float MIN_FONT_SCALE = 0.20f;
-    public static final float MAX_FONT_SCALE = 1.00f;
+    public static final float MAX_FONT_SCALE = 1.50f;
 
     /** Default background color: solid black. */
     public static final int DEFAULT_BACKGROUND_COLOR = 0xFF000000;
@@ -392,6 +396,14 @@ public class ClockPreferences {
         preferences.edit().putBoolean(KEY_WEATHER_ENABLED, enabled).apply();
     }
 
+    public boolean isWeatherDetailed() {
+        return preferences.getBoolean(KEY_WEATHER_DETAILED, DEFAULT_WEATHER_DETAILED);
+    }
+
+    public void setWeatherDetailed(boolean detailed) {
+        preferences.edit().putBoolean(KEY_WEATHER_DETAILED, detailed).apply();
+    }
+
     public int getWeatherIntervalMinutes() {
         int value = preferences.getInt(KEY_WEATHER_INTERVAL_MINUTES, DEFAULT_WEATHER_INTERVAL_MINUTES);
         return isValidWeatherInterval(value) ? value : DEFAULT_WEATHER_INTERVAL_MINUTES;
@@ -424,12 +436,29 @@ public class ClockPreferences {
     public String getWeatherCity() { return preferences.getString(KEY_WEATHER_CITY, ""); }
     public String getWeatherDistrict() { return preferences.getString(KEY_WEATHER_DISTRICT, ""); }
 
+    public double getWeatherLatitude() {
+        return Double.longBitsToDouble(preferences.getLong(KEY_WEATHER_LATITUDE,
+                Double.doubleToRawLongBits(Double.NaN)));
+    }
+
+    public double getWeatherLongitude() {
+        return Double.longBitsToDouble(preferences.getLong(KEY_WEATHER_LONGITUDE,
+                Double.doubleToRawLongBits(Double.NaN)));
+    }
+
     public void setManualWeatherLocation(String locationId, String province, String city, String district) {
+        setManualWeatherLocation(locationId, province, city, district, Double.NaN, Double.NaN);
+    }
+
+    public void setManualWeatherLocation(String locationId, String province, String city,
+            String district, double latitude, double longitude) {
         preferences.edit()
                 .putString(KEY_WEATHER_LOCATION_ID, locationId == null ? "" : locationId)
                 .putString(KEY_WEATHER_PROVINCE, province == null ? "" : province)
                 .putString(KEY_WEATHER_CITY, city == null ? "" : city)
                 .putString(KEY_WEATHER_DISTRICT, district == null ? "" : district)
+                .putLong(KEY_WEATHER_LATITUDE, Double.doubleToRawLongBits(latitude))
+                .putLong(KEY_WEATHER_LONGITUDE, Double.doubleToRawLongBits(longitude))
                 .apply();
     }
 
@@ -464,12 +493,15 @@ public class ClockPreferences {
                 .putBoolean(KEY_CLOCK_USE_ENGLISH, DEFAULT_CLOCK_USE_ENGLISH)
                 .putBoolean(KEY_FORCE_LANDSCAPE, DEFAULT_FORCE_LANDSCAPE)
                 .putBoolean(KEY_WEATHER_ENABLED, DEFAULT_WEATHER_ENABLED)
+                .putBoolean(KEY_WEATHER_DETAILED, DEFAULT_WEATHER_DETAILED)
                 .putInt(KEY_WEATHER_INTERVAL_MINUTES, DEFAULT_WEATHER_INTERVAL_MINUTES)
                 .putString(KEY_WEATHER_LOCATION_MODE, DEFAULT_WEATHER_LOCATION_MODE)
                 .remove(KEY_WEATHER_LOCATION_ID)
                 .remove(KEY_WEATHER_PROVINCE)
                 .remove(KEY_WEATHER_CITY)
                 .remove(KEY_WEATHER_DISTRICT)
+                .remove(KEY_WEATHER_LATITUDE)
+                .remove(KEY_WEATHER_LONGITUDE)
                 .apply();
     }
 

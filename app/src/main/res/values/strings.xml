@@ -121,6 +121,7 @@
     <string name="clock_use_english">时钟界面使用英文</string>
     <string name="weather_settings_group">天气</string>
     <string name="show_weather">显示实时天气</string>
+    <string name="show_detailed_weather">显示详细天气信息</string>
     <string name="weather_update_interval">更新频率</string>
     <string name="weather_location">天气位置</string>
     <string name="weather_location_automatic">自动定位</string>

@@ -31,6 +31,9 @@ import java.util.concurrent.Executors;
 public class ClockView extends View {
     private static final long MILLIS_PER_SECOND = 1000L;
     private static final long TIME_TRANSITION_DURATION_MILLIS = 300L;
+    private static final long WEATHER_DETAIL_HOLD_MILLIS = 3000L;
+    private static final long WEATHER_DETAIL_TRANSITION_MILLIS = 200L;
+    private static final long WEATHER_DETAIL_FRAME_DELAY_MILLIS = 16L;
     private static final float SMALL_SECONDS_GAP_SPACE_FRACTION = 0.35f;
     private static final float SUPPORTING_TEXT_LETTER_SPACING = 0.025f;
     private static final int CLOCK_SHADOW_ALPHA = 0x66;
@@ -79,6 +82,9 @@ public class ClockView extends View {
     private float clockShadowRadius;
     private float clockShadowDy;
     private WeatherState weatherState;
+    private java.util.List<String> weatherDetailItems;
+    private int weatherDetailIndex;
+    private long weatherDetailCycleStartedAt;
 
     public ClockView(Context context) {
         this(context, null);
@@ -118,6 +124,10 @@ public class ClockView extends View {
 
     public void setWeatherState(WeatherState state) {
         weatherState = state;
+        weatherDetailItems = (state != null && state.data != null && state.data.detail != null)
+            ? state.data.detail.carouselItems() : null;
+        weatherDetailIndex = 0;
+        weatherDetailCycleStartedAt = 0L;
         invalidate();
     }
 
@@ -307,8 +317,127 @@ public class ClockView extends View {
             cursor += iconSize + iconGap;
             drawSupportingText(canvas, rightText, cursor, baseline, Paint.Align.LEFT);
         }
+        drawWeatherDetail(canvas, centerX, baseline, weatherMetrics);
         datePaint.setTextSize(originalSize);
         datePaint.setTypeface(originalTypeface);
+    }
+
+    private void drawWeatherDetail(Canvas canvas, float centerX, float weatherBaseline,
+            Paint.FontMetrics weatherMetrics) {
+        if (backgroundRepository == null || !backgroundRepository.isWeatherDetailed()) return;
+        if (weatherDetailItems == null || weatherDetailItems.isEmpty()) return;
+        long now = SystemClock.uptimeMillis();
+        if (weatherDetailCycleStartedAt == 0L) weatherDetailCycleStartedAt = now;
+
+        float detailBaseline = weatherBaseline + weatherMetrics.descent
+            - weatherMetrics.ascent + weatherMetrics.descent;
+
+        if (weatherDetailItems.size() == 1) {
+            drawWeatherDetailItem(canvas, weatherDetailItems.get(0), null, centerX,
+                detailBaseline, weatherMetrics, 1f);
+            return;
+        }
+
+        long elapsed = now - weatherDetailCycleStartedAt;
+        long fadeOutEnd = WEATHER_DETAIL_HOLD_MILLIS + WEATHER_DETAIL_TRANSITION_MILLIS;
+        long fadeInEnd = fadeOutEnd + WEATHER_DETAIL_TRANSITION_MILLIS;
+
+        int currentIndex = weatherDetailIndex;
+        int nextIndex = (weatherDetailIndex + 1) % weatherDetailItems.size();
+        String currentItem = weatherDetailItems.get(currentIndex);
+        String nextItem = weatherDetailItems.get(nextIndex);
+
+        if (elapsed < WEATHER_DETAIL_HOLD_MILLIS) {
+            drawWeatherDetailItem(canvas, currentItem, null, centerX,
+                detailBaseline, weatherMetrics, 0f);
+        } else if (elapsed < fadeOutEnd) {
+            float progress = (float) (elapsed - WEATHER_DETAIL_HOLD_MILLIS)
+                / WEATHER_DETAIL_TRANSITION_MILLIS;
+            drawWeatherDetailItem(canvas, currentItem, nextItem, centerX,
+                detailBaseline, weatherMetrics, progress * 0.5f);
+        } else if (elapsed < fadeInEnd) {
+            float progress = (float) (elapsed - fadeOutEnd)
+                / WEATHER_DETAIL_TRANSITION_MILLIS;
+            drawWeatherDetailItem(canvas, currentItem, nextItem, centerX,
+                detailBaseline, weatherMetrics, 0.5f + progress * 0.5f);
+        } else {
+            weatherDetailIndex = nextIndex;
+            weatherDetailCycleStartedAt = now;
+            drawWeatherDetailItem(canvas, nextItem, null, centerX,
+                detailBaseline, weatherMetrics, 0f);
+        }
+
+        postInvalidateDelayed(WEATHER_DETAIL_FRAME_DELAY_MILLIS);
+    }
+
+    /**
+     * Draws the carousel line. {@code progress} runs across the whole transition where
+     * {@code [0, 0.5)} fades out {@code current} and {@code [0.5, 1]} brings in {@code next};
+     * outside a transition it is 0 and only {@code current} is drawn at full strength.
+     */
+    private void drawWeatherDetailItem(Canvas canvas, String current, String next,
+            float centerX, float baseline, Paint.FontMetrics metrics, float progress) {
+        boolean transitioning = next != null;
+        boolean useTimeTransition =
+            com.clockmods.BuildConfig.WEATHER_DETAIL_USES_TIME_TRANSITION;
+        if (!transitioning) {
+            drawWeatherDetailLine(canvas, current, centerX, baseline, metrics, 255,
+                ClockPreferences.TRANSITION_FADE, 0f);
+            return;
+        }
+        String transition = useTimeTransition ? timeTransition : ClockPreferences.TRANSITION_FADE;
+        if (progress < 0.5f) {
+            float outProgress = progress / 0.5f;
+            drawWeatherDetailLine(canvas, current, centerX, baseline, metrics,
+                Math.round(255f * (1f - outProgress)), transition, outProgress);
+        } else {
+            float inProgress = (progress - 0.5f) / 0.5f;
+            drawWeatherDetailLine(canvas, next, centerX, baseline, metrics,
+                Math.round(255f * inProgress), transition, -(1f - inProgress));
+        }
+    }
+
+    /**
+     * Renders one carousel line honouring the transition style. {@code phase} encodes the
+     * spatial offset for motion styles: negative means leaving (old item), positive means
+     * entering (new item), 0 means settled.
+     */
+    private void drawWeatherDetailLine(Canvas canvas, String text, float centerX,
+            float baseline, Paint.FontMetrics metrics, int alpha, String transition, float phase) {
+        if (text == null || text.length() == 0) return;
+        int originalAlpha = datePaint.getAlpha();
+        applySupportingTypeface(text);
+        float clampedAlpha = Math.max(0, Math.min(255, alpha));
+        if (ClockPreferences.TRANSITION_SLIDE_UP.equals(transition)
+                || ClockPreferences.TRANSITION_SLIDE_DOWN.equals(transition)) {
+            float direction = ClockPreferences.TRANSITION_SLIDE_UP.equals(transition) ? -1f : 1f;
+            float distance = datePaint.getTextSize() * 0.6f;
+            canvas.save();
+            canvas.translate(0f, direction * distance * phase);
+            datePaint.setAlpha(Math.round(clampedAlpha / 255f * originalAlpha));
+            drawSupportingText(canvas, text, centerX, baseline, Paint.Align.CENTER);
+            canvas.restore();
+        } else if (ClockPreferences.TRANSITION_SCALE.equals(transition)) {
+            float scale = 1f - 0.12f * Math.abs(phase);
+            float pivotY = baseline + (metrics.ascent + metrics.descent) / 2f;
+            canvas.save();
+            canvas.scale(scale, scale, centerX, pivotY);
+            datePaint.setAlpha(Math.round(clampedAlpha / 255f * originalAlpha));
+            drawSupportingText(canvas, text, centerX, baseline, Paint.Align.CENTER);
+            canvas.restore();
+        } else if (ClockPreferences.TRANSITION_FLIP.equals(transition)) {
+            float scaleY = Math.max(0.05f, 1f - Math.abs(phase));
+            float pivotY = baseline + (metrics.ascent + metrics.descent) / 2f;
+            canvas.save();
+            canvas.scale(1f, scaleY, centerX, pivotY);
+            datePaint.setAlpha(originalAlpha);
+            drawSupportingText(canvas, text, centerX, baseline, Paint.Align.CENTER);
+            canvas.restore();
+        } else {
+            datePaint.setAlpha(Math.round(clampedAlpha / 255f * originalAlpha));
+            drawSupportingText(canvas, text, centerX, baseline, Paint.Align.CENTER);
+        }
+        datePaint.setAlpha(originalAlpha);
     }
 
     private float measureSupportingText(String text) {

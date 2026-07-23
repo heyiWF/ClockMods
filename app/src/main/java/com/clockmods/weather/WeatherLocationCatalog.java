@@ -22,12 +22,17 @@ public final class WeatherLocationCatalog {
         public final String province;
         public final String city;
         public final String district;
+        public final double latitude;
+        public final double longitude;
 
-        LocationEntry(String locationId, String province, String city, String district) {
+        LocationEntry(String locationId, String province, String city, String district,
+                double latitude, double longitude) {
             this.locationId = locationId;
             this.province = province;
             this.city = city;
             this.district = district;
+            this.latitude = latitude;
+            this.longitude = longitude;
         }
     }
 
@@ -75,7 +80,9 @@ public final class WeatherLocationCatalog {
                 String district = value(record, "Location_Name_ZH");
                 if (locationId.length() > 0 && province.length() > 0
                         && city.length() > 0 && district.length() > 0) {
-                    entries.add(new LocationEntry(locationId, province, city, district));
+                    entries.add(new LocationEntry(locationId, province, city, district,
+                            parseCoordinate(value(record, "Latitude")),
+                            parseCoordinate(value(record, "Longitude"))));
                 }
             }
         }
@@ -105,6 +112,18 @@ public final class WeatherLocationCatalog {
                     && names.add(entry.district)) values.add(entry);
         }
         return values;
+    }
+
+    public LocationEntry findById(String locationId) {
+        if (locationId == null || locationId.length() == 0) return null;
+        for (LocationEntry entry : entries) {
+            if (entry.locationId.equals(locationId)) return entry;
+        }
+        return null;
+    }
+
+    private static double parseCoordinate(String value) {
+        try { return Double.parseDouble(value); } catch (NumberFormatException e) { return Double.NaN; }
     }
 
     private static String value(CSVRecord record, String name) {

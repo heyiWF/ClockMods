@@ -49,7 +49,7 @@ public class SettingsDialog extends Dialog {
     }
 
     private static final int MIN_FONT_PERCENT = 20;
-    private static final int MAX_FONT_PERCENT = 100;
+    private static final int MAX_FONT_PERCENT = 150;
     private static final int FONT_PERCENT_RANGE = MAX_FONT_PERCENT - MIN_FONT_PERCENT;
 
     private static final int MODE_COLOR_ID = 30003;
@@ -116,10 +116,13 @@ public class SettingsDialog extends Dialog {
     private final Spinner weatherLocationModeSpinner;
     private final Button weatherLocationButton;
     private final Spinner weatherIntervalSpinner;
+    private final Switch weatherDetailedSwitch;
     private String selectedWeatherLocationId;
     private String selectedWeatherProvince;
     private String selectedWeatherCity;
     private String selectedWeatherDistrict;
+    private double selectedWeatherLatitude = Double.NaN;
+    private double selectedWeatherLongitude = Double.NaN;
     private int selectedRegionIndex;
     private int dimStartMinutes;
     private int dimEndMinutes;
@@ -138,6 +141,8 @@ public class SettingsDialog extends Dialog {
         this.selectedWeatherProvince = repository.getWeatherProvince();
         this.selectedWeatherCity = repository.getWeatherCity();
         this.selectedWeatherDistrict = repository.getWeatherDistrict();
+        this.selectedWeatherLatitude = repository.getWeatherLatitude();
+        this.selectedWeatherLongitude = repository.getWeatherLongitude();
         requestWindowFeature(Window.FEATURE_NO_TITLE);
 
         LinearLayout dialogRoot = new LinearLayout(context);
@@ -453,6 +458,8 @@ public class SettingsDialog extends Dialog {
                     selectedWeatherProvince = location.province;
                     selectedWeatherCity = location.city;
                     selectedWeatherDistrict = location.district;
+                    selectedWeatherLatitude = location.latitude;
+                    selectedWeatherLongitude = location.longitude;
                     updateWeatherLocationSummary();
                 }
             }));
@@ -471,6 +478,12 @@ public class SettingsDialog extends Dialog {
             }));
         weatherIntervalSpinner.setSelection(weatherIntervalIndex(repository.getWeatherIntervalMinutes()));
         functionContent.addView(weatherIntervalSpinner, topMargin(matchWrap(dp(48)), dp(4)));
+        weatherDetailedSwitch = new Switch(context);
+        weatherDetailedSwitch.setText(R.string.show_detailed_weather);
+        weatherDetailedSwitch.setTextColor(COLOR_PRIMARY_TEXT);
+        tintCompoundButton(weatherDetailedSwitch);
+        weatherDetailedSwitch.setChecked(repository.isWeatherDetailed());
+        functionContent.addView(weatherDetailedSwitch, topMargin(matchWrap(dp(48)), dp(8)));
         weatherSwitch.setOnCheckedChangeListener((button, checked) -> updateWeatherState(checked));
         weatherLocationModeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -563,6 +576,8 @@ public class SettingsDialog extends Dialog {
         weatherLocationButton.setEnabled(manual);
         weatherIntervalSpinner.setEnabled(enabled);
         weatherIntervalSpinner.setAlpha(enabled ? 1f : 0.4f);
+        weatherDetailedSwitch.setEnabled(enabled);
+        weatherDetailedSwitch.setAlpha(enabled ? 1f : 0.4f);
     }
 
     private void updateWeatherLocationSummary() {
@@ -900,7 +915,8 @@ public class SettingsDialog extends Dialog {
         repository.setTimeZoneId(RegionTimeZones.ZONE_IDS[selectedRegionIndex]);
         repository.setWeatherEnabled(weatherSwitch.isChecked());
         repository.setManualWeatherLocation(selectedWeatherLocationId, selectedWeatherProvince,
-            selectedWeatherCity, selectedWeatherDistrict);
+            selectedWeatherCity, selectedWeatherDistrict, selectedWeatherLatitude, selectedWeatherLongitude);
+        repository.setWeatherDetailed(weatherDetailedSwitch.isChecked());
         repository.setWeatherLocationMode(manualWeather
             ? ClockPreferences.WEATHER_LOCATION_MANUAL : ClockPreferences.WEATHER_LOCATION_AUTOMATIC);
         repository.setWeatherIntervalMinutes(weatherIntervalMinutes(

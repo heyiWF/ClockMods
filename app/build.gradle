@@ -39,6 +39,7 @@ android {
             minSdk = 14
             resValue "string", "app_name", "ClockMods Lite"
             manifestPlaceholders = [launcherActivity: ".MainActivity"]
+            buildConfigField 'boolean', 'WEATHER_DETAIL_USES_TIME_TRANSITION', 'false'
         }
         modern {
             dimension "experience"
@@ -47,6 +48,7 @@ android {
             minSdk = 23
             resValue "string", "app_name", "ClockMods"
             manifestPlaceholders = [launcherActivity: ".MainActivity"]
+            buildConfigField 'boolean', 'WEATHER_DETAIL_USES_TIME_TRANSITION', 'false'
         }
         pro {
             dimension "experience"
@@ -55,6 +57,7 @@ android {
             minSdk = 29
             resValue "string", "app_name", "ClockMods Pro"
             manifestPlaceholders = [launcherActivity: ".pro.ProMainActivity"]
+            buildConfigField 'boolean', 'WEATHER_DETAIL_USES_TIME_TRANSITION', 'true'
         }
     }
 

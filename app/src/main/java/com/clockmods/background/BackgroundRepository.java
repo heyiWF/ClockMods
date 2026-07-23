@@ -233,6 +233,8 @@ public class BackgroundRepository {
 
     public boolean isWeatherEnabled() { return preferences.isWeatherEnabled(); }
     public void setWeatherEnabled(boolean enabled) { preferences.setWeatherEnabled(enabled); }
+    public boolean isWeatherDetailed() { return preferences.isWeatherDetailed(); }
+    public void setWeatherDetailed(boolean detailed) { preferences.setWeatherDetailed(detailed); }
     public int getWeatherIntervalMinutes() { return preferences.getWeatherIntervalMinutes(); }
     public void setWeatherIntervalMinutes(int minutes) { preferences.setWeatherIntervalMinutes(minutes); }
     public String getWeatherLocationMode() { return preferences.getWeatherLocationMode(); }
@@ -241,8 +243,14 @@ public class BackgroundRepository {
     public String getWeatherProvince() { return preferences.getWeatherProvince(); }
     public String getWeatherCity() { return preferences.getWeatherCity(); }
     public String getWeatherDistrict() { return preferences.getWeatherDistrict(); }
+    public double getWeatherLatitude() { return preferences.getWeatherLatitude(); }
+    public double getWeatherLongitude() { return preferences.getWeatherLongitude(); }
     public void setManualWeatherLocation(String locationId, String province, String city, String district) {
         preferences.setManualWeatherLocation(locationId, province, city, district);
+    }
+    public void setManualWeatherLocation(String locationId, String province, String city,
+            String district, double latitude, double longitude) {
+        preferences.setManualWeatherLocation(locationId, province, city, district, latitude, longitude);
     }
 
     /** Resets background, font size and font colors to defaults (black background, white text). */

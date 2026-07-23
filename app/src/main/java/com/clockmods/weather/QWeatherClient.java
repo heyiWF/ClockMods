@@ -15,6 +15,7 @@ import java.util.Locale;
 
 import javax.net.ssl.HttpsURLConnection;
 
+import static com.clockmods.weather.WeatherModels.WeatherDetail;
 import static com.clockmods.weather.WeatherModels.WeatherDisplayData;
 
 public final class QWeatherClient {
@@ -29,18 +30,88 @@ public final class QWeatherClient {
     }
 
     public WeatherDisplayData fetch(double latitude, double longitude) throws Exception {
+        return fetch(latitude, longitude, false);
+    }
+
+    public WeatherDisplayData fetch(double latitude, double longitude, boolean detailed) throws Exception {
         JSONObject location = getLocation(latitude, longitude);
-        return fetchLocation(location.getString("id"), location.optString("adm2", ""),
-                location.optString("name", ""));
+        double lat = optDouble(location, "lat", latitude);
+        double lon = optDouble(location, "lon", longitude);
+        return fetchNow(location.getString("id"), location.optString("adm2", ""),
+                location.optString("name", ""), lat, lon, detailed);
     }
 
     public WeatherDisplayData fetchLocation(String locationId, String city, String district) throws Exception {
+        return fetchNow(locationId, city, district, Double.NaN, Double.NaN, false);
+    }
+
+    public WeatherDisplayData fetchLocation(String locationId, String city, String district,
+            double latitude, double longitude, boolean detailed) throws Exception {
+        return fetchNow(locationId, city, district, latitude, longitude, detailed);
+    }
+
+    private WeatherDisplayData fetchNow(String locationId, String city, String district,
+            double latitude, double longitude, boolean detailed) throws Exception {
         String path = "/v7/weather/now?location=" + urlEncode(locationId) + "&lang=zh";
         JSONObject body = request(path);
         JSONObject now = body.getJSONObject("now");
+        WeatherDetail detail = detailed
+                ? buildDetail(now, latitude, longitude) : null;
         return new WeatherDisplayData(locationId, city, district,
                 now.optString("text", ""), now.optString("icon", ""),
-                now.optString("temp", "--"), System.currentTimeMillis());
+                now.optString("temp", "--"), System.currentTimeMillis(), detail);
+    }
+
+    private WeatherDetail buildDetail(JSONObject now, double latitude, double longitude) {
+        String warning = null;
+        String aqiValue = null;
+        String aqiCategory = null;
+        if (!Double.isNaN(latitude) && !Double.isNaN(longitude)) {
+            warning = fetchWarning(latitude, longitude);
+            String[] aqi = fetchAirQuality(latitude, longitude);
+            aqiValue = aqi[0];
+            aqiCategory = aqi[1];
+        }
+        return new WeatherDetail(now.optString("feelsLike", ""), now.optString("humidity", ""),
+                now.optString("windDir", ""), now.optString("windScale", ""),
+                now.optString("precip", ""), warning, aqiValue, aqiCategory);
+    }
+
+    private String fetchWarning(double latitude, double longitude) {
+        try {
+            JSONObject body = requestRaw("/weatheralert/v1/current/"
+                    + formatCoordinate(latitude) + "/" + formatCoordinate(longitude) + "?lang=zh");
+            JSONArray alerts = body.optJSONArray("alerts");
+            if (alerts == null || alerts.length() == 0) return null;
+            JSONObject first = alerts.getJSONObject(0);
+            JSONObject eventType = first.optJSONObject("eventType");
+            if (eventType != null) {
+                String name = eventType.optString("name", "");
+                if (name.length() > 0) return name;
+            }
+            String headline = first.optString("headline", "");
+            return headline.length() > 0 ? headline : null;
+        } catch (Exception ignored) { return null; }
+    }
+
+    private String[] fetchAirQuality(double latitude, double longitude) {
+        try {
+            JSONObject body = requestRaw("/airquality/v1/current/"
+                    + formatCoordinate(latitude) + "/" + formatCoordinate(longitude) + "?lang=zh");
+            JSONArray indexes = body.optJSONArray("indexes");
+            if (indexes == null || indexes.length() == 0) return new String[] {null, null};
+            JSONObject index = indexes.getJSONObject(0);
+            for (int i = 0; i < indexes.length(); i++) {
+                if ("qaqi".equals(indexes.getJSONObject(i).optString("code"))) {
+                    index = indexes.getJSONObject(i);
+                    break;
+                }
+            }
+            String value = index.optString("aqiDisplay", "");
+            String category = index.optString("category", "");
+            return new String[] {value.length() > 0 ? value : null,
+                    category.length() > 0 ? category : null};
+        } catch (Exception ignored) { return new String[] {null, null}; }
     }
 
     private JSONObject getLocation(double latitude, double longitude) throws Exception {
@@ -55,7 +126,25 @@ public final class QWeatherClient {
         return String.format(Locale.US, "%.2f,%.2f", longitude, latitude);
     }
 
+    static String formatCoordinate(double value) {
+        return String.format(Locale.US, "%.2f", value);
+    }
+
+    private static double optDouble(JSONObject object, String key, double fallback) {
+        String value = object.optString(key, "");
+        try { return value.length() > 0 ? Double.parseDouble(value) : fallback; }
+        catch (NumberFormatException e) { return fallback; }
+    }
+
     private JSONObject request(String path) throws Exception {
+        JSONObject json = requestRaw(path);
+        if (!"200".equals(json.optString("code"))) {
+            throw new IOException("QWeather error: " + json.optString("code"));
+        }
+        return json;
+    }
+
+    private JSONObject requestRaw(String path) throws Exception {
         HttpURLConnection connection = (HttpURLConnection) new URL("https://" + host + path).openConnection();
         try {
             if (connection instanceof HttpsURLConnection && socketFactory != null) {
@@ -71,7 +160,7 @@ public final class QWeatherClient {
             String response = read(status >= 200 && status < 300
                     ? connection.getInputStream() : connection.getErrorStream());
             JSONObject json = new JSONObject(response);
-            if (status < 200 || status >= 300 || !"200".equals(json.optString("code"))) {
+            if (status < 200 || status >= 300) {
                 throw new IOException("QWeather error: " + json.optString("code", String.valueOf(status)));
             }
             return json;

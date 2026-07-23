@@ -139,7 +139,8 @@ public final class WeatherController {
             @Override public void run() {
                 try {
                     final WeatherDisplayData data = new QWeatherClient(context, QWeatherConfig.apiHost())
-                            .fetch(location.getLatitude(), location.getLongitude());
+                            .fetch(location.getLatitude(), location.getLongitude(),
+                                    preferences.isWeatherDetailed());
                         repository.save(data, ClockPreferences.WEATHER_LOCATION_AUTOMATIC);
                     handler.post(new Runnable() {
                         @Override public void run() {
@@ -170,11 +171,21 @@ public final class WeatherController {
         final String locationId = preferences.getWeatherLocationId();
         final String city = preferences.getWeatherCity();
         final String district = preferences.getWeatherDistrict();
+        final boolean detailed = preferences.isWeatherDetailed();
+        final double latitude = preferences.getWeatherLatitude();
+        final double longitude = preferences.getWeatherLongitude();
         executor.execute(new Runnable() {
             @Override public void run() {
                 try {
+                    double lat = latitude;
+                    double lon = longitude;
+                    if (detailed && (Double.isNaN(lat) || Double.isNaN(lon))) {
+                        WeatherLocationCatalog.LocationEntry entry =
+                                WeatherLocationCatalog.load(context).findById(locationId);
+                        if (entry != null) { lat = entry.latitude; lon = entry.longitude; }
+                    }
                     final WeatherDisplayData data = new QWeatherClient(context, QWeatherConfig.apiHost())
-                            .fetchLocation(locationId, city, district);
+                            .fetchLocation(locationId, city, district, lat, lon, detailed);
                     repository.save(data, ClockPreferences.WEATHER_LOCATION_MANUAL);
                     handler.post(new Runnable() {
                         @Override public void run() {
