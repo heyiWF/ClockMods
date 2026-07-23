@@ -8,7 +8,16 @@ public class ClockPreferences {
     public static final String MODE_IMAGE = "image";
     public static final String FONT_SYSTEM = "system";
     public static final String FONT_ROBOTO = "roboto";
-    public static final String FONT_GOOGLE_SANS = "google_sans";
+    public static final String FONT_GOOGLE_SANS_DISPLAY = "google_sans_display";
+    // Pro-only font families (bundled in the pro flavor assets).
+    public static final String FONT_GOOGLE_SANS_TEXT = "google_sans_text";
+    public static final String FONT_SF_PRO_DISPLAY = "sf_pro_display";
+    public static final String FONT_SF_PRO_ROUNDED = "sf_pro_rounded";
+    public static final String FONT_INTER = "inter";
+    public static final String FONT_LATO = "lato";
+    public static final String FONT_LORA = "lora";
+    public static final String FONT_NOTO_SANS = "noto_sans";
+    public static final String FONT_BITCOUNT = "bitcount_grid_double";
     public static final String THEME_MIDNIGHT = "midnight";
     public static final String THEME_PAPER = "paper";
     public static final String THEME_FOREST = "forest";
@@ -43,6 +52,7 @@ public class ClockPreferences {
     private static final String KEY_HOURLY_CHIME_QUIET_END = "hourly_chime_quiet_end";
     private static final String KEY_BOLD_TEXT = "bold_text";
     private static final String KEY_FONT_FAMILY = "font_family";
+    private static final String LEGACY_FONT_GOOGLE_SANS = "google_sans";
     private static final String KEY_SHOW_SECONDS = "show_seconds";
     private static final String KEY_SHOW_LUNAR = "show_lunar";
     private static final String KEY_SMALL_SECONDS = "small_seconds";
@@ -309,7 +319,10 @@ public class ClockPreferences {
     }
 
     public static String normalizeFontFamily(String fontFamily) {
-        if (FONT_ROBOTO.equals(fontFamily) || FONT_GOOGLE_SANS.equals(fontFamily)) {
+        if (LEGACY_FONT_GOOGLE_SANS.equals(fontFamily)) {
+            return FONT_GOOGLE_SANS_DISPLAY;
+        }
+        if (fontFamily != null && FontCatalog.isAvailable(fontFamily)) {
             return fontFamily;
         }
         return FONT_SYSTEM;

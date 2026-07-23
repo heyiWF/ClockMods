@@ -291,6 +291,10 @@ public class StatusBarView extends View {
         float cursor = right;
         if (batteryLevel >= 0) {
             textPaint.setTextSize(iconHeight * 0.9f);
+            if (backgroundRepository != null) {
+                textPaint.setTypeface(ClockTypefaceResolver.resolveTime(
+                        getContext(), backgroundRepository.getFontFamily(), false));
+            }
             String percent = batteryLevel + "%";
             canvas.drawText(percent, cursor, centerY - (textPaint.ascent() + textPaint.descent()) / 2f, textPaint);
             cursor -= textPaint.measureText(percent) + gap * 0.6f;

@@ -5,6 +5,7 @@ import android.graphics.Canvas;
 import android.graphics.Matrix;
 import android.graphics.Paint;
 import android.graphics.Path;
+import android.graphics.RectF;
 
 /**
  * Holds a single Google Material Symbols glyph and renders it scaled into an
@@ -22,6 +23,7 @@ final class MaterialIcon {
     private static final float VIEWPORT = 960f;
 
     private final Path basePath;
+        private final float verticalCenter;
     private final Path scaledPath = new Path();
     private final Matrix matrix = new Matrix();
     private final Paint iconPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -39,6 +41,9 @@ final class MaterialIcon {
         Path shifted = new Path();
         parsed.transform(shift, shifted);
         basePath = shifted;
+        RectF bounds = new RectF();
+        basePath.computeBounds(bounds, true);
+        verticalCenter = bounds.centerY();
     }
 
     /**
@@ -60,6 +65,7 @@ final class MaterialIcon {
             Canvas bitmapCanvas = new Canvas(bitmap);
             matrix.reset();
             matrix.setScale(targetSize / VIEWPORT, targetSize / VIEWPORT);
+            matrix.postTranslate(0f, targetSize / 2f - verticalCenter * targetSize / VIEWPORT);
             scaledPath.reset();
             basePath.transform(matrix, scaledPath);
             iconPaint.setColor(color);

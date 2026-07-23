@@ -997,21 +997,13 @@ public class SettingsDialog extends BottomSheetDialog {
     private Spinner createFontFamilySpinner(Context context, String family) {
         Spinner spinner = new Spinner(context);
         spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item,
-                new String[] {context.getString(R.string.font_system), "Roboto", "Google Sans"}));
-        spinner.setSelection(fontFamilyIndex(family));
+                com.clockmods.background.FontCatalog.displayNames()));
+        spinner.setSelection(com.clockmods.background.FontCatalog.indexOf(family));
         return spinner;
     }
 
-    private static int fontFamilyIndex(String family) {
-        if (ClockPreferences.FONT_ROBOTO.equals(family)) return 1;
-        if (ClockPreferences.FONT_GOOGLE_SANS.equals(family)) return 2;
-        return 0;
-    }
-
     private static String fontFamilyForIndex(int index) {
-        if (index == 1) return ClockPreferences.FONT_ROBOTO;
-        if (index == 2) return ClockPreferences.FONT_GOOGLE_SANS;
-        return ClockPreferences.FONT_SYSTEM;
+        return com.clockmods.background.FontCatalog.idForIndex(index);
     }
 
     private Spinner createStringSpinner(Context context, int arrayRes, int selection) {

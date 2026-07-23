@@ -4,25 +4,25 @@ import android.content.Context;
 import android.graphics.Typeface;
 
 import com.clockmods.background.ClockPreferences;
+import com.clockmods.background.FontCatalog;
+
+import java.util.HashMap;
+import java.util.Map;
 
 final class ClockTypefaceResolver {
-    private static Typeface roboto;
-    private static Typeface robotoBold;
-    private static Typeface googleSans;
-    private static Typeface googleSansBold;
+    /** Cache keyed by "<fontId>#<bold>" so each asset is only decoded once. */
+    private static final Map<String, Typeface> CACHE = new HashMap<>();
 
     private ClockTypefaceResolver() {
     }
 
     static Typeface resolveTime(Context context, String family, boolean bold) {
         String normalized = ClockPreferences.normalizeFontFamily(family);
-        if (ClockPreferences.FONT_ROBOTO.equals(normalized)) {
-            return loadRoboto(context, bold);
+        FontCatalog.FontOption option = FontCatalog.optionFor(normalized);
+        if (option.isSystem()) {
+            return bold ? Typeface.create("sans-serif-black", Typeface.NORMAL) : Typeface.DEFAULT;
         }
-        if (ClockPreferences.FONT_GOOGLE_SANS.equals(normalized)) {
-            return loadGoogleSans(context, bold);
-        }
-        return bold ? Typeface.create("sans-serif-black", Typeface.NORMAL) : Typeface.DEFAULT;
+        return loadOption(context, option, bold);
     }
 
     static Typeface resolveSupporting(Context context, String family, boolean bold, boolean containsChinese) {
@@ -52,20 +52,22 @@ final class ClockTypefaceResolver {
                 || block == Character.UnicodeBlock.CJK_SYMBOLS_AND_PUNCTUATION;
     }
 
-    private static Typeface loadRoboto(Context context, boolean bold) {
-        if (roboto == null) {
-            roboto = load(context, "fonts/Roboto-Regular.ttf", Typeface.DEFAULT);
-            robotoBold = load(context, "fonts/Roboto-Bold.ttf", Typeface.DEFAULT_BOLD);
+    private static Typeface loadOption(Context context, FontCatalog.FontOption option, boolean bold) {
+        String cacheKey = option.id + '#' + bold;
+        Typeface cached = CACHE.get(cacheKey);
+        if (cached != null) {
+            return cached;
         }
-        return bold ? robotoBold : roboto;
-    }
-
-    private static Typeface loadGoogleSans(Context context, boolean bold) {
-        if (googleSans == null) {
-            googleSans = load(context, "fonts/GoogleSans-Regular.ttf", Typeface.DEFAULT);
-            googleSansBold = load(context, "fonts/GoogleSans-Bold.ttf", Typeface.DEFAULT_BOLD);
+        String assetPath = bold && option.boldAsset != null ? option.boldAsset : option.regularAsset;
+        Typeface fallback = bold ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT;
+        Typeface loaded = load(context, assetPath, fallback);
+        // When a family ships no dedicated bold asset, synthesize bold from the
+        // regular face so the "bold text" option still visibly thickens glyphs.
+        if (bold && option.boldAsset == null && loaded != null) {
+            loaded = Typeface.create(loaded, Typeface.BOLD);
         }
-        return bold ? googleSansBold : googleSans;
+        CACHE.put(cacheKey, loaded);
+        return loaded;
     }
 
     private static Typeface load(Context context, String path, Typeface fallback) {
