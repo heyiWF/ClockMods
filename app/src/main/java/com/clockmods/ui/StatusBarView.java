@@ -30,7 +30,7 @@ public class StatusBarView extends View {
     private static final int INVALID_RSSI = -127;
 
     private enum NetworkState {
-        NONE, MOBILE, WIFI
+        NONE, MOBILE, WIFI, ETHERNET
     }
 
     private final Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -188,6 +188,8 @@ public class StatusBarView extends View {
         } else if (type == ConnectivityManager.TYPE_MOBILE) {
             networkState = NetworkState.MOBILE;
             signalStrength = mobileSignalStrength;
+        } else if (type == ConnectivityManager.TYPE_ETHERNET) {
+            networkState = NetworkState.ETHERNET;
         } else {
             networkState = NetworkState.NONE;
         }
@@ -200,6 +202,8 @@ public class StatusBarView extends View {
             network = getContext().getString(R.string.status_wifi_signal, signalStrength + 1, 5);
         } else if (networkState == NetworkState.MOBILE) {
             network = getContext().getString(R.string.status_mobile_signal, signalStrength + 1, 5);
+        } else if (networkState == NetworkState.ETHERNET) {
+            network = getContext().getString(R.string.status_ethernet);
         } else {
             network = getContext().getString(R.string.status_no_network);
         }
@@ -266,7 +270,7 @@ public class StatusBarView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
-        if (batteryLevel < 0 && networkState == NetworkState.NONE) {
+        if (batteryLevel < 0 && !hasNetworkInfo()) {
             return;
         }
         int tint = resolveTint();
@@ -299,29 +303,44 @@ public class StatusBarView extends View {
             cursor -= gap * 0.4f;
         }
 
-        // Network icon.
-        if (networkState != NetworkState.NONE) {
-            float networkSize = iconHeight * 1.15f;
-            cursor -= networkSize;
-            if (networkState == NetworkState.WIFI) {
+        // Network icon (always shown, including the "no network" globe).
+        float networkSize = iconHeight * 1.15f;
+        cursor -= networkSize;
+        switch (networkState) {
+            case WIFI:
                 drawWifi(canvas, cursor, centerY, networkSize);
-            } else {
+                break;
+            case MOBILE:
                 drawMobile(canvas, cursor, centerY, networkSize);
-            }
-            fillPaint.setAlpha(255);
+                break;
+            case ETHERNET:
+                drawIcon(canvas, MaterialIcon.ETHERNET, cursor, centerY, networkSize);
+                break;
+            default:
+                drawIcon(canvas, MaterialIcon.GLOBE_CANCEL, cursor, centerY, networkSize);
+                break;
         }
+        fillPaint.setAlpha(255);
+    }
+
+    /** True when the receivers have reported a connectivity state to display. */
+    private boolean hasNetworkInfo() {
+        return receiverRegistered;
+    }
+
+    private void drawIcon(Canvas canvas, MaterialIcon icon, float left, float centerY, float size) {
+        fillPaint.setColor(resolveTint());
+        fillPaint.setAlpha(255);
+        icon.draw(canvas, left, centerY - size / 2f, size, fillPaint);
     }
 
     private void drawBattery(Canvas canvas, float left, float centerY, float size) {
         MaterialIcon icon;
         if (batteryCharging) {
             icon = MaterialIcon.BATTERY_BOLT;
-        } else if (batteryLevel <= 5) {
-            icon = MaterialIcon.BATTERY_ALERT;
-        } else if (batteryLevel >= 98) {
-            icon = MaterialIcon.BATTERY_FULL;
         } else {
-            // Map 0..100% onto the seven Battery Android fill levels (0..6).
+            // Map 0..100% onto the eight Battery Android glyphs
+            // (Battery Android 0..6 then Battery Android Full).
             int level = Math.round(batteryLevel / 100f * (MaterialIcon.BATTERY_LEVELS.length - 1));
             level = Math.max(0, Math.min(MaterialIcon.BATTERY_LEVELS.length - 1, level));
             icon = MaterialIcon.BATTERY_LEVELS[level];

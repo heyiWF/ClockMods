@@ -34,7 +34,8 @@ public final class WeatherModels {
     public static String locationText(String city, String district) {
         if (city == null) return district == null ? "" : district;
         String displayCity = city.endsWith("市") ? city.substring(0, city.length() - 1) : city;
-        if (district == null || district.length() == 0 || city.equals(district)) return displayCity;
+        if (district == null || district.length() == 0
+                || city.equals(district) || displayCity.equals(district)) return displayCity;
         return displayCity + district;
     }
 

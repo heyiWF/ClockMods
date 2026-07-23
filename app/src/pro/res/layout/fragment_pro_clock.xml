@@ -19,4 +19,38 @@
         android:paddingEnd="4dp"
         android:visibility="gone" />
 
+    <LinearLayout
+        android:id="@+id/weather_attribution"
+        android:layout_width="wrap_content"
+        android:layout_height="48dp"
+        android:layout_gravity="bottom|center_horizontal"
+        android:contentDescription="@string/weather_attribution"
+        android:gravity="center"
+        android:orientation="horizontal"
+        android:paddingStart="16dp"
+        android:paddingEnd="16dp"
+        android:visibility="gone">
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/weather_attribution_prefix"
+            android:textColor="#CCFFFFFF"
+            android:textSize="12sp" />
+
+        <com.clockmods.ui.QWeatherLogoView
+            android:layout_width="14dp"
+            android:layout_height="14dp"
+            android:layout_marginStart="3dp"
+            android:layout_marginEnd="3dp" />
+
+        <TextView
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:text="@string/weather_attribution_brand"
+            android:textColor="#CCFFFFFF"
+            android:textSize="12sp" />
+
+    </LinearLayout>
+
 </FrameLayout>
