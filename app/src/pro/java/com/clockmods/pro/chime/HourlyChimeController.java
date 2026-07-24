@@ -31,7 +31,7 @@ public final class HourlyChimeController {
         long epochHour = now.getTimeInMillis() / 3_600_000L;
         if (epochHour == lastEpochHour) return;
         lastEpochHour = epochHour;
-        view.startChime();
+        view.startChime(repository);
     }
 
     private boolean isQuiet(Calendar now) {

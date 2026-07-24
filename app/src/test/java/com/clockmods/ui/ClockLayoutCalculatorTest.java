@@ -56,6 +56,18 @@ public class ClockLayoutCalculatorTest {
         }
 
     @Test
+    public void formatsHourlyChimeForTwelveAndTwentyFourHourClocks() {
+        Assert.assertEquals("13:00",
+                ClockTimeFormatter.formatHourlyChime(13, 0, true, false));
+        Assert.assertEquals("下午1:00",
+                ClockTimeFormatter.formatHourlyChime(13, 0, false, false));
+        Assert.assertEquals("上午12:00",
+                ClockTimeFormatter.formatHourlyChime(0, 0, false, false));
+        Assert.assertEquals("12:00 PM",
+                ClockTimeFormatter.formatHourlyChime(12, 0, false, true));
+    }
+
+    @Test
     public void usesSingleDateLineOnlyWhenLandscapeAndTextFits() {
         Assert.assertTrue(ClockLayoutCalculator.shouldUseSingleDateLine(true, 800f, 1000));
         Assert.assertFalse(ClockLayoutCalculator.shouldUseSingleDateLine(false, 800f, 1000));

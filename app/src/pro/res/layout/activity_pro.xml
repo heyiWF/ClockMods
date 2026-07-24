@@ -1,5 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <FrameLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
     android:background="@color/clock_default_background">
@@ -15,14 +16,18 @@
             android:layout_height="0dp"
             android:layout_weight="1" />
 
-        <com.google.android.material.tabs.TabLayout
+        <com.google.android.material.bottomnavigation.BottomNavigationView
             android:id="@+id/pro_navigation"
+            style="@style/Widget.Material3Expressive.BottomNavigationView"
             android:layout_width="match_parent"
             android:layout_height="64dp"
-            android:background="?attr/colorSurfaceContainer"
             android:contentDescription="@string/pro_navigation"
-            android:paddingTop="2dp"
-            android:paddingBottom="2dp" />
+            android:elevation="0dp"
+            app:itemGravity="center"
+            app:itemIconGravity="start"
+            app:itemTextAppearanceActiveBoldEnabled="false"
+            app:labelVisibilityMode="labeled"
+            app:menu="@menu/pro_navigation" />
 
     </LinearLayout>
 

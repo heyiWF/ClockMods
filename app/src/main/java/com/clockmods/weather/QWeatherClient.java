@@ -83,15 +83,39 @@ public final class QWeatherClient {
                     + formatCoordinate(latitude) + "/" + formatCoordinate(longitude) + "?lang=zh");
             JSONArray alerts = body.optJSONArray("alerts");
             if (alerts == null || alerts.length() == 0) return null;
-            JSONObject first = alerts.getJSONObject(0);
-            JSONObject eventType = first.optJSONObject("eventType");
-            if (eventType != null) {
-                String name = eventType.optString("name", "");
-                if (name.length() > 0) return name;
-            }
-            String headline = first.optString("headline", "");
-            return headline.length() > 0 ? headline : null;
+            return formatWarning(alerts.getJSONObject(0));
         } catch (Exception ignored) { return null; }
+    }
+
+    static String formatWarning(JSONObject alert) {
+        String headline = alert.optString("headline", "").trim();
+        if (headline.length() > 0) return headline;
+
+        JSONObject eventType = alert.optJSONObject("eventType");
+        String event = eventType == null ? "" : eventType.optString("name", "").trim();
+        if (event.length() == 0) return null;
+
+        JSONObject color = alert.optJSONObject("color");
+        String colorCode = color == null ? "" : color.optString("code", "").trim();
+        String colorName = warningColorName(colorCode);
+        return event + colorName + "预警";
+    }
+
+    private static String warningColorName(String code) {
+        if (code.length() == 0) return "";
+        switch (code.toLowerCase(Locale.US)) {
+            case "white": return "白色";
+            case "gray": return "灰色";
+            case "green": return "绿色";
+            case "blue": return "蓝色";
+            case "yellow": return "黄色";
+            case "amber": return "琥珀色";
+            case "orange": return "橙色";
+            case "red": return "红色";
+            case "purple": return "紫色";
+            case "black": return "黑色";
+            default: return code;
+        }
     }
 
     private String[] fetchAirQuality(double latitude, double longitude) {

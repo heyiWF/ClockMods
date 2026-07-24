@@ -1,0 +1,27 @@
+<?xml version="1.0" encoding="utf-8"?>
+<menu xmlns:android="http://schemas.android.com/apk/res/android">
+    <item
+        android:id="@+id/navigation_clock"
+        android:icon="@android:drawable/ic_lock_idle_alarm"
+        android:title="@string/pro_page_clock" />
+    <item
+        android:id="@+id/navigation_calendar"
+        android:icon="@android:drawable/ic_menu_month"
+        android:title="@string/pro_page_calendar" />
+    <item
+        android:id="@+id/navigation_pomodoro"
+        android:icon="@android:drawable/ic_media_play"
+        android:title="@string/pro_page_pomodoro" />
+    <item
+        android:id="@+id/navigation_alarm"
+        android:icon="@android:drawable/ic_lock_idle_alarm"
+        android:title="@string/pro_page_alarm" />
+    <item
+        android:id="@+id/navigation_countdown"
+        android:icon="@android:drawable/ic_menu_recent_history"
+        android:title="@string/pro_page_countdown" />
+    <item
+        android:id="@+id/navigation_stopwatch"
+        android:icon="@android:drawable/ic_menu_compass"
+        android:title="@string/pro_page_stopwatch" />
+</menu>

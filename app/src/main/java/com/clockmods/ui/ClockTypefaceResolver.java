@@ -9,14 +9,14 @@ import com.clockmods.background.FontCatalog;
 import java.util.HashMap;
 import java.util.Map;
 
-final class ClockTypefaceResolver {
+public final class ClockTypefaceResolver {
     /** Cache keyed by "<fontId>#<bold>" so each asset is only decoded once. */
     private static final Map<String, Typeface> CACHE = new HashMap<>();
 
     private ClockTypefaceResolver() {
     }
 
-    static Typeface resolveTime(Context context, String family, boolean bold) {
+    public static Typeface resolveTime(Context context, String family, boolean bold) {
         String normalized = ClockPreferences.normalizeFontFamily(family);
         FontCatalog.FontOption option = FontCatalog.optionFor(normalized);
         if (option.isSystem()) {

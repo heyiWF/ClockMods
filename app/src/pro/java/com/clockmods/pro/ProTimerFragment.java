@@ -75,15 +75,44 @@ public final class ProTimerFragment extends Fragment {
     }
 
     private void setupPresets(LinearLayout container) {
-        int[] minutes = pomodoro ? new int[] {25, 5, 15} : new int[] {5, 10, 30, 60};
-        for (int value : minutes) {
-            MaterialButton button = new MaterialButton(requireContext(), null,
-                    com.google.android.material.R.attr.materialButtonOutlinedStyle);
-            button.setText(getString(R.string.timer_minutes, value));
-            button.setOnClickListener(view -> setDuration(value * 60_000L));
-            container.addView(button, new LinearLayout.LayoutParams(0,
-                    ViewGroup.LayoutParams.MATCH_PARENT, 1f));
+        if (pomodoro) {
+            addPresetRow(container, new int[] {5, 15, 25}, 12);
+            return;
         }
+        addPresetGroup(container, new int[] {5, 10}, false);
+        addPresetGroup(container, new int[] {30, 60}, true);
+    }
+
+    private void addPresetRow(LinearLayout container, int[] minutes, int spacingDp) {
+        int spacing = dp(spacingDp);
+        for (int index = 0; index < minutes.length; index++) {
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0,
+                    ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+            if (index > 0) params.setMarginStart(spacing);
+            container.addView(createPresetButton(minutes[index]), params);
+        }
+    }
+
+    private void addPresetGroup(LinearLayout container, int[] minutes, boolean addStartMargin) {
+        LinearLayout group = new LinearLayout(requireContext());
+        group.setOrientation(LinearLayout.HORIZONTAL);
+        LinearLayout.LayoutParams groupParams = new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+        if (addStartMargin) groupParams.setMarginStart(dp(12));
+        container.addView(group, groupParams);
+        addPresetRow(group, minutes, 8);
+    }
+
+    private MaterialButton createPresetButton(int minutes) {
+        MaterialButton button = new MaterialButton(requireContext(), null,
+                com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        button.setText(getString(R.string.timer_minutes, minutes));
+        button.setOnClickListener(view -> setDuration(minutes * 60_000L));
+        return button;
+    }
+
+    private int dp(int value) {
+        return Math.round(value * getResources().getDisplayMetrics().density);
     }
 
     private void setDuration(long duration) {

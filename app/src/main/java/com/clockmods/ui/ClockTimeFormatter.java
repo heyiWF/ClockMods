@@ -26,6 +26,20 @@ public final class ClockTimeFormatter {
         return new DisplayTime(hoursAndMinutes + separator + twoDigits(second), "", periodText, showColon);
     }
 
+    public static String formatHourlyChime(int hour, int minute,
+            boolean use24Hour, boolean useEnglish) {
+        if (use24Hour) {
+            return twoDigits(hour) + ":" + twoDigits(minute);
+        }
+        int displayHour = hour % 12;
+        if (displayHour == 0) {
+            displayHour = 12;
+        }
+        String time = displayHour + ":" + twoDigits(minute);
+        String period = periodText(hour, useEnglish);
+        return useEnglish ? time + " " + period : period + time;
+    }
+
     private static String periodText(int hour, boolean useEnglish) {
         if (useEnglish) {
             return hour < 12 ? "AM" : "PM";

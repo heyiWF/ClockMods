@@ -25,8 +25,7 @@ import com.clockmods.platform.ExperienceBridge;
 import com.clockmods.ui.SettingsDialog;
 import com.clockmods.pro.chime.HourlyChimeController;
 import com.clockmods.pro.chime.RadialChimeView;
-import com.google.android.material.tabs.TabLayout;
-import com.google.android.material.tabs.TabLayoutMediator;
+import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -39,8 +38,12 @@ public final class ProMainActivity extends AppCompatActivity {
     private static final long CHROME_VISIBLE_MILLIS = 3000L;
     private final Handler chromeHandler = new Handler(Looper.getMainLooper());
     private final Runnable hideChromeRunnable = this::hideChrome;
+        private static final int[] NAVIGATION_IDS = {
+            R.id.navigation_clock, R.id.navigation_calendar, R.id.navigation_pomodoro,
+            R.id.navigation_alarm, R.id.navigation_countdown, R.id.navigation_stopwatch
+        };
     private ViewPager2 pager;
-    private TabLayout navigation;
+        private BottomNavigationView navigation;
     private GestureDetector chromeGestureDetector;
     private HourlyChimeController hourlyChimeController;
     private final ExecutorService imageExecutor = Executors.newSingleThreadExecutor();
@@ -60,11 +63,20 @@ public final class ProMainActivity extends AppCompatActivity {
         pager.setAdapter(new ProPagerAdapter(this));
         pager.setOffscreenPageLimit(1);
         navigation = findViewById(R.id.pro_navigation);
-        new TabLayoutMediator(navigation, pager, (tab, position) -> {
-            ProPage page = ProPage.values()[position];
-            tab.setText(page.titleRes);
-            tab.setIcon(page.iconRes);
-        }).attach();
+        navigation.setOnItemSelectedListener(item -> {
+            for (int position = 0; position < NAVIGATION_IDS.length; position++) {
+                if (NAVIGATION_IDS[position] == item.getItemId()) {
+                    pager.setCurrentItem(position, true);
+                    return true;
+                }
+            }
+            return false;
+        });
+        pager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
+            @Override public void onPageSelected(int position) {
+                navigation.setSelectedItemId(NAVIGATION_IDS[position]);
+            }
+        });
         chromeGestureDetector = new GestureDetector(this,
                 new GestureDetector.SimpleOnGestureListener() {
                     @Override public boolean onDown(MotionEvent event) { return true; }
