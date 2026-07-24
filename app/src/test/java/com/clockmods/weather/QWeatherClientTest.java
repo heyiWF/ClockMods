@@ -1,5 +1,6 @@
 package com.clockmods.weather;
 
+import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.Test;
 
@@ -33,5 +34,13 @@ public class QWeatherClientTest {
                 + "\"color\":{\"code\":\"crimson\"}}");
 
         assertEquals("暴雨crimson预警", QWeatherClient.formatWarning(alert));
+    }
+
+    @Test
+    public void formatsMultipleWarningsAndSkipsInvalidItems() throws Exception {
+        JSONArray alerts = new JSONArray("[{\"headline\":\"台风红色预警\"},null,"
+                + "{\"eventType\":{\"name\":\"暴雨\"},\"color\":{\"code\":\"orange\"}}]");
+
+        assertEquals("台风红色预警\n暴雨橙色预警", QWeatherClient.formatWarnings(alerts));
     }
 }

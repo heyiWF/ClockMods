@@ -9,13 +9,17 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import android.widget.NumberPicker;
 import android.widget.TextView;
+import android.widget.Toast;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.appcompat.app.AlertDialog;
 import androidx.fragment.app.Fragment;
 
 import com.clockmods.R;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.button.MaterialButton;
 import com.clockmods.pro.timer.TimerScheduler;
 
@@ -79,8 +83,13 @@ public final class ProTimerFragment extends Fragment {
             addPresetRow(container, new int[] {5, 15, 25}, 12);
             return;
         }
-        addPresetGroup(container, new int[] {5, 10}, false);
-        addPresetGroup(container, new int[] {30, 60}, true);
+        int[] minutes = {5, 10, 30, 60};
+        int spacing = dp(8);
+        for (int index = 0; index < minutes.length; index++) {
+            container.addView(createPresetButton(minutes[index]),
+                    equalPresetParams(index, spacing));
+        }
+        container.addView(createCustomButton(), equalPresetParams(minutes.length, spacing));
     }
 
     private void addPresetRow(LinearLayout container, int[] minutes, int spacingDp) {
@@ -93,27 +102,99 @@ public final class ProTimerFragment extends Fragment {
         }
     }
 
-    private void addPresetGroup(LinearLayout container, int[] minutes, boolean addStartMargin) {
-        LinearLayout group = new LinearLayout(requireContext());
-        group.setOrientation(LinearLayout.HORIZONTAL);
-        LinearLayout.LayoutParams groupParams = new LinearLayout.LayoutParams(0,
-                ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-        if (addStartMargin) groupParams.setMarginStart(dp(12));
-        container.addView(group, groupParams);
-        addPresetRow(group, minutes, 8);
+        private LinearLayout.LayoutParams equalPresetParams(int index, int spacing) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0,
+            ViewGroup.LayoutParams.MATCH_PARENT, 1f);
+        if (index > 0) params.setMarginStart(spacing);
+        return params;
     }
 
     private MaterialButton createPresetButton(int minutes) {
         MaterialButton button = new MaterialButton(requireContext(), null,
                 com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        configureCompactButton(button);
         button.setText(getString(R.string.timer_minutes, minutes));
         button.setOnClickListener(view -> setDuration(minutes * 60_000L));
         return button;
     }
 
+    private MaterialButton createCustomButton() {
+        MaterialButton button = new MaterialButton(requireContext(), null,
+                com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        configureCompactButton(button);
+        button.setText(R.string.timer_custom);
+        button.setOnClickListener(view -> showCustomDurationDialog());
+        return button;
+    }
+
+    private void configureCompactButton(MaterialButton button) {
+        button.setMinWidth(0);
+        button.setMinimumWidth(0);
+        button.setPadding(dp(4), 0, dp(4), 0);
+        button.setSingleLine(true);
+    }
+
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
     }
+
+        private void showCustomDurationDialog() {
+        long totalSeconds = Math.min(durationMillis / 1000L, 99L * 3600L + 59L * 60L + 59L);
+        NumberPicker hours = createPicker(0, 99, (int) (totalSeconds / 3600L),
+            R.string.timer_hours);
+        NumberPicker minutes = createPicker(0, 59, (int) ((totalSeconds / 60L) % 60L),
+            R.string.timer_minutes_unit);
+        NumberPicker seconds = createPicker(0, 59, (int) (totalSeconds % 60L),
+            R.string.timer_seconds);
+
+        LinearLayout pickers = new LinearLayout(requireContext());
+        pickers.setOrientation(LinearLayout.HORIZONTAL);
+        pickers.setPadding(dp(16), 0, dp(16), 0);
+        pickers.addView(hours, pickerParams());
+        pickers.addView(minutes, pickerParams());
+        pickers.addView(seconds, pickerParams());
+
+        AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
+            .setTitle(R.string.timer_custom_title)
+            .setView(pickers)
+            .setNegativeButton(R.string.cancel, null)
+            .setPositiveButton(R.string.apply, null)
+            .create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
+            .setOnClickListener(view -> {
+                long duration = customDurationMillis(hours.getValue(), minutes.getValue(),
+                    seconds.getValue());
+                if (duration == 0L) {
+                Toast.makeText(requireContext(), R.string.timer_custom_zero,
+                    Toast.LENGTH_SHORT).show();
+                return;
+                }
+                setDuration(duration);
+                dialog.dismiss();
+            }));
+        dialog.show();
+        }
+
+        static long customDurationMillis(int hours, int minutes, int seconds) {
+        if (hours < 0 || hours > 99 || minutes < 0 || minutes > 59
+            || seconds < 0 || seconds > 59) return 0L;
+        return (hours * 3600L + minutes * 60L + seconds) * 1000L;
+        }
+
+        private NumberPicker createPicker(int min, int max, int value, int descriptionRes) {
+        NumberPicker picker = new NumberPicker(requireContext());
+        picker.setMinValue(min);
+        picker.setMaxValue(max);
+        picker.setValue(value);
+        picker.setWrapSelectorWheel(false);
+        picker.setContentDescription(getString(descriptionRes));
+        picker.setFormatter(number -> String.format(Locale.US, "%02d", number));
+        return picker;
+        }
+
+        private LinearLayout.LayoutParams pickerParams() {
+        return new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        }
 
     private void setDuration(long duration) {
         running = false;
@@ -171,8 +252,13 @@ public final class ProTimerFragment extends Fragment {
             }
         }
         long totalSeconds = (remainingMillis + 999L) / 1000L;
-        display.setText(String.format(Locale.US, "%02d:%02d", totalSeconds / 60,
+        if (pomodoro) {
+            display.setText(String.format(Locale.US, "%02d:%02d", totalSeconds / 60,
                 totalSeconds % 60));
+        } else {
+            display.setText(String.format(Locale.US, "%02d:%02d:%02d", totalSeconds / 3600,
+                (totalSeconds / 60) % 60, totalSeconds % 60));
+        }
         phase.setText(pomodoro ? phaseLabel() : getString(R.string.timer_ready));
         startPause.setText(running ? R.string.timer_pause : R.string.timer_start);
     }

@@ -38,12 +38,12 @@ public final class ProMainActivity extends AppCompatActivity {
     private static final long CHROME_VISIBLE_MILLIS = 3000L;
     private final Handler chromeHandler = new Handler(Looper.getMainLooper());
     private final Runnable hideChromeRunnable = this::hideChrome;
-        private static final int[] NAVIGATION_IDS = {
+    private static final int[] NAVIGATION_IDS = {
             R.id.navigation_clock, R.id.navigation_calendar, R.id.navigation_pomodoro,
             R.id.navigation_alarm, R.id.navigation_countdown, R.id.navigation_stopwatch
-        };
+    };
     private ViewPager2 pager;
-        private BottomNavigationView navigation;
+    private BottomNavigationView navigation;
     private GestureDetector chromeGestureDetector;
     private HourlyChimeController hourlyChimeController;
     private final ExecutorService imageExecutor = Executors.newSingleThreadExecutor();
@@ -75,6 +75,7 @@ public final class ProMainActivity extends AppCompatActivity {
         pager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override public void onPageSelected(int position) {
                 navigation.setSelectedItemId(NAVIGATION_IDS[position]);
+                updateChromeForPage();
             }
         });
         chromeGestureDetector = new GestureDetector(this,
@@ -99,7 +100,7 @@ public final class ProMainActivity extends AppCompatActivity {
     @Override protected void onResume() {
         super.onResume();
         hourlyChimeController.start();
-        hideChrome();
+        updateChromeForPage();
     }
 
     @Override protected void onPause() {
@@ -119,7 +120,7 @@ public final class ProMainActivity extends AppCompatActivity {
                 startActivityForResult(ExperienceBridge.createImagePickerIntent(), REQUEST_IMAGE);
             }
             @Override public void onFontSettingsApplied() { refreshClockPage(); }
-            @Override public void onDismissed() { hideChrome(); }
+            @Override public void onDismissed() { updateChromeForPage(); }
         });
         dialog.show();
     }
@@ -128,15 +129,28 @@ public final class ProMainActivity extends AppCompatActivity {
         navigation.setVisibility(View.VISIBLE);
         showSystemBars();
         chromeHandler.removeCallbacks(hideChromeRunnable);
-        chromeHandler.postDelayed(hideChromeRunnable, CHROME_VISIBLE_MILLIS);
+        if (isClockPage()) {
+            chromeHandler.postDelayed(hideChromeRunnable, CHROME_VISIBLE_MILLIS);
+        }
     }
 
     private void hideChrome() {
         chromeHandler.removeCallbacks(hideChromeRunnable);
         if (navigation != null) {
-            navigation.setVisibility(View.GONE);
+            navigation.setVisibility(isClockPage() ? View.GONE : View.VISIBLE);
         }
         hideSystemBars();
+    }
+
+    private void updateChromeForPage() {
+        chromeHandler.removeCallbacks(hideChromeRunnable);
+        if (navigation == null || pager == null) return;
+        navigation.setVisibility(isClockPage() ? View.GONE : View.VISIBLE);
+        hideSystemBars();
+    }
+
+    private boolean isClockPage() {
+        return pager == null || pager.getCurrentItem() == ProPage.CLOCK.ordinal();
     }
 
     private void enableEdgeToEdge() {

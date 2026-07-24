@@ -56,7 +56,13 @@ public final class WeatherModels {
                 items.add(wind);
             }
             if (hasPrecipitation()) items.add("降水 " + precip + "mm");
-            if (isPresent(warning)) items.add(warning.contains("预警") ? warning : warning + "预警");
+            if (isPresent(warning)) {
+                String[] warnings = warning.split("\\n");
+                for (int index = 0; index < warnings.length && index < 20; index++) {
+                    String item = warnings[index].trim();
+                    if (item.length() > 0) items.add(item.contains("预警") ? item : item + "预警");
+                }
+            }
             if (isPresent(aqiValue)) {
                 String aqi = "空气 " + aqiValue;
                 if (isPresent(aqiCategory)) aqi += " " + aqiCategory;

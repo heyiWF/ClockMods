@@ -2,26 +2,26 @@
 <menu xmlns:android="http://schemas.android.com/apk/res/android">
     <item
         android:id="@+id/navigation_clock"
-        android:icon="@android:drawable/ic_lock_idle_alarm"
+        android:icon="@drawable/ic_nest_clock_farsight_digital"
         android:title="@string/pro_page_clock" />
     <item
         android:id="@+id/navigation_calendar"
-        android:icon="@android:drawable/ic_menu_month"
+        android:icon="@drawable/ic_calendar_month"
         android:title="@string/pro_page_calendar" />
     <item
         android:id="@+id/navigation_pomodoro"
-        android:icon="@android:drawable/ic_media_play"
+        android:icon="@drawable/ic_clock_loader_10"
         android:title="@string/pro_page_pomodoro" />
     <item
         android:id="@+id/navigation_alarm"
-        android:icon="@android:drawable/ic_lock_idle_alarm"
+        android:icon="@drawable/ic_alarm"
         android:title="@string/pro_page_alarm" />
     <item
         android:id="@+id/navigation_countdown"
-        android:icon="@android:drawable/ic_menu_recent_history"
+        android:icon="@drawable/ic_hourglass"
         android:title="@string/pro_page_countdown" />
     <item
         android:id="@+id/navigation_stopwatch"
-        android:icon="@android:drawable/ic_menu_compass"
+        android:icon="@drawable/ic_timer"
         android:title="@string/pro_page_stopwatch" />
 </menu>

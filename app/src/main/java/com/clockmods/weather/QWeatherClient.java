@@ -81,10 +81,23 @@ public final class QWeatherClient {
         try {
             JSONObject body = requestRaw("/weatheralert/v1/current/"
                     + formatCoordinate(latitude) + "/" + formatCoordinate(longitude) + "?lang=zh");
-            JSONArray alerts = body.optJSONArray("alerts");
-            if (alerts == null || alerts.length() == 0) return null;
-            return formatWarning(alerts.getJSONObject(0));
+            return formatWarnings(body.optJSONArray("alerts"));
         } catch (Exception ignored) { return null; }
+    }
+
+    static String formatWarnings(JSONArray alerts) {
+        if (alerts == null || alerts.length() == 0) return null;
+        StringBuilder warnings = new StringBuilder();
+        int count = Math.min(alerts.length(), 20);
+        for (int index = 0; index < count; index++) {
+            JSONObject alert = alerts.optJSONObject(index);
+            if (alert == null) continue;
+            String warning = formatWarning(alert);
+            if (warning == null || warning.length() == 0) continue;
+            if (warnings.length() > 0) warnings.append('\n');
+            warnings.append(warning);
+        }
+        return warnings.length() == 0 ? null : warnings.toString();
     }
 
     static String formatWarning(JSONObject alert) {

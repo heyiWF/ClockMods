@@ -32,8 +32,11 @@ public class ClockView extends View {
     private static final long MILLIS_PER_SECOND = 1000L;
     private static final long TIME_TRANSITION_DURATION_MILLIS = 300L;
     private static final long WEATHER_DETAIL_HOLD_MILLIS = 3000L;
+    private static final long WEATHER_DETAIL_SCROLL_PAUSE_MILLIS = 1000L;
     private static final long WEATHER_DETAIL_TRANSITION_MILLIS = 200L;
     private static final long WEATHER_DETAIL_FRAME_DELAY_MILLIS = 16L;
+    private static final float WEATHER_DETAIL_SCROLL_DP_PER_SECOND = 40f;
+    private static final float WEATHER_DETAIL_HORIZONTAL_PADDING_DP = 24f;
     private static final float SMALL_SECONDS_GAP_SPACE_FRACTION = 0.35f;
     private static final float SUPPORTING_TEXT_LETTER_SPACING = 0.025f;
     private static final int CLOCK_SHADOW_ALPHA = 0x66;
@@ -55,8 +58,10 @@ public class ClockView extends View {
     private final Paint datePaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
     private final Paint bitmapPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private final Matrix bitmapMatrix = new Matrix();
-    private final ExecutorService imageExecutor = Executors.newSingleThreadExecutor();
-    private final NetworkTimeProvider networkTimeProvider = new NetworkTimeProvider();
+    private final Object workerLock = new Object();
+    private ExecutorService imageExecutor;
+    private NetworkTimeProvider networkTimeProvider;
+    private boolean attached;
     private final SimpleDateFormat chineseDateFormat = new SimpleDateFormat("yyyy年M月d日", Locale.CHINA);
     private final SimpleDateFormat englishDateFormat = new SimpleDateFormat("yyyy/M/d", Locale.US);
     private final String[] chineseWeekDays = {"星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"};
@@ -142,26 +147,33 @@ public class ClockView extends View {
         }
         final int requestedWidth = getWidth();
         final int requestedHeight = getHeight();
-        imageExecutor.execute(new Runnable() {
-            @Override
-            public void run() {
-                Bitmap loaded = null;
-                if (ClockPreferences.MODE_IMAGE.equals(backgroundRepository.getBackgroundMode())) {
-                    try {
-                        loaded = backgroundRepository.loadImage(requestedWidth, requestedHeight);
-                    } catch (IOException | OutOfMemoryError ignored) {
-                        loaded = null;
+        synchronized (workerLock) {
+            if (!attached || imageExecutor == null || imageExecutor.isShutdown()) return;
+            imageExecutor.execute(new Runnable() {
+                @Override
+                public void run() {
+                    Bitmap loaded = null;
+                    if (ClockPreferences.MODE_IMAGE.equals(backgroundRepository.getBackgroundMode())) {
+                        try {
+                            loaded = backgroundRepository.loadImage(requestedWidth, requestedHeight);
+                        } catch (IOException | OutOfMemoryError ignored) {
+                            loaded = null;
+                        }
                     }
+                    final Bitmap result = loaded;
+                    handler.post(new Runnable() {
+                        @Override
+                        public void run() {
+                            if (attached) {
+                                replaceBackgroundBitmap(result, requestedWidth, requestedHeight);
+                            } else if (result != null && !result.isRecycled()) {
+                                result.recycle();
+                            }
+                        }
+                    });
                 }
-                final Bitmap result = loaded;
-                handler.post(new Runnable() {
-                    @Override
-                    public void run() {
-                        replaceBackgroundBitmap(result, requestedWidth, requestedHeight);
-                    }
-                });
-            }
-        });
+            });
+        }
     }
 
     public void start() {
@@ -192,7 +204,9 @@ public class ClockView extends View {
 
         java.util.TimeZone timeZone = resolveTimeZone();
         Calendar now = Calendar.getInstance(timeZone);
-        now.setTimeInMillis(networkTimeProvider.currentTimeMillis());
+        NetworkTimeProvider timeProvider = networkTimeProvider;
+        now.setTimeInMillis(timeProvider == null
+            ? System.currentTimeMillis() : timeProvider.currentTimeMillis());
         if (shouldDimBackground(now)) {
             canvas.drawColor(DIM_BACKGROUND_OVERLAY_COLOR);
         }
@@ -332,39 +346,48 @@ public class ClockView extends View {
         float detailBaseline = weatherBaseline + weatherMetrics.descent
             - weatherMetrics.ascent + weatherMetrics.descent;
 
+        int currentIndex = Math.min(weatherDetailIndex, weatherDetailItems.size() - 1);
+        String currentItem = weatherDetailItems.get(currentIndex);
+        long elapsed = now - weatherDetailCycleStartedAt;
+        long displayDuration = weatherDetailDisplayDuration(currentItem);
+
         if (weatherDetailItems.size() == 1) {
-            drawWeatherDetailItem(canvas, weatherDetailItems.get(0), null, centerX,
-                detailBaseline, weatherMetrics, 1f);
+            if (elapsed >= displayDuration) {
+                weatherDetailCycleStartedAt = now;
+                elapsed = 0L;
+            }
+            drawWeatherDetailItem(canvas, currentItem, null, centerX,
+                detailBaseline, weatherMetrics, 0f, elapsed);
+            if (measureSupportingText(currentItem) > weatherDetailAvailableWidth()) {
+                postInvalidateDelayed(WEATHER_DETAIL_FRAME_DELAY_MILLIS);
+            }
             return;
         }
 
-        long elapsed = now - weatherDetailCycleStartedAt;
-        long fadeOutEnd = WEATHER_DETAIL_HOLD_MILLIS + WEATHER_DETAIL_TRANSITION_MILLIS;
+        long fadeOutEnd = displayDuration + WEATHER_DETAIL_TRANSITION_MILLIS;
         long fadeInEnd = fadeOutEnd + WEATHER_DETAIL_TRANSITION_MILLIS;
 
-        int currentIndex = weatherDetailIndex;
         int nextIndex = (weatherDetailIndex + 1) % weatherDetailItems.size();
-        String currentItem = weatherDetailItems.get(currentIndex);
         String nextItem = weatherDetailItems.get(nextIndex);
 
-        if (elapsed < WEATHER_DETAIL_HOLD_MILLIS) {
+        if (elapsed < displayDuration) {
             drawWeatherDetailItem(canvas, currentItem, null, centerX,
-                detailBaseline, weatherMetrics, 0f);
+                detailBaseline, weatherMetrics, 0f, elapsed);
         } else if (elapsed < fadeOutEnd) {
-            float progress = (float) (elapsed - WEATHER_DETAIL_HOLD_MILLIS)
+            float progress = (float) (elapsed - displayDuration)
                 / WEATHER_DETAIL_TRANSITION_MILLIS;
             drawWeatherDetailItem(canvas, currentItem, nextItem, centerX,
-                detailBaseline, weatherMetrics, progress * 0.5f);
+                detailBaseline, weatherMetrics, progress * 0.5f, displayDuration);
         } else if (elapsed < fadeInEnd) {
             float progress = (float) (elapsed - fadeOutEnd)
                 / WEATHER_DETAIL_TRANSITION_MILLIS;
             drawWeatherDetailItem(canvas, currentItem, nextItem, centerX,
-                detailBaseline, weatherMetrics, 0.5f + progress * 0.5f);
+                detailBaseline, weatherMetrics, 0.5f + progress * 0.5f, 0L);
         } else {
             weatherDetailIndex = nextIndex;
             weatherDetailCycleStartedAt = now;
             drawWeatherDetailItem(canvas, nextItem, null, centerX,
-                detailBaseline, weatherMetrics, 0f);
+                detailBaseline, weatherMetrics, 0f, 0L);
         }
 
         postInvalidateDelayed(WEATHER_DETAIL_FRAME_DELAY_MILLIS);
@@ -376,24 +399,25 @@ public class ClockView extends View {
      * outside a transition it is 0 and only {@code current} is drawn at full strength.
      */
     private void drawWeatherDetailItem(Canvas canvas, String current, String next,
-            float centerX, float baseline, Paint.FontMetrics metrics, float progress) {
+            float centerX, float baseline, Paint.FontMetrics metrics, float progress,
+            long itemElapsed) {
         boolean transitioning = next != null;
         boolean useTimeTransition =
             com.clockmods.BuildConfig.WEATHER_DETAIL_USES_TIME_TRANSITION;
         if (!transitioning) {
             drawWeatherDetailLine(canvas, current, centerX, baseline, metrics, 255,
-                ClockPreferences.TRANSITION_FADE, 0f);
+                ClockPreferences.TRANSITION_FADE, 0f, itemElapsed);
             return;
         }
         String transition = useTimeTransition ? timeTransition : ClockPreferences.TRANSITION_FADE;
         if (progress < 0.5f) {
             float outProgress = progress / 0.5f;
             drawWeatherDetailLine(canvas, current, centerX, baseline, metrics,
-                Math.round(255f * (1f - outProgress)), transition, outProgress);
+                Math.round(255f * (1f - outProgress)), transition, outProgress, itemElapsed);
         } else {
             float inProgress = (progress - 0.5f) / 0.5f;
             drawWeatherDetailLine(canvas, next, centerX, baseline, metrics,
-                Math.round(255f * inProgress), transition, -(1f - inProgress));
+                Math.round(255f * inProgress), transition, -(1f - inProgress), itemElapsed);
         }
     }
 
@@ -403,7 +427,8 @@ public class ClockView extends View {
      * entering (new item), 0 means settled.
      */
     private void drawWeatherDetailLine(Canvas canvas, String text, float centerX,
-            float baseline, Paint.FontMetrics metrics, int alpha, String transition, float phase) {
+            float baseline, Paint.FontMetrics metrics, int alpha, String transition, float phase,
+            long itemElapsed) {
         if (text == null || text.length() == 0) return;
         int originalAlpha = datePaint.getAlpha();
         applySupportingTypeface(text);
@@ -415,7 +440,7 @@ public class ClockView extends View {
             canvas.save();
             canvas.translate(0f, direction * distance * phase);
             datePaint.setAlpha(Math.round(clampedAlpha / 255f * originalAlpha));
-            drawSupportingText(canvas, text, centerX, baseline, Paint.Align.CENTER);
+            drawScrollingWeatherText(canvas, text, centerX, baseline, itemElapsed);
             canvas.restore();
         } else if (ClockPreferences.TRANSITION_SCALE.equals(transition)) {
             float scale = 1f - 0.12f * Math.abs(phase);
@@ -423,7 +448,7 @@ public class ClockView extends View {
             canvas.save();
             canvas.scale(scale, scale, centerX, pivotY);
             datePaint.setAlpha(Math.round(clampedAlpha / 255f * originalAlpha));
-            drawSupportingText(canvas, text, centerX, baseline, Paint.Align.CENTER);
+            drawScrollingWeatherText(canvas, text, centerX, baseline, itemElapsed);
             canvas.restore();
         } else if (ClockPreferences.TRANSITION_FLIP.equals(transition)) {
             float scaleY = Math.max(0.05f, 1f - Math.abs(phase));
@@ -431,14 +456,52 @@ public class ClockView extends View {
             canvas.save();
             canvas.scale(1f, scaleY, centerX, pivotY);
             datePaint.setAlpha(originalAlpha);
-            drawSupportingText(canvas, text, centerX, baseline, Paint.Align.CENTER);
+            drawScrollingWeatherText(canvas, text, centerX, baseline, itemElapsed);
             canvas.restore();
         } else {
             datePaint.setAlpha(Math.round(clampedAlpha / 255f * originalAlpha));
-            drawSupportingText(canvas, text, centerX, baseline, Paint.Align.CENTER);
+                drawScrollingWeatherText(canvas, text, centerX, baseline, itemElapsed);
         }
         datePaint.setAlpha(originalAlpha);
     }
+
+            private long weatherDetailDisplayDuration(String text) {
+            float overflow = measureSupportingText(text) - weatherDetailAvailableWidth();
+            if (overflow <= 0f) return WEATHER_DETAIL_HOLD_MILLIS;
+            float speed = WEATHER_DETAIL_SCROLL_DP_PER_SECOND
+                * getResources().getDisplayMetrics().density;
+            long scrollMillis = (long) Math.ceil(overflow / speed * 1000f);
+            return Math.max(WEATHER_DETAIL_HOLD_MILLIS,
+                WEATHER_DETAIL_SCROLL_PAUSE_MILLIS * 2L + scrollMillis);
+            }
+
+            private float weatherDetailAvailableWidth() {
+            float padding = WEATHER_DETAIL_HORIZONTAL_PADDING_DP
+                * getResources().getDisplayMetrics().density;
+            return Math.max(1f, getWidth() - padding * 2f);
+            }
+
+            private void drawScrollingWeatherText(Canvas canvas, String text, float centerX,
+                float baseline, long elapsed) {
+            float textWidth = measureSupportingText(text);
+            float availableWidth = weatherDetailAvailableWidth();
+            if (textWidth <= availableWidth) {
+                drawSupportingText(canvas, text, centerX, baseline, Paint.Align.CENTER);
+                return;
+            }
+
+            float left = centerX - availableWidth / 2f;
+            float overflow = textWidth - availableWidth;
+            float speed = WEATHER_DETAIL_SCROLL_DP_PER_SECOND
+                * getResources().getDisplayMetrics().density;
+            long scrollMillis = (long) Math.ceil(overflow / speed * 1000f);
+            float progress = Math.max(0f, Math.min(1f,
+                (elapsed - WEATHER_DETAIL_SCROLL_PAUSE_MILLIS) / (float) scrollMillis));
+            canvas.save();
+            canvas.clipRect(left, 0f, left + availableWidth, getHeight());
+            drawSupportingText(canvas, text, left - overflow * progress, baseline, Paint.Align.LEFT);
+            canvas.restore();
+            }
 
     private float measureSupportingText(String text) {
         if (text == null || text.length() == 0) return 0f;
@@ -512,8 +575,11 @@ public class ClockView extends View {
         smallSeconds = backgroundRepository.isSmallSeconds();
         use24Hour = backgroundRepository.isUse24Hour();
         clockUseEnglish = backgroundRepository.isClockUseEnglish();
-        networkTimeProvider.setEnabled(backgroundRepository.isUseNetworkTime());
-        networkTimeProvider.setSyncIntervalMinutes(backgroundRepository.getSyncIntervalMinutes());
+        NetworkTimeProvider timeProvider = networkTimeProvider;
+        if (timeProvider != null) {
+            timeProvider.setEnabled(backgroundRepository.isUseNetworkTime());
+            timeProvider.setSyncIntervalMinutes(backgroundRepository.getSyncIntervalMinutes());
+        }
     }
 
     private void applySupportingTypeface(String text) {
@@ -890,10 +956,30 @@ public class ClockView extends View {
     }
 
     @Override
+    protected void onAttachedToWindow() {
+        super.onAttachedToWindow();
+        synchronized (workerLock) {
+            attached = true;
+            imageExecutor = Executors.newSingleThreadExecutor();
+            networkTimeProvider = new NetworkTimeProvider();
+        }
+        requestBackgroundReload();
+    }
+
+    @Override
     protected void onDetachedFromWindow() {
         handler.removeCallbacksAndMessages(null);
-        imageExecutor.shutdownNow();
-        networkTimeProvider.shutdown();
+        ExecutorService executor;
+        NetworkTimeProvider timeProvider;
+        synchronized (workerLock) {
+            attached = false;
+            executor = imageExecutor;
+            imageExecutor = null;
+            timeProvider = networkTimeProvider;
+            networkTimeProvider = null;
+        }
+        if (executor != null) executor.shutdownNow();
+        if (timeProvider != null) timeProvider.shutdown();
         if (backgroundBitmap != null && !backgroundBitmap.isRecycled()) {
             backgroundBitmap.recycle();
         }

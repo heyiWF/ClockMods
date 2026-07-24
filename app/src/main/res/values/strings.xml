@@ -20,6 +20,12 @@
     <string name="timer_skip">跳过</string>
     <string name="timer_ready">准备就绪</string>
     <string name="timer_minutes">%1$d 分钟</string>
+    <string name="timer_custom">自定义</string>
+    <string name="timer_custom_title">设置倒计时</string>
+    <string name="timer_hours">小时</string>
+    <string name="timer_minutes_unit">分钟</string>
+    <string name="timer_seconds">秒</string>
+    <string name="timer_custom_zero">倒计时时间必须大于 00:00:00</string>
     <string name="pomodoro_focus">专注</string>
     <string name="pomodoro_short_break">短休息</string>
     <string name="pomodoro_long_break">长休息</string>
