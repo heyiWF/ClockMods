@@ -65,6 +65,7 @@ public final class ProTimerFragment extends Fragment {
         preferences = requireContext().getSharedPreferences("pro_timers", Context.MODE_PRIVATE);
         display = root.findViewById(R.id.timer_display);
         phase = root.findViewById(R.id.timer_phase);
+        phase.setVisibility(pomodoro ? View.VISIBLE : View.GONE);
         startPause = root.findViewById(R.id.timer_start_pause);
         ((TextView) root.findViewById(R.id.timer_title)).setText(
                 pomodoro ? R.string.pro_page_pomodoro : R.string.pro_page_countdown);
@@ -259,7 +260,7 @@ public final class ProTimerFragment extends Fragment {
             display.setText(String.format(Locale.US, "%02d:%02d:%02d", totalSeconds / 3600,
                 (totalSeconds / 60) % 60, totalSeconds % 60));
         }
-        phase.setText(pomodoro ? phaseLabel() : getString(R.string.timer_ready));
+        if (pomodoro) phase.setText(phaseLabel());
         startPause.setText(running ? R.string.timer_pause : R.string.timer_start);
     }
 
