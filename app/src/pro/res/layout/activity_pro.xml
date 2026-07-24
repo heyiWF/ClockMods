@@ -35,7 +35,7 @@
         android:id="@+id/radial_chime"
         android:layout_width="match_parent"
         android:layout_height="match_parent"
-        android:clickable="false"
+        android:clickable="true"
         android:visibility="gone" />
 
 </FrameLayout>

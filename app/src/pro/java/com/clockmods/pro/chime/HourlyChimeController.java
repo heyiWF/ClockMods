@@ -11,7 +11,7 @@ public final class HourlyChimeController {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final RadialChimeView view;
     private final BackgroundRepository repository;
-    private long lastEpochHour = Long.MIN_VALUE;
+    private long lastChimeAtMillis = Long.MIN_VALUE;
     private final Runnable check = new Runnable() {
         @Override public void run() { checkNow(); handler.postDelayed(this, 250L); }
     };
@@ -26,12 +26,25 @@ public final class HourlyChimeController {
 
     private void checkNow() {
         Calendar now = Calendar.getInstance();
-        if (!repository.isHourlyChimeEnabled() || now.get(Calendar.MINUTE) != 0
-                || now.get(Calendar.SECOND) >= 5 || isQuiet(now)) return;
-        long epochHour = now.getTimeInMillis() / 3_600_000L;
-        if (epochHour == lastEpochHour) return;
-        lastEpochHour = epochHour;
-        view.startChime(repository);
+        long chimeAtMillis = upcomingChimeAtMillis(now);
+        if (!repository.isHourlyChimeEnabled() || chimeAtMillis == Long.MIN_VALUE) return;
+        Calendar chimeAt = Calendar.getInstance(now.getTimeZone());
+        chimeAt.setTimeInMillis(chimeAtMillis);
+        if (isQuiet(chimeAt) || chimeAtMillis == lastChimeAtMillis) return;
+        lastChimeAtMillis = chimeAtMillis;
+        view.startChime(repository, chimeAtMillis);
+    }
+
+    static long upcomingChimeAtMillis(Calendar now) {
+        if (now.get(Calendar.MINUTE) != 59 || now.get(Calendar.SECOND) < 58) {
+            return Long.MIN_VALUE;
+        }
+        Calendar chimeAt = (Calendar) now.clone();
+        chimeAt.add(Calendar.HOUR_OF_DAY, 1);
+        chimeAt.set(Calendar.MINUTE, 0);
+        chimeAt.set(Calendar.SECOND, 0);
+        chimeAt.set(Calendar.MILLISECOND, 0);
+        return chimeAt.getTimeInMillis();
     }
 
     private boolean isQuiet(Calendar now) {

@@ -30,11 +30,14 @@ public final class RadialChimeView extends View {
         circlePaint.setColor(0xFFF4C430);
         textPaint.setColor(Color.BLACK);
         textPaint.setTextAlign(Paint.Align.CENTER);
+        setClickable(true);
+        setOnClickListener(view -> stopChime());
     }
 
-    public void startChime(BackgroundRepository repository) {
+    public void startChime(BackgroundRepository repository, long chimeAtMillis) {
         startedAt = SystemClock.uptimeMillis();
         Calendar now = Calendar.getInstance();
+        now.setTimeInMillis(chimeAtMillis);
         displayedTime = ClockTimeFormatter.formatHourlyChime(
             now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE),
             repository.isUse24Hour(), repository.isClockUseEnglish());

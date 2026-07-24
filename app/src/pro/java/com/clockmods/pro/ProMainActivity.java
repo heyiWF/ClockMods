@@ -45,6 +45,8 @@ public final class ProMainActivity extends AppCompatActivity {
     private ViewPager2 pager;
     private BottomNavigationView navigation;
     private GestureDetector chromeGestureDetector;
+    private boolean navigationTouchSequence;
+    private RadialChimeView radialChimeView;
     private HourlyChimeController hourlyChimeController;
     private final ExecutorService imageExecutor = Executors.newSingleThreadExecutor();
 
@@ -57,8 +59,8 @@ public final class ProMainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_pro);
 
         pager = findViewById(R.id.pro_pager);
-        hourlyChimeController = new HourlyChimeController(
-            (RadialChimeView) findViewById(R.id.radial_chime),
+        radialChimeView = findViewById(R.id.radial_chime);
+        hourlyChimeController = new HourlyChimeController(radialChimeView,
             new BackgroundRepository(this));
         pager.setAdapter(new ProPagerAdapter(this));
         pager.setOffscreenPageLimit(1);
@@ -91,10 +93,24 @@ public final class ProMainActivity extends AppCompatActivity {
 
     @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
-        if (chromeGestureDetector != null) {
+        if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
+            navigationTouchSequence = radialChimeView != null
+                    && radialChimeView.getVisibility() == View.VISIBLE;
+            if (!navigationTouchSequence) {
+                navigationTouchSequence = navigation != null
+                    && navigation.getVisibility() == View.VISIBLE
+                    && event.getY() >= navigation.getTop();
+            }
+        }
+        if (chromeGestureDetector != null && !navigationTouchSequence) {
             chromeGestureDetector.onTouchEvent(event);
         }
-        return super.dispatchTouchEvent(event);
+        boolean handled = super.dispatchTouchEvent(event);
+        if (event.getActionMasked() == MotionEvent.ACTION_UP
+                || event.getActionMasked() == MotionEvent.ACTION_CANCEL) {
+            navigationTouchSequence = false;
+        }
+        return handled;
     }
 
     @Override protected void onResume() {
