@@ -40,7 +40,7 @@ public final class ClockTimeFormatter {
         return useEnglish ? time + " " + period : period + time;
     }
 
-    private static String periodText(int hour, boolean useEnglish) {
+    public static String periodText(int hour, boolean useEnglish) {
         if (useEnglish) {
             return hour < 12 ? "AM" : "PM";
         }

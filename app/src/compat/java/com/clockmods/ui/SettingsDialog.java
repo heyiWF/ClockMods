@@ -95,6 +95,7 @@ public class SettingsDialog extends Dialog {
     private final TextView dateSizeValue;
     private final Switch blinkColonSwitch;
     private final Switch animateTimeChangesSwitch;
+    private final Switch portraitStackedSwitch;
     private final Switch boldTextSwitch;
     private final Spinner fontFamilySpinner;
     private final Switch showSecondsSwitch;
@@ -103,7 +104,7 @@ public class SettingsDialog extends Dialog {
     private final Switch statusIconsSwitch;
     private final Switch use24HourSwitch;
     private final Switch clockUseEnglishSwitch;
-    private final Switch forceLandscapeSwitch;
+    private final SegmentedSelector orientationSelector;
     private final Switch networkTimeSwitch;
     private final View functionLockedControls;
     private final RadioGroup syncIntervalGroup;
@@ -290,6 +291,9 @@ public class SettingsDialog extends Dialog {
             topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(8)));
         fontFamilySpinner = createFontFamilySpinner(context, repository.getFontFamily());
         styleContent.addView(fontFamilySpinner, topMargin(matchWrap(dp(48)), dp(4)));
+        // Bold applies to both time and date, so it sits with the shared font family, not under time.
+        boldTextSwitch = createStyleSwitch(context, R.string.bold_text, repository.isBoldText());
+        styleContent.addView(boldTextSwitch, topMargin(matchWrap(dp(48)), dp(8)));
 
         styleContent.addView(createSubLabel(context, R.string.time_font_settings),
                 topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(8)));
@@ -314,14 +318,14 @@ public class SettingsDialog extends Dialog {
         animateTimeChangesSwitch = createStyleSwitch(context, R.string.animate_time_changes,
             repository.isAnimateTimeChanges());
         styleContent.addView(animateTimeChangesSwitch, matchWrap(dp(48)));
-        boldTextSwitch = createStyleSwitch(context, R.string.bold_text, repository.isBoldText());
-        styleContent.addView(boldTextSwitch, matchWrap(dp(48)));
+        // 竖屏专用：开启后竖屏时钟改为竖排大字（时/分/秒分行），横屏保持不变。
+        portraitStackedSwitch = createStyleSwitch(context, R.string.portrait_stacked_clock,
+            repository.isPortraitStacked());
+        styleContent.addView(portraitStackedSwitch, matchWrap(dp(48)));
         showSecondsSwitch = createStyleSwitch(context, R.string.show_seconds, repository.isShowSeconds());
         styleContent.addView(showSecondsSwitch, matchWrap(dp(48)));
         smallSecondsSwitch = createStyleSwitch(context, R.string.small_seconds, repository.isSmallSeconds());
         styleContent.addView(smallSecondsSwitch, matchWrap(dp(48)));
-        showLunarSwitch = createStyleSwitch(context, R.string.show_lunar, repository.isShowLunar());
-        styleContent.addView(showLunarSwitch, matchWrap(dp(48)));
         showSecondsSwitch.setOnCheckedChangeListener(
             (button, checked) -> updateSmallSecondsState(checked));
         updateSmallSecondsState(showSecondsSwitch.isChecked());
@@ -343,6 +347,9 @@ public class SettingsDialog extends Dialog {
             dateColorPicker.setColor(color);
         }), topMargin(matchWrap(dp(50)), dp(4)));
         addAdvancedPicker(context, styleContent, dateColorPicker);
+        // The lunar date is part of the date line, so its toggle sits with the date settings.
+        showLunarSwitch = createStyleSwitch(context, R.string.show_lunar, repository.isShowLunar());
+        styleContent.addView(showLunarSwitch, topMargin(matchWrap(dp(48)), dp(8)));
 
         // Status bar section
         styleContent.addView(createSectionLabel(context, R.string.status_settings_group),
@@ -366,12 +373,21 @@ public class SettingsDialog extends Dialog {
         functionContent.setOrientation(LinearLayout.VERTICAL);
         functionContent.setVisibility(View.GONE);
 
-        forceLandscapeSwitch = createStyleSwitch(context, R.string.force_landscape,
-            repository.isForceLandscape());
-        functionContent.addView(forceLandscapeSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        functionContent.addView(createSectionLabel(context, R.string.display_settings_group),
+                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(6)));
+        functionContent.addView(createSubLabel(context, R.string.screen_orientation),
+            topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(8)));
+        orientationSelector = new SegmentedSelector(context,
+            new CharSequence[] {
+                context.getString(R.string.orientation_follow_system),
+                context.getString(R.string.orientation_portrait),
+                context.getString(R.string.orientation_landscape)
+            }, COLOR_ACCENT, 0xFF252830, Color.WHITE, COLOR_SECONDARY_TEXT);
+        orientationSelector.setSelectedIndex(repository.getScreenOrientation());
+        functionContent.addView(orientationSelector, topMargin(matchWrap(dp(46)), dp(6)));
 
         functionContent.addView(createSectionLabel(context, R.string.time_settings_group),
-                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(6)));
+                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(18)));
         use24HourSwitch = new Switch(context);
         use24HourSwitch.setText(R.string.use_24_hour);
         use24HourSwitch.setTextColor(COLOR_PRIMARY_TEXT);
@@ -615,7 +631,9 @@ public class SettingsDialog extends Dialog {
         valueLabel.setTextColor(COLOR_PRIMARY_TEXT);
         valueLabel.setTextSize(13);
         valueLabel.setGravity(Gravity.END);
-        row.addView(valueLabel, new LinearLayout.LayoutParams(dp(96), ViewGroup.LayoutParams.WRAP_CONTENT));
+        // Keep the "占屏幕宽度 xxx%" readout on a single line even for 3-digit percentages.
+        valueLabel.setSingleLine(true);
+        row.addView(valueLabel, new LinearLayout.LayoutParams(dp(120), ViewGroup.LayoutParams.WRAP_CONTENT));
         return row;
     }
 
@@ -754,16 +772,6 @@ public class SettingsDialog extends Dialog {
         parent.addView(picker, matchWrap(dp(128)));
     }
 
-    private RadioButton createTabButton(Context context, int textRes) {
-        RadioButton tab = new RadioButton(context);
-        tab.setButtonDrawable(null);
-        tab.setText(textRes);
-        tab.setGravity(Gravity.CENTER);
-        tab.setTextColor(COLOR_PRIMARY_TEXT);
-        tab.setTextSize(15);
-        return tab;
-    }
-
     private RadioButton createSyncOption(Context context, int textRes) {
         RadioButton option = new RadioButton(context);
         option.setText(textRes);
@@ -859,6 +867,7 @@ public class SettingsDialog extends Dialog {
         statusIconsSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_STATUS_ICONS);
         blinkColonSwitch.setChecked(ClockPreferences.DEFAULT_BLINK_COLON);
         animateTimeChangesSwitch.setChecked(ClockPreferences.DEFAULT_ANIMATE_TIME_CHANGES);
+        portraitStackedSwitch.setChecked(ClockPreferences.DEFAULT_PORTRAIT_STACKED);
         boldTextSwitch.setChecked(ClockPreferences.DEFAULT_BOLD_TEXT);
         fontFamilySpinner.setSelection(0);
         showSecondsSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_SECONDS);
@@ -866,7 +875,7 @@ public class SettingsDialog extends Dialog {
         showLunarSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_LUNAR);
         use24HourSwitch.setChecked(ClockPreferences.DEFAULT_USE_24_HOUR);
         clockUseEnglishSwitch.setChecked(ClockPreferences.DEFAULT_CLOCK_USE_ENGLISH);
-        forceLandscapeSwitch.setChecked(ClockPreferences.DEFAULT_FORCE_LANDSCAPE);
+        orientationSelector.setSelectedIndex(ClockPreferences.DEFAULT_SCREEN_ORIENTATION);
         weatherSwitch.setChecked(ClockPreferences.DEFAULT_WEATHER_ENABLED);
         weatherLocationModeSpinner.setSelection(0);
         selectedWeatherLocationId = "";
@@ -898,6 +907,7 @@ public class SettingsDialog extends Dialog {
         repository.setShowStatusIcons(statusIconsSwitch.isChecked());
         repository.setBlinkColon(blinkColonSwitch.isChecked());
         repository.setAnimateTimeChanges(animateTimeChangesSwitch.isChecked());
+        repository.setPortraitStacked(portraitStackedSwitch.isChecked());
         repository.setBoldText(boldTextSwitch.isChecked());
         repository.setFontFamily(fontFamilyForIndex(fontFamilySpinner.getSelectedItemPosition()));
         repository.setShowSeconds(showSecondsSwitch.isChecked());
@@ -905,7 +915,7 @@ public class SettingsDialog extends Dialog {
         repository.setShowLunar(showLunarSwitch.isChecked());
         repository.setUse24Hour(use24HourSwitch.isChecked());
         repository.setClockUseEnglish(clockUseEnglishSwitch.isChecked());
-        repository.setForceLandscape(forceLandscapeSwitch.isChecked());
+        repository.setScreenOrientation(orientationSelector.getSelectedIndex());
         repository.setDimBackground(dimBackgroundSwitch.isChecked());
         repository.setScheduleDimBackground(scheduleDimBackgroundSwitch.isChecked());
         repository.setDimStartMinutes(dimStartMinutes);

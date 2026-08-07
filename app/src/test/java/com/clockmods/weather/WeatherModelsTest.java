@@ -25,6 +25,21 @@ public class WeatherModelsTest {
     }
 
     @Test
+    public void cacheCapabilityRequiresDetailOnlyWhenEnabled() {
+        WeatherModels.WeatherDisplayData basic = new WeatherModels.WeatherDisplayData(
+                "101010100", "北京市", "北京市", "晴", "100", "26", 1L);
+        WeatherModels.WeatherDisplayData detailed = new WeatherModels.WeatherDisplayData(
+                "101010100", "北京市", "北京市", "晴", "100", "26", 1L,
+                new WeatherModels.WeatherDetail("27", "40", "东北风", "2", "0",
+                        null, null, null));
+
+        Assert.assertTrue(basic.satisfies(false));
+        Assert.assertFalse(basic.satisfies(true));
+        Assert.assertTrue(detailed.satisfies(false));
+        Assert.assertTrue(detailed.satisfies(true));
+    }
+
+    @Test
     public void exposesMultipleWarningsAsSeparateCarouselItems() {
         WeatherModels.WeatherDetail detail = new WeatherModels.WeatherDetail(null, null,
                 null, null, null, "台风红色预警\n\n暴雨橙色预警", null, null);

@@ -74,6 +74,7 @@ public final class ProTimerFragment extends Fragment {
         root.findViewById(R.id.timer_skip).setVisibility(pomodoro ? View.VISIBLE : View.GONE);
         root.findViewById(R.id.timer_skip).setOnClickListener(view -> advancePomodoro());
         setupPresets(root.findViewById(R.id.timer_presets));
+        ProFontApplier.apply(root);
         restore();
         refresh();
         return root;
@@ -174,6 +175,7 @@ public final class ProTimerFragment extends Fragment {
                 dialog.dismiss();
             }));
         dialog.show();
+        ProFontApplier.apply(dialog.getWindow().getDecorView());
         }
 
         static long customDurationMillis(int hours, int minutes, int seconds) {

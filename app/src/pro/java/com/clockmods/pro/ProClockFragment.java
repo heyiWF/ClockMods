@@ -47,6 +47,7 @@ public final class ProClockFragment extends Fragment {
         clockView.setBackgroundRepository(repository);
         statusBarView.setBackgroundRepository(repository);
         statusBarView.setVisibility(repository.isShowStatusIcons() ? View.VISIBLE : View.GONE);
+        ProFontApplier.apply(root);
 
         weatherController = new WeatherController(requireContext(),
                 state -> { if (clockView != null) clockView.setWeatherState(state); });
@@ -109,6 +110,7 @@ public final class ProClockFragment extends Fragment {
 
     void refreshSettings() {
         if (clockView == null) return;
+        ProFontApplier.apply(getView());
         BackgroundRepository repository = new BackgroundRepository(requireContext());
         clockView.setBackgroundRepository(repository);
         clockView.requestBackgroundReload();

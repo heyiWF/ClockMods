@@ -75,8 +75,8 @@ public class SettingsDialog extends BottomSheetDialog {
     private final TextView dateSizeValue;
     private final MaterialSwitch blinkColonSwitch;
     private final MaterialSwitch animateTimeChangesSwitch;
-    private final Spinner proThemeSpinner;
     private final Spinner proTransitionSpinner;
+    private final MaterialSwitch portraitStackedSwitch;
     private final MaterialSwitch proHourlyChimeSwitch;
     private final MaterialSwitch proHourlyQuietSwitch;
     private final MaterialButton proQuietStartButton;
@@ -91,7 +91,7 @@ public class SettingsDialog extends BottomSheetDialog {
     private final MaterialSwitch statusIconsSwitch;
     private final MaterialSwitch use24HourSwitch;
     private final MaterialSwitch clockUseEnglishSwitch;
-    private final MaterialSwitch forceLandscapeSwitch;
+    private final MaterialButtonToggleGroup orientationGroup;
     private final MaterialSwitch networkTimeSwitch;
     private final View functionLockedControls;
     private final MaterialButtonToggleGroup syncIntervalGroup;
@@ -101,6 +101,9 @@ public class SettingsDialog extends BottomSheetDialog {
     private final MaterialButton weatherLocationButton;
     private final Spinner weatherIntervalSpinner;
     private final MaterialSwitch weatherDetailedSwitch;
+    private final MaterialButtonToggleGroup calendarWeekStartGroup;
+    private final MaterialSwitch calendarHighlightWeekendsSwitch;
+    private final MaterialSwitch calendarMoreFestivalsSwitch;
     private String selectedWeatherLocationId;
     private String selectedWeatherProvince;
     private String selectedWeatherCity;
@@ -117,6 +120,13 @@ public class SettingsDialog extends BottomSheetDialog {
     private static final int SYNC_1HOUR_ID = 20002;
     private static final int SYNC_6HOUR_ID = 20003;
     private static final int SYNC_1DAY_ID = 20004;
+
+    private static final int ORIENTATION_FOLLOW_ID = 40001;
+    private static final int ORIENTATION_PORTRAIT_ID = 40002;
+    private static final int ORIENTATION_LANDSCAPE_ID = 40003;
+
+    private static final int CALENDAR_WEEK_START_SUNDAY_ID = 50001;
+    private static final int CALENDAR_WEEK_START_MONDAY_ID = 50002;
 
     public SettingsDialog(Context context, BackgroundRepository repository, Listener listener) {
         super(context);
@@ -282,6 +292,9 @@ public class SettingsDialog extends BottomSheetDialog {
         styleContent.addView(createSubLabel(context, R.string.font_family), subLabelParams());
         fontFamilySpinner = createFontFamilySpinner(context, repository.getFontFamily());
         styleContent.addView(fontFamilySpinner, topMargin(matchWrap(dp(48)), dp(4)));
+        // Bold applies to both time and date, so it sits with the shared font family, not under time.
+        boldTextSwitch = createStyleSwitch(context, R.string.bold_text, repository.isBoldText());
+        styleContent.addView(boldTextSwitch, topMargin(matchWrap(dp(48)), dp(8)));
 
         // Time font
         styleContent.addView(createSubLabel(context, R.string.time_font_settings), subLabelParams());
@@ -305,25 +318,11 @@ public class SettingsDialog extends BottomSheetDialog {
         animateTimeChangesSwitch = createStyleSwitch(context, R.string.animate_time_changes,
             repository.isAnimateTimeChanges());
         styleContent.addView(animateTimeChangesSwitch, matchWrap(dp(48)));
+        // 竖屏专用：开启后竖屏时钟改为竖排大字（时/分/秒分行），横屏保持不变；所有版本可用。
+        portraitStackedSwitch = createStyleSwitch(context, R.string.portrait_stacked_clock,
+                repository.isPortraitStacked());
+        styleContent.addView(portraitStackedSwitch, topMargin(matchWrap(dp(48)), dp(8)));
         if ("pro".equals(BuildConfig.FLAVOR)) {
-            styleContent.addView(createSubLabel(context, R.string.pro_clock_theme), subLabelParams());
-            proThemeSpinner = createStringSpinner(context, R.array.pro_clock_themes,
-                    themeIndex(repository.getClockTheme()));
-            proThemeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
-                private boolean initialized;
-
-                @Override
-                public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
-                    if (!initialized) {
-                        initialized = true;
-                        return;
-                    }
-                    applyProThemeColors(position);
-                }
-
-                @Override public void onNothingSelected(AdapterView<?> parent) { }
-            });
-            styleContent.addView(proThemeSpinner, topMargin(matchWrap(dp(48)), dp(4)));
             styleContent.addView(createSubLabel(context, R.string.pro_time_transition), subLabelParams());
             proTransitionSpinner = createStringSpinner(context, R.array.pro_time_transitions,
                     transitionIndex(repository.getTimeTransition()));
@@ -347,21 +346,16 @@ public class SettingsDialog extends BottomSheetDialog {
                 quietRow.addView(proQuietEndButton, quietEndParams);
                 styleContent.addView(quietRow, topMargin(matchWrap(dp(50)), dp(4)));
         } else {
-            proThemeSpinner = null;
             proTransitionSpinner = null;
                 proHourlyChimeSwitch = null;
                 proHourlyQuietSwitch = null;
                 proQuietStartButton = null;
                 proQuietEndButton = null;
         }
-        boldTextSwitch = createStyleSwitch(context, R.string.bold_text, repository.isBoldText());
-        styleContent.addView(boldTextSwitch, matchWrap(dp(48)));
         showSecondsSwitch = createStyleSwitch(context, R.string.show_seconds, repository.isShowSeconds());
         styleContent.addView(showSecondsSwitch, matchWrap(dp(48)));
         smallSecondsSwitch = createStyleSwitch(context, R.string.small_seconds, repository.isSmallSeconds());
         styleContent.addView(smallSecondsSwitch, matchWrap(dp(48)));
-        showLunarSwitch = createStyleSwitch(context, R.string.show_lunar, repository.isShowLunar());
-        styleContent.addView(showLunarSwitch, matchWrap(dp(48)));
         showSecondsSwitch.setOnCheckedChangeListener(
             (button, checked) -> updateSmallSecondsState(checked));
         updateSmallSecondsState(showSecondsSwitch.isChecked());
@@ -383,6 +377,9 @@ public class SettingsDialog extends BottomSheetDialog {
             dateColorPicker.setColor(color);
         }), topMargin(matchWrap(dp(52)), dp(4)));
         addAdvancedPicker(context, styleContent, dateColorPicker);
+        // The lunar date is part of the date line, so its toggle sits with the date settings.
+        showLunarSwitch = createStyleSwitch(context, R.string.show_lunar, repository.isShowLunar());
+        styleContent.addView(showLunarSwitch, topMargin(matchWrap(dp(48)), dp(8)));
 
         // Status bar section
         styleContent.addView(createSectionLabel(context, R.string.status_settings_group),
@@ -406,11 +403,24 @@ public class SettingsDialog extends BottomSheetDialog {
         functionContent.setOrientation(LinearLayout.VERTICAL);
         functionContent.setVisibility(View.GONE);
 
-        forceLandscapeSwitch = createStyleSwitch(context, R.string.force_landscape,
-            repository.isForceLandscape());
-        functionContent.addView(forceLandscapeSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        functionContent.addView(createSectionLabel(context, R.string.display_settings_group),
+                sectionLabelParams());
+        functionContent.addView(createSubLabel(context, R.string.screen_orientation),
+                topMargin(subLabelParams(), dp(8)));
+        orientationGroup = new MaterialButtonToggleGroup(context);
+        orientationGroup.setSingleSelection(true);
+        orientationGroup.setSelectionRequired(true);
+        orientationGroup.addView(createModeButton(context, ORIENTATION_FOLLOW_ID,
+                R.string.orientation_follow_system), weightedButtonParams());
+        orientationGroup.addView(createModeButton(context, ORIENTATION_PORTRAIT_ID,
+                R.string.orientation_portrait), weightedButtonParams());
+        orientationGroup.addView(createModeButton(context, ORIENTATION_LANDSCAPE_ID,
+                R.string.orientation_landscape), weightedButtonParams());
+        orientationGroup.check(idForOrientation(repository.getScreenOrientation()));
+        functionContent.addView(orientationGroup, topMargin(matchWrap(dp(48)), dp(6)));
 
-        functionContent.addView(createSectionLabel(context, R.string.time_settings_group), sectionLabelParams());
+        functionContent.addView(createSectionLabel(context, R.string.time_settings_group),
+                topMargin(sectionLabelParams(), dp(20)));
         use24HourSwitch = new MaterialSwitch(context);
         use24HourSwitch.setText(R.string.use_24_hour);
         use24HourSwitch.setTextAppearance(
@@ -524,6 +534,39 @@ public class SettingsDialog extends BottomSheetDialog {
             com.google.android.material.R.style.TextAppearance_Material3_BodyLarge);
         weatherDetailedSwitch.setChecked(repository.isWeatherDetailed());
         functionContent.addView(weatherDetailedSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        // Pro-only 月历 section: the calendar page exists only in Pro, so this is its own group
+        // rather than being tucked under 天气.
+        if ("pro".equals(BuildConfig.FLAVOR)) {
+            functionContent.addView(createSectionLabel(context, R.string.calendar_settings_group),
+                    topMargin(sectionLabelParams(), dp(20)));
+            functionContent.addView(createSubLabel(context, R.string.calendar_week_start),
+                    topMargin(subLabelParams(), dp(8)));
+            calendarWeekStartGroup = new MaterialButtonToggleGroup(context);
+            calendarWeekStartGroup.setSingleSelection(true);
+            calendarWeekStartGroup.setSelectionRequired(true);
+            calendarWeekStartGroup.addView(createModeButton(context,
+                    CALENDAR_WEEK_START_SUNDAY_ID, R.string.calendar_week_start_sunday),
+                    weightedButtonParams());
+            calendarWeekStartGroup.addView(createModeButton(context,
+                    CALENDAR_WEEK_START_MONDAY_ID, R.string.calendar_week_start_monday),
+                    weightedButtonParams());
+            calendarWeekStartGroup.check(idForCalendarWeekStart(
+                    repository.getCalendarWeekStart()));
+            functionContent.addView(calendarWeekStartGroup,
+                    topMargin(matchWrap(dp(48)), dp(6)));
+            calendarHighlightWeekendsSwitch = createStyleSwitch(context,
+                    R.string.calendar_highlight_weekends,
+                    repository.isCalendarHighlightWeekends());
+            functionContent.addView(calendarHighlightWeekendsSwitch,
+                    topMargin(matchWrap(dp(48)), dp(8)));
+            calendarMoreFestivalsSwitch = createStyleSwitch(context, R.string.calendar_more_festivals,
+                repository.isCalendarMoreFestivals());
+            functionContent.addView(calendarMoreFestivalsSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        } else {
+            calendarWeekStartGroup = null;
+            calendarHighlightWeekendsSwitch = null;
+            calendarMoreFestivalsSwitch = null;
+        }
         weatherSwitch.setOnCheckedChangeListener((button, checked) -> updateWeatherState(checked));
         weatherLocationModeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -660,7 +703,9 @@ public class SettingsDialog extends BottomSheetDialog {
 
         valueLabel.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_LabelMedium);
         valueLabel.setGravity(Gravity.END);
-        row.addView(valueLabel, new LinearLayout.LayoutParams(dp(88), ViewGroup.LayoutParams.WRAP_CONTENT));
+        // Keep the "占屏幕宽度 xxx%" readout on a single line even for 3-digit percentages.
+        valueLabel.setSingleLine(true);
+        row.addView(valueLabel, new LinearLayout.LayoutParams(dp(112), ViewGroup.LayoutParams.WRAP_CONTENT));
         return row;
     }
 
@@ -837,6 +882,38 @@ public class SettingsDialog extends BottomSheetDialog {
         return 60;
     }
 
+    private static int idForOrientation(int mode) {
+        switch (mode) {
+            case ClockPreferences.ORIENTATION_PORTRAIT:
+                return ORIENTATION_PORTRAIT_ID;
+            case ClockPreferences.ORIENTATION_LANDSCAPE:
+                return ORIENTATION_LANDSCAPE_ID;
+            default:
+                return ORIENTATION_FOLLOW_ID;
+        }
+    }
+
+    private static int orientationForId(int id) {
+        if (id == ORIENTATION_PORTRAIT_ID) {
+            return ClockPreferences.ORIENTATION_PORTRAIT;
+        }
+        if (id == ORIENTATION_LANDSCAPE_ID) {
+            return ClockPreferences.ORIENTATION_LANDSCAPE;
+        }
+        return ClockPreferences.ORIENTATION_FOLLOW_SYSTEM;
+    }
+
+    private static int idForCalendarWeekStart(int firstDayOfWeek) {
+        return firstDayOfWeek == ClockPreferences.CALENDAR_WEEK_START_MONDAY
+                ? CALENDAR_WEEK_START_MONDAY_ID : CALENDAR_WEEK_START_SUNDAY_ID;
+    }
+
+    private static int calendarWeekStartForId(int id) {
+        return id == CALENDAR_WEEK_START_MONDAY_ID
+                ? ClockPreferences.CALENDAR_WEEK_START_MONDAY
+                : ClockPreferences.CALENDAR_WEEK_START_SUNDAY;
+    }
+
     private String regionSummary() {
         return getContext().getString(R.string.region_time_zone) + ": "
                 + RegionTimeZones.DISPLAY_NAMES[selectedRegionIndex];
@@ -892,8 +969,8 @@ public class SettingsDialog extends BottomSheetDialog {
         statusIconsSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_STATUS_ICONS);
         blinkColonSwitch.setChecked(ClockPreferences.DEFAULT_BLINK_COLON);
         animateTimeChangesSwitch.setChecked(ClockPreferences.DEFAULT_ANIMATE_TIME_CHANGES);
-        if (proThemeSpinner != null) proThemeSpinner.setSelection(0);
         if (proTransitionSpinner != null) proTransitionSpinner.setSelection(0);
+        portraitStackedSwitch.setChecked(ClockPreferences.DEFAULT_PORTRAIT_STACKED);
         if (proHourlyChimeSwitch != null) {
             proHourlyChimeSwitch.setChecked(ClockPreferences.DEFAULT_HOURLY_CHIME);
             proHourlyQuietSwitch.setChecked(ClockPreferences.DEFAULT_HOURLY_CHIME_QUIET);
@@ -906,9 +983,17 @@ public class SettingsDialog extends BottomSheetDialog {
         showSecondsSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_SECONDS);
         smallSecondsSwitch.setChecked(ClockPreferences.DEFAULT_SMALL_SECONDS);
         showLunarSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_LUNAR);
+        if (calendarWeekStartGroup != null) {
+            calendarWeekStartGroup.check(idForCalendarWeekStart(
+                    ClockPreferences.DEFAULT_CALENDAR_WEEK_START));
+            calendarHighlightWeekendsSwitch.setChecked(
+                    ClockPreferences.DEFAULT_CALENDAR_HIGHLIGHT_WEEKENDS);
+            calendarMoreFestivalsSwitch.setChecked(
+                    ClockPreferences.DEFAULT_CALENDAR_MORE_FESTIVALS);
+        }
         use24HourSwitch.setChecked(ClockPreferences.DEFAULT_USE_24_HOUR);
         clockUseEnglishSwitch.setChecked(ClockPreferences.DEFAULT_CLOCK_USE_ENGLISH);
-        forceLandscapeSwitch.setChecked(ClockPreferences.DEFAULT_FORCE_LANDSCAPE);
+        orientationGroup.check(idForOrientation(ClockPreferences.DEFAULT_SCREEN_ORIENTATION));
         weatherSwitch.setChecked(ClockPreferences.DEFAULT_WEATHER_ENABLED);
         weatherLocationModeSpinner.setSelection(0);
         selectedWeatherLocationId = "";
@@ -944,14 +1029,11 @@ public class SettingsDialog extends BottomSheetDialog {
         repository.setShowStatusIcons(statusIconsSwitch.isChecked());
         repository.setBlinkColon(blinkColonSwitch.isChecked());
         repository.setAnimateTimeChanges(animateTimeChangesSwitch.isChecked());
-        if (proThemeSpinner != null) {
-            String theme = themeForIndex(proThemeSpinner.getSelectedItemPosition());
-            repository.setClockTheme(theme);
-        }
         if (proTransitionSpinner != null) {
             repository.setTimeTransition(transitionForIndex(
                     proTransitionSpinner.getSelectedItemPosition()));
         }
+        repository.setPortraitStacked(portraitStackedSwitch.isChecked());
         if (proHourlyChimeSwitch != null) {
             repository.setHourlyChimeEnabled(proHourlyChimeSwitch.isChecked());
             repository.setHourlyChimeQuietEnabled(proHourlyQuietSwitch.isChecked());
@@ -965,7 +1047,7 @@ public class SettingsDialog extends BottomSheetDialog {
         repository.setShowLunar(showLunarSwitch.isChecked());
         repository.setUse24Hour(use24HourSwitch.isChecked());
         repository.setClockUseEnglish(clockUseEnglishSwitch.isChecked());
-        repository.setForceLandscape(forceLandscapeSwitch.isChecked());
+        repository.setScreenOrientation(orientationForId(orientationGroup.getCheckedButtonId()));
         repository.setDimBackground(dimBackgroundSwitch.isChecked());
         repository.setScheduleDimBackground(scheduleDimBackgroundSwitch.isChecked());
         repository.setDimStartMinutes(dimStartMinutes);
@@ -977,6 +1059,13 @@ public class SettingsDialog extends BottomSheetDialog {
         repository.setManualWeatherLocation(selectedWeatherLocationId, selectedWeatherProvince,
             selectedWeatherCity, selectedWeatherDistrict, selectedWeatherLatitude, selectedWeatherLongitude);
         repository.setWeatherDetailed(weatherDetailedSwitch.isChecked());
+        if (calendarWeekStartGroup != null) {
+            repository.setCalendarWeekStart(calendarWeekStartForId(
+                    calendarWeekStartGroup.getCheckedButtonId()));
+            repository.setCalendarHighlightWeekends(
+                    calendarHighlightWeekendsSwitch.isChecked());
+            repository.setCalendarMoreFestivals(calendarMoreFestivalsSwitch.isChecked());
+        }
         repository.setWeatherLocationMode(manualWeather
             ? ClockPreferences.WEATHER_LOCATION_MANUAL : ClockPreferences.WEATHER_LOCATION_AUTOMATIC);
         repository.setWeatherIntervalMinutes(weatherIntervalMinutes(
@@ -1024,41 +1113,6 @@ public class SettingsDialog extends BottomSheetDialog {
         spinner.setAdapter(adapter);
         spinner.setSelection(selection);
         return spinner;
-    }
-
-    private static int themeIndex(String theme) {
-        if (ClockPreferences.THEME_PAPER.equals(theme)) return 1;
-        if (ClockPreferences.THEME_FOREST.equals(theme)) return 2;
-        if (ClockPreferences.THEME_OCEAN.equals(theme)) return 3;
-        if (ClockPreferences.THEME_SUNSET.equals(theme)) return 4;
-        if (ClockPreferences.THEME_MONOCHROME.equals(theme)) return 5;
-        return 0;
-    }
-
-    private static String themeForIndex(int index) {
-        String[] themes = {ClockPreferences.THEME_MIDNIGHT, ClockPreferences.THEME_PAPER,
-                ClockPreferences.THEME_FOREST, ClockPreferences.THEME_OCEAN,
-                ClockPreferences.THEME_SUNSET, ClockPreferences.THEME_MONOCHROME};
-        return themes[Math.max(0, Math.min(index, themes.length - 1))];
-    }
-
-    private void applyProThemeColors(int themeIndex) {
-        int[] colors = themeColors(themeForIndex(themeIndex));
-        backgroundPicker.setColor(colors[0]);
-        setSwatchColor(backgroundPreview, colors[0]);
-        timeColor = colors[1];
-        timeColorPicker.setColor(timeColor);
-        dateColor = colors[2];
-        dateColorPicker.setColor(dateColor);
-    }
-
-    private static int[] themeColors(String theme) {
-        if (ClockPreferences.THEME_PAPER.equals(theme)) return new int[] {0xFFF3F0E8, 0xFF151515, 0xFF4B4B46};
-        if (ClockPreferences.THEME_FOREST.equals(theme)) return new int[] {0xFF0D241B, 0xFFEAF7D5, 0xFF9EC5A5};
-        if (ClockPreferences.THEME_OCEAN.equals(theme)) return new int[] {0xFF071D2B, 0xFFE7F8FF, 0xFF75C9E8};
-        if (ClockPreferences.THEME_SUNSET.equals(theme)) return new int[] {0xFF32151B, 0xFFFFF0D6, 0xFFFFA36C};
-        if (ClockPreferences.THEME_MONOCHROME.equals(theme)) return new int[] {0xFF050505, 0xFFFFFFFF, 0xFFB8B8B8};
-        return new int[] {0xFF101418, 0xFFFFFFFF, 0xFFB8C4CE};
     }
 
     private static int transitionIndex(String transition) {

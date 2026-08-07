@@ -28,6 +28,7 @@ public final class WeatherController {
     private final LocationManager locationManager;
     private final WeatherRepository repository;
     private final ClockPreferences preferences;
+    private final Boolean detailedOverride;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private boolean running;
@@ -36,8 +37,13 @@ public final class WeatherController {
     private LocationListener locationListener;
 
     public WeatherController(Context context, Listener listener) {
+        this(context, listener, null);
+    }
+
+    public WeatherController(Context context, Listener listener, Boolean detailedOverride) {
         this.context = context.getApplicationContext();
         this.listener = listener;
+        this.detailedOverride = detailedOverride;
         locationManager = (LocationManager) context.getSystemService(Context.LOCATION_SERVICE);
         repository = new WeatherRepository(context);
         preferences = new ClockPreferences(context);
@@ -51,7 +57,8 @@ public final class WeatherController {
         this.intervalMinutes = intervalMinutes;
         WeatherDisplayData cached = getCached();
         if (cached != null) listener.onWeatherState(new WeatherState(Status.SUCCESS, cached, null));
-        refreshIfNeeded(cached, false);
+        boolean incompatible = cached != null && !cached.satisfies(isDetailedRequired());
+        refreshIfNeeded(cached, incompatible);
     }
 
     public void refreshNow() { refreshIfNeeded(getCached(), true); }
@@ -140,7 +147,7 @@ public final class WeatherController {
                 try {
                     final WeatherDisplayData data = new QWeatherClient(context, QWeatherConfig.apiHost())
                             .fetch(location.getLatitude(), location.getLongitude(),
-                                    preferences.isWeatherDetailed());
+                                    isDetailedRequired());
                         repository.save(data, ClockPreferences.WEATHER_LOCATION_AUTOMATIC);
                     handler.post(new Runnable() {
                         @Override public void run() {
@@ -171,7 +178,7 @@ public final class WeatherController {
         final String locationId = preferences.getWeatherLocationId();
         final String city = preferences.getWeatherCity();
         final String district = preferences.getWeatherDistrict();
-        final boolean detailed = preferences.isWeatherDetailed();
+        final boolean detailed = isDetailedRequired();
         final double latitude = preferences.getWeatherLatitude();
         final double longitude = preferences.getWeatherLongitude();
         executor.execute(new Runnable() {
@@ -210,6 +217,10 @@ public final class WeatherController {
 
     private boolean isManualLocation() {
         return ClockPreferences.WEATHER_LOCATION_MANUAL.equals(preferences.getWeatherLocationMode());
+    }
+
+    private boolean isDetailedRequired() {
+        return detailedOverride != null ? detailedOverride : preferences.isWeatherDetailed();
     }
 
     private WeatherDisplayData getCached() {

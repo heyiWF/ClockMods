@@ -4,7 +4,6 @@ import android.app.AlarmManager;
 import android.app.PendingIntent;
 import android.content.Context;
 import android.content.Intent;
-import android.os.Build;
 
 import java.util.Calendar;
 
@@ -29,7 +28,7 @@ public final class AlarmScheduler {
         PendingIntent showIntent = PendingIntent.getActivity(context, 101,
                 new Intent(context, AlarmRingingActivity.class),
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
-        if (Build.VERSION.SDK_INT < 31 || manager.canScheduleExactAlarms()) {
+        if (manager.canScheduleExactAlarms()) {
             manager.setAlarmClock(new AlarmManager.AlarmClockInfo(triggerAt, showIntent), operation);
         } else {
             manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, operation);

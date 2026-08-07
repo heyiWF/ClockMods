@@ -56,7 +56,7 @@ android {
             dimension "experience"
             applicationIdSuffix ".pro"
             versionNameSuffix "-pro"
-            minSdk = 29
+            minSdk = 31
             resValue "string", "app_name", "ClockMods Pro"
             manifestPlaceholders = [launcherActivity: ".pro.ProMainActivity"]
             buildConfigField 'boolean', 'WEATHER_DETAIL_USES_TIME_TRANSITION', 'true'
@@ -108,6 +108,8 @@ dependencies {
     proImplementation 'com.google.android.material:material:1.14.0'
     proImplementation 'androidx.appcompat:appcompat:1.7.1'
     proImplementation 'androidx.viewpager2:viewpager2:1.1.0'
+    // Offline almanac engine: lunar/solar-term/festival/宜忌 computed to year 2100+ (Pro calendar).
+    proImplementation 'cn.6tail:lunar:1.7.7'
 
     testImplementation 'junit:junit:4.13.2'
     implementation 'net.i2p.crypto:eddsa:0.3.0'

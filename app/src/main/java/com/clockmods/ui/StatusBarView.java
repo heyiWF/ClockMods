@@ -44,6 +44,7 @@ public class StatusBarView extends View {
     private NetworkState networkState = NetworkState.NONE;
     private int signalStrength;
     private int mobileSignalStrength;
+    private boolean contentAlignedStart;
 
     private boolean receiverRegistered;
     private TelephonyManager telephonyManager;
@@ -91,6 +92,11 @@ public class StatusBarView extends View {
 
     public void setBackgroundRepository(BackgroundRepository repository) {
         backgroundRepository = repository;
+        invalidate();
+    }
+
+    public void setContentAlignedStart(boolean alignedStart) {
+        contentAlignedStart = alignedStart;
         invalidate();
     }
 
@@ -284,8 +290,13 @@ public class StatusBarView extends View {
             iconHeight = 18f * density;
         }
         float centerY = getHeight() / 2f;
-        float right = getWidth() - getPaddingRight();
         float gap = 8f * density;
+        if (contentAlignedStart) {
+            drawAlignedStart(canvas, iconHeight, centerY, gap);
+            fillPaint.setAlpha(255);
+            return;
+        }
+        float right = getWidth() - getPaddingRight();
 
         // Battery percentage text.
         float cursor = right;
@@ -325,6 +336,31 @@ public class StatusBarView extends View {
                 break;
         }
         fillPaint.setAlpha(255);
+    }
+
+    private void drawAlignedStart(Canvas canvas, float iconHeight, float centerY, float gap) {
+        float cursor = getPaddingLeft();
+        float networkSize = iconHeight * 1.15f;
+        switch (networkState) {
+            case WIFI: drawWifi(canvas, cursor, centerY, networkSize); break;
+            case MOBILE: drawMobile(canvas, cursor, centerY, networkSize); break;
+            case ETHERNET: drawIcon(canvas, MaterialIcon.ETHERNET, cursor, centerY, networkSize); break;
+            default: drawIcon(canvas, MaterialIcon.GLOBE_CANCEL, cursor, centerY, networkSize); break;
+        }
+        cursor += networkSize + gap * 0.4f;
+        if (batteryLevel < 0) return;
+        float batterySize = iconHeight * 1.55f;
+        drawBattery(canvas, cursor, centerY, batterySize);
+        cursor += batterySize + gap * 0.6f;
+        textPaint.setTextAlign(Paint.Align.LEFT);
+        textPaint.setTextSize(iconHeight * 0.9f);
+        if (backgroundRepository != null) {
+            textPaint.setTypeface(ClockTypefaceResolver.resolveTime(
+                    getContext(), backgroundRepository.getFontFamily(), false));
+        }
+        canvas.drawText(batteryLevel + "%", cursor,
+                centerY - (textPaint.ascent() + textPaint.descent()) / 2f, textPaint);
+        textPaint.setTextAlign(Paint.Align.RIGHT);
     }
 
     /** True when the receivers have reported a connectivity state to display. */

@@ -1,0 +1,93 @@
+<?xml version="1.0" encoding="utf-8"?>
+<com.clockmods.pro.MonthGestureLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:id="@+id/calendar_month_panel"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:background="@drawable/calendar_dashboard_panel"
+    android:minHeight="@dimen/calendar_dashboard_panel_min_height"
+    android:orientation="vertical"
+    android:padding="10dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="48dp"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/calendar_previous"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:contentDescription="@string/calendar_previous_month"
+            app:icon="@drawable/ic_chevron_left"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp" />
+
+        <TextView
+            android:id="@+id/calendar_month_title"
+            android:layout_width="0dp"
+            android:layout_height="match_parent"
+            android:layout_weight="1"
+            android:gravity="center"
+            android:textColor="@color/calendar_dashboard_text"
+            android:textSize="24sp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/calendar_today"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:contentDescription="@string/calendar_today"
+            app:icon="@drawable/ic_calendar_month"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp" />
+
+        <com.google.android.material.button.MaterialButton
+            android:id="@+id/calendar_next"
+            style="@style/Widget.Material3.Button.TextButton"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:contentDescription="@string/calendar_next_month"
+            app:icon="@drawable/ic_chevron_right"
+            app:iconGravity="textStart"
+            app:iconPadding="0dp" />
+    </LinearLayout>
+
+    <GridLayout
+        android:id="@+id/calendar_weekdays"
+        android:layout_width="match_parent"
+        android:layout_height="36dp"
+        android:columnCount="7"
+        android:rowCount="1" />
+
+    <FrameLayout
+        android:id="@+id/calendar_grid_viewport"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:clipChildren="true">
+
+        <GridLayout
+            android:id="@+id/calendar_grid_preview"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:columnCount="7"
+            android:importantForAccessibility="noHideDescendants"
+            android:rowCount="6"
+            android:visibility="invisible" />
+
+        <GridLayout
+            android:id="@+id/calendar_grid"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:columnCount="7"
+            android:rowCount="6" />
+    </FrameLayout>
+
+    <com.clockmods.ui.CalendarFooterCarouselView
+        android:id="@+id/calendar_selected_footer"
+        android:layout_width="match_parent"
+        android:layout_height="44dp" />
+</com.clockmods.pro.MonthGestureLayout>

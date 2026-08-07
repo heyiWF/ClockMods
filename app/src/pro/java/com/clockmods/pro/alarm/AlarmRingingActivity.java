@@ -8,6 +8,7 @@ import android.view.WindowManager;
 import android.widget.TextView;
 
 import com.clockmods.R;
+import com.clockmods.pro.ProFontApplier;
 
 import java.text.SimpleDateFormat;
 import java.util.Date;
@@ -22,6 +23,7 @@ public final class AlarmRingingActivity extends Activity {
         setContentView(R.layout.activity_alarm_ringing);
         ((TextView) findViewById(R.id.ringing_time)).setText(
                 new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date()));
+        ProFontApplier.apply(getWindow().getDecorView());
         findViewById(R.id.alarm_dismiss).setOnClickListener(view -> {
             stopService(new Intent(this, AlarmRingingService.class));
             AlarmNotifications.cancel(this);

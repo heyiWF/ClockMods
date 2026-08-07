@@ -6,6 +6,13 @@ import android.content.Intent;
 
 public final class AlarmRescheduleReceiver extends BroadcastReceiver {
     @Override public void onReceive(Context context, Intent intent) {
+        String action = intent == null ? null : intent.getAction();
+        if (!Intent.ACTION_BOOT_COMPLETED.equals(action)
+                && !Intent.ACTION_MY_PACKAGE_REPLACED.equals(action)
+                && !Intent.ACTION_TIME_CHANGED.equals(action)
+                && !Intent.ACTION_TIMEZONE_CHANGED.equals(action)) {
+            return;
+        }
         AlarmStore store = new AlarmStore(context);
         if (store.enabled()) AlarmScheduler.schedule(context, store.hour(), store.minute());
     }

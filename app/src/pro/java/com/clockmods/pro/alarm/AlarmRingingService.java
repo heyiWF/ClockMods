@@ -8,6 +8,7 @@ import android.media.RingtoneManager;
 import android.os.IBinder;
 import android.os.VibrationEffect;
 import android.os.Vibrator;
+import android.os.VibratorManager;
 
 import androidx.annotation.Nullable;
 
@@ -26,7 +27,8 @@ public final class AlarmRingingService extends Service {
             ringtone.setLooping(true);
             ringtone.play();
         }
-        vibrator = getSystemService(Vibrator.class);
+        VibratorManager vibratorManager = getSystemService(VibratorManager.class);
+        vibrator = vibratorManager == null ? null : vibratorManager.getDefaultVibrator();
         if (vibrator != null && vibrator.hasVibrator()) {
             vibrator.vibrate(VibrationEffect.createWaveform(
                     new long[] {0L, 500L, 500L}, 0));

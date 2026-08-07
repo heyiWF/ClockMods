@@ -41,13 +41,19 @@ public final class ProAlarmFragment extends Fragment {
             else AlarmScheduler.cancel(requireContext());
             render();
         });
-        root.findViewById(R.id.alarm_edit).setOnClickListener(view -> new TimePickerDialog(
-                requireContext(), (picker, hour, minute) -> {
+        root.findViewById(R.id.alarm_edit).setOnClickListener(view -> {
+            TimePickerDialog dialog = new TimePickerDialog(requireContext(),
+                (picker, hour, minute) -> {
                     store.save(hour, minute, true);
                     enabled.setChecked(true);
                     AlarmScheduler.schedule(requireContext(), hour, minute);
                     render();
-                }, store.hour(), store.minute(), true).show());
+                }, store.hour(), store.minute(), true);
+            dialog.setOnShowListener(ignored ->
+                    ProFontApplier.apply(dialog.getWindow().getDecorView()));
+            dialog.show();
+        });
+            ProFontApplier.apply(root);
         render();
         return root;
     }

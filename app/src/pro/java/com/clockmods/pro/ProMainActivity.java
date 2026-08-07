@@ -11,16 +11,19 @@ import android.os.Looper;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
+import android.view.ViewGroup;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.widget.Toast;
 import android.view.WindowManager;
 
+import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.viewpager2.widget.ViewPager2;
 
 import com.clockmods.R;
 import com.clockmods.background.BackgroundRepository;
+import com.clockmods.background.ClockPreferences;
 import com.clockmods.platform.ExperienceBridge;
 import com.clockmods.ui.SettingsDialog;
 import com.clockmods.pro.chime.HourlyChimeController;
@@ -35,6 +38,7 @@ import java.util.concurrent.Executors;
 public final class ProMainActivity extends AppCompatActivity {
     private static final int REQUEST_IMAGE = 3001;
     private static final int REQUEST_NOTIFICATIONS = 3002;
+    private static final String STATE_SELECTED_PAGE = "selected_page";
     private static final long CHROME_VISIBLE_MILLIS = 3000L;
     private final Handler chromeHandler = new Handler(Looper.getMainLooper());
     private final Runnable hideChromeRunnable = this::hideChrome;
@@ -49,11 +53,13 @@ public final class ProMainActivity extends AppCompatActivity {
     private RadialChimeView radialChimeView;
     private HourlyChimeController hourlyChimeController;
     private final ExecutorService imageExecutor = Executors.newSingleThreadExecutor();
+    private int selectedPage = ProPage.CLOCK.ordinal();
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         ExperienceBridge.applyThemeFeatures(this);
         super.onCreate(savedInstanceState);
+        applyScreenOrientation();
         enableEdgeToEdge();
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_pro);
@@ -65,6 +71,13 @@ public final class ProMainActivity extends AppCompatActivity {
         pager.setAdapter(new ProPagerAdapter(this));
         pager.setOffscreenPageLimit(1);
         navigation = findViewById(R.id.pro_navigation);
+        if (savedInstanceState != null) {
+            selectedPage = savedInstanceState.getInt(STATE_SELECTED_PAGE,
+                ProPage.CLOCK.ordinal());
+        }
+        pager.setCurrentItem(selectedPage, false);
+        ProFontApplier.apply(navigation);
+        navigation.setSelectedItemId(NAVIGATION_IDS[selectedPage]);
         navigation.setOnItemSelectedListener(item -> {
             for (int position = 0; position < NAVIGATION_IDS.length; position++) {
                 if (NAVIGATION_IDS[position] == item.getItemId()) {
@@ -76,6 +89,8 @@ public final class ProMainActivity extends AppCompatActivity {
         });
         pager.registerOnPageChangeCallback(new ViewPager2.OnPageChangeCallback() {
             @Override public void onPageSelected(int position) {
+                dispatchCalendarDestinationChange(selectedPage, position);
+                selectedPage = position;
                 navigation.setSelectedItemId(NAVIGATION_IDS[position]);
                 updateChromeForPage();
             }
@@ -92,6 +107,13 @@ public final class ProMainActivity extends AppCompatActivity {
     }
 
     @Override
+    protected void onSaveInstanceState(@NonNull Bundle outState) {
+        outState.putInt(STATE_SELECTED_PAGE,
+                pager == null ? selectedPage : pager.getCurrentItem());
+        super.onSaveInstanceState(outState);
+    }
+
+    @Override
     public boolean dispatchTouchEvent(MotionEvent event) {
         if (event.getActionMasked() == MotionEvent.ACTION_DOWN) {
             navigationTouchSequence = radialChimeView != null
@@ -100,6 +122,9 @@ public final class ProMainActivity extends AppCompatActivity {
                 navigationTouchSequence = navigation != null
                     && navigation.getVisibility() == View.VISIBLE
                     && event.getY() >= navigation.getTop();
+            }
+            if (!navigationTouchSequence && isCalendarPage()) {
+                navigationTouchSequence = isInteractiveAt(pager, event.getRawX(), event.getRawY());
             }
         }
         if (chromeGestureDetector != null && !navigationTouchSequence) {
@@ -111,6 +136,26 @@ public final class ProMainActivity extends AppCompatActivity {
             navigationTouchSequence = false;
         }
         return handled;
+    }
+
+    private boolean isInteractiveAt(View view, float rawX, float rawY) {
+        if (view == null || view.getVisibility() != View.VISIBLE || !contains(view, rawX, rawY)) {
+            return false;
+        }
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int index = group.getChildCount() - 1; index >= 0; index--) {
+                if (isInteractiveAt(group.getChildAt(index), rawX, rawY)) return true;
+            }
+        }
+        return view.isClickable() || view.isLongClickable();
+    }
+
+    private static boolean contains(View view, float rawX, float rawY) {
+        int[] location = new int[2];
+        view.getLocationOnScreen(location);
+        return rawX >= location[0] && rawX < location[0] + view.getWidth()
+                && rawY >= location[1] && rawY < location[1] + view.getHeight();
     }
 
     @Override protected void onResume() {
@@ -135,17 +180,18 @@ public final class ProMainActivity extends AppCompatActivity {
             @Override public void onChooseImage() {
                 startActivityForResult(ExperienceBridge.createImagePickerIntent(), REQUEST_IMAGE);
             }
-            @Override public void onFontSettingsApplied() { refreshClockPage(); }
+            @Override public void onFontSettingsApplied() { refreshSettingsPages(); }
             @Override public void onDismissed() { updateChromeForPage(); }
         });
         dialog.show();
+        ProFontApplier.apply(dialog.getWindow().getDecorView());
     }
 
     private void showChromeTemporarily() {
         navigation.setVisibility(View.VISIBLE);
         showSystemBars();
         chromeHandler.removeCallbacks(hideChromeRunnable);
-        if (isClockPage()) {
+        if (isImmersivePage()) {
             chromeHandler.postDelayed(hideChromeRunnable, CHROME_VISIBLE_MILLIS);
         }
     }
@@ -153,7 +199,7 @@ public final class ProMainActivity extends AppCompatActivity {
     private void hideChrome() {
         chromeHandler.removeCallbacks(hideChromeRunnable);
         if (navigation != null) {
-            navigation.setVisibility(isClockPage() ? View.GONE : View.VISIBLE);
+            navigation.setVisibility(isImmersivePage() ? View.GONE : View.VISIBLE);
         }
         hideSystemBars();
     }
@@ -161,52 +207,56 @@ public final class ProMainActivity extends AppCompatActivity {
     private void updateChromeForPage() {
         chromeHandler.removeCallbacks(hideChromeRunnable);
         if (navigation == null || pager == null) return;
-        navigation.setVisibility(isClockPage() ? View.GONE : View.VISIBLE);
-        hideSystemBars();
+        boolean immersive = isImmersivePage();
+        navigation.setVisibility(immersive ? View.GONE : View.VISIBLE);
+        applyPagerNavigationSpace(immersive);
+        getWindow().setDecorFitsSystemWindows(!immersive);
+        if (immersive) hideSystemBars();
+        else showSystemBars();
+    }
+
+    private void applyPagerNavigationSpace(boolean immersive) {
+        pager.setPadding(pager.getPaddingLeft(), pager.getPaddingTop(), pager.getPaddingRight(),
+                immersive ? 0 : getResources().getDimensionPixelSize(
+                        R.dimen.pro_navigation_height));
+    }
+
+    private boolean isImmersivePage() {
+        if (pager == null) return true;
+        int page = pager.getCurrentItem();
+        return page == ProPage.CLOCK.ordinal() || page == ProPage.CALENDAR.ordinal();
     }
 
     private boolean isClockPage() {
         return pager == null || pager.getCurrentItem() == ProPage.CLOCK.ordinal();
     }
 
+    private boolean isCalendarPage() {
+        return pager != null && pager.getCurrentItem() == ProPage.CALENDAR.ordinal();
+    }
+
     private void enableEdgeToEdge() {
-        if (Build.VERSION.SDK_INT >= 30) {
-            getWindow().setDecorFitsSystemWindows(false);
-        } else {
-            getWindow().getDecorView().setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
-        }
+        getWindow().setDecorFitsSystemWindows(false);
+    }
+
+    private void applyScreenOrientation() {
+        int mode = new ClockPreferences(this).getScreenOrientation();
+        setRequestedOrientation(ClockPreferences.toActivityInfoOrientation(mode));
     }
 
     private void hideSystemBars() {
-        if (Build.VERSION.SDK_INT >= 30) {
-            WindowInsetsController controller = getWindow().getInsetsController();
-            if (controller != null) {
-                controller.setSystemBarsBehavior(
-                        WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-                controller.hide(WindowInsets.Type.systemBars());
-            }
-        } else {
-            getWindow().getDecorView().setSystemUiVisibility(
-                    View.SYSTEM_UI_FLAG_LAYOUT_STABLE
-                            | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_HIDE_NAVIGATION
-                            | View.SYSTEM_UI_FLAG_FULLSCREEN
-                            | View.SYSTEM_UI_FLAG_IMMERSIVE_STICKY);
+        WindowInsetsController controller = getWindow().getInsetsController();
+        if (controller != null) {
+            controller.setSystemBarsBehavior(
+                    WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
+            controller.hide(WindowInsets.Type.systemBars());
         }
     }
 
     private void showSystemBars() {
-        if (Build.VERSION.SDK_INT >= 30) {
-            WindowInsetsController controller = getWindow().getInsetsController();
-            if (controller != null) {
-                controller.show(WindowInsets.Type.systemBars());
-            }
-        } else {
-            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_LAYOUT_STABLE);
+        WindowInsetsController controller = getWindow().getInsetsController();
+        if (controller != null) {
+            controller.show(WindowInsets.Type.systemBars());
         }
     }
 
@@ -260,5 +310,30 @@ public final class ProMainActivity extends AppCompatActivity {
         if (fragment instanceof ProClockFragment) {
             ((ProClockFragment) fragment).refreshSettings();
         }
+    }
+
+    private void refreshSettingsPages() {
+        refreshClockPage();
+        ProFontApplier.apply(navigation);
+        for (int position = 0; position < ProPage.values().length; position++) {
+            androidx.fragment.app.Fragment fragment = getSupportFragmentManager()
+                    .findFragmentByTag("f" + position);
+            if (fragment == null || fragment.getView() == null) continue;
+            ProFontApplier.apply(fragment.getView());
+            if (fragment instanceof ProCalendarFragment) {
+                ((ProCalendarFragment) fragment).refreshSettings();
+            }
+        }
+        applyScreenOrientation();
+    }
+
+    private void dispatchCalendarDestinationChange(int previous, int current) {
+        if (previous == current) return;
+        androidx.fragment.app.Fragment fragment = getSupportFragmentManager()
+                .findFragmentByTag("f" + ProPage.CALENDAR.ordinal());
+        if (!(fragment instanceof ProCalendarFragment)) return;
+        ProCalendarFragment calendar = (ProCalendarFragment) fragment;
+        if (previous == ProPage.CALENDAR.ordinal()) calendar.onCalendarDestinationExited();
+        if (current == ProPage.CALENDAR.ordinal()) calendar.onCalendarDestinationEntered(true);
     }
 }

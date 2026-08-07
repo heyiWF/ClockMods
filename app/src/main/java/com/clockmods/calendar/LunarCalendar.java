@@ -46,6 +46,15 @@ public final class LunarCalendar {
         return stemBranchYear + "[" + ZODIAC[stemBranchIndex % 12] + "]年" + formatMonth(lunarDate.month, lunarDate.leap) + formatDay(lunarDate.day);
     }
 
+    public static String formatNatural(Calendar calendar) {
+        LunarDate lunarDate = fromSolar(calendar);
+        if (lunarDate == null) return "";
+        int stemBranchIndex = (lunarDate.year - 4) % 60;
+        String stemBranchYear = TIAN_GAN[stemBranchIndex % 10] + DI_ZHI[stemBranchIndex % 12];
+        return stemBranchYear + ZODIAC[stemBranchIndex % 12] + "年"
+                + formatMonth(lunarDate.month, lunarDate.leap) + formatDay(lunarDate.day);
+    }
+
     public static String formatShort(Calendar calendar) {
         LunarDate lunarDate = fromSolar(calendar);
         if (lunarDate == null) {

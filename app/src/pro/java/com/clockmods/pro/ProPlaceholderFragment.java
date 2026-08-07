@@ -30,6 +30,7 @@ public final class ProPlaceholderFragment extends Fragment {
         View view = inflater.inflate(R.layout.fragment_pro_placeholder, container, false);
         int titleRes = requireArguments().getInt(ARG_TITLE);
         ((TextView) view.findViewById(R.id.pro_page_title)).setText(titleRes);
+        ProFontApplier.apply(view);
         return view;
     }
 }

@@ -11,12 +11,16 @@ import java.io.InputStream;
 import java.io.InputStreamReader;
 import java.net.HttpURLConnection;
 import java.net.URL;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 
 import javax.net.ssl.HttpsURLConnection;
 
 import static com.clockmods.weather.WeatherModels.WeatherDetail;
 import static com.clockmods.weather.WeatherModels.WeatherDisplayData;
+import static com.clockmods.weather.WeatherModels.DailyForecast;
+import static com.clockmods.weather.WeatherModels.DailyForecastData;
 
 public final class QWeatherClient {
     private final String host;
@@ -48,6 +52,37 @@ public final class QWeatherClient {
     public WeatherDisplayData fetchLocation(String locationId, String city, String district,
             double latitude, double longitude, boolean detailed) throws Exception {
         return fetchNow(locationId, city, district, latitude, longitude, detailed);
+    }
+
+    public DailyForecastData fetchDaily(double latitude, double longitude) throws Exception {
+        JSONObject location = getLocation(latitude, longitude);
+        return fetchDailyLocation(location.getString("id"), location.optString("adm2", ""),
+                location.optString("name", ""));
+    }
+
+    public DailyForecastData fetchDailyLocation(String locationId, String city, String district)
+            throws Exception {
+        JSONObject body = request("/v7/weather/3d?location=" + urlEncode(locationId) + "&lang=zh");
+        return parseDailyForecast(body, locationId, city, district, System.currentTimeMillis());
+    }
+
+    static DailyForecastData parseDailyForecast(JSONObject body, String locationId, String city,
+            String district, long updatedAt) throws Exception {
+        JSONArray daily = body.optJSONArray("daily");
+        if (daily == null || daily.length() == 0) throw new IOException("Empty daily forecast");
+        List<DailyForecast> entries = new ArrayList<>();
+        for (int index = 0; index < daily.length(); index++) {
+            JSONObject day = daily.optJSONObject(index);
+            if (day == null) continue;
+            String fxDate = day.optString("fxDate", "").trim();
+            if (fxDate.length() == 0) continue;
+            entries.add(new DailyForecast(fxDate, day.optString("tempMin", ""),
+                    day.optString("tempMax", ""), day.optString("iconDay", ""),
+                    day.optString("textDay", ""), day.optString("windDirDay", ""),
+                    day.optString("windScaleDay", ""), day.optString("humidity", "")));
+        }
+        if (entries.isEmpty()) throw new IOException("Empty daily forecast");
+        return new DailyForecastData(locationId, city, district, updatedAt, entries);
     }
 
     private WeatherDisplayData fetchNow(String locationId, String city, String district,

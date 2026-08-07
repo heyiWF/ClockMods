@@ -21,10 +21,17 @@ public final class CalendarMonth {
     }
 
     public static CalendarMonth create(int year, int month, TimeZone timeZone, long todayMillis) {
+        return create(year, month, timeZone, todayMillis, Calendar.SUNDAY);
+    }
+
+    public static CalendarMonth create(int year, int month, TimeZone timeZone, long todayMillis,
+            int firstDayOfWeek) {
         Calendar first = new GregorianCalendar(timeZone);
         first.clear();
         first.set(year, month, 1);
-        int leadingDays = first.get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY;
+        int normalizedFirstDay = firstDayOfWeek >= Calendar.SUNDAY
+                && firstDayOfWeek <= Calendar.SATURDAY ? firstDayOfWeek : Calendar.SUNDAY;
+        int leadingDays = (first.get(Calendar.DAY_OF_WEEK) - normalizedFirstDay + 7) % 7;
         first.add(Calendar.DAY_OF_MONTH, -leadingDays);
 
         Calendar today = new GregorianCalendar(timeZone);
@@ -35,8 +42,8 @@ public final class CalendarMonth {
                     && first.get(Calendar.MONTH) == month;
             boolean isToday = sameDate(first, today);
             cells.add(new Day(first.get(Calendar.YEAR), first.get(Calendar.MONTH),
-                    first.get(Calendar.DAY_OF_MONTH), currentMonth, isToday,
-                    LunarCalendar.formatShort(first)));
+                    first.get(Calendar.DAY_OF_MONTH), first.get(Calendar.DAY_OF_WEEK),
+                    currentMonth, isToday));
             first.add(Calendar.DAY_OF_MONTH, 1);
         }
         return new CalendarMonth(year, month, cells);
@@ -51,18 +58,18 @@ public final class CalendarMonth {
         public final int year;
         public final int month;
         public final int dayOfMonth;
+        public final int dayOfWeek;
         public final boolean currentMonth;
         public final boolean today;
-        public final String lunarLabel;
 
-        Day(int year, int month, int dayOfMonth, boolean currentMonth, boolean today,
-                String lunarLabel) {
+        Day(int year, int month, int dayOfMonth, int dayOfWeek, boolean currentMonth,
+                boolean today) {
             this.year = year;
             this.month = month;
             this.dayOfMonth = dayOfMonth;
+            this.dayOfWeek = dayOfWeek;
             this.currentMonth = currentMonth;
             this.today = today;
-            this.lunarLabel = lunarLabel;
         }
     }
 }

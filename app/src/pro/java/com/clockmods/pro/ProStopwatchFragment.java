@@ -50,6 +50,7 @@ public final class ProStopwatchFragment extends Fragment {
         startPause.setOnClickListener(view -> toggle());
         root.findViewById(R.id.stopwatch_reset).setOnClickListener(view -> reset());
         root.findViewById(R.id.stopwatch_lap).setOnClickListener(view -> addLap());
+        ProFontApplier.apply(root);
         render();
         return root;
     }
@@ -81,6 +82,7 @@ public final class ProStopwatchFragment extends Fragment {
         lap.setText(getString(R.string.stopwatch_lap_value, ++lapCount, format(elapsed())));
         lap.setTextSize(15);
         lap.setPadding(12, 6, 12, 6);
+        ProFontApplier.apply(lap);
         laps.addView(lap, 0);
     }
 

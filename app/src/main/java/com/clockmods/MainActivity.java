@@ -8,7 +8,6 @@ import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.Uri;
 import android.Manifest;
-import android.content.pm.ActivityInfo;
 import android.content.pm.PackageManager;
 import android.os.Build;
 import android.os.Bundle;
@@ -190,10 +189,8 @@ public class MainActivity extends Activity {
     }
 
     private void applyScreenOrientation() {
-        boolean forceLandscape = new ClockPreferences(this).isForceLandscape();
-        setRequestedOrientation(forceLandscape
-                ? ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE
-                : ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED);
+        int mode = new ClockPreferences(this).getScreenOrientation();
+        setRequestedOrientation(ClockPreferences.toActivityInfoOrientation(mode));
     }
 
     private void applyStatusIconVisibility() {

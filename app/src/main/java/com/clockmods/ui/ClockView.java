@@ -38,6 +38,11 @@ public class ClockView extends View {
     private static final float WEATHER_DETAIL_SCROLL_DP_PER_SECOND = 40f;
     private static final float WEATHER_DETAIL_HORIZONTAL_PADDING_DP = 24f;
     private static final float SMALL_SECONDS_GAP_SPACE_FRACTION = 0.35f;
+    // Fractions the main time size is fitted to: it never spans more than
+    // TIME_MAX_WIDTH_FRACTION of the width nor TIME_HEIGHT_FRACTION of the height.
+    // Exposed so overlays (e.g. the hourly chime) can reproduce the exact size.
+    public static final float TIME_HEIGHT_FRACTION = 0.55f;
+    public static final float TIME_MAX_WIDTH_FRACTION = 0.98f;
     private static final float SUPPORTING_TEXT_LETTER_SPACING = 0.025f;
     private static final int CLOCK_SHADOW_ALPHA = 0x66;
     private static final int DIM_BACKGROUND_OVERLAY_COLOR = 0x80000000;
@@ -81,6 +86,12 @@ public class ClockView extends View {
     private boolean smallSeconds = ClockPreferences.DEFAULT_SMALL_SECONDS;
     private boolean use24Hour = ClockPreferences.DEFAULT_USE_24_HOUR;
     private boolean clockUseEnglish = ClockPreferences.DEFAULT_CLOCK_USE_ENGLISH;
+    private boolean portraitStacked = ClockPreferences.DEFAULT_PORTRAIT_STACKED;
+    // Per-line animation state for the portrait stacked layout: index 0 = hours,
+    // 1 = minutes, 2 = seconds. Each line animates its digit changes independently.
+    private final String[] stackedText = new String[3];
+    private final String[] stackedPrev = new String[3];
+    private final long[] stackedAt = new long[3];
     private ClockTimeFormatter.DisplayTime displayedTime;
     private ClockTimeFormatter.DisplayTime previousTime;
     private long timeTransitionStartedAt;
@@ -224,6 +235,12 @@ public class ClockView extends View {
                 : chineseDateFormat.format(now.getTime()) + chineseWeekDays[weekDayIndex];
         String lunarText = showLunar ? LunarCalendar.format(now) : "";
 
+        // Portrait stacked layout is a fully separate path; landscape is untouched.
+        if (height >= width && portraitStacked) {
+            drawStackedPortrait(canvas, now, dateText, lunarText, width, height);
+            return;
+        }
+
         String fullDate = lunarText.length() == 0 ? dateText : dateText + " " + lunarText;
 
         // In landscape the date and lunar text share a single line; in portrait
@@ -248,7 +265,8 @@ public class ClockView extends View {
         float measuredTimeWidth = ClockLayoutCalculator.calculateTimeGroupWidth(
                 measuredMainWidth, leftAccessoryWidth, rightAccessoryWidth);
         float timeSize = ClockLayoutCalculator.calculateWidthBasedTextSize(
-            width, height, measuredTimeWidth, timeFontScale, 0.55f, 0.98f);
+            width, height, measuredTimeWidth, timeFontScale,
+            TIME_HEIGHT_FRACTION, TIME_MAX_WIDTH_FRACTION);
         float dateSize = ClockLayoutCalculator.calculateWidthBasedTextSize(
             width, height, measureSupportingText(widestDateText), dateFontScale, 0.14f, 0.92f);
         timePaint.setTextSize(timeSize);
@@ -267,9 +285,14 @@ public class ClockView extends View {
         float gapFactor = portrait ? 0.9f : 0.35f;
         float gap = Math.max(portrait ? 32f : 12f, dateSize * gapFactor);
         float dateBaseline = timeBaseline + timeMetrics.ascent - gap - dateMetrics.descent;
+        // Portrait stacks date/lunar and weather/detail as two rows each, so give those
+        // rows more breathing room than a plain line (landscape keeps the tight default).
+        float dateLineHeight = dateMetrics.descent - dateMetrics.ascent;
+        float lunarRowGap = portrait ? dateLineHeight * 1.5f : dateLineHeight;   // 日期↔农历 行距（竖屏）
+        float weatherDetailScale = portrait ? 1.35f : 1f;                        // 天气↔详细 行距倍数（竖屏）
 
         drawAnimatedTime(canvas, displayTime, timeCenterX, timeBaseline);
-        drawWeather(canvas, centerX, timeBaseline, dateSize, timeMetrics, gap);
+        drawWeather(canvas, centerX, timeBaseline, dateSize, timeMetrics, gap, weatherDetailScale);
         if (lunarText.length() == 0) {
             applySupportingTypeface(dateText);
             drawSupportingText(canvas, dateText, centerX, dateBaseline, Paint.Align.CENTER);
@@ -280,16 +303,179 @@ public class ClockView extends View {
             applySupportingTypeface(fullDate);
             drawSupportingText(canvas, fullDate, centerX, dateBaseline, Paint.Align.CENTER);
         } else {
-            applySupportingTypeface(dateText);
-            drawSupportingText(canvas, dateText, centerX, dateBaseline, Paint.Align.CENTER);
+            // Portrait, two date lines: the lunar row (nearest the time) keeps the full
+            // gap above the time — matching the weather gap below it — and the Gregorian
+            // date sits one (wider) row-gap above the lunar row.
             applySupportingTypeface(lunarText);
-            drawSupportingText(canvas, lunarText, centerX,
-                dateBaseline - dateMetrics.ascent + gap * 0.5f, Paint.Align.CENTER);
+            drawSupportingText(canvas, lunarText, centerX, dateBaseline, Paint.Align.CENTER);
+            applySupportingTypeface(dateText);
+            drawSupportingText(canvas, dateText, centerX, dateBaseline - lunarRowGap,
+                Paint.Align.CENTER);
         }
     }
 
+    /**
+     * Portrait "stacked" layout: the clock is drawn as large digits on separate
+     * lines — hours, minutes and (optionally) seconds, top to bottom, with no colon.
+     * The user's digit-change transition is preserved. Date, lunar date and weather
+     * are still shown above/below the time block. Only entered when the view is
+     * portrait and the stacked option is enabled; landscape uses the normal path.
+     */
+    private void drawStackedPortrait(Canvas canvas, Calendar now, String dateText,
+            String lunarText, int width, int height) {
+        int lines = showSeconds ? 3 : 2;
+        // Detailed weather adds a second (carousel) line under the main weather line;
+        // reserve room for it so both lines sit near the bottom with a wider gap.
+        boolean weatherTwoLines = backgroundRepository != null
+                && backgroundRepository.isWeatherEnabled()
+                && backgroundRepository.isWeatherDetailed();
+        int hour = now.get(Calendar.HOUR_OF_DAY);
+        int displayHour = use24Hour ? hour : hour % 12;
+        if (!use24Hour && displayHour == 0) {
+            displayHour = 12;
+        }
+        String hoursText = String.format(Locale.CHINA, "%02d", displayHour);
+        String minutesText = String.format(Locale.CHINA, "%02d", now.get(Calendar.MINUTE));
+        String secondsText = String.format(Locale.CHINA, "%02d", now.get(Calendar.SECOND));
+
+        float centerX = width / 2f;
+
+        // Supporting text (date/lunar/weather) sizes and block heights are computed
+        // first, so the digits can be capped to always leave room for them.
+        datePaint.setTextSize(1f);
+        String widestDate = lunarText.length() == 0 ? dateText : longerOf(dateText, lunarText);
+        applySupportingTypeface(widestDate);
+        float dateSize = ClockLayoutCalculator.calculateWidthBasedTextSize(
+                width, height, measureSupportingText(widestDate), dateFontScale, 0.08f, 0.92f);
+        datePaint.setTextSize(dateSize);
+        Paint.FontMetrics dateMetrics = datePaint.getFontMetrics();
+        float dateLineHeight = dateMetrics.descent - dateMetrics.ascent;
+        float lunarGap = dateLineHeight * 1.5f;       // wider date <-> lunar row spacing
+        float detailGapScale = 1.35f;                 // wider weather <-> detail row spacing
+        boolean hasLunar = lunarText.length() > 0;
+        boolean weatherShown = backgroundRepository != null
+                && backgroundRepository.isWeatherEnabled();
+        float dateBlockHeight = hasLunar ? (lunarGap + dateLineHeight) : dateLineHeight;
+        float weatherBlockHeight = !weatherShown ? 0f
+                : (weatherTwoLines
+                    ? (dateLineHeight + dateMetrics.descent) * detailGapScale + dateLineHeight
+                    : dateLineHeight);
+
+        float topSafe = height * 0.06f;
+        float bottomSafe = height * 0.94f;
+        float avail = bottomSafe - topSafe;
+        // Date/weather stay a small fixed distance from the digits; they only spread
+        // toward the edges when the time font grows, and never past the safe margins.
+        float desiredGap = dateLineHeight * 1.6f;
+        float minGap = dateLineHeight * 0.25f;
+
+        // A two-digit group fills the requested width fraction, capped by a per-line
+        // height fraction, then further capped so date + gaps + digits + weather never
+        // exceed the usable height.
+        timePaint.setTextSize(1f);
+        float digitPairWidth = stableTextWidth("00", timePaint);
+        float heightFraction = lines == 3
+                ? (weatherTwoLines ? 0.13f : 0.18f)
+                : (weatherTwoLines ? 0.20f : 0.28f);
+        float lineSize = ClockLayoutCalculator.calculateWidthBasedTextSize(
+                width, height, digitPairWidth, timeFontScale, heightFraction, 0.66f);
+        // blockHeight ≈ blockFactor * lineSize; cap lineSize so the whole column fits.
+        float blockFactor = (lines - 1) * 1.06f + 0.72f;
+        float weatherReserve = weatherShown ? (weatherBlockHeight + minGap) : 0f;
+        float maxBlockHeight = avail - dateBlockHeight - minGap - weatherReserve;
+        lineSize = Math.min(lineSize, maxBlockHeight / blockFactor);
+        timePaint.setTextSize(lineSize);
+        Rect digitBounds = new Rect();
+        timePaint.getTextBounds("0", 0, 1, digitBounds);
+        float digitHeight = digitBounds.bottom - digitBounds.top;
+        float lineAdvance = lineSize * 1.06f;
+        float blockHeight = (lines - 1) * lineAdvance + digitHeight;
+
+        // Equal gap above and below the digits (symmetric). It equals desiredGap when
+        // there is spare room, and shrinks toward minGap as the digits grow; the whole
+        // content column is then centered vertically within the safe area.
+        float fitGap = ((weatherShown ? avail : (avail - weatherBlockHeight))
+                - dateBlockHeight - blockHeight - weatherBlockHeight) / 2f;
+        float gap = Math.max(minGap, Math.min(desiredGap, fitGap));
+        float contentHeight = dateBlockHeight + gap + blockHeight
+                + (weatherShown ? gap + weatherBlockHeight : 0f);
+        float contentTop = Math.max(topSafe, topSafe + (avail - contentHeight) / 2f);
+
+        float blockTop = contentTop + dateBlockHeight + gap;
+        float firstBaseline = blockTop - digitBounds.top;
+        float blockBottom = blockTop + blockHeight;
+
+        long uptime = SystemClock.uptimeMillis();
+        boolean animating = false;
+        animating |= drawStackedLine(canvas, 0, hoursText, centerX, firstBaseline, uptime);
+        animating |= drawStackedLine(canvas, 1, minutesText, centerX,
+                firstBaseline + lineAdvance, uptime);
+        if (lines == 3) {
+            animating |= drawStackedLine(canvas, 2, secondsText, centerX,
+                    firstBaseline + 2f * lineAdvance, uptime);
+        } else {
+            // Drop stale seconds state so re-enabling seconds starts clean.
+            stackedText[2] = null;
+            stackedPrev[2] = null;
+        }
+        if (animating) {
+            postInvalidateDelayed(16L);
+        }
+
+        // Date (and lunar): the block bottom sits 'gap' above the hours.
+        float dateBaseline = (blockTop - gap - dateBlockHeight) - dateMetrics.ascent;
+        applySupportingTypeface(dateText);
+        drawSupportingText(canvas, dateText, centerX, dateBaseline, Paint.Align.CENTER);
+        if (hasLunar) {
+            applySupportingTypeface(lunarText);
+            drawSupportingText(canvas, lunarText, centerX, dateBaseline + lunarGap,
+                    Paint.Align.CENTER);
+        }
+
+        // Weather: first row's top sits 'gap' below the seconds (symmetric with date).
+        if (weatherShown) {
+            drawWeather(canvas, centerX, blockBottom + gap, dateSize, new Paint.FontMetrics(),
+                    0f, detailGapScale);
+        }
+    }
+
+    /**
+     * Draws one stacked time line at {@code baseline}, animating digit changes with
+     * the configured transition. Returns {@code true} while an animation is running.
+     */
+    private boolean drawStackedLine(Canvas canvas, int index, String newText,
+            float centerX, float baseline, long uptime) {
+        if (!animateTimeChanges) {
+            stackedText[index] = newText;
+            stackedPrev[index] = null;
+            drawStableText(canvas, newText, centerX, baseline, timePaint);
+            return false;
+        }
+        if (stackedText[index] == null) {
+            stackedText[index] = newText;
+        } else if (!stackedText[index].equals(newText)) {
+            stackedPrev[index] = stackedText[index];
+            stackedText[index] = newText;
+            stackedAt[index] = uptime;
+        }
+        if (stackedPrev[index] == null) {
+            drawStableText(canvas, stackedText[index], centerX, baseline, timePaint);
+            return false;
+        }
+        float progress = Math.min(1f,
+                (uptime - stackedAt[index]) / (float) TIME_TRANSITION_DURATION_MILLIS);
+        float eased = 1f - (float) Math.pow(1f - progress, 3);
+        drawTextTransition(canvas, stackedPrev[index], stackedText[index], centerX, baseline,
+                timePaint, eased, true, true);
+        if (progress < 1f) {
+            return true;
+        }
+        stackedPrev[index] = null;
+        return false;
+    }
+
         private void drawWeather(Canvas canvas, float centerX, float timeBaseline,
-            float dateSize, Paint.FontMetrics timeMetrics, float gap) {
+            float dateSize, Paint.FontMetrics timeMetrics, float gap, float detailGapScale) {
         if (weatherState == null || backgroundRepository == null || !backgroundRepository.isWeatherEnabled()) return;
         String text = weatherState.message;
         String leftText = null;
@@ -331,20 +517,20 @@ public class ClockView extends View {
             cursor += iconSize + iconGap;
             drawSupportingText(canvas, rightText, cursor, baseline, Paint.Align.LEFT);
         }
-        drawWeatherDetail(canvas, centerX, baseline, weatherMetrics);
+        drawWeatherDetail(canvas, centerX, baseline, weatherMetrics, detailGapScale);
         datePaint.setTextSize(originalSize);
         datePaint.setTypeface(originalTypeface);
     }
 
     private void drawWeatherDetail(Canvas canvas, float centerX, float weatherBaseline,
-            Paint.FontMetrics weatherMetrics) {
+            Paint.FontMetrics weatherMetrics, float detailGapScale) {
         if (backgroundRepository == null || !backgroundRepository.isWeatherDetailed()) return;
         if (weatherDetailItems == null || weatherDetailItems.isEmpty()) return;
         long now = SystemClock.uptimeMillis();
         if (weatherDetailCycleStartedAt == 0L) weatherDetailCycleStartedAt = now;
 
-        float detailBaseline = weatherBaseline + weatherMetrics.descent
-            - weatherMetrics.ascent + weatherMetrics.descent;
+        float detailBaseline = weatherBaseline + (weatherMetrics.descent
+            - weatherMetrics.ascent + weatherMetrics.descent) * detailGapScale;
 
         int currentIndex = Math.min(weatherDetailIndex, weatherDetailItems.size() - 1);
         String currentItem = weatherDetailItems.get(currentIndex);
@@ -575,6 +761,7 @@ public class ClockView extends View {
         smallSeconds = backgroundRepository.isSmallSeconds();
         use24Hour = backgroundRepository.isUse24Hour();
         clockUseEnglish = backgroundRepository.isClockUseEnglish();
+        portraitStacked = backgroundRepository.isPortraitStacked();
         NetworkTimeProvider timeProvider = networkTimeProvider;
         if (timeProvider != null) {
             timeProvider.setEnabled(backgroundRepository.isUseNetworkTime());
@@ -634,6 +821,37 @@ public class ClockView extends View {
 
     private static String longerOf(String a, String b) {
         return a.length() >= b.length() ? a : b;
+    }
+
+    /**
+     * Returns the pixel text size the main clock time is rendered at for the given
+     * view size, font scale and {@code displayTime}. This mirrors the measurement
+     * performed in {@link #onDraw} so overlays (e.g. the hourly chime) can match the
+     * clock's time font size exactly. {@code timeTypeface} must be the same face the
+     * clock uses so digit widths measure identically.
+     */
+    public static float measureTimeTextSize(int width, int height, float timeFontScale,
+            ClockTimeFormatter.DisplayTime displayTime, Typeface timeTypeface) {
+        Paint mainPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
+        Paint secondsPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
+        Paint periodPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
+        mainPaint.setTypeface(timeTypeface);
+        secondsPaint.setTypeface(timeTypeface);
+        periodPaint.setTypeface(timeTypeface);
+        mainPaint.setTextSize(1f);
+        secondsPaint.setTextSize(0.6f);
+        periodPaint.setTextSize(0.3f);
+        float gap = mainPaint.measureText(" ") * SMALL_SECONDS_GAP_SPACE_FRACTION;
+        float measuredMainWidth = ClockTextLayout.stableTextWidth(displayTime.mainText, mainPaint);
+        float leftAccessoryWidth = displayTime.hasPeriod()
+                ? gap + periodPaint.measureText(displayTime.periodText) : 0f;
+        float rightAccessoryWidth = displayTime.hasSmallSeconds()
+                ? gap + ClockTextLayout.stableTextWidth(displayTime.secondsText, secondsPaint) : 0f;
+        float measuredTimeWidth = ClockLayoutCalculator.calculateTimeGroupWidth(
+                measuredMainWidth, leftAccessoryWidth, rightAccessoryWidth);
+        return ClockLayoutCalculator.calculateWidthBasedTextSize(
+                width, height, measuredTimeWidth, timeFontScale,
+                TIME_HEIGHT_FRACTION, TIME_MAX_WIDTH_FRACTION);
     }
 
     private void drawAnimatedTime(Canvas canvas, ClockTimeFormatter.DisplayTime nextTime,
@@ -873,43 +1091,24 @@ public class ClockView extends View {
     }
 
     private static float stableTextWidth(String text, Paint paint) {
-        return stableTextWidth(text, paint, widestDigitWidth(paint));
+        return ClockTextLayout.stableTextWidth(text, paint);
     }
 
     private static float stableTextWidth(String text, Paint paint, float digitWidth) {
-        float width = 0f;
-        for (int index = 0; index < text.length(); index++) {
-            width += stableCharacterWidth(text.substring(index, index + 1), paint, digitWidth);
-        }
-        return width;
+        return ClockTextLayout.stableTextWidth(text, paint, digitWidth);
     }
 
     private static float stableCharacterWidth(String character, Paint paint, float digitWidth) {
-        if (character.length() != 1 || character.charAt(0) < '0' || character.charAt(0) > '9') {
-            return paint.measureText(character);
-        }
-        return digitWidth;
+        return ClockTextLayout.stableCharacterWidth(character, paint, digitWidth);
     }
 
     private static float widestDigitWidth(Paint paint) {
-        float widestDigit = 0f;
-        for (char digit = '0'; digit <= '9'; digit++) {
-            widestDigit = Math.max(widestDigit, paint.measureText(String.valueOf(digit)));
-        }
-        return widestDigit;
+        return ClockTextLayout.widestDigitWidth(paint);
     }
 
     private float alignedCharacterBaseline(String character, float baseline, Paint paint) {
-        if (paint != timePaint || !":".equals(character)) {
-            return baseline;
-        }
-        Rect digitBounds = new Rect();
-        Rect colonBounds = new Rect();
-        paint.getTextBounds("0", 0, 1, digitBounds);
-        paint.getTextBounds(character, 0, 1, colonBounds);
-        float digitCenter = (digitBounds.top + digitBounds.bottom) / 2f;
-        float colonCenter = (colonBounds.top + colonBounds.bottom) / 2f;
-        return baseline + digitCenter - colonCenter;
+        return paint == timePaint
+                ? ClockTextLayout.alignedCharacterBaseline(character, baseline, paint) : baseline;
     }
 
     private void setClockTextAlpha(Paint paint, int alpha) {
@@ -920,11 +1119,7 @@ public class ClockView extends View {
 
     private static float bottomAlignedBaseline(float mainBaseline, Paint mainPaint,
             Paint accessoryPaint) {
-        Rect mainDigitBounds = new Rect();
-        Rect accessoryDigitBounds = new Rect();
-        mainPaint.getTextBounds("0", 0, 1, mainDigitBounds);
-        accessoryPaint.getTextBounds("0", 0, 1, accessoryDigitBounds);
-        return mainBaseline + mainDigitBounds.bottom - accessoryDigitBounds.bottom;
+        return ClockTextLayout.bottomAlignedBaseline(mainBaseline, mainPaint, accessoryPaint);
     }
 
     private float smallSecondsGapWidth() {

@@ -130,8 +130,6 @@ public class BackgroundRepository {
         preferences.setAnimateTimeChanges(animate);
     }
 
-    public String getClockTheme() { return preferences.getClockTheme(); }
-    public void setClockTheme(String theme) { preferences.setClockTheme(theme); }
     public String getTimeTransition() { return preferences.getTimeTransition(); }
     public void setTimeTransition(String transition) { preferences.setTimeTransition(transition); }
     public boolean isHourlyChimeEnabled() { return preferences.isHourlyChimeEnabled(); }
@@ -175,12 +173,44 @@ public class BackgroundRepository {
         preferences.setShowLunar(showLunar);
     }
 
+    public boolean isCalendarMoreFestivals() {
+        return preferences.isCalendarMoreFestivals();
+    }
+
+    public void setCalendarMoreFestivals(boolean moreFestivals) {
+        preferences.setCalendarMoreFestivals(moreFestivals);
+    }
+
+    public int getCalendarWeekStart() {
+        return preferences.getCalendarWeekStart();
+    }
+
+    public void setCalendarWeekStart(int firstDayOfWeek) {
+        preferences.setCalendarWeekStart(firstDayOfWeek);
+    }
+
+    public boolean isCalendarHighlightWeekends() {
+        return preferences.isCalendarHighlightWeekends();
+    }
+
+    public void setCalendarHighlightWeekends(boolean highlightWeekends) {
+        preferences.setCalendarHighlightWeekends(highlightWeekends);
+    }
+
     public boolean isSmallSeconds() {
         return preferences.isSmallSeconds();
     }
 
     public void setSmallSeconds(boolean smallSeconds) {
         preferences.setSmallSeconds(smallSeconds);
+    }
+
+    public boolean isPortraitStacked() {
+        return preferences.isPortraitStacked();
+    }
+
+    public void setPortraitStacked(boolean portraitStacked) {
+        preferences.setPortraitStacked(portraitStacked);
     }
 
     public boolean isUse24Hour() {
@@ -199,12 +229,12 @@ public class BackgroundRepository {
         preferences.setClockUseEnglish(useEnglish);
     }
 
-    public boolean isForceLandscape() {
-        return preferences.isForceLandscape();
+    public int getScreenOrientation() {
+        return preferences.getScreenOrientation();
     }
 
-    public void setForceLandscape(boolean forceLandscape) {
-        preferences.setForceLandscape(forceLandscape);
+    public void setScreenOrientation(int mode) {
+        preferences.setScreenOrientation(mode);
     }
 
     public boolean isUseNetworkTime() {
