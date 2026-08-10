@@ -190,9 +190,10 @@ public final class WeatherModels {
         String displayCity = city.endsWith("市") ? city.substring(0, city.length() - 1) : city;
         if (district == null || district.length() == 0
                 || city.equals(district) || displayCity.equals(district)) return displayCity;
-        // Chinese names read naturally when joined directly; Latin names need a separating space.
-        String separator = containsHan(displayCity) || containsHan(district) ? "" : " ";
-        return displayCity + separator + district;
+        // Chinese names read naturally when joined city-first (深圳宝安); English names follow
+        // Western address order, district-first with a comma separator (Bao'an, Shenzhen).
+        if (containsHan(displayCity) || containsHan(district)) return displayCity + district;
+        return district + ", " + displayCity;
     }
 
     private static boolean containsHan(String text) {

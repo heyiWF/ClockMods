@@ -91,6 +91,8 @@ public class ClockPreferences {
     private static final String KEY_WEATHER_DISTRICT = "weather_district";
     private static final String KEY_WEATHER_LATITUDE = "weather_latitude";
     private static final String KEY_WEATHER_LONGITUDE = "weather_longitude";
+    private static final String KEY_WEATHER_ICON_FILL = "weather_icon_fill";
+    private static final String KEY_WEATHER_ICON_DYNAMIC_COLOR = "weather_icon_dynamic_color";
 
     /** Sentinel value meaning "follow the device's own time zone". */
     public static final String TIME_ZONE_FOLLOW_SYSTEM = "";
@@ -153,6 +155,10 @@ public class ClockPreferences {
     public static final boolean DEFAULT_WEATHER_ENABLED = false;
     public static final boolean DEFAULT_WEATHER_DETAILED = false;
     public static final int DEFAULT_WEATHER_INTERVAL_MINUTES = 30;
+    /** Weather icons default to the solid fill style; disable for the outline (line) style. */
+    public static final boolean DEFAULT_WEATHER_ICON_FILL = true;
+    /** Weather icons default to white; enable to tint them with the Material 3 accent colour. */
+    public static final boolean DEFAULT_WEATHER_ICON_DYNAMIC_COLOR = false;
     public static final String WEATHER_LOCATION_AUTOMATIC = "automatic";
     public static final String WEATHER_LOCATION_MANUAL = "manual";
     public static final String DEFAULT_WEATHER_LOCATION_MODE = WEATHER_LOCATION_AUTOMATIC;
@@ -628,6 +634,22 @@ public class ClockPreferences {
         preferences.edit().putBoolean(KEY_WEATHER_DETAILED, detailed).apply();
     }
 
+    public boolean isWeatherIconFill() {
+        return preferences.getBoolean(KEY_WEATHER_ICON_FILL, DEFAULT_WEATHER_ICON_FILL);
+    }
+
+    public void setWeatherIconFill(boolean fill) {
+        preferences.edit().putBoolean(KEY_WEATHER_ICON_FILL, fill).apply();
+    }
+
+    public boolean isWeatherIconDynamicColor() {
+        return preferences.getBoolean(KEY_WEATHER_ICON_DYNAMIC_COLOR, DEFAULT_WEATHER_ICON_DYNAMIC_COLOR);
+    }
+
+    public void setWeatherIconDynamicColor(boolean dynamicColor) {
+        preferences.edit().putBoolean(KEY_WEATHER_ICON_DYNAMIC_COLOR, dynamicColor).apply();
+    }
+
     public int getWeatherIntervalMinutes() {
         int value = preferences.getInt(KEY_WEATHER_INTERVAL_MINUTES, DEFAULT_WEATHER_INTERVAL_MINUTES);
         return isValidWeatherInterval(value) ? value : DEFAULT_WEATHER_INTERVAL_MINUTES;
@@ -736,6 +758,8 @@ public class ClockPreferences {
                 .remove(KEY_FORCE_LANDSCAPE)
                 .putBoolean(KEY_WEATHER_ENABLED, DEFAULT_WEATHER_ENABLED)
                 .putBoolean(KEY_WEATHER_DETAILED, DEFAULT_WEATHER_DETAILED)
+                .putBoolean(KEY_WEATHER_ICON_FILL, DEFAULT_WEATHER_ICON_FILL)
+                .putBoolean(KEY_WEATHER_ICON_DYNAMIC_COLOR, DEFAULT_WEATHER_ICON_DYNAMIC_COLOR)
                 .putInt(KEY_WEATHER_INTERVAL_MINUTES, DEFAULT_WEATHER_INTERVAL_MINUTES)
                 .putString(KEY_WEATHER_LOCATION_MODE, DEFAULT_WEATHER_LOCATION_MODE)
                 .remove(KEY_WEATHER_LOCATION_ID)

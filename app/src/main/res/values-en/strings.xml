@@ -151,6 +151,10 @@
     <string name="weather_settings_group">Weather</string>
     <string name="show_weather">Show live weather</string>
     <string name="show_detailed_weather">Show detailed weather</string>
+    <string name="weather_icon_fill">Filled weather icons</string>
+    <string name="weather_icon_fill_desc">Use the solid fill style; off uses the line style</string>
+    <string name="weather_icon_dynamic_color">Themed weather icons</string>
+    <string name="weather_icon_dynamic_color_desc">Tint with the Material 3 dynamic color; off is white</string>
     <string name="calendar_week_start">Week starts on</string>
     <string name="calendar_week_start_sunday">Sunday</string>
     <string name="calendar_week_start_monday">Monday</string>

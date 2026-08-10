@@ -14,6 +14,7 @@ import android.util.AttributeSet;
 import android.view.View;
 
 import com.clockmods.LocaleManager;
+import com.clockmods.platform.ExperienceBridge;
 import com.clockmods.background.BackgroundRepository;
 import com.clockmods.background.BackgroundDimSchedule;
 import com.clockmods.background.ClockPreferences;
@@ -109,6 +110,10 @@ public class ClockView extends View {
     // message (or a message alone). Shares the exact timing/scroll logic of the detail line.
     private final Carousel messageCarousel = new Carousel();
     private String customMessage = ClockPreferences.DEFAULT_CUSTOM_MESSAGE;
+    // Weather-icon styling (Pro exposes these; other flavours keep fill + date colour).
+    private boolean weatherIconFill = true;
+    private int weatherIconColor = 0xFFFFFFFF;
+    private final Paint weatherIconPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     public ClockView(Context context) {
         this(context, null);
@@ -148,10 +153,18 @@ public class ClockView extends View {
 
     public void setWeatherState(WeatherState state) {
         weatherState = state;
-        weatherDetailCarousel.setItems(
+        weatherDetailCarousel.setItems(wrapPlain(
                 (state != null && state.data != null && state.data.detail != null)
-                        ? state.data.detail.carouselItems(detailLabels()) : null);
+                        ? state.data.detail.carouselItems(detailLabels()) : null));
         invalidate();
+    }
+
+    /** Wraps a list of plain strings as icon-less carousel items. */
+    private static java.util.List<WeatherLineItem> wrapPlain(java.util.List<String> src) {
+        if (src == null) return null;
+        java.util.List<WeatherLineItem> out = new java.util.ArrayList<>(src.size());
+        for (String s : src) out.add(WeatherLineItem.plain(s));
+        return out;
     }
 
     /** Localized labels/units for the detailed weather carousel (follows interface language). */
@@ -258,10 +271,13 @@ public class ClockView extends View {
         String fullDate = lunarText.length() == 0 ? dateText : dateText + " " + lunarText;
 
         // Portrait always stacks the date and lunar lines; landscape shares a single line
-        // unless the user opts into two rows. The width-based size is computed against
-        // whichever string actually spans the full line so it fits the requested width %.
+        // unless the user opts into two rows.
         boolean singleDateLine = lunarText.length() == 0 || (width > height && !dateLunarDualLine);
-        String widestDateText = singleDateLine ? fullDate : longerOf(dateText, lunarText);
+        // Font size: landscape sizes against the full single-line string whether or not the
+        // two-row layout is enabled, so toggling it never changes the font size. Portrait
+        // always stacks, so it sizes against the longer of the two rows to fill its narrow width.
+        boolean portraitStack = height >= width && lunarText.length() > 0;
+        String widestDateText = portraitStack ? longerOf(dateText, lunarText) : fullDate;
         applySupportingTypeface(widestDateText);
 
         timePaint.setTextSize(1f);
@@ -301,9 +317,10 @@ public class ClockView extends View {
         float dateBaseline = timeBaseline + timeMetrics.ascent - gap - dateMetrics.descent;
         // Portrait stacks date/lunar and weather/detail as two rows each, so give those
         // rows more breathing room than a plain line (landscape keeps the tight default).
-        float dateLineHeight = dateMetrics.descent - dateMetrics.ascent;
-        float lunarRowGap = portrait ? dateLineHeight * 1.5f : dateLineHeight;   // 日期↔农历 行距（竖屏）
-        float weatherDetailScale = portrait ? 1.35f : 1f;                        // 天气↔详细 行距倍数（竖屏）
+        float weatherDetailScale = portrait ? 1.35f : 1f;                        // 天气↔详细 行距倍数（竖屏更宽）
+        // 日期↔农历 的基线间距与 天气↔详细 完全一致：同字号、同公式、同倍数。
+        float lunarRowGap = (dateMetrics.descent - dateMetrics.ascent + dateMetrics.descent)
+                * weatherDetailScale;
 
         drawAnimatedTime(canvas, displayTime, timeCenterX, timeBaseline);
         drawWeather(canvas, centerX, timeBaseline, dateSize, timeMetrics, gap, weatherDetailScale);
@@ -498,23 +515,22 @@ public class ClockView extends View {
         boolean weatherEnabled = backgroundRepository.isWeatherEnabled();
         boolean hasMessage = customMessage != null && customMessage.length() > 0;
 
-        // The main supporting line hosts, in priority order: the rich weather layout
-        // (location + icon + condition) when weather is on and no message competes for the
-        // line; a rotating carousel of [weather summary, message] when both are on; or the
-        // message alone when only it is set. Weather off + no message => nothing to draw.
-        String weatherSummary = null;
-        WeatherIcon icon = null;
-        String leftText = null;
-        String rightText = null;
+        // The main supporting line hosts, in priority order: the weather summary
+        // (location + icon + condition); a custom message; or both, rotating through a
+        // carousel. The weather summary always keeps its icon, and the line is always drawn
+        // at the user's chosen size — overflow scrolls horizontally instead of shrinking.
+        WeatherLineItem weatherItem = null;
         if (weatherEnabled && weatherState != null) {
             if (weatherState.data != null) {
-                leftText = WeatherModels.locationText(
+                String leftText = WeatherModels.locationText(
                         weatherState.data.city, weatherState.data.district);
-                rightText = weatherState.data.text + " " + weatherState.data.temperature + " ℃";
-                icon = WeatherIcon.load(getContext(), weatherState.data.icon);
-                weatherSummary = leftText + "  " + rightText;
+                String rightText = weatherState.data.text + " " + weatherState.data.temperature + " ℃";
+                WeatherIcon icon = WeatherIcon.load(getContext(), weatherState.data.icon, weatherIconFill);
+                weatherItem = icon != null
+                        ? WeatherLineItem.weather(leftText, rightText, icon)
+                        : WeatherLineItem.plain(leftText + "  " + rightText);
             } else if (weatherState.message != null && weatherState.message.length() > 0) {
-                weatherSummary = weatherState.message;
+                weatherItem = WeatherLineItem.plain(weatherState.message);
             }
         }
 
@@ -523,53 +539,28 @@ public class ClockView extends View {
         float originalSize = datePaint.getTextSize();
         Typeface originalTypeface = datePaint.getTypeface();
 
-        // Build the main-line carousel items. Rich icon rendering is only possible when the
-        // line shows the weather summary alone (no message rotating through it).
-        java.util.List<String> mainItems = new java.util.ArrayList<>();
-        if (weatherSummary != null) mainItems.add(weatherSummary);
-        if (hasMessage) mainItems.add(customMessage);
+        // Build the main-line carousel items: the weather summary (with icon) and/or message.
+        java.util.List<WeatherLineItem> mainItems = new java.util.ArrayList<>();
+        if (weatherItem != null) mainItems.add(weatherItem);
+        if (hasMessage) mainItems.add(WeatherLineItem.plain(customMessage));
         if (mainItems.isEmpty()) {
             datePaint.setTextSize(originalSize);
             datePaint.setTypeface(originalTypeface);
             return;
         }
-        boolean richWeatherLine = icon != null && !hasMessage;
 
-        String widest = mainItems.get(0);
-        for (String item : mainItems) {
-            if (measureSupportingText(item) > measureSupportingText(widest)) widest = item;
-        }
-        applySupportingTypeface(widest);
-        float iconSize = dateSize * 0.95f;
-        float iconGap = dateSize * 0.25f;
-        float measured = richWeatherLine
-            ? measureSupportingText(leftText) + measureSupportingText(rightText)
-                + iconSize + iconGap * 2f
-            : measureSupportingText(widest);
-        float available = getWidth() * 0.92f;
-        float scale = measured > available ? Math.max(available / measured, 0.65f) : 1f;
-        datePaint.setTextSize(dateSize * scale);
-        iconSize *= scale;
-        iconGap *= scale;
+        // Fixed size (never shrinks); overflow is handled by per-item marquee scrolling.
+        datePaint.setTextSize(dateSize);
+        applySupportingTypeface(mainItems.get(0).text);
         Paint.FontMetrics weatherMetrics = datePaint.getFontMetrics();
         float baseline = timeBaseline + timeMetrics.descent + gap - weatherMetrics.ascent;
 
-        if (richWeatherLine) {
-            float leftWidth = measureSupportingText(leftText);
-            float rightWidth = measureSupportingText(rightText);
-            float total = leftWidth + rightWidth + iconSize + iconGap * 2f;
-            float cursor = centerX - total / 2f;
-            drawSupportingText(canvas, leftText, cursor, baseline, Paint.Align.LEFT);
-            cursor += leftWidth + iconGap;
-            float iconTop = baseline + (weatherMetrics.ascent + weatherMetrics.descent) / 2f - iconSize / 2f;
-            icon.draw(canvas, cursor, iconTop, iconSize, datePaint);
-            cursor += iconSize + iconGap;
-            drawSupportingText(canvas, rightText, cursor, baseline, Paint.Align.LEFT);
-        } else if (mainItems.size() == 1) {
+        if (mainItems.size() == 1) {
             // Single item: center it, marquee-scrolling in place when it overflows the width.
-            drawWeatherDetailItem(canvas, mainItems.get(0), null, centerX, baseline,
-                weatherMetrics, 0f, mainCarouselElapsed(mainItems.get(0)));
-            if (measureSupportingText(mainItems.get(0)) > weatherDetailAvailableWidth()) {
+            WeatherLineItem only = mainItems.get(0);
+            drawWeatherDetailItem(canvas, only, null, centerX, baseline,
+                weatherMetrics, 0f, mainCarouselElapsed(only));
+            if (itemWidth(only) > weatherDetailAvailableWidth()) {
                 postInvalidateDelayed(WEATHER_DETAIL_FRAME_DELAY_MILLIS);
             }
         } else {
@@ -583,8 +574,70 @@ public class ClockView extends View {
         datePaint.setTypeface(originalTypeface);
     }
 
+    /** Horizontal width an item occupies, reserving icon + gaps for weather-summary items. */
+    private float itemWidth(WeatherLineItem item) {
+        if (!item.hasIcon()) return measureSupportingText(item.text);
+        float ts = datePaint.getTextSize();
+        float iconSize = ts * 0.95f;
+        float iconGap = ts * 0.25f;
+        return measureSupportingText(item.left) + measureSupportingText(item.right)
+            + iconSize + iconGap * 2f;
+    }
+
+    /**
+     * Draws a weather-summary item as one horizontal run [location][icon][condition],
+     * centered, marquee-scrolling as a whole when it overflows the available width. Mirrors
+     * {@link #drawScrollingWeatherText} so both overflow behaviours stay identical.
+     */
+    private void drawScrollingWeatherSummary(Canvas canvas, WeatherLineItem item,
+            float centerX, float baseline, Paint.FontMetrics metrics, long elapsed) {
+        float ts = datePaint.getTextSize();
+        float iconSize = ts * 0.95f;
+        float iconGap = ts * 0.25f;
+        float leftWidth = measureSupportingText(item.left);
+        float rightWidth = measureSupportingText(item.right);
+        float total = leftWidth + rightWidth + iconSize + iconGap * 2f;
+        float available = weatherDetailAvailableWidth();
+        boolean clip = total > available;
+        float startX;
+        if (clip) {
+            float overflow = total - available;
+            float speed = WEATHER_DETAIL_SCROLL_DP_PER_SECOND
+                * getResources().getDisplayMetrics().density;
+            long scrollMillis = (long) Math.ceil(overflow / speed * 1000f);
+            float progress = Math.max(0f, Math.min(1f,
+                (elapsed - WEATHER_DETAIL_SCROLL_PAUSE_MILLIS) / (float) scrollMillis));
+            float clipLeft = centerX - available / 2f;
+            canvas.save();
+            canvas.clipRect(clipLeft, 0f, clipLeft + available, getHeight());
+            startX = clipLeft - overflow * progress;
+        } else {
+            startX = centerX - total / 2f;
+        }
+        float cursor = startX;
+        drawSupportingText(canvas, item.left, cursor, baseline, Paint.Align.LEFT);
+        cursor += leftWidth + iconGap;
+        float iconTop = baseline + (metrics.ascent + metrics.descent) / 2f - iconSize / 2f;
+        weatherIconPaint.setColor(weatherIconColor);
+        weatherIconPaint.setAlpha(datePaint.getAlpha());
+        item.icon.draw(canvas, cursor, iconTop, iconSize, weatherIconPaint);
+        cursor += iconSize + iconGap;
+        drawSupportingText(canvas, item.right, cursor, baseline, Paint.Align.LEFT);
+        if (clip) canvas.restore();
+    }
+
+    /** Dispatches an item to the icon-aware summary renderer or the plain-text renderer. */
+    private void drawWeatherLineContent(Canvas canvas, WeatherLineItem item,
+            float centerX, float baseline, Paint.FontMetrics metrics, long elapsed) {
+        if (item.hasIcon()) {
+            drawScrollingWeatherSummary(canvas, item, centerX, baseline, metrics, elapsed);
+        } else {
+            drawScrollingWeatherText(canvas, item.text, centerX, baseline, elapsed);
+        }
+    }
+
     /** Elapsed time within the single-item scroll cycle for the main carousel. */
-    private long mainCarouselElapsed(String item) {
+    private long mainCarouselElapsed(WeatherLineItem item) {
         long now = SystemClock.uptimeMillis();
         if (messageCarousel.cycleStartedAt == 0L
                 || messageCarousel.items == null
@@ -625,7 +678,7 @@ public class ClockView extends View {
         if (carousel.cycleStartedAt == 0L) carousel.cycleStartedAt = now;
 
         int currentIndex = Math.min(carousel.index, carousel.items.size() - 1);
-        String currentItem = carousel.items.get(currentIndex);
+        WeatherLineItem currentItem = carousel.items.get(currentIndex);
         long elapsed = now - carousel.cycleStartedAt;
         long displayDuration = weatherDetailDisplayDuration(currentItem);
 
@@ -636,7 +689,7 @@ public class ClockView extends View {
             }
             drawWeatherDetailItem(canvas, currentItem, null, centerX,
                 baseline, metrics, 0f, elapsed);
-            if (measureSupportingText(currentItem) > weatherDetailAvailableWidth()) {
+            if (itemWidth(currentItem) > weatherDetailAvailableWidth()) {
                 postInvalidateDelayed(WEATHER_DETAIL_FRAME_DELAY_MILLIS);
             }
             return;
@@ -646,7 +699,7 @@ public class ClockView extends View {
         long fadeInEnd = fadeOutEnd + WEATHER_DETAIL_TRANSITION_MILLIS;
 
         int nextIndex = (carousel.index + 1) % carousel.items.size();
-        String nextItem = carousel.items.get(nextIndex);
+        WeatherLineItem nextItem = carousel.items.get(nextIndex);
 
         if (elapsed < displayDuration) {
             drawWeatherDetailItem(canvas, currentItem, null, centerX,
@@ -676,7 +729,7 @@ public class ClockView extends View {
      * {@code [0, 0.5)} fades out {@code current} and {@code [0.5, 1]} brings in {@code next};
      * outside a transition it is 0 and only {@code current} is drawn at full strength.
      */
-    private void drawWeatherDetailItem(Canvas canvas, String current, String next,
+    private void drawWeatherDetailItem(Canvas canvas, WeatherLineItem current, WeatherLineItem next,
             float centerX, float baseline, Paint.FontMetrics metrics, float progress,
             long itemElapsed) {
         boolean transitioning = next != null;
@@ -704,12 +757,12 @@ public class ClockView extends View {
      * spatial offset for motion styles: negative means leaving (old item), positive means
      * entering (new item), 0 means settled.
      */
-    private void drawWeatherDetailLine(Canvas canvas, String text, float centerX,
+    private void drawWeatherDetailLine(Canvas canvas, WeatherLineItem item, float centerX,
             float baseline, Paint.FontMetrics metrics, int alpha, String transition, float phase,
             long itemElapsed) {
-        if (text == null || text.length() == 0) return;
+        if (item == null || item.text.length() == 0) return;
         int originalAlpha = datePaint.getAlpha();
-        applySupportingTypeface(text);
+        applySupportingTypeface(item.text);
         float clampedAlpha = Math.max(0, Math.min(255, alpha));
         if (ClockPreferences.TRANSITION_SLIDE_UP.equals(transition)
                 || ClockPreferences.TRANSITION_SLIDE_DOWN.equals(transition)) {
@@ -718,7 +771,7 @@ public class ClockView extends View {
             canvas.save();
             canvas.translate(0f, direction * distance * phase);
             datePaint.setAlpha(Math.round(clampedAlpha / 255f * originalAlpha));
-            drawScrollingWeatherText(canvas, text, centerX, baseline, itemElapsed);
+            drawWeatherLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
             canvas.restore();
         } else if (ClockPreferences.TRANSITION_SCALE.equals(transition)) {
             float scale = 1f - 0.12f * Math.abs(phase);
@@ -726,7 +779,7 @@ public class ClockView extends View {
             canvas.save();
             canvas.scale(scale, scale, centerX, pivotY);
             datePaint.setAlpha(Math.round(clampedAlpha / 255f * originalAlpha));
-            drawScrollingWeatherText(canvas, text, centerX, baseline, itemElapsed);
+            drawWeatherLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
             canvas.restore();
         } else if (ClockPreferences.TRANSITION_FLIP.equals(transition)) {
             float scaleY = Math.max(0.05f, 1f - Math.abs(phase));
@@ -734,17 +787,17 @@ public class ClockView extends View {
             canvas.save();
             canvas.scale(1f, scaleY, centerX, pivotY);
             datePaint.setAlpha(originalAlpha);
-            drawScrollingWeatherText(canvas, text, centerX, baseline, itemElapsed);
+            drawWeatherLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
             canvas.restore();
         } else {
             datePaint.setAlpha(Math.round(clampedAlpha / 255f * originalAlpha));
-                drawScrollingWeatherText(canvas, text, centerX, baseline, itemElapsed);
+                drawWeatherLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
         }
         datePaint.setAlpha(originalAlpha);
     }
 
-            private long weatherDetailDisplayDuration(String text) {
-            float overflow = measureSupportingText(text) - weatherDetailAvailableWidth();
+            private long weatherDetailDisplayDuration(WeatherLineItem item) {
+            float overflow = itemWidth(item) - weatherDetailAvailableWidth();
             if (overflow <= 0f) return WEATHER_DETAIL_HOLD_MILLIS;
             float speed = WEATHER_DETAIL_SCROLL_DP_PER_SECOND
                 * getResources().getDisplayMetrics().density;
@@ -805,11 +858,11 @@ public class ClockView extends View {
      * sharing the identical timing, transition and horizontal-scroll behaviour.
      */
     private static final class Carousel {
-        java.util.List<String> items;
+        java.util.List<WeatherLineItem> items;
         int index;
         long cycleStartedAt;
 
-        void setItems(java.util.List<String> newItems) {
+        void setItems(java.util.List<WeatherLineItem> newItems) {
             items = newItems;
             index = 0;
             cycleStartedAt = 0L;
@@ -817,6 +870,50 @@ public class ClockView extends View {
 
         boolean isEmpty() {
             return items == null || items.isEmpty();
+        }
+    }
+
+    /**
+     * One item on a rotating supporting line. A plain item carries only {@link #text}; a
+     * weather-summary item additionally splits into {@link #left} (location) and {@link #right}
+     * (condition + temperature) around a {@link #icon}. {@link #equals}/{@link #hashCode} let
+     * {@code List.equals} detect when the carousel contents actually change.
+     */
+    private static final class WeatherLineItem {
+        final String text;
+        final String left;
+        final String right;
+        final WeatherIcon icon;
+
+        private WeatherLineItem(String text, String left, String right, WeatherIcon icon) {
+            this.text = text;
+            this.left = left;
+            this.right = right;
+            this.icon = icon;
+        }
+
+        static WeatherLineItem plain(String text) {
+            return new WeatherLineItem(text, null, null, null);
+        }
+
+        static WeatherLineItem weather(String left, String right, WeatherIcon icon) {
+            return new WeatherLineItem(left + "  " + right, left, right, icon);
+        }
+
+        boolean hasIcon() {
+            return icon != null;
+        }
+
+        @Override public boolean equals(Object o) {
+            if (this == o) return true;
+            if (!(o instanceof WeatherLineItem)) return false;
+            WeatherLineItem other = (WeatherLineItem) o;
+            // WeatherIcon is cached per (code, style) so equal items share the same instance.
+            return text.equals(other.text) && icon == other.icon;
+        }
+
+        @Override public int hashCode() {
+            return text.hashCode() * 31 + (icon == null ? 0 : System.identityHashCode(icon));
         }
     }
 
@@ -876,6 +973,15 @@ public class ClockView extends View {
         clockUseEnglish = backgroundRepository.isClockUseEnglish();
         dateLang = LocaleManager.dateLang(backgroundRepository.getClockLanguage());
         customMessage = backgroundRepository.getCustomMessage();
+        // Weather-icon style/colour are Pro-only options; other flavours keep the solid fill
+        // style and follow the date text colour (their historical behaviour).
+        boolean proIcons = "pro".equals(com.clockmods.BuildConfig.FLAVOR);
+        weatherIconFill = !proIcons || backgroundRepository.isWeatherIconFill();
+        weatherIconColor = proIcons
+                ? (backgroundRepository.isWeatherIconDynamicColor()
+                        ? ExperienceBridge.resolveAccentColor(getContext(), 0xFFFFFFFF)
+                        : 0xFFFFFFFF)
+                : backgroundRepository.getDateColor();
         datePatternCn = backgroundRepository.getDatePatternCn();
         datePatternEn = backgroundRepository.getDatePatternEn();
         portraitStacked = backgroundRepository.isPortraitStacked();

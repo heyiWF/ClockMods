@@ -33,6 +33,7 @@ import com.google.android.material.bottomsheet.BottomSheetBehavior;
 import com.google.android.material.bottomsheet.BottomSheetDialog;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.button.MaterialButtonToggleGroup;
+import com.google.android.material.card.MaterialCardView;
 import com.google.android.material.color.MaterialColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.shape.MaterialShapeDrawable;
@@ -59,6 +60,11 @@ public class SettingsDialog extends BottomSheetDialog {
     private static final int IMAGE_MODE_ID = 10002;
     private static final int MIN_FONT_PERCENT = 20;
     private static final int MAX_FONT_PERCENT = 150;
+    // Card grouping: each run of controls between two section labels becomes one rounded card.
+    private static final int CARD_RADIUS = 16;   // dp, Material card corner
+    private static final int CARD_PADDING = 16;  // dp, inner padding
+    private static final int SECTION_GAP = 12;   // dp, gap between cards
+    private static final String SECTION_LABEL_TAG = "clockmods:section";
     private final BackgroundRepository repository;
     private final Listener listener;
     private final ColorPickerView backgroundPicker;
@@ -109,6 +115,9 @@ public class SettingsDialog extends BottomSheetDialog {
     private final MaterialButton weatherLocationButton;
     private final Spinner weatherIntervalSpinner;
     private final MaterialSwitch weatherDetailedSwitch;
+    // Pro-only weather-icon options (null on other flavours).
+    private MaterialSwitch weatherIconFillSwitch;
+    private MaterialSwitch weatherIconDynamicColorSwitch;
     private final MaterialButtonToggleGroup calendarWeekStartGroup;
     private final MaterialSwitch calendarHighlightWeekendsSwitch;
     private final MaterialSwitch calendarMoreFestivalsSwitch;
@@ -623,6 +632,17 @@ public class SettingsDialog extends BottomSheetDialog {
             com.google.android.material.R.style.TextAppearance_Material3_BodyLarge);
         weatherDetailedSwitch.setChecked(repository.isWeatherDetailed());
         functionContent.addView(weatherDetailedSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        // Pro-only weather-icon options: solid-fill vs line style, and Material 3 accent tinting.
+        if (isPro()) {
+            weatherIconFillSwitch = createStyleSwitch(context, R.string.weather_icon_fill,
+                    repository.isWeatherIconFill());
+            addSwitchWithSummary(functionContent, weatherIconFillSwitch,
+                    R.string.weather_icon_fill_desc, dp(8));
+            weatherIconDynamicColorSwitch = createStyleSwitch(context, R.string.weather_icon_dynamic_color,
+                    repository.isWeatherIconDynamicColor());
+            addSwitchWithSummary(functionContent, weatherIconDynamicColorSwitch,
+                    R.string.weather_icon_dynamic_color_desc, dp(8));
+        }
         // Pro-only 月历 section: the calendar page exists only in Pro, so this is its own group
         // rather than being tucked under 天气.
         if ("pro".equals(BuildConfig.FLAVOR)) {
@@ -667,6 +687,10 @@ public class SettingsDialog extends BottomSheetDialog {
 
         networkTimeSwitch.setOnCheckedChangeListener((button, checked) -> updateFunctionLockedState(checked));
         updateFunctionLockedState(networkTimeSwitch.isChecked());
+
+        // Group each board's sections into rounded cards for clearer visual separation.
+        groupIntoCards(styleContent);
+        groupIntoCards(functionContent);
 
         // ---- Boards container ----
         final LinearLayout boards = new LinearLayout(context);
@@ -717,7 +741,60 @@ public class SettingsDialog extends BottomSheetDialog {
         label.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleMedium);
         label.setTextColor(MaterialColors.getColor(context,
                 androidx.appcompat.R.attr.colorPrimary, Color.DKGRAY));
+        // Marker so groupIntoCards() can detect where each section begins.
+        label.setTag(SECTION_LABEL_TAG);
         return label;
+    }
+
+    /**
+     * Wraps each run of views between section labels into a rounded Material card, giving the
+     * flat settings list clear visual grouping. Purely a view-tree transform: the same child
+     * views — and the fields that reference them — are preserved, only reparented.
+     */
+    private void groupIntoCards(LinearLayout content) {
+        int count = content.getChildCount();
+        java.util.List<View> children = new java.util.ArrayList<>(count);
+        for (int i = 0; i < count; i++) children.add(content.getChildAt(i));
+        content.removeAllViews();
+        LinearLayout body = null;
+        boolean first = true;
+        for (View child : children) {
+            if (SECTION_LABEL_TAG.equals(child.getTag())) {
+                body = newCardBody(content, first);
+                first = false;
+                // The label becomes the card title; drop its inter-section top margin.
+                if (child.getLayoutParams() instanceof LinearLayout.LayoutParams) {
+                    ((LinearLayout.LayoutParams) child.getLayoutParams()).topMargin = 0;
+                }
+            }
+            if (body == null) {
+                content.addView(child, child.getLayoutParams());  // defensive: pre-section content
+            } else {
+                body.addView(child, child.getLayoutParams());
+            }
+        }
+    }
+
+    /** Creates an empty card, appends it to {@code parent}, and returns its content body. */
+    private LinearLayout newCardBody(LinearLayout parent, boolean first) {
+        MaterialCardView card = new MaterialCardView(getContext());
+        card.setRadius(dp(CARD_RADIUS));
+        card.setCardElevation(0f);
+        card.setStrokeWidth(Math.max(1, dp(1)));
+        card.setStrokeColor(MaterialColors.getColor(card,
+                com.google.android.material.R.attr.colorOutlineVariant, Color.LTGRAY));
+        card.setCardBackgroundColor(MaterialColors.getColor(card,
+                com.google.android.material.R.attr.colorSurfaceContainerHigh, Color.WHITE));
+        LinearLayout cardBody = new LinearLayout(getContext());
+        cardBody.setOrientation(LinearLayout.VERTICAL);
+        int pad = dp(CARD_PADDING);
+        cardBody.setPadding(pad, pad, pad, pad);
+        card.addView(cardBody, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        LinearLayout.LayoutParams lp = matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT);
+        lp.topMargin = first ? 0 : dp(SECTION_GAP);
+        parent.addView(card, lp);
+        return cardBody;
     }
 
     private TextView createSubLabel(Context context, int textRes) {
@@ -1122,6 +1199,10 @@ public class SettingsDialog extends BottomSheetDialog {
         updateWeatherLocationSummary();
         weatherIntervalSpinner.setSelection(weatherIntervalIndex(
             ClockPreferences.DEFAULT_WEATHER_INTERVAL_MINUTES));
+        if (weatherIconFillSwitch != null) {
+            weatherIconFillSwitch.setChecked(ClockPreferences.DEFAULT_WEATHER_ICON_FILL);
+            weatherIconDynamicColorSwitch.setChecked(ClockPreferences.DEFAULT_WEATHER_ICON_DYNAMIC_COLOR);
+        }
         dimBackgroundSwitch.setChecked(ClockPreferences.DEFAULT_DIM_BACKGROUND);
         scheduleDimBackgroundSwitch.setChecked(ClockPreferences.DEFAULT_SCHEDULE_DIM_BACKGROUND);
         dimStartMinutes = ClockPreferences.DEFAULT_DIM_START_MINUTES;
@@ -1187,6 +1268,10 @@ public class SettingsDialog extends BottomSheetDialog {
         repository.setManualWeatherLocation(selectedWeatherLocationId, selectedWeatherProvince,
             selectedWeatherCity, selectedWeatherDistrict, selectedWeatherLatitude, selectedWeatherLongitude);
         repository.setWeatherDetailed(weatherDetailedSwitch.isChecked());
+        if (weatherIconFillSwitch != null) {
+            repository.setWeatherIconFill(weatherIconFillSwitch.isChecked());
+            repository.setWeatherIconDynamicColor(weatherIconDynamicColorSwitch.isChecked());
+        }
         if (calendarWeekStartGroup != null) {
             repository.setCalendarWeekStart(calendarWeekStartForId(
                     calendarWeekStartGroup.getCheckedButtonId()));

@@ -19,7 +19,11 @@ public final class WeatherIconView extends View {
     }
 
     public void setIconCode(String code) {
-        icon = WeatherIcon.load(getContext(), code);
+        setIconCode(code, true);
+    }
+
+    public void setIconCode(String code, boolean fill) {
+        icon = WeatherIcon.load(getContext(), code, fill);
         setVisibility(icon == null ? INVISIBLE : VISIBLE);
         invalidate();
     }

@@ -29,18 +29,21 @@ final class WeatherIcon {
 
     private WeatherIcon(Path path) { this.path = path; }
 
-    static WeatherIcon load(Context context, String code) {
+    static WeatherIcon load(Context context, String code, boolean fill) {
         if (code == null || !code.matches("[0-9]+")) return null;
+        // The asset base name doubles as the cache key so the two style variants
+        // ("100-fill" vs "100") never collide.
+        String asset = fill ? code + "-fill" : code;
         synchronized (CACHE) {
-            if (CACHE.containsKey(code)) return CACHE.get(code);
-            WeatherIcon icon = read(context, code);
-            CACHE.put(code, icon);
+            if (CACHE.containsKey(asset)) return CACHE.get(asset);
+            WeatherIcon icon = read(context, asset);
+            CACHE.put(asset, icon);
             return icon;
         }
     }
 
-    private static WeatherIcon read(Context context, String code) {
-        try (InputStream input = context.getAssets().open("qweather-icons/" + code + "-fill.svg");
+    private static WeatherIcon read(Context context, String asset) {
+        try (InputStream input = context.getAssets().open("qweather-icons/" + asset + ".svg");
              BufferedReader reader = new BufferedReader(new InputStreamReader(input, "UTF-8"))) {
             StringBuilder svg = new StringBuilder();
             String line; while ((line = reader.readLine()) != null) svg.append(line);

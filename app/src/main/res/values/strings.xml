@@ -151,6 +151,10 @@
     <string name="weather_settings_group">天气</string>
     <string name="show_weather">显示实时天气</string>
     <string name="show_detailed_weather">显示详细天气信息</string>
+    <string name="weather_icon_fill">填充天气图标</string>
+    <string name="weather_icon_fill_desc">使用实心填充风格，关闭则用线条风格</string>
+    <string name="weather_icon_dynamic_color">主题色天气图标</string>
+    <string name="weather_icon_dynamic_color_desc">用 Material 3 动态主题色着色，关闭则为白色</string>
     <string name="calendar_week_start">一周开始于</string>
     <string name="calendar_week_start_sunday">周日</string>
     <string name="calendar_week_start_monday">周一</string>

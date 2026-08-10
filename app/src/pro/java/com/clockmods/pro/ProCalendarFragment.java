@@ -26,6 +26,7 @@ import androidx.core.widget.TextViewCompat;
 import com.clockmods.R;
 import com.clockmods.background.BackgroundRepository;
 import com.clockmods.background.ClockPreferences;
+import com.clockmods.platform.ExperienceBridge;
 import com.clockmods.calendar.CalendarMonth;
 import com.clockmods.calendar.HolidayRepository;
 import com.clockmods.ui.CalendarFooterCarouselView;
@@ -202,7 +203,8 @@ public final class ProCalendarFragment extends Fragment {
         Typeface typeface = ClockTypefaceResolver.resolveTime(requireContext(),
                 preferences.getFontFamily(), preferences.isBoldText());
         timeView.setTextColor(preferences.getTimeColor());
-        currentWeatherIcon.setIconColor(getColor(R.color.calendar_dashboard_blue));
+        currentWeatherIcon.setIconColor(preferences.isWeatherIconDynamicColor()
+                ? ExperienceBridge.resolveAccentColor(requireContext(), Color.WHITE) : Color.WHITE);
         boolean weatherEnabled = preferences.isWeatherEnabled();
         currentWeatherCard.setVisibility(weatherEnabled ? View.VISIBLE : View.GONE);
         forecastCard.setVisibility(weatherEnabled ? View.VISIBLE : View.GONE);
@@ -265,7 +267,7 @@ public final class ProCalendarFragment extends Fragment {
             return;
         }
         WeatherModels.WeatherDisplayData data = state.data;
-        currentWeatherIcon.setIconCode(data.icon);
+        currentWeatherIcon.setIconCode(data.icon, preferences.isWeatherIconFill());
         currentTemperature.setText(data.temperature + " ℃");
         String feel = data.detail == null || empty(data.detail.feelsLike) ? "--" : data.detail.feelsLike;
         feelsLike.setText(feel + " ℃");
@@ -305,8 +307,10 @@ public final class ProCalendarFragment extends Fragment {
                     R.dimen.calendar_forecast_label_size, index == 0);
             if (forecast != null) {
                 WeatherIconView icon = new WeatherIconView(requireContext());
-                icon.setIconColor(index == 0 ? getColor(R.color.calendar_dashboard_blue) : Color.WHITE);
-                icon.setIconCode(forecast.iconDay);
+                int accent = preferences.isWeatherIconDynamicColor()
+                        ? ExperienceBridge.resolveAccentColor(requireContext(), Color.WHITE) : Color.WHITE;
+                icon.setIconColor(index == 0 ? accent : Color.WHITE);
+                icon.setIconCode(forecast.iconDay, preferences.isWeatherIconFill());
                 int iconSize = getResources().getDimensionPixelSize(R.dimen.calendar_forecast_icon_size);
                 int iconGap = getResources().getDimensionPixelSize(R.dimen.calendar_forecast_icon_gap);
                 LinearLayout.LayoutParams iconParams = new LinearLayout.LayoutParams(iconSize, iconSize);

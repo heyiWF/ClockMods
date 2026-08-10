@@ -17,6 +17,16 @@ public class WeatherModelsTest {
     }
 
     @Test
+    public void ordersEnglishNamesDistrictFirstWithComma() {
+        // English addresses read district-first: "Bao'an, Shenzhen", not "Shenzhen Bao'an".
+        Assert.assertEquals("Bao'an, Shenzhen", WeatherModels.locationText("Shenzhen", "Bao'an"));
+        Assert.assertEquals("Pudong, Shanghai", WeatherModels.locationText("Shanghai", "Pudong"));
+        // Single-name and equal-name fallbacks stay unchanged for English too.
+        Assert.assertEquals("Beijing", WeatherModels.locationText("Beijing", "Beijing"));
+        Assert.assertEquals("Bao'an", WeatherModels.locationText(null, "Bao'an"));
+    }
+
+    @Test
     public void acceptsOnlySupportedWeatherIntervals() {
         Assert.assertTrue(ClockPreferences.isValidWeatherInterval(10));
         Assert.assertTrue(ClockPreferences.isValidWeatherInterval(720));

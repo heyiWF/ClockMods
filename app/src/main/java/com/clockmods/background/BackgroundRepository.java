@@ -253,6 +253,22 @@ public class BackgroundRepository {
         preferences.setCustomMessage(message);
     }
 
+    public boolean isWeatherIconFill() {
+        return preferences.isWeatherIconFill();
+    }
+
+    public void setWeatherIconFill(boolean fill) {
+        preferences.setWeatherIconFill(fill);
+    }
+
+    public boolean isWeatherIconDynamicColor() {
+        return preferences.isWeatherIconDynamicColor();
+    }
+
+    public void setWeatherIconDynamicColor(boolean dynamicColor) {
+        preferences.setWeatherIconDynamicColor(dynamicColor);
+    }
+
     public String getDatePatternCn() {
         return preferences.getDatePatternCn();
     }
