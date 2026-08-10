@@ -6,6 +6,7 @@ import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.os.SystemClock;
+import android.os.Build;
 import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.AttributeSet;
@@ -50,7 +51,9 @@ public final class CalendarLabelCarouselView extends View {
         paint.setColor(Color.WHITE);
         preferredTextSize = 13f * getResources().getDisplayMetrics().scaledDensity;
         paint.setTextSize(preferredTextSize);
-        setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
+        }
     }
 
     public void setItems(List<String> values) {
@@ -185,10 +188,15 @@ public final class CalendarLabelCarouselView extends View {
         return paint.descent() - paint.ascent();
     }
 
+    @SuppressWarnings("deprecation")
     private boolean animationsEnabled() {
         try {
-            return Settings.Global.getFloat(getContext().getContentResolver(),
-                    Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f;
+            float scale = Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1
+                    ? Settings.Global.getFloat(getContext().getContentResolver(),
+                            Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
+                    : Settings.System.getFloat(getContext().getContentResolver(),
+                            Settings.System.ANIMATOR_DURATION_SCALE, 1f);
+            return scale > 0f;
         } catch (RuntimeException ignored) { return true; }
     }
 }

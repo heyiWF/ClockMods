@@ -2,11 +2,13 @@ package com.clockmods.pro.alarm;
 
 import android.app.Activity;
 import android.app.NotificationManager;
+import android.content.Context;
 import android.content.Intent;
 import android.os.Bundle;
 import android.view.WindowManager;
 import android.widget.TextView;
 
+import com.clockmods.LocaleManager;
 import com.clockmods.R;
 import com.clockmods.pro.ProFontApplier;
 
@@ -15,6 +17,11 @@ import java.util.Date;
 import java.util.Locale;
 
 public final class AlarmRingingActivity extends Activity {
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(LocaleManager.wrap(base));
+    }
+
     @Override protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         setShowWhenLocked(true);

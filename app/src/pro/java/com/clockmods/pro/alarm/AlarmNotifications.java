@@ -10,6 +10,7 @@ import android.provider.Settings;
 
 import androidx.core.app.NotificationCompat;
 
+import com.clockmods.LocaleManager;
 import com.clockmods.R;
 
 public final class AlarmNotifications {
@@ -21,9 +22,10 @@ public final class AlarmNotifications {
         }
 
         public static android.app.Notification build(Context context) {
+        Context localized = LocaleManager.wrap(context);
         NotificationManager manager = context.getSystemService(NotificationManager.class);
         NotificationChannel channel = new NotificationChannel(CHANNEL_ID,
-                context.getString(R.string.alarm_channel), NotificationManager.IMPORTANCE_HIGH);
+                localized.getString(R.string.alarm_channel), NotificationManager.IMPORTANCE_HIGH);
         channel.setSound(Settings.System.DEFAULT_ALARM_ALERT_URI,
                 new AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build());
         channel.enableVibration(true);
@@ -33,8 +35,8 @@ public final class AlarmNotifications {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         return new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.mipmap.ic_launcher)
-                .setContentTitle(context.getString(R.string.alarm_ringing))
-                .setContentText(context.getString(R.string.alarm_open_to_dismiss))
+                .setContentTitle(localized.getString(R.string.alarm_ringing))
+                .setContentText(localized.getString(R.string.alarm_open_to_dismiss))
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
                 .setPriority(NotificationCompat.PRIORITY_MAX)
                 .setOngoing(true)

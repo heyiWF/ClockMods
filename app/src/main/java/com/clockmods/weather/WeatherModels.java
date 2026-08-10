@@ -46,29 +46,67 @@ public final class WeatherModels {
         }
 
         /**
+         * Language-dependent labels/units for the detail carousel. Supplied by the UI layer
+         * (from string resources) so this model stays free of Android dependencies and unit
+         * testable. Each format string takes a single {@code %s} value except unit-only ones.
+         */
+        public static final class DetailLabels {
+            public final String feelsFormat;   // e.g. "体感 %s ℃" / "Feels %s ℃"
+            public final String humidityFormat; // "湿度 %s%%" / "Humidity %s%%"
+            public final String windScaleFormat; // "%s 级" / "Force %s"
+            public final String precipFormat;   // "降水 %s mm" / "Precip %s mm"
+            public final String airFormat;      // "空气 %s" / "AQI %s"
+            public final String warningSuffix;  // "预警" / " Warning"
+
+            public DetailLabels(String feelsFormat, String humidityFormat, String windScaleFormat,
+                    String precipFormat, String airFormat, String warningSuffix) {
+                this.feelsFormat = feelsFormat;
+                this.humidityFormat = humidityFormat;
+                this.windScaleFormat = windScaleFormat;
+                this.precipFormat = precipFormat;
+                this.airFormat = airFormat;
+                this.warningSuffix = warningSuffix;
+            }
+        }
+
+        /** Chinese labels, matching the app's historical default wording. */
+        public static final DetailLabels CHINESE_LABELS = new DetailLabels(
+                "体感 %s ℃", "湿度 %s%%", "%s 级", "降水 %s mm", "空气 %s", "预警");
+
+        /**
          * Builds the ordered list of detail strings that should be shown in the rotating
          * detailed weather line. Optional items (precipitation, warnings, air quality) are
          * only included when meaningful data is available.
          */
         public List<String> carouselItems() {
+            return carouselItems(CHINESE_LABELS);
+        }
+
+        public List<String> carouselItems(DetailLabels labels) {
             List<String> items = new ArrayList<>();
-            if (isPresent(feelsLike)) items.add("体感 " + feelsLike + "℃");
-            if (isPresent(humidity)) items.add("湿度 " + humidity + "%");
+            if (isPresent(feelsLike)) items.add(String.format(labels.feelsFormat, feelsLike));
+            if (isPresent(humidity)) items.add(String.format(labels.humidityFormat, humidity));
             if (isPresent(windDir) || isPresent(windScale)) {
                 String wind = isPresent(windDir) ? windDir : "";
-                if (isPresent(windScale)) wind = (wind.length() > 0 ? wind + " " : "") + windScale + "级";
+                if (isPresent(windScale)) {
+                    String scale = String.format(labels.windScaleFormat, windScale);
+                    wind = (wind.length() > 0 ? wind + " " : "") + scale;
+                }
                 items.add(wind);
             }
-            if (hasPrecipitation()) items.add("降水 " + precip + "mm");
+            if (hasPrecipitation()) items.add(String.format(labels.precipFormat, precip));
             if (isPresent(warning)) {
                 String[] warnings = warning.split("\\n");
                 for (int index = 0; index < warnings.length && index < 20; index++) {
                     String item = warnings[index].trim();
-                    if (item.length() > 0) items.add(item.contains("预警") ? item : item + "预警");
+                    if (item.length() > 0) {
+                        items.add(item.contains(labels.warningSuffix.trim())
+                                ? item : item + labels.warningSuffix);
+                    }
                 }
             }
             if (isPresent(aqiValue)) {
-                String aqi = "空气 " + aqiValue;
+                String aqi = String.format(labels.airFormat, aqiValue);
                 if (isPresent(aqiCategory)) aqi += " " + aqiCategory;
                 items.add(aqi);
             }

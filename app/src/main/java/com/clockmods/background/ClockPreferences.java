@@ -4,6 +4,8 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 
+import com.clockmods.ui.DateFormatter;
+
 import java.util.Calendar;
 
 public class ClockPreferences {
@@ -58,6 +60,19 @@ public class ClockPreferences {
     private static final String KEY_PORTRAIT_STACKED = "portrait_stacked";
     private static final String KEY_USE_24_HOUR = "use_24_hour";
     private static final String KEY_CLOCK_USE_ENGLISH = "clock_use_english";
+    private static final String KEY_CUSTOM_MESSAGE = "custom_message";
+    // Full patterns actually used for rendering the main clock / calendar date lines.
+    private static final String KEY_DATE_PATTERN_CN = "date_pattern_cn";
+    private static final String KEY_DATE_PATTERN_EN = "date_pattern_en";
+    // Pro settings UI restoration state (which dropdown / combo / custom entry was chosen).
+    private static final String KEY_DATE_CORE_CN = "date_core_cn";
+    private static final String KEY_DATE_CORE_EN = "date_core_en";
+    private static final String KEY_DATE_COMBO_CN = "date_combo_cn";
+    private static final String KEY_DATE_COMBO_EN = "date_combo_en";
+    private static final String KEY_DATE_CUSTOM_ENABLED_CN = "date_custom_enabled_cn";
+    private static final String KEY_DATE_CUSTOM_ENABLED_EN = "date_custom_enabled_en";
+    private static final String KEY_DATE_CUSTOM_TEXT_CN = "date_custom_text_cn";
+    private static final String KEY_DATE_CUSTOM_TEXT_EN = "date_custom_text_en";
     private static final String KEY_FORCE_LANDSCAPE = "force_landscape";
     private static final String KEY_SCREEN_ORIENTATION = "screen_orientation";
     private static final String KEY_USE_NETWORK_TIME = "use_network_time";
@@ -108,6 +123,12 @@ public class ClockPreferences {
     public static final boolean DEFAULT_PORTRAIT_STACKED = false;
     public static final boolean DEFAULT_USE_24_HOUR = true;
     public static final boolean DEFAULT_CLOCK_USE_ENGLISH = false;
+    /** Optional free-text message shown on the weather line; empty means "no message". */
+    public static final String DEFAULT_CUSTOM_MESSAGE = "";
+    /** Upper bound on the custom message length, guarding layout and storage. */
+    public static final int MAX_CUSTOM_MESSAGE_LENGTH = 200;
+    public static final String DEFAULT_DATE_PATTERN_CN = DateFormatter.DEFAULT_PATTERN_CN;
+    public static final String DEFAULT_DATE_PATTERN_EN = DateFormatter.DEFAULT_PATTERN_EN;
     /** Screen orientation modes returned by {@link #getScreenOrientation()}. */
     public static final int ORIENTATION_FOLLOW_SYSTEM = 0;
     public static final int ORIENTATION_PORTRAIT = 1;
@@ -402,6 +423,88 @@ public class ClockPreferences {
         preferences.edit().putBoolean(KEY_CLOCK_USE_ENGLISH, useEnglish).apply();
     }
 
+    /** @return the trimmed custom message, or "" when none is set. */
+    public String getCustomMessage() {
+        return normalizeCustomMessage(preferences.getString(KEY_CUSTOM_MESSAGE, DEFAULT_CUSTOM_MESSAGE));
+    }
+
+    public void setCustomMessage(String message) {
+        preferences.edit().putString(KEY_CUSTOM_MESSAGE, normalizeCustomMessage(message)).apply();
+    }
+
+    /** Trims whitespace and caps the length so a pasted blob cannot break the layout. */
+    public static String normalizeCustomMessage(String message) {
+        if (message == null) {
+            return DEFAULT_CUSTOM_MESSAGE;
+        }
+        String trimmed = message.trim();
+        if (trimmed.length() > MAX_CUSTOM_MESSAGE_LENGTH) {
+            trimmed = trimmed.substring(0, MAX_CUSTOM_MESSAGE_LENGTH);
+        }
+        return trimmed;
+    }
+
+    /** @return the full date pattern applied when the interface is Chinese. */
+    public String getDatePatternCn() {
+        return normalizeDatePattern(
+                preferences.getString(KEY_DATE_PATTERN_CN, DEFAULT_DATE_PATTERN_CN),
+                DEFAULT_DATE_PATTERN_CN);
+    }
+
+    public void setDatePatternCn(String pattern) {
+        preferences.edit().putString(KEY_DATE_PATTERN_CN,
+                normalizeDatePattern(pattern, DEFAULT_DATE_PATTERN_CN)).apply();
+    }
+
+    /** @return the full date pattern applied when the interface is English. */
+    public String getDatePatternEn() {
+        return normalizeDatePattern(
+                preferences.getString(KEY_DATE_PATTERN_EN, DEFAULT_DATE_PATTERN_EN),
+                DEFAULT_DATE_PATTERN_EN);
+    }
+
+    public void setDatePatternEn(String pattern) {
+        preferences.edit().putString(KEY_DATE_PATTERN_EN,
+                normalizeDatePattern(pattern, DEFAULT_DATE_PATTERN_EN)).apply();
+    }
+
+    /** Falls back to {@code fallback} when {@code pattern} fails validation, guarding stored data. */
+    public static String normalizeDatePattern(String pattern, String fallback) {
+        return DateFormatter.isValidPattern(pattern) ? pattern : fallback;
+    }
+
+    // ---- Pro settings-UI restoration state (does not affect rendering directly) ----
+
+    public String getDateCore(boolean english) {
+        return preferences.getString(english ? KEY_DATE_CORE_EN : KEY_DATE_CORE_CN, "");
+    }
+
+    public String getDateCombo(boolean english) {
+        return preferences.getString(english ? KEY_DATE_COMBO_EN : KEY_DATE_COMBO_CN, "");
+    }
+
+    public boolean isDateCustomEnabled(boolean english) {
+        return preferences.getBoolean(
+                english ? KEY_DATE_CUSTOM_ENABLED_EN : KEY_DATE_CUSTOM_ENABLED_CN, false);
+    }
+
+    public String getDateCustomText(boolean english) {
+        return preferences.getString(english ? KEY_DATE_CUSTOM_TEXT_EN : KEY_DATE_CUSTOM_TEXT_CN, "");
+    }
+
+    /** Persists the Pro date-format UI state for one language in a single edit. */
+    public void setDateFormatState(boolean english, String core, String combo,
+            boolean customEnabled, String customText) {
+        preferences.edit()
+                .putString(english ? KEY_DATE_CORE_EN : KEY_DATE_CORE_CN, core == null ? "" : core)
+                .putString(english ? KEY_DATE_COMBO_EN : KEY_DATE_COMBO_CN, combo == null ? "" : combo)
+                .putBoolean(english ? KEY_DATE_CUSTOM_ENABLED_EN : KEY_DATE_CUSTOM_ENABLED_CN,
+                        customEnabled)
+                .putString(english ? KEY_DATE_CUSTOM_TEXT_EN : KEY_DATE_CUSTOM_TEXT_CN,
+                        customText == null ? "" : customText)
+                .apply();
+    }
+
     public int getScreenOrientation() {
         if (preferences.contains(KEY_SCREEN_ORIENTATION)) {
             return preferences.getInt(KEY_SCREEN_ORIENTATION, DEFAULT_SCREEN_ORIENTATION);
@@ -561,6 +664,17 @@ public class ClockPreferences {
                 .putBoolean(KEY_PORTRAIT_STACKED, DEFAULT_PORTRAIT_STACKED)
                 .putBoolean(KEY_USE_24_HOUR, DEFAULT_USE_24_HOUR)
                 .putBoolean(KEY_CLOCK_USE_ENGLISH, DEFAULT_CLOCK_USE_ENGLISH)
+                .remove(KEY_CUSTOM_MESSAGE)
+                .putString(KEY_DATE_PATTERN_CN, DEFAULT_DATE_PATTERN_CN)
+                .putString(KEY_DATE_PATTERN_EN, DEFAULT_DATE_PATTERN_EN)
+                .remove(KEY_DATE_CORE_CN)
+                .remove(KEY_DATE_CORE_EN)
+                .remove(KEY_DATE_COMBO_CN)
+                .remove(KEY_DATE_COMBO_EN)
+                .remove(KEY_DATE_CUSTOM_ENABLED_CN)
+                .remove(KEY_DATE_CUSTOM_ENABLED_EN)
+                .remove(KEY_DATE_CUSTOM_TEXT_CN)
+                .remove(KEY_DATE_CUSTOM_TEXT_EN)
                 .putInt(KEY_SCREEN_ORIENTATION, DEFAULT_SCREEN_ORIENTATION)
                 .remove(KEY_FORCE_LANDSCAPE)
                 .putBoolean(KEY_WEATHER_ENABLED, DEFAULT_WEATHER_ENABLED)

@@ -17,7 +17,7 @@
     <string name="calendar_weather_disabled">天气显示已关闭</string>
     <string name="calendar_forecast_loading">天气预报加载中</string>
     <string name="calendar_forecast_unavailable">暂无天气预报</string>
-    <string name="calendar_selected_date">%1$d 年 %2$d 月 %3$d 日  %4$s  %5$s</string>
+    <string name="calendar_selected_date">%1$s  %2$s</string>
     <string name="calendar_day_status_off">休</string>
     <string name="calendar_day_status_work">班</string>
     <string name="pro_time_transition">数字切换动效</string>
@@ -127,8 +127,17 @@
     <string name="region_settings_group">地区</string>
     <string name="region_time_zone">地区与时区</string>
     <string name="select_region">选择地区</string>
-    <string name="clock_language_settings_group">时钟界面语言</string>
-    <string name="clock_use_english">时钟界面使用英文</string>
+    <string name="clock_language_settings_group">界面语言</string>
+    <string name="clock_use_english">使用英文界面</string>
+    <string name="date_format_settings_group">日期格式</string>
+    <string name="date_format_date_label">日期</string>
+    <string name="date_format_weekday_label">星期</string>
+    <string name="date_format_custom">自定义…</string>
+    <string name="date_format_custom_hint">输入格式，如 yyyy年M月d日 EEEE</string>
+    <string name="date_format_custom_invalid">格式无效，请检查</string>
+    <string name="date_format_preview">预览：%1$s</string>
+    <string name="custom_message_settings_group">自定义留言</string>
+    <string name="custom_message_hint">输入要显示在天气行的留言（留空则不显示）</string>
     <string name="weather_settings_group">天气</string>
     <string name="show_weather">显示实时天气</string>
     <string name="show_detailed_weather">显示详细天气信息</string>
@@ -153,4 +162,79 @@
     <string name="weather_attribution">天气服务由和风天气驱动</string>
     <string name="weather_attribution_prefix">天气服务由</string>
     <string name="weather_attribution_brand">和风天气 驱动</string>
+
+    <!-- Weather status & detail labels (extracted from Java for localization) -->
+    <string name="weather_fetching">正在获取天气…</string>
+    <string name="weather_permission_denied">未授予定位权限</string>
+    <string name="weather_waiting_permission">等待定位权限…</string>
+    <string name="weather_location_unavailable">无法获取当前位置</string>
+    <string name="weather_not_configured">天气服务未配置</string>
+    <string name="weather_fetch_failed">天气获取失败：%1$s</string>
+    <string name="forecast_fetching">正在获取天气预报…</string>
+    <string name="forecast_fetch_failed">天气预报获取失败：%1$s</string>
+    <string name="weather_feels_format">体感 %1$s ℃</string>
+    <string name="weather_humidity_format">湿度 %1$s%%</string>
+    <string name="weather_wind_scale_format">%1$s 级</string>
+    <string name="weather_precip_format">降水 %1$s mm</string>
+    <string name="weather_air_format">空气 %1$s</string>
+    <string name="weather_warning_suffix">预警</string>
+
+    <!-- Calendar labels (extracted from Java; lunar/almanac content stays Chinese) -->
+    <string name="calendar_month_short">%1$d 月</string>
+    <string name="calendar_day_rest">，休息日</string>
+    <string name="calendar_day_makeup">，调休上班</string>
+    <string name="calendar_today_prefix">今天，</string>
+    <string name="calendar_selected_suffix">，已选择</string>
+    <string name="calendar_suitable_prefix">"宜 "</string>
+    <string name="calendar_avoid_prefix">"忌 "</string>
+
+    <string-array name="region_names">
+        <item>跟随系统</item>
+        <item>中国（北京）</item>
+        <item>中国（乌鲁木齐）</item>
+        <item>中国香港</item>
+        <item>中国澳门</item>
+        <item>中国台湾（台北）</item>
+        <item>日本（东京）</item>
+        <item>韩国（首尔）</item>
+        <item>新加坡</item>
+        <item>泰国（曼谷）</item>
+        <item>印度尼西亚（雅加达）</item>
+        <item>印度（加尔各答）</item>
+        <item>阿联酋（迪拜）</item>
+        <item>俄罗斯（莫斯科）</item>
+        <item>英国（伦敦）</item>
+        <item>法国（巴黎）</item>
+        <item>德国（柏林）</item>
+        <item>土耳其（伊斯坦布尔）</item>
+        <item>南非（约翰内斯堡）</item>
+        <item>埃及（开罗）</item>
+        <item>巴西（圣保罗）</item>
+        <item>阿根廷（布宜诺斯艾利斯）</item>
+        <item>美国东部（纽约）</item>
+        <item>美国中部（芝加哥）</item>
+        <item>美国山区（丹佛）</item>
+        <item>美国太平洋（洛杉矶）</item>
+        <item>美国阿拉斯加</item>
+        <item>美国夏威夷</item>
+        <item>加拿大（多伦多）</item>
+        <item>墨西哥（墨西哥城）</item>
+        <item>澳大利亚（悉尼）</item>
+        <item>澳大利亚（珀斯）</item>
+        <item>新西兰（奥克兰）</item>
+    </string-array>
+    <string-array name="calendar_weekday_names">
+        <item>日</item>
+        <item>一</item>
+        <item>二</item>
+        <item>三</item>
+        <item>四</item>
+        <item>五</item>
+        <item>六</item>
+    </string-array>
+    <string-array name="forecast_day_labels">
+        <item>今天</item>
+        <item>明天</item>
+        <item>后天</item>
+    </string-array>
 </resources>

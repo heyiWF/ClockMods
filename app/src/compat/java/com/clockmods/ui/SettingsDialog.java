@@ -42,6 +42,8 @@ public class SettingsDialog extends Dialog {
         void onChooseImage();
         void onFontSettingsApplied();
         void onDismissed();
+        /** Called when the interface language changed and the host should recreate itself. */
+        void onLanguageChanged();
     }
 
     private interface SwatchListener {
@@ -118,6 +120,15 @@ public class SettingsDialog extends Dialog {
     private final Button weatherLocationButton;
     private final Spinner weatherIntervalSpinner;
     private final Switch weatherDetailedSwitch;
+    // ---- Date-format section (rebuilt when the interface language toggles) ----
+    private LinearLayout dateFormatContainer;
+    private boolean dateSectionEnglish;
+    private final boolean originalClockUseEnglish;
+    private String pendingDatePatternCn;
+    private String pendingDatePatternEn;
+    private Spinner dateFixedSpinner;
+    private TextView datePreviewLabel;
+    private final android.widget.EditText customMessageInput;
     private String selectedWeatherLocationId;
     private String selectedWeatherProvince;
     private String selectedWeatherCity;
@@ -441,6 +452,33 @@ public class SettingsDialog extends Dialog {
         tintCompoundButton(clockUseEnglishSwitch);
         clockUseEnglishSwitch.setChecked(repository.isClockUseEnglish());
         functionContent.addView(clockUseEnglishSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        originalClockUseEnglish = repository.isClockUseEnglish();
+
+        functionContent.addView(createSectionLabel(context, R.string.date_format_settings_group),
+            topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(18)));
+        dateFormatContainer = new LinearLayout(context);
+        dateFormatContainer.setOrientation(LinearLayout.VERTICAL);
+        functionContent.addView(dateFormatContainer,
+            topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(4)));
+        pendingDatePatternCn = repository.getDatePatternCn();
+        pendingDatePatternEn = repository.getDatePatternEn();
+        dateSectionEnglish = originalClockUseEnglish;
+        rebuildDateFormatSection(context, dateSectionEnglish);
+        clockUseEnglishSwitch.setOnCheckedChangeListener((button, checked) -> {
+            captureDateSectionInto(dateSectionEnglish);
+            dateSectionEnglish = checked;
+            rebuildDateFormatSection(context, checked);
+        });
+
+        functionContent.addView(createSectionLabel(context, R.string.custom_message_settings_group),
+            topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(18)));
+        customMessageInput = new android.widget.EditText(context);
+        customMessageInput.setSingleLine(true);
+        customMessageInput.setHint(R.string.custom_message_hint);
+        customMessageInput.setTextColor(COLOR_PRIMARY_TEXT);
+        customMessageInput.setHintTextColor(COLOR_SECONDARY_TEXT);
+        customMessageInput.setText(repository.getCustomMessage());
+        functionContent.addView(customMessageInput, topMargin(matchWrap(dp(48)), dp(4)));
 
         functionContent.addView(createSectionLabel(context, R.string.weather_settings_group),
             topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(18)));
@@ -812,9 +850,13 @@ public class SettingsDialog extends Dialog {
         return 60;
     }
 
+    private String[] regionNames() {
+        return getContext().getResources().getStringArray(R.array.region_names);
+    }
+
     private String regionSummary() {
         return getContext().getString(R.string.region_time_zone) + ": "
-                + RegionTimeZones.DISPLAY_NAMES[selectedRegionIndex];
+                + regionNames()[selectedRegionIndex];
     }
 
     private void updateFunctionLockedState(boolean enabled) {
@@ -835,7 +877,7 @@ public class SettingsDialog extends Dialog {
     private void showRegionChooser() {
         new AlertDialog.Builder(getContext())
                 .setTitle(R.string.select_region)
-                .setSingleChoiceItems(RegionTimeZones.DISPLAY_NAMES, selectedRegionIndex,
+                .setSingleChoiceItems(regionNames(), selectedRegionIndex,
                         (DialogInterface dialog, int which) -> {
                             selectedRegionIndex = which;
                             regionButton.setText(regionSummary());
@@ -875,6 +917,10 @@ public class SettingsDialog extends Dialog {
         showLunarSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_LUNAR);
         use24HourSwitch.setChecked(ClockPreferences.DEFAULT_USE_24_HOUR);
         clockUseEnglishSwitch.setChecked(ClockPreferences.DEFAULT_CLOCK_USE_ENGLISH);
+        pendingDatePatternCn = ClockPreferences.DEFAULT_DATE_PATTERN_CN;
+        pendingDatePatternEn = ClockPreferences.DEFAULT_DATE_PATTERN_EN;
+        rebuildDateFormatSection(getContext(), dateSectionEnglish);
+        customMessageInput.setText(ClockPreferences.DEFAULT_CUSTOM_MESSAGE);
         orientationSelector.setSelectedIndex(ClockPreferences.DEFAULT_SCREEN_ORIENTATION);
         weatherSwitch.setChecked(ClockPreferences.DEFAULT_WEATHER_ENABLED);
         weatherLocationModeSpinner.setSelection(0);
@@ -915,6 +961,10 @@ public class SettingsDialog extends Dialog {
         repository.setShowLunar(showLunarSwitch.isChecked());
         repository.setUse24Hour(use24HourSwitch.isChecked());
         repository.setClockUseEnglish(clockUseEnglishSwitch.isChecked());
+        captureDateSectionInto(dateSectionEnglish);
+        repository.setDatePatternCn(pendingDatePatternCn);
+        repository.setDatePatternEn(pendingDatePatternEn);
+        repository.setCustomMessage(customMessageInput.getText().toString());
         repository.setScreenOrientation(orientationSelector.getSelectedIndex());
         repository.setDimBackground(dimBackgroundSwitch.isChecked());
         repository.setScheduleDimBackground(scheduleDimBackgroundSwitch.isChecked());
@@ -942,7 +992,89 @@ public class SettingsDialog extends Dialog {
         } else {
             listener.onColorApplied(backgroundPicker.getColor());
         }
+        if (clockUseEnglishSwitch.isChecked() != originalClockUseEnglish) {
+            listener.onLanguageChanged();
+        }
         dismiss();
+    }
+
+    private static DateFormatter.Lang langOf(boolean english) {
+        return english ? DateFormatter.Lang.ENGLISH : DateFormatter.Lang.CHINESE;
+    }
+
+    private void rebuildDateFormatSection(Context context, boolean english) {
+        dateFormatContainer.removeAllViews();
+        DateFormatter.Lang lang = langOf(english);
+        final String[] fixed = DateFormatter.fixedFormats(lang);
+        String[] labels = new String[fixed.length];
+        for (int i = 0; i < fixed.length; i++) {
+            labels[i] = DateFormatter.preview(fixed[i], lang);
+        }
+        int selection = indexOf(fixed, pendingPattern(english));
+        if (selection < 0) {
+            selection = 0;
+        }
+        setPendingPattern(english, fixed[selection]);
+        dateFixedSpinner = new Spinner(context);
+        ArrayAdapter<String> adapter = new ArrayAdapter<>(context,
+                android.R.layout.simple_spinner_item, labels);
+        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
+        dateFixedSpinner.setAdapter(adapter);
+        dateFixedSpinner.setSelection(selection);
+        dateFormatContainer.addView(dateFixedSpinner, topMargin(matchWrap(dp(48)), dp(4)));
+        dateFixedSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
+            @Override public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
+                setPendingPattern(english, fixed[(pos < 0 || pos >= fixed.length) ? 0 : pos]);
+                updateDatePreview(english);
+            }
+            @Override public void onNothingSelected(AdapterView<?> parent) { }
+        });
+        datePreviewLabel = new TextView(context);
+        datePreviewLabel.setTextColor(COLOR_SECONDARY_TEXT);
+        dateFormatContainer.addView(datePreviewLabel,
+                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(8)));
+        updateDatePreview(english);
+    }
+
+    private void updateDatePreview(boolean english) {
+        if (datePreviewLabel == null) {
+            return;
+        }
+        String rendered = DateFormatter.preview(pendingPattern(english), langOf(english));
+        datePreviewLabel.setText(getContext().getString(R.string.date_format_preview, rendered));
+    }
+
+    private void captureDateSectionInto(boolean english) {
+        if (dateFixedSpinner == null) {
+            return;
+        }
+        String[] fixed = DateFormatter.fixedFormats(langOf(english));
+        int pos = dateFixedSpinner.getSelectedItemPosition();
+        setPendingPattern(english, fixed[(pos < 0 || pos >= fixed.length) ? 0 : pos]);
+    }
+
+    private static int indexOf(String[] values, String target) {
+        if (target == null || target.length() == 0) {
+            return -1;
+        }
+        for (int i = 0; i < values.length; i++) {
+            if (target.equals(values[i])) {
+                return i;
+            }
+        }
+        return -1;
+    }
+
+    private String pendingPattern(boolean english) {
+        return english ? pendingDatePatternEn : pendingDatePatternCn;
+    }
+
+    private void setPendingPattern(boolean english, String pattern) {
+        if (english) {
+            pendingDatePatternEn = pattern;
+        } else {
+            pendingDatePatternCn = pattern;
+        }
     }
 
     private static int scaleToProgress(float scale) {
@@ -962,7 +1094,7 @@ public class SettingsDialog extends Dialog {
     private Spinner createFontFamilySpinner(Context context, String family) {
         Spinner spinner = new Spinner(context);
         spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item,
-                com.clockmods.background.FontCatalog.displayNames()));
+                com.clockmods.background.FontCatalog.displayNames(context)));
         spinner.setSelection(com.clockmods.background.FontCatalog.indexOf(family));
         return spinner;
     }

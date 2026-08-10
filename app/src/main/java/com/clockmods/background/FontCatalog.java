@@ -1,6 +1,9 @@
 package com.clockmods.background;
 
+import android.content.Context;
+
 import com.clockmods.BuildConfig;
+import com.clockmods.R;
 
 import java.util.ArrayList;
 import java.util.Collections;
@@ -118,6 +121,20 @@ public final class FontCatalog {
         String[] names = new String[OPTIONS.size()];
         for (int i = 0; i < OPTIONS.size(); i++) {
             names[i] = OPTIONS.get(i).displayName;
+        }
+        return names;
+    }
+
+    /**
+     * Display names in catalog order, with the system font's name localized from resources
+     * (the other families are brand names shown verbatim in every language).
+     */
+    public static String[] displayNames(Context context) {
+        String[] names = displayNames();
+        for (int i = 0; i < OPTIONS.size(); i++) {
+            if (OPTIONS.get(i).isSystem()) {
+                names[i] = context.getString(R.string.font_system);
+            }
         }
         return names;
     }

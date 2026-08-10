@@ -10,6 +10,8 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 
+import com.clockmods.LocaleManager;
+import com.clockmods.R;
 import com.clockmods.background.ClockPreferences;
 
 import java.util.concurrent.ExecutorService;
@@ -80,15 +82,15 @@ public final class WeatherController {
             return;
         }
         if (isManualLocation()) {
-            listener.onWeatherState(WeatherState.of(Status.LOADING, "正在获取天气…"));
+            listener.onWeatherState(WeatherState.of(Status.LOADING, msg(R.string.weather_fetching)));
             fetchManual(++generation);
             return;
         }
         if (!hasLocationPermission()) {
-            listener.onWeatherState(WeatherState.of(Status.PERMISSION_DENIED, "未授予定位权限"));
+            listener.onWeatherState(WeatherState.of(Status.PERMISSION_DENIED, msg(R.string.weather_permission_denied)));
             return;
         }
-        listener.onWeatherState(WeatherState.of(Status.LOADING, "正在获取天气…"));
+        listener.onWeatherState(WeatherState.of(Status.LOADING, msg(R.string.weather_fetching)));
         requestLocation();
     }
 
@@ -119,7 +121,7 @@ public final class WeatherController {
             requested = true;
         }
         if (!requested) {
-            listener.onWeatherState(WeatherState.of(Status.LOCATION_UNAVAILABLE, "无法获取当前位置"));
+            listener.onWeatherState(WeatherState.of(Status.LOCATION_UNAVAILABLE, msg(R.string.weather_location_unavailable)));
             schedule(intervalMinutes * 60L * 1000L);
             return;
         }
@@ -130,7 +132,7 @@ public final class WeatherController {
                 removeLocationListener();
                 if (fallback != null) fetch(fallback, requestGeneration);
                 else {
-                    listener.onWeatherState(WeatherState.of(Status.LOCATION_UNAVAILABLE, "无法获取当前位置"));
+                    listener.onWeatherState(WeatherState.of(Status.LOCATION_UNAVAILABLE, msg(R.string.weather_location_unavailable)));
                     schedule(intervalMinutes * 60L * 1000L);
                 }
             }
@@ -139,7 +141,7 @@ public final class WeatherController {
 
     private void fetch(final Location location, final int requestGeneration) {
         if (!QWeatherConfig.isConfigured()) {
-            listener.onWeatherState(WeatherState.of(Status.CONFIG_ERROR, "天气服务未配置"));
+            listener.onWeatherState(WeatherState.of(Status.CONFIG_ERROR, msg(R.string.weather_not_configured)));
             return;
         }
         executor.execute(new Runnable() {
@@ -161,7 +163,7 @@ public final class WeatherController {
                         @Override public void run() {
                             if (!running || requestGeneration != generation) return;
                             listener.onWeatherState(WeatherState.of(Status.NETWORK_ERROR,
-                                    "天气获取失败：" + describeError(error)));
+                                    msg(R.string.weather_fetch_failed, describeError(error))));
                             schedule(intervalMinutes * 60L * 1000L);
                         }
                     });
@@ -172,7 +174,7 @@ public final class WeatherController {
 
     private void fetchManual(final int requestGeneration) {
         if (!QWeatherConfig.isConfigured()) {
-            listener.onWeatherState(WeatherState.of(Status.CONFIG_ERROR, "天气服务未配置"));
+            listener.onWeatherState(WeatherState.of(Status.CONFIG_ERROR, msg(R.string.weather_not_configured)));
             return;
         }
         final String locationId = preferences.getWeatherLocationId();
@@ -206,7 +208,7 @@ public final class WeatherController {
                         @Override public void run() {
                             if (!running || requestGeneration != generation) return;
                             listener.onWeatherState(WeatherState.of(Status.NETWORK_ERROR,
-                                    "天气获取失败：" + describeError(error)));
+                                    msg(R.string.weather_fetch_failed, describeError(error))));
                             schedule(intervalMinutes * 60L * 1000L);
                         }
                     });
@@ -257,5 +259,13 @@ public final class WeatherController {
         String message = error.getMessage();
         if (message != null && message.trim().length() > 0) return message.trim();
         return error.getClass().getSimpleName();
+    }
+
+    private String msg(int resId) {
+        return LocaleManager.wrap(context).getString(resId);
+    }
+
+    private String msg(int resId, Object... args) {
+        return LocaleManager.wrap(context).getString(resId, args);
     }
 }

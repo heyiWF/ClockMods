@@ -146,7 +146,7 @@ public final class ProClockFragment extends Fragment {
                         != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[] {Manifest.permission.ACCESS_COARSE_LOCATION,
                     Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION);
-            clockView.setWeatherMessage("等待定位权限…");
+            clockView.setWeatherMessage(getString(R.string.weather_waiting_permission));
             return;
         }
         weatherController.start(repository.getWeatherIntervalMinutes());
@@ -165,7 +165,7 @@ public final class ProClockFragment extends Fragment {
             weatherController.start(new BackgroundRepository(requireContext())
                     .getWeatherIntervalMinutes());
         } else if (clockView != null) {
-            clockView.setWeatherMessage("未授予定位权限");
+            clockView.setWeatherMessage(getString(R.string.weather_permission_denied));
         }
     }
 }

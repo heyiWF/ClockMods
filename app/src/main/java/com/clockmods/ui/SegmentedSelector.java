@@ -2,7 +2,9 @@ package com.clockmods.ui;
 
 import android.content.Context;
 import android.graphics.Color;
+import android.graphics.drawable.Drawable;
 import android.graphics.drawable.GradientDrawable;
+import android.os.Build;
 import android.view.Gravity;
 import android.view.View;
 import android.widget.LinearLayout;
@@ -35,7 +37,7 @@ public final class SegmentedSelector extends LinearLayout {
         setOrientation(HORIZONTAL);
         setGravity(Gravity.CENTER_VERTICAL);
         setPadding(dp(3), dp(3), dp(3), dp(3));
-        setBackground(createBackground(unselectedColor, dp(10), 0, Color.TRANSPARENT));
+        setViewBackground(this, createBackground(unselectedColor, dp(10), 0, Color.TRANSPARENT));
 
         for (int index = 0; index < labels.length; index++) {
             final int segmentIndex = index;
@@ -78,7 +80,7 @@ public final class SegmentedSelector extends LinearLayout {
             boolean selected = index == selectedIndex;
             segment.setSelected(selected);
             segment.setTextColor(selected ? selectedTextColor : unselectedTextColor);
-            segment.setBackground(selected
+            setViewBackground(segment, selected
                     ? createBackground(selectedColor, dp(8), 0, Color.TRANSPARENT)
                     : createBackground(Color.TRANSPARENT, dp(8), 0, Color.TRANSPARENT));
             if (animate && selected) {
@@ -103,5 +105,14 @@ public final class SegmentedSelector extends LinearLayout {
 
     private int dp(int value) {
         return Math.round(value * getResources().getDisplayMetrics().density);
+    }
+
+    @SuppressWarnings("deprecation")
+    private static void setViewBackground(View view, Drawable drawable) {
+        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
+            view.setBackground(drawable);
+        } else {
+            view.setBackgroundDrawable(drawable);
+        }
     }
 }

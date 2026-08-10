@@ -10,6 +10,8 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 
+import com.clockmods.LocaleManager;
+import com.clockmods.R;
 import com.clockmods.background.ClockPreferences;
 
 import java.util.TimeZone;
@@ -60,12 +62,12 @@ public final class DailyForecastController {
     public void refreshNow() {
         if (!running) return;
         if (isManualLocation()) {
-            listener.onDailyForecastState(DailyForecastState.of(Status.LOADING, "正在获取天气预报…"));
+            listener.onDailyForecastState(DailyForecastState.of(Status.LOADING, msg(R.string.forecast_fetching)));
             fetchManual(++generation);
         } else if (!hasLocationPermission()) {
-            listener.onDailyForecastState(DailyForecastState.of(Status.PERMISSION_DENIED, "未授予定位权限"));
+            listener.onDailyForecastState(DailyForecastState.of(Status.PERMISSION_DENIED, msg(R.string.weather_permission_denied)));
         } else {
-            listener.onDailyForecastState(DailyForecastState.of(Status.LOADING, "正在获取天气预报…"));
+            listener.onDailyForecastState(DailyForecastState.of(Status.LOADING, msg(R.string.forecast_fetching)));
             requestLocation();
         }
     }
@@ -107,7 +109,7 @@ public final class DailyForecastController {
             requested = true;
         }
         if (!requested) {
-            listener.onDailyForecastState(DailyForecastState.of(Status.LOCATION_UNAVAILABLE, "无法获取当前位置"));
+            listener.onDailyForecastState(DailyForecastState.of(Status.LOCATION_UNAVAILABLE, msg(R.string.weather_location_unavailable)));
             return;
         }
         handler.postDelayed(() -> {
@@ -115,7 +117,7 @@ public final class DailyForecastController {
             stopLocation();
             if (fallback != null) fetchAutomatic(fallback, requestGeneration);
             else listener.onDailyForecastState(DailyForecastState.of(
-                    Status.LOCATION_UNAVAILABLE, "无法获取当前位置"));
+                    Status.LOCATION_UNAVAILABLE, msg(R.string.weather_location_unavailable)));
         }, LOCATION_TIMEOUT_MS);
     }
 
@@ -136,7 +138,7 @@ public final class DailyForecastController {
 
     private void fetch(final int requestGeneration, final ForecastRequest request, final String source) {
         if (!QWeatherConfig.isConfigured()) {
-            listener.onDailyForecastState(DailyForecastState.of(Status.CONFIG_ERROR, "天气服务未配置"));
+            listener.onDailyForecastState(DailyForecastState.of(Status.CONFIG_ERROR, msg(R.string.weather_not_configured)));
             return;
         }
         executor.execute(() -> {
@@ -152,7 +154,7 @@ public final class DailyForecastController {
                 handler.post(() -> {
                     if (!running || requestGeneration != generation) return;
                     listener.onDailyForecastState(DailyForecastState.of(Status.NETWORK_ERROR,
-                            "天气预报获取失败：" + describeError(error)));
+                            msg(R.string.forecast_fetch_failed, describeError(error))));
                 });
             }
         });
@@ -216,6 +218,14 @@ public final class DailyForecastController {
         String message = error.getMessage();
         return message == null || message.trim().length() == 0
                 ? error.getClass().getSimpleName() : message.trim();
+    }
+
+    private String msg(int resId) {
+        return LocaleManager.wrap(context).getString(resId);
+    }
+
+    private String msg(int resId, Object... args) {
+        return LocaleManager.wrap(context).getString(resId, args);
     }
 
     private interface ForecastRequest { DailyForecastData execute() throws Exception; }

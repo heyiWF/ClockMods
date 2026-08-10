@@ -1,8 +1,10 @@
 package com.clockmods.pro;
 
 import android.Manifest;
+import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -22,6 +24,7 @@ import androidx.appcompat.app.AppCompatActivity;
 import androidx.viewpager2.widget.ViewPager2;
 
 import com.clockmods.R;
+import com.clockmods.LocaleManager;
 import com.clockmods.background.BackgroundRepository;
 import com.clockmods.background.ClockPreferences;
 import com.clockmods.platform.ExperienceBridge;
@@ -54,6 +57,20 @@ public final class ProMainActivity extends AppCompatActivity {
     private HourlyChimeController hourlyChimeController;
     private final ExecutorService imageExecutor = Executors.newSingleThreadExecutor();
     private int selectedPage = ProPage.CLOCK.ordinal();
+
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(LocaleManager.wrap(base));
+    }
+
+    @Override
+    public void applyOverrideConfiguration(Configuration overrideConfiguration) {
+        // AppCompat resets the locale to the system default here; re-assert the chosen one.
+        if (overrideConfiguration != null) {
+            overrideConfiguration.setLocale(LocaleManager.resolveLocale(this));
+        }
+        super.applyOverrideConfiguration(overrideConfiguration);
+    }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -182,6 +199,7 @@ public final class ProMainActivity extends AppCompatActivity {
             }
             @Override public void onFontSettingsApplied() { refreshSettingsPages(); }
             @Override public void onDismissed() { updateChromeForPage(); }
+            @Override public void onLanguageChanged() { recreate(); }
         });
         dialog.show();
         ProFontApplier.apply(dialog.getWindow().getDecorView());

@@ -53,6 +53,11 @@ public class MainActivity extends Activity {
         }
     };
 
+    @Override
+    protected void attachBaseContext(Context base) {
+        super.attachBaseContext(LocaleManager.wrap(base));
+    }
+
     @SuppressLint("ClickableViewAccessibility")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -184,6 +189,11 @@ public class MainActivity extends Activity {
             public void onDismissed() {
                 hideSystemBars();
             }
+
+            @Override
+            public void onLanguageChanged() {
+                recreate();
+            }
         });
         dialog.show();
     }
@@ -218,7 +228,7 @@ public class MainActivity extends Activity {
                 != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[] {Manifest.permission.ACCESS_COARSE_LOCATION,
                     Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION);
-            clockView.setWeatherMessage("等待定位权限…");
+            clockView.setWeatherMessage(getString(R.string.weather_waiting_permission));
             return;
         }
         weatherController.start(backgroundRepository.getWeatherIntervalMinutes());
@@ -231,7 +241,7 @@ public class MainActivity extends Activity {
         boolean granted = false;
         for (int result : grantResults) if (result == PackageManager.PERMISSION_GRANTED) granted = true;
         if (granted) weatherController.start(backgroundRepository.getWeatherIntervalMinutes());
-        else clockView.setWeatherMessage("未授予定位权限");
+        else clockView.setWeatherMessage(getString(R.string.weather_permission_denied));
     }
 
     private void launchImagePicker() {

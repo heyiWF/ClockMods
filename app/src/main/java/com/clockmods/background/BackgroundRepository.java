@@ -229,6 +229,51 @@ public class BackgroundRepository {
         preferences.setClockUseEnglish(useEnglish);
     }
 
+    public String getCustomMessage() {
+        return preferences.getCustomMessage();
+    }
+
+    public void setCustomMessage(String message) {
+        preferences.setCustomMessage(message);
+    }
+
+    public String getDatePatternCn() {
+        return preferences.getDatePatternCn();
+    }
+
+    public void setDatePatternCn(String pattern) {
+        preferences.setDatePatternCn(pattern);
+    }
+
+    public String getDatePatternEn() {
+        return preferences.getDatePatternEn();
+    }
+
+    public void setDatePatternEn(String pattern) {
+        preferences.setDatePatternEn(pattern);
+    }
+
+    public String getDateCore(boolean english) {
+        return preferences.getDateCore(english);
+    }
+
+    public String getDateCombo(boolean english) {
+        return preferences.getDateCombo(english);
+    }
+
+    public boolean isDateCustomEnabled(boolean english) {
+        return preferences.isDateCustomEnabled(english);
+    }
+
+    public String getDateCustomText(boolean english) {
+        return preferences.getDateCustomText(english);
+    }
+
+    public void setDateFormatState(boolean english, String core, String combo,
+            boolean customEnabled, String customText) {
+        preferences.setDateFormatState(english, core, combo, customEnabled, customText);
+    }
+
     public int getScreenOrientation() {
         return preferences.getScreenOrientation();
     }

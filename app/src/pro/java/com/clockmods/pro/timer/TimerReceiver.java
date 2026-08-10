@@ -9,6 +9,7 @@ import android.content.Intent;
 
 import androidx.core.app.NotificationCompat;
 
+import com.clockmods.LocaleManager;
 import com.clockmods.R;
 import com.clockmods.pro.ProMainActivity;
 
@@ -17,18 +18,19 @@ public final class TimerReceiver extends BroadcastReceiver {
 
     @Override public void onReceive(Context context, Intent intent) {
         String mode = intent.getStringExtra("mode");
+        Context localized = LocaleManager.wrap(context);
         NotificationManager manager = context.getSystemService(NotificationManager.class);
         manager.createNotificationChannel(new NotificationChannel(CHANNEL_ID,
-                context.getString(R.string.timer_channel), NotificationManager.IMPORTANCE_HIGH));
+                localized.getString(R.string.timer_channel), NotificationManager.IMPORTANCE_HIGH));
         PendingIntent open = PendingIntent.getActivity(context, 203,
                 new Intent(context, ProMainActivity.class),
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         boolean pomodoro = "pomodoro".equals(mode);
         manager.notify(pomodoro ? 201 : 202, new NotificationCompat.Builder(context, CHANNEL_ID)
                 .setSmallIcon(R.mipmap.ic_launcher)
-                .setContentTitle(context.getString(pomodoro
+                .setContentTitle(localized.getString(pomodoro
                         ? R.string.pomodoro_complete : R.string.countdown_complete))
-                .setContentText(context.getString(R.string.timer_complete_open))
+                .setContentText(localized.getString(R.string.timer_complete_open))
                 .setPriority(NotificationCompat.PRIORITY_HIGH)
                 .setAutoCancel(true)
                 .setContentIntent(open)

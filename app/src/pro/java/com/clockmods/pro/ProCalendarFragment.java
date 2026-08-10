@@ -32,6 +32,7 @@ import com.clockmods.ui.CalendarFooterCarouselView;
 import com.clockmods.ui.CalendarLabelCarouselView;
 import com.clockmods.ui.ClockTimeFormatter;
 import com.clockmods.ui.ClockTypefaceResolver;
+import com.clockmods.ui.DateFormatter;
 import com.clockmods.ui.StatusBarView;
 import com.clockmods.ui.WeatherIconView;
 import com.clockmods.weather.DailyForecastController;
@@ -47,8 +48,6 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 public final class ProCalendarFragment extends Fragment {
-    private static final String[] WEEKDAYS = {"日", "一", "二", "三", "四", "五", "六"};
-    private static final String[] FORECAST_LABELS = {"今天", "明天", "后天"};
     private static final String STATE_MONTH = "visible_month";
     private static final String STATE_SELECTED = "selected_date";
     // These only keep the quick-jump picker compact. Month paging is intentionally not clamped;
@@ -267,14 +266,18 @@ public final class ProCalendarFragment extends Fragment {
         }
         WeatherModels.WeatherDisplayData data = state.data;
         currentWeatherIcon.setIconCode(data.icon);
-        currentTemperature.setText(data.temperature + "℃");
+        currentTemperature.setText(data.temperature + " ℃");
         String feel = data.detail == null || empty(data.detail.feelsLike) ? "--" : data.detail.feelsLike;
-        feelsLike.setText(feel + "℃");
+        feelsLike.setText(feel + " ℃");
         StringBuilder summary = new StringBuilder(WeatherModels.locationText(data.city, data.district));
         append(summary, data.text);
         if (data.detail != null) {
-            append(summary, join(data.detail.windDir, empty(data.detail.windScale) ? "" : data.detail.windScale + "级"));
-            if (!empty(data.detail.humidity)) append(summary, "湿度 " + data.detail.humidity + "%");
+            String scale = empty(data.detail.windScale) ? ""
+                    : getString(R.string.weather_wind_scale_format, data.detail.windScale);
+            append(summary, join(data.detail.windDir, scale));
+            if (!empty(data.detail.humidity)) {
+                append(summary, getString(R.string.weather_humidity_format, data.detail.humidity));
+            }
         }
         weatherSummary.setText(summary.toString());
     }
@@ -293,11 +296,12 @@ public final class ProCalendarFragment extends Fragment {
         Calendar date = Calendar.getInstance(appTimeZone());
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd", Locale.US);
         format.setTimeZone(appTimeZone());
+        String[] forecastLabels = getResources().getStringArray(R.array.forecast_day_labels);
         for (int index = 0; index < forecastColumns.length; index++) {
             LinearLayout column = forecastColumns[index];
             column.removeAllViews();
             WeatherModels.DailyForecast forecast = state.data.findByDate(format.format(date.getTime()));
-                addForecastText(column, FORECAST_LABELS[index],
+                addForecastText(column, forecastLabels[index],
                     R.dimen.calendar_forecast_label_size, index == 0);
             if (forecast != null) {
                 WeatherIconView icon = new WeatherIconView(requireContext());
@@ -310,7 +314,7 @@ public final class ProCalendarFragment extends Fragment {
                 iconParams.setMargins(0, iconGap, 0, iconGap);
                 column.addView(icon, iconParams);
                 addForecastText(column, forecast.textDay, R.dimen.calendar_forecast_text_size, false);
-                addForecastText(column, forecast.tempMin + " - " + forecast.tempMax + "℃",
+                addForecastText(column, forecast.tempMin + " - " + forecast.tempMax + " ℃",
                         R.dimen.calendar_forecast_text_size, false);
             } else addForecastText(column, getString(R.string.calendar_forecast_unavailable),
                     R.dimen.calendar_forecast_text_size, false);
@@ -340,13 +344,14 @@ public final class ProCalendarFragment extends Fragment {
 
     private void populateWeekdays() {
         weekdayGrid.removeAllViews();
+        String[] weekdayNames = getResources().getStringArray(R.array.calendar_weekday_names);
         int firstDayOfWeek = preferences.getCalendarWeekStart();
         boolean highlightWeekends = preferences.isCalendarHighlightWeekends();
         for (int offset = 0; offset < 7; offset++) {
             int dayOfWeek = (firstDayOfWeek - Calendar.SUNDAY + offset) % 7
                     + Calendar.SUNDAY;
             TextView label = new TextView(requireContext());
-            label.setText(WEEKDAYS[dayOfWeek - Calendar.SUNDAY]);
+            label.setText(weekdayNames[dayOfWeek - Calendar.SUNDAY]);
             label.setGravity(Gravity.CENTER);
             label.setTextSize(TypedValue.COMPLEX_UNIT_PX,
                     getResources().getDimension(R.dimen.calendar_weekday_text_size));
@@ -470,7 +475,7 @@ public final class ProCalendarFragment extends Fragment {
 
         String[] monthLabels = new String[12];
         for (int index = 0; index < 12; index++) {
-            monthLabels[index] = (index + 1) + " 月";
+            monthLabels[index] = getString(R.string.calendar_month_short, index + 1);
         }
         NumberPicker monthPicker = new NumberPicker(requireContext());
         monthPicker.setMinValue(0);
@@ -510,7 +515,9 @@ public final class ProCalendarFragment extends Fragment {
         TimeZone zone = appTimeZone();
         visibleMonth.setTimeZone(zone); selectedDate.setTimeZone(zone);
         int year = visibleMonth.get(Calendar.YEAR), month = visibleMonth.get(Calendar.MONTH);
-        title.setText(String.format(Locale.CHINA, "%d 年 %d 月", year, month + 1));
+        boolean english = preferences.isClockUseEnglish();
+        title.setText(DateFormatter.format(english ? "MMMM yyyy" : "yyyy年M月", visibleMonth,
+                english ? DateFormatter.Lang.ENGLISH : DateFormatter.Lang.CHINESE));
         CalendarMonth calendarMonth = CalendarMonth.create(year, month, zone,
                 System.currentTimeMillis(), preferences.getCalendarWeekStart());
         visibleCalendar = calendarMonth;
@@ -540,7 +547,8 @@ public final class ProCalendarFragment extends Fragment {
         }
         solar.setDay(String.valueOf(day.dayOfMonth), dayColor);
         if (status != null) {
-            solar.setBadge(status.offDay ? "休" : "班", status.offDay
+            solar.setBadge(status.offDay ? getString(R.string.calendar_day_status_off)
+                    : getString(R.string.calendar_day_status_work), status.offDay
                 ? getColor(R.color.calendar_dashboard_green)
                 : getColor(R.color.calendar_dashboard_amber));
         }
@@ -559,10 +567,18 @@ public final class ProCalendarFragment extends Fragment {
         if (interactive) labelCarousels.add(lunar);
         cell.addView(lunar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
             getResources().getDimensionPixelSize(R.dimen.calendar_label_height)));
-        String description = day.dayOfMonth + "日，农历" + almanac.shortLabel();
-        if (!labels.isEmpty()) description += "，" + android.text.TextUtils.join("，", labels);
-        if (status != null) description += status.offDay ? "，休息日" : "，调休上班";
-        if (day.today) description = "今天，" + description;
+        String description = getString(day.today
+                        ? R.string.calendar_day_today_accessibility
+                        : R.string.calendar_day_accessibility,
+                day.dayOfMonth, almanac.shortLabel());
+        if (!labels.isEmpty()) {
+            String sep = preferences.isClockUseEnglish() ? ", " : "，";
+            description += sep + android.text.TextUtils.join(sep, labels);
+        }
+        if (status != null) {
+            description += getString(status.offDay
+                    ? R.string.calendar_day_rest : R.string.calendar_day_makeup);
+        }
         cell.setTag(description);
         applyCellSelection(cell, day);
         cell.setClickable(interactive);
@@ -581,7 +597,8 @@ public final class ProCalendarFragment extends Fragment {
         cell.setPadding(left, top, right, bottom);
         Object base = cell.getTag();
         if (base instanceof String) {
-            cell.setContentDescription(selected ? base + "，已选择" : (String) base);
+            cell.setContentDescription(selected
+                    ? base + getString(R.string.calendar_selected_suffix) : (String) base);
         }
     }
 
@@ -618,12 +635,14 @@ public final class ProCalendarFragment extends Fragment {
     }
 
     private void updateFooter() {
-        String[] weekdays = {"星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"};
+        boolean english = preferences.isClockUseEnglish();
         LunarAlmanac almanac = LunarAlmanac.of(selectedDate.get(Calendar.YEAR),
                 selectedDate.get(Calendar.MONTH), selectedDate.get(Calendar.DAY_OF_MONTH));
-        String dateLine = getString(R.string.calendar_selected_date, selectedDate.get(Calendar.YEAR),
-                selectedDate.get(Calendar.MONTH) + 1, selectedDate.get(Calendar.DAY_OF_MONTH),
-                weekdays[selectedDate.get(Calendar.DAY_OF_WEEK) - 1], almanac.naturalLabel());
+        String datePattern = english ? preferences.getDatePatternEn() : preferences.getDatePatternCn();
+        String formattedDate = DateFormatter.format(datePattern, selectedDate,
+                english ? DateFormatter.Lang.ENGLISH : DateFormatter.Lang.CHINESE);
+        String dateLine = getString(R.string.calendar_selected_date,
+                formattedDate, almanac.naturalLabel());
         footer.setTypeface(ClockTypefaceResolver.resolveTime(requireContext(),
                 preferences.getFontFamily(), false));
         footer.setTextSizePx(getResources().getDimension(R.dimen.calendar_footer_text_size));
@@ -634,12 +653,14 @@ public final class ProCalendarFragment extends Fragment {
         List<String> ji = almanac.avoid();
         if (!yi.isEmpty()) {
             items.add(new CalendarFooterCarouselView.Item(
-                    "宜 " + android.text.TextUtils.join(" ", yi),
+                    getString(R.string.calendar_suitable_prefix)
+                            + android.text.TextUtils.join(" ", yi),
                     getColor(R.color.calendar_dashboard_green)));
         }
         if (!ji.isEmpty()) {
             items.add(new CalendarFooterCarouselView.Item(
-                    "忌 " + android.text.TextUtils.join(" ", ji),
+                    getString(R.string.calendar_avoid_prefix)
+                            + android.text.TextUtils.join(" ", ji),
                     getColor(R.color.calendar_dashboard_red)));
         }
         footer.setItems(items);
