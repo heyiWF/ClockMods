@@ -6,11 +6,12 @@ import android.content.res.Configuration;
 import android.os.Build;
 
 import com.clockmods.background.ClockPreferences;
+import com.clockmods.ui.DateFormatter;
 
 import java.util.Locale;
 
 /**
- * Applies the user's interface-language choice ({@link ClockPreferences#isClockUseEnglish()}) as an
+ * Applies the user's interface-language choice ({@link ClockPreferences#getClockLanguage()}) as an
  * Android resource-configuration locale, so every {@code getString(...)} lookup, system-formatted
  * value and layout direction follows the setting &mdash; not just the clock face.
  *
@@ -22,9 +23,27 @@ public final class LocaleManager {
     private LocaleManager() {
     }
 
-    /** @return the locale that matches the stored preference. */
+    /** @return the locale that matches the stored interface-language preference. */
     public static Locale resolveLocale(Context context) {
-        return new ClockPreferences(context).isClockUseEnglish() ? Locale.ENGLISH : Locale.CHINA;
+        String language = new ClockPreferences(context).getClockLanguage();
+        if (ClockPreferences.LANGUAGE_ENGLISH.equals(language)) {
+            return Locale.ENGLISH;
+        }
+        if (ClockPreferences.LANGUAGE_TRADITIONAL.equals(language)) {
+            return Locale.TRADITIONAL_CHINESE; // zh-TW -> res/values-zh-rTW
+        }
+        return Locale.CHINA; // zh-Hans (default) -> res/values
+    }
+
+    /** Maps a stored interface-language code to the matching {@link DateFormatter.Lang}. */
+    public static DateFormatter.Lang dateLang(String clockLanguage) {
+        if (ClockPreferences.LANGUAGE_ENGLISH.equals(clockLanguage)) {
+            return DateFormatter.Lang.ENGLISH;
+        }
+        if (ClockPreferences.LANGUAGE_TRADITIONAL.equals(clockLanguage)) {
+            return DateFormatter.Lang.TRADITIONAL;
+        }
+        return DateFormatter.Lang.CHINESE;
     }
 
     /**

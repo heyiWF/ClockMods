@@ -17,7 +17,7 @@ import java.util.TimeZone;
  *   <tr><td>{@code MMM}/{@code MMMM}</td><td>Aug / August (English) &middot; 八 (Chinese)</td></tr>
  *   <tr><td>{@code d}/{@code dd}</td><td>7 / 07 (Arabic day)</td></tr>
  *   <tr><td>{@code DD}</td><td>七 (Chinese-numeral day)</td></tr>
- *   <tr><td>{@code E}/{@code EEEE}</td><td>Fri / Friday (English) &middot; 周五 / 星期五 (Chinese)</td></tr>
+ *   <tr><td>{@code E}/{@code EEEE}</td><td>Fri / Friday (English) &middot; 周五 / 星期五 (Chinese) &middot; 週五 (Traditional short)</td></tr>
  * </table>
  *
  * <p>Any other character &mdash; separators, CJK, punctuation, emoji (surrogate pairs) &mdash; is
@@ -28,7 +28,11 @@ import java.util.TimeZone;
  * half-width spacing convention applies uniformly to every format (e.g. {@code 2026 年 8 月 7 日}).
  */
 public final class DateFormatter {
-    public enum Lang { CHINESE, ENGLISH }
+    /**
+     * Rendering language. {@code CHINESE} and {@code TRADITIONAL} share identical numerals, month
+     * and full-weekday forms; they differ only in the short weekday glyph (周五 vs 週五).
+     */
+    public enum Lang { CHINESE, TRADITIONAL, ENGLISH }
 
     /** Upper bound on a user-supplied pattern, guarding against pathological input. */
     public static final int MAX_PATTERN_LENGTH = 200;
@@ -38,6 +42,7 @@ public final class DateFormatter {
     private static final String[] CN_WEEK_FULL = {
             "星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"};
     private static final String[] CN_WEEK_SHORT = {"周日", "周一", "周二", "周三", "周四", "周五", "周六"};
+    private static final String[] CN_WEEK_SHORT_TW = {"週日", "週一", "週二", "週三", "週四", "週五", "週六"};
     private static final String[] EN_WEEK_FULL = {
             "Sunday", "Monday", "Tuesday", "Wednesday", "Thursday", "Friday", "Saturday"};
     private static final String[] EN_WEEK_SHORT = {"Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"};
@@ -266,7 +271,13 @@ public final class DateFormatter {
                         : Integer.toString(year));
                 break;
             case 'Y':
-                out.append(chineseYear(year, run == 3 ? '〇' : '零'));
+                // Chinese-numeral year token; degrades to an Arabic year in English so a mistyped
+                // token never injects Chinese numerals into an otherwise-English date.
+                if (lang == Lang.ENGLISH) {
+                    out.append(Integer.toString(year));
+                } else {
+                    out.append(chineseYear(year, run == 3 ? '〇' : '零'));
+                }
                 break;
             case 'M':
                 if (lang == Lang.ENGLISH) {
@@ -295,11 +306,18 @@ public final class DateFormatter {
                         : String.format(Locale.US, "%02d", day));
                 break;
             case 'D':
-                out.append(chineseCardinal(day));
+                // Chinese-numeral day token; degrades to an Arabic day in English for the same reason.
+                if (lang == Lang.ENGLISH) {
+                    out.append(Integer.toString(day));
+                } else {
+                    out.append(chineseCardinal(day));
+                }
                 break;
             case 'E':
                 if (lang == Lang.ENGLISH) {
                     out.append(run >= 4 ? EN_WEEK_FULL[dayOfWeek] : EN_WEEK_SHORT[dayOfWeek]);
+                } else if (lang == Lang.TRADITIONAL) {
+                    out.append(run >= 4 ? CN_WEEK_FULL[dayOfWeek] : CN_WEEK_SHORT_TW[dayOfWeek]);
                 } else {
                     out.append(run >= 4 ? CN_WEEK_FULL[dayOfWeek] : CN_WEEK_SHORT[dayOfWeek]);
                 }

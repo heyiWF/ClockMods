@@ -640,7 +640,7 @@ public final class ProCalendarFragment extends Fragment {
                 selectedDate.get(Calendar.MONTH), selectedDate.get(Calendar.DAY_OF_MONTH));
         String datePattern = english ? preferences.getDatePatternEn() : preferences.getDatePatternCn();
         String formattedDate = DateFormatter.format(datePattern, selectedDate,
-                english ? DateFormatter.Lang.ENGLISH : DateFormatter.Lang.CHINESE);
+                com.clockmods.LocaleManager.dateLang(preferences.getClockLanguage()));
         String dateLine = getString(R.string.calendar_selected_date,
                 formattedDate, almanac.naturalLabel());
         footer.setTypeface(ClockTypefaceResolver.resolveTime(requireContext(),

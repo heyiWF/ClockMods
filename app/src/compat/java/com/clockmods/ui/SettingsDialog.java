@@ -103,6 +103,7 @@ public class SettingsDialog extends Dialog {
     private final Switch showSecondsSwitch;
     private final Switch smallSecondsSwitch;
     private final Switch showLunarSwitch;
+    private final Switch dateLunarDualLineSwitch;
     private final Switch statusIconsSwitch;
     private final Switch use24HourSwitch;
     private final Switch clockUseEnglishSwitch;
@@ -361,6 +362,10 @@ public class SettingsDialog extends Dialog {
         // The lunar date is part of the date line, so its toggle sits with the date settings.
         showLunarSwitch = createStyleSwitch(context, R.string.show_lunar, repository.isShowLunar());
         styleContent.addView(showLunarSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        dateLunarDualLineSwitch = createStyleSwitch(context, R.string.date_lunar_dual_line,
+                repository.isDateLunarDualLine());
+        addSwitchWithSummary(styleContent, dateLunarDualLineSwitch,
+                R.string.date_lunar_dual_line_desc, dp(8));
 
         // Status bar section
         styleContent.addView(createSectionLabel(context, R.string.status_settings_group),
@@ -411,7 +416,8 @@ public class SettingsDialog extends Dialog {
         networkTimeSwitch.setTextColor(COLOR_PRIMARY_TEXT);
         tintCompoundButton(networkTimeSwitch);
         networkTimeSwitch.setChecked(repository.isUseNetworkTime());
-        functionContent.addView(networkTimeSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        addSwitchWithSummary(functionContent, networkTimeSwitch,
+                R.string.use_network_time_desc, dp(8));
 
         LinearLayout locked = new LinearLayout(context);
         locked.setOrientation(LinearLayout.VERTICAL);
@@ -615,6 +621,20 @@ public class SettingsDialog extends Dialog {
         tintCompoundButton(control);
         control.setChecked(checked);
         return control;
+    }
+
+    /**
+     * Adds {@code control} followed by a secondary summary line, emulating a two-line
+     * title-and-summary switch row without a Preference screen.
+     */
+    private void addSwitchWithSummary(LinearLayout container, Switch control, int summaryRes,
+            int topMarginPx) {
+        container.addView(control, topMargin(matchWrap(dp(48)), topMarginPx));
+        TextView summary = new TextView(getContext());
+        summary.setText(summaryRes);
+        summary.setTextColor(COLOR_SECONDARY_TEXT);
+        summary.setTextSize(12.5f);
+        container.addView(summary, topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(2)));
     }
 
     private void updateSmallSecondsState(boolean showSeconds) {
@@ -915,6 +935,7 @@ public class SettingsDialog extends Dialog {
         showSecondsSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_SECONDS);
         smallSecondsSwitch.setChecked(ClockPreferences.DEFAULT_SMALL_SECONDS);
         showLunarSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_LUNAR);
+        dateLunarDualLineSwitch.setChecked(ClockPreferences.DEFAULT_DATE_LUNAR_DUAL_LINE);
         use24HourSwitch.setChecked(ClockPreferences.DEFAULT_USE_24_HOUR);
         clockUseEnglishSwitch.setChecked(ClockPreferences.DEFAULT_CLOCK_USE_ENGLISH);
         pendingDatePatternCn = ClockPreferences.DEFAULT_DATE_PATTERN_CN;
@@ -959,6 +980,7 @@ public class SettingsDialog extends Dialog {
         repository.setShowSeconds(showSecondsSwitch.isChecked());
         repository.setSmallSeconds(showSecondsSwitch.isChecked() && smallSecondsSwitch.isChecked());
         repository.setShowLunar(showLunarSwitch.isChecked());
+        repository.setDateLunarDualLine(dateLunarDualLineSwitch.isChecked());
         repository.setUse24Hour(use24HourSwitch.isChecked());
         repository.setClockUseEnglish(clockUseEnglishSwitch.isChecked());
         captureDateSectionInto(dateSectionEnglish);

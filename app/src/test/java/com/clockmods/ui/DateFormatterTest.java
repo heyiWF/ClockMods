@@ -63,6 +63,25 @@ public class DateFormatterTest {
     }
 
     @Test
+    public void traditionalUsesTraditionalShortWeekdayButSharesEverythingElse() {
+        // Short weekday differs (周 -> 週); full weekday and numerals are identical.
+        Assert.assertEquals("週五",
+                DateFormatter.format("E", example(), DateFormatter.Lang.TRADITIONAL));
+        Assert.assertEquals("星期五",
+                DateFormatter.format("EEEE", example(), DateFormatter.Lang.TRADITIONAL));
+        Assert.assertEquals("二〇二六年八月七日",
+                DateFormatter.format("YYY年MMM月DD日", example(), DateFormatter.Lang.TRADITIONAL));
+    }
+
+    @Test
+    public void englishDegradesChineseNumeralTokens() {
+        // A mistyped Chinese-numeral token must not inject Chinese digits into an English date.
+        Assert.assertEquals("2026", DateFormatter.format("YYY", example(), DateFormatter.Lang.ENGLISH));
+        Assert.assertEquals("2026", DateFormatter.format("YYYY", example(), DateFormatter.Lang.ENGLISH));
+        Assert.assertEquals("7", DateFormatter.format("DD", example(), DateFormatter.Lang.ENGLISH));
+    }
+
+    @Test
     public void chineseCardinalCoversDayRange() {
         Assert.assertEquals("七", DateFormatter.chineseCardinal(7));
         Assert.assertEquals("十", DateFormatter.chineseCardinal(10));

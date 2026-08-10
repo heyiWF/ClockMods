@@ -3,6 +3,8 @@ package com.clockmods.weather;
 import android.content.Context;
 import android.content.SharedPreferences;
 
+import com.clockmods.background.ClockPreferences;
+
 import org.json.JSONObject;
 
 import static com.clockmods.weather.WeatherModels.WeatherDetail;
@@ -10,9 +12,11 @@ import static com.clockmods.weather.WeatherModels.WeatherDisplayData;
 
 public final class WeatherRepository {
     private static final String PREFS = "weather_cache";
+    private final Context appContext;
     private final SharedPreferences preferences;
     public WeatherRepository(Context context) {
-        preferences = context.getApplicationContext().getSharedPreferences(PREFS, Context.MODE_PRIVATE);
+        appContext = context.getApplicationContext();
+        preferences = appContext.getSharedPreferences(PREFS, Context.MODE_PRIVATE);
     }
     public WeatherDisplayData getCached(String source, String locationId) {
         String value = preferences.getString("data", null);
@@ -22,6 +26,9 @@ public final class WeatherRepository {
             String cachedSource = json.optString("source", "automatic");
             if (!source.equals(cachedSource)) return null;
             if ("manual".equals(source) && !locationId.equals(json.optString("locationId"))) return null;
+            // Cached text is in the language it was fetched in; drop it after a language switch so
+            // the UI never shows stale, wrong-language weather.
+            if (!currentLanguage().equals(json.optString("lang"))) return null;
             return new WeatherDisplayData(json.optString("locationId"), json.optString("city"),
                     json.optString("district"), json.optString("text"), json.optString("icon"),
                     json.optString("temperature"), json.optLong("updatedAt"), readDetail(json));
@@ -32,10 +39,13 @@ public final class WeatherRepository {
             JSONObject json = new JSONObject();
             json.put("locationId", data.locationId).put("city", data.city).put("district", data.district)
                     .put("text", data.text).put("icon", data.icon).put("temperature", data.temperature)
-                    .put("updatedAt", data.updatedAt).put("source", source);
+                    .put("updatedAt", data.updatedAt).put("source", source).put("lang", currentLanguage());
             if (data.detail != null) json.put("detail", writeDetail(data.detail));
             preferences.edit().putString("data", json.toString()).apply();
         } catch (Exception ignored) { }
+    }
+    private String currentLanguage() {
+        return new ClockPreferences(appContext).getClockLanguage();
     }
     private static WeatherDetail readDetail(JSONObject json) {
         JSONObject detail = json.optJSONObject("detail");

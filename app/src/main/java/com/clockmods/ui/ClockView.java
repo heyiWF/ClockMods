@@ -13,6 +13,7 @@ import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.view.View;
 
+import com.clockmods.LocaleManager;
 import com.clockmods.background.BackgroundRepository;
 import com.clockmods.background.BackgroundDimSchedule;
 import com.clockmods.background.ClockPreferences;
@@ -88,7 +89,9 @@ public class ClockView extends View {
     private boolean smallSeconds = ClockPreferences.DEFAULT_SMALL_SECONDS;
     private boolean use24Hour = ClockPreferences.DEFAULT_USE_24_HOUR;
     private boolean clockUseEnglish = ClockPreferences.DEFAULT_CLOCK_USE_ENGLISH;
+    private DateFormatter.Lang dateLang = DateFormatter.Lang.CHINESE;
     private boolean portraitStacked = ClockPreferences.DEFAULT_PORTRAIT_STACKED;
+    private boolean dateLunarDualLine = ClockPreferences.DEFAULT_DATE_LUNAR_DUAL_LINE;
     // Per-line animation state for the portrait stacked layout: index 0 = hours,
     // 1 = minutes, 2 = seconds. Each line animates its digit changes independently.
     private final String[] stackedText = new String[3];
@@ -243,8 +246,7 @@ public class ClockView extends View {
             now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE), now.get(Calendar.SECOND),
             showSeconds, blinkColon, smallSeconds, use24Hour, clockUseEnglish);
         String dateText = DateFormatter.format(
-                clockUseEnglish ? datePatternEn : datePatternCn, now,
-                clockUseEnglish ? DateFormatter.Lang.ENGLISH : DateFormatter.Lang.CHINESE);
+                clockUseEnglish ? datePatternEn : datePatternCn, now, dateLang);
         String lunarText = showLunar ? LunarCalendar.format(now) : "";
 
         // Portrait stacked layout is a fully separate path; landscape is untouched.
@@ -255,10 +257,10 @@ public class ClockView extends View {
 
         String fullDate = lunarText.length() == 0 ? dateText : dateText + " " + lunarText;
 
-        // In landscape the date and lunar text share a single line; in portrait
-        // they stack. The width-based size is computed against whichever string
-        // actually spans the full line so it fits the requested screen-width %.
-        boolean singleDateLine = lunarText.length() == 0 || width > height;
+        // Portrait always stacks the date and lunar lines; landscape shares a single line
+        // unless the user opts into two rows. The width-based size is computed against
+        // whichever string actually spans the full line so it fits the requested width %.
+        boolean singleDateLine = lunarText.length() == 0 || (width > height && !dateLunarDualLine);
         String widestDateText = singleDateLine ? fullDate : longerOf(dateText, lunarText);
         applySupportingTypeface(widestDateText);
 
@@ -872,10 +874,12 @@ public class ClockView extends View {
         smallSeconds = backgroundRepository.isSmallSeconds();
         use24Hour = backgroundRepository.isUse24Hour();
         clockUseEnglish = backgroundRepository.isClockUseEnglish();
+        dateLang = LocaleManager.dateLang(backgroundRepository.getClockLanguage());
         customMessage = backgroundRepository.getCustomMessage();
         datePatternCn = backgroundRepository.getDatePatternCn();
         datePatternEn = backgroundRepository.getDatePatternEn();
         portraitStacked = backgroundRepository.isPortraitStacked();
+        dateLunarDualLine = backgroundRepository.isDateLunarDualLine();
         NetworkTimeProvider timeProvider = networkTimeProvider;
         if (timeProvider != null) {
             timeProvider.setEnabled(backgroundRepository.isUseNetworkTime());

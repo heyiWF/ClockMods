@@ -28,16 +28,21 @@ public final class QWeatherClient {
     private final String host;
     private final int timeoutMs;
     private final TlsSocketFactory socketFactory;
-    // Requested API language; also drives locally-composed warning text.
+    // Requested API language code ("en"/"zh-hant"/"zh"); also drives locally-composed warning text.
     private final String lang;
-    private final boolean english;
 
     public QWeatherClient(Context context, String host) { this(context, host, 15000); }
     public QWeatherClient(Context context, String host, int timeoutMs) {
         this.host = host; this.timeoutMs = timeoutMs;
         this.socketFactory = TlsSocketFactory.create(context.getApplicationContext());
-        this.english = new ClockPreferences(context).isClockUseEnglish();
-        this.lang = english ? "en" : "zh";
+        this.lang = apiLang(new ClockPreferences(context).getClockLanguage());
+    }
+
+    /** Maps the stored interface language to the QWeather {@code lang} query value. */
+    static String apiLang(String clockLanguage) {
+        if (ClockPreferences.LANGUAGE_ENGLISH.equals(clockLanguage)) return "en";
+        if (ClockPreferences.LANGUAGE_TRADITIONAL.equals(clockLanguage)) return "zh-hant";
+        return "zh";
     }
 
     public WeatherDisplayData fetch(double latitude, double longitude) throws Exception {
@@ -123,22 +128,22 @@ public final class QWeatherClient {
         try {
             JSONObject body = requestRaw("/weatheralert/v1/current/"
                     + formatCoordinate(latitude) + "/" + formatCoordinate(longitude) + "?lang=" + lang);
-            return formatWarnings(body.optJSONArray("alerts"), english);
+            return formatWarnings(body.optJSONArray("alerts"), lang);
         } catch (Exception ignored) { return null; }
     }
 
     static String formatWarnings(JSONArray alerts) {
-        return formatWarnings(alerts, false);
+        return formatWarnings(alerts, "zh");
     }
 
-    static String formatWarnings(JSONArray alerts, boolean english) {
+    static String formatWarnings(JSONArray alerts, String lang) {
         if (alerts == null || alerts.length() == 0) return null;
         StringBuilder warnings = new StringBuilder();
         int count = Math.min(alerts.length(), 20);
         for (int index = 0; index < count; index++) {
             JSONObject alert = alerts.optJSONObject(index);
             if (alert == null) continue;
-            String warning = formatWarning(alert, english);
+            String warning = formatWarning(alert, lang);
             if (warning == null || warning.length() == 0) continue;
             if (warnings.length() > 0) warnings.append('\n');
             warnings.append(warning);
@@ -147,10 +152,10 @@ public final class QWeatherClient {
     }
 
     static String formatWarning(JSONObject alert) {
-        return formatWarning(alert, false);
+        return formatWarning(alert, "zh");
     }
 
-    static String formatWarning(JSONObject alert, boolean english) {
+    static String formatWarning(JSONObject alert, String lang) {
         String headline = alert.optString("headline", "").trim();
         if (headline.length() > 0) return headline;
 
@@ -160,13 +165,15 @@ public final class QWeatherClient {
 
         JSONObject color = alert.optJSONObject("color");
         String colorCode = color == null ? "" : color.optString("code", "").trim();
-        if (english) {
+        if ("en".equals(lang)) {
             String colorName = warningColorNameEnglish(colorCode);
             return colorName.length() == 0
                     ? event + " Warning" : event + " " + colorName + " Warning";
         }
-        String colorName = warningColorName(colorCode);
-        return event + colorName + "预警";
+        boolean traditional = "zh-hant".equals(lang);
+        String colorName = traditional ? warningColorNameTraditional(colorCode)
+                : warningColorName(colorCode);
+        return event + colorName + (traditional ? "預警" : "预警");
     }
 
     private static String warningColorName(String code) {
@@ -203,6 +210,23 @@ public final class QWeatherClient {
         }
     }
 
+    private static String warningColorNameTraditional(String code) {
+        if (code.length() == 0) return "";
+        switch (code.toLowerCase(Locale.US)) {
+            case "white": return "白色";
+            case "gray": return "灰色";
+            case "green": return "綠色";
+            case "blue": return "藍色";
+            case "yellow": return "黃色";
+            case "amber": return "琥珀色";
+            case "orange": return "橙色";
+            case "red": return "紅色";
+            case "purple": return "紫色";
+            case "black": return "黑色";
+            default: return code;
+        }
+    }
+
     private String[] fetchAirQuality(double latitude, double longitude) {
         try {
             JSONObject body = requestRaw("/airquality/v1/current/"
@@ -225,7 +249,7 @@ public final class QWeatherClient {
 
     private JSONObject getLocation(double latitude, double longitude) throws Exception {
         JSONObject body = request("/geo/v2/city/lookup?location=" + formatLocation(latitude, longitude)
-                + "&range=cn&number=1&lang=zh");
+                + "&range=cn&number=1&lang=" + lang);
         JSONArray locations = body.getJSONArray("location");
         if (locations.length() == 0) throw new IOException("No QWeather location");
         return locations.getJSONObject(0);

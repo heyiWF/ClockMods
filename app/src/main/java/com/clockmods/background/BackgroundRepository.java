@@ -213,6 +213,14 @@ public class BackgroundRepository {
         preferences.setPortraitStacked(portraitStacked);
     }
 
+    public boolean isDateLunarDualLine() {
+        return preferences.isDateLunarDualLine();
+    }
+
+    public void setDateLunarDualLine(boolean dualLine) {
+        preferences.setDateLunarDualLine(dualLine);
+    }
+
     public boolean isUse24Hour() {
         return preferences.isUse24Hour();
     }
@@ -227,6 +235,14 @@ public class BackgroundRepository {
 
     public void setClockUseEnglish(boolean useEnglish) {
         preferences.setClockUseEnglish(useEnglish);
+    }
+
+    public String getClockLanguage() {
+        return preferences.getClockLanguage();
+    }
+
+    public void setClockLanguage(String language) {
+        preferences.setClockLanguage(language);
     }
 
     public String getCustomMessage() {

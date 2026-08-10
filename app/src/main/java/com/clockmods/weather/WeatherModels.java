@@ -186,10 +186,23 @@ public final class WeatherModels {
 
     public static String locationText(String city, String district) {
         if (city == null) return district == null ? "" : district;
+        // The trailing "市" suffix only appears on Chinese city names; English names pass through.
         String displayCity = city.endsWith("市") ? city.substring(0, city.length() - 1) : city;
         if (district == null || district.length() == 0
                 || city.equals(district) || displayCity.equals(district)) return displayCity;
-        return displayCity + district;
+        // Chinese names read naturally when joined directly; Latin names need a separating space.
+        String separator = containsHan(displayCity) || containsHan(district) ? "" : " ";
+        return displayCity + separator + district;
+    }
+
+    private static boolean containsHan(String text) {
+        for (int i = 0; i < text.length(); i++) {
+            char c = text.charAt(i);
+            if (c >= 0x4E00 && c <= 0x9FFF) {
+                return true;
+            }
+        }
+        return false;
     }
 
     public static List<Integer> intervals() {

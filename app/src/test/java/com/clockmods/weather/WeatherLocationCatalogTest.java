@@ -25,4 +25,14 @@ public class WeatherLocationCatalogTest {
         assertEquals("宝安", districts.get(1).district);
         assertEquals("101280606", districts.get(1).locationId);
     }
+
+    @Test
+    public void exposesEnglishNamesWithChineseFallback() throws Exception {
+        WeatherLocationCatalog catalog = WeatherLocationCatalog.parse(new StringReader(CSV));
+        WeatherLocationCatalog.LocationEntry baoan =
+                catalog.districts("广东省", "深圳市").get(1);
+        assertEquals("Baoan", baoan.displayDistrict(true));
+        assertEquals("Shenzhen", baoan.displayCity(true));
+        assertEquals("宝安", baoan.displayDistrict(false));
+    }
 }

@@ -58,8 +58,11 @@ public class ClockPreferences {
     private static final String KEY_CALENDAR_HIGHLIGHT_WEEKENDS = "calendar_highlight_weekends";
     private static final String KEY_SMALL_SECONDS = "small_seconds";
     private static final String KEY_PORTRAIT_STACKED = "portrait_stacked";
+    private static final String KEY_DATE_LUNAR_DUAL_LINE = "date_lunar_dual_line";
     private static final String KEY_USE_24_HOUR = "use_24_hour";
     private static final String KEY_CLOCK_USE_ENGLISH = "clock_use_english";
+    // Tri-state interface language ("zh-Hans"/"zh-Hant"/"en"); supersedes the legacy boolean above.
+    private static final String KEY_CLOCK_LANGUAGE = "clock_language";
     private static final String KEY_CUSTOM_MESSAGE = "custom_message";
     // Full patterns actually used for rendering the main clock / calendar date lines.
     private static final String KEY_DATE_PATTERN_CN = "date_pattern_cn";
@@ -121,8 +124,15 @@ public class ClockPreferences {
     public static final boolean DEFAULT_CALENDAR_HIGHLIGHT_WEEKENDS = false;
     public static final boolean DEFAULT_SMALL_SECONDS = false;
     public static final boolean DEFAULT_PORTRAIT_STACKED = false;
+    /** Landscape only: whether the date and lunar lines stack on two rows (portrait always stacks). */
+    public static final boolean DEFAULT_DATE_LUNAR_DUAL_LINE = false;
     public static final boolean DEFAULT_USE_24_HOUR = true;
     public static final boolean DEFAULT_CLOCK_USE_ENGLISH = false;
+    /** Interface-language values stored by {@link #getClockLanguage()}. */
+    public static final String LANGUAGE_SIMPLIFIED = "zh-Hans";
+    public static final String LANGUAGE_TRADITIONAL = "zh-Hant";
+    public static final String LANGUAGE_ENGLISH = "en";
+    public static final String DEFAULT_CLOCK_LANGUAGE = LANGUAGE_SIMPLIFIED;
     /** Optional free-text message shown on the weather line; empty means "no message". */
     public static final String DEFAULT_CUSTOM_MESSAGE = "";
     /** Upper bound on the custom message length, guarding layout and storage. */
@@ -407,6 +417,18 @@ public class ClockPreferences {
         preferences.edit().putBoolean(KEY_PORTRAIT_STACKED, portraitStacked).apply();
     }
 
+    /**
+     * @return whether the date and lunar lines stack on two rows in landscape. Portrait always
+     *         stacks regardless of this value.
+     */
+    public boolean isDateLunarDualLine() {
+        return preferences.getBoolean(KEY_DATE_LUNAR_DUAL_LINE, DEFAULT_DATE_LUNAR_DUAL_LINE);
+    }
+
+    public void setDateLunarDualLine(boolean dualLine) {
+        preferences.edit().putBoolean(KEY_DATE_LUNAR_DUAL_LINE, dualLine).apply();
+    }
+
     public boolean isUse24Hour() {
         return preferences.getBoolean(KEY_USE_24_HOUR, DEFAULT_USE_24_HOUR);
     }
@@ -415,12 +437,45 @@ public class ClockPreferences {
         preferences.edit().putBoolean(KEY_USE_24_HOUR, use24Hour).apply();
     }
 
+    /**
+     * @return the interface language: {@link #LANGUAGE_SIMPLIFIED}, {@link #LANGUAGE_TRADITIONAL}
+     *         or {@link #LANGUAGE_ENGLISH}. Falls back to the legacy boolean on first read so an
+     *         existing English preference is preserved after upgrade.
+     */
+    public String getClockLanguage() {
+        String stored = preferences.getString(KEY_CLOCK_LANGUAGE, null);
+        if (stored != null) {
+            return normalizeClockLanguage(stored);
+        }
+        return preferences.getBoolean(KEY_CLOCK_USE_ENGLISH, DEFAULT_CLOCK_USE_ENGLISH)
+                ? LANGUAGE_ENGLISH : LANGUAGE_SIMPLIFIED;
+    }
+
+    public void setClockLanguage(String language) {
+        String normalized = normalizeClockLanguage(language);
+        preferences.edit()
+                .putString(KEY_CLOCK_LANGUAGE, normalized)
+                // Keep the legacy boolean in sync for any code path still reading it.
+                .putBoolean(KEY_CLOCK_USE_ENGLISH, LANGUAGE_ENGLISH.equals(normalized))
+                .apply();
+    }
+
+    private static String normalizeClockLanguage(String language) {
+        if (LANGUAGE_ENGLISH.equals(language)) {
+            return LANGUAGE_ENGLISH;
+        }
+        if (LANGUAGE_TRADITIONAL.equals(language)) {
+            return LANGUAGE_TRADITIONAL;
+        }
+        return LANGUAGE_SIMPLIFIED;
+    }
+
     public boolean isClockUseEnglish() {
-        return preferences.getBoolean(KEY_CLOCK_USE_ENGLISH, DEFAULT_CLOCK_USE_ENGLISH);
+        return LANGUAGE_ENGLISH.equals(getClockLanguage());
     }
 
     public void setClockUseEnglish(boolean useEnglish) {
-        preferences.edit().putBoolean(KEY_CLOCK_USE_ENGLISH, useEnglish).apply();
+        setClockLanguage(useEnglish ? LANGUAGE_ENGLISH : LANGUAGE_SIMPLIFIED);
     }
 
     /** @return the trimmed custom message, or "" when none is set. */
@@ -662,8 +717,10 @@ public class ClockPreferences {
                         DEFAULT_CALENDAR_HIGHLIGHT_WEEKENDS)
                 .putBoolean(KEY_SMALL_SECONDS, DEFAULT_SMALL_SECONDS)
                 .putBoolean(KEY_PORTRAIT_STACKED, DEFAULT_PORTRAIT_STACKED)
+                .putBoolean(KEY_DATE_LUNAR_DUAL_LINE, DEFAULT_DATE_LUNAR_DUAL_LINE)
                 .putBoolean(KEY_USE_24_HOUR, DEFAULT_USE_24_HOUR)
                 .putBoolean(KEY_CLOCK_USE_ENGLISH, DEFAULT_CLOCK_USE_ENGLISH)
+                .putString(KEY_CLOCK_LANGUAGE, DEFAULT_CLOCK_LANGUAGE)
                 .remove(KEY_CUSTOM_MESSAGE)
                 .putString(KEY_DATE_PATTERN_CN, DEFAULT_DATE_PATTERN_CN)
                 .putString(KEY_DATE_PATTERN_EN, DEFAULT_DATE_PATTERN_EN)

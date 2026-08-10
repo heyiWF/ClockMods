@@ -93,9 +93,12 @@ public class SettingsDialog extends BottomSheetDialog {
     private final MaterialSwitch showSecondsSwitch;
     private final MaterialSwitch smallSecondsSwitch;
     private final MaterialSwitch showLunarSwitch;
+    private final MaterialSwitch dateLunarDualLineSwitch;
     private final MaterialSwitch statusIconsSwitch;
     private final MaterialSwitch use24HourSwitch;
-    private final MaterialSwitch clockUseEnglishSwitch;
+    // Non-Pro flavors show a binary English switch; Pro shows a three-way language toggle instead.
+    private MaterialSwitch clockUseEnglishSwitch;
+    private MaterialButtonToggleGroup clockLanguageGroup;
     private final MaterialButtonToggleGroup orientationGroup;
     private final MaterialSwitch networkTimeSwitch;
     private final View functionLockedControls;
@@ -112,7 +115,10 @@ public class SettingsDialog extends BottomSheetDialog {
     // ---- Date-format section (rebuilt when the interface language toggles) ----
     private LinearLayout dateFormatContainer;
     private boolean dateSectionEnglish;
-    private final boolean originalClockUseEnglish;
+    private final String originalClockLanguage;
+    // The language currently chosen in the UI, and the Chinese variant used for date previews.
+    private String selectedLanguage;
+    private DateFormatter.Lang chineseVariant = DateFormatter.Lang.CHINESE;
     private String pendingDatePatternCn;
     private String pendingDatePatternEn;
     // Pro per-language UI restoration state (coreIndex == cores length means "custom").
@@ -155,6 +161,10 @@ public class SettingsDialog extends BottomSheetDialog {
 
     private static final int CALENDAR_WEEK_START_SUNDAY_ID = 50001;
     private static final int CALENDAR_WEEK_START_MONDAY_ID = 50002;
+
+    private static final int LANGUAGE_SIMPLIFIED_ID = 60001;
+    private static final int LANGUAGE_TRADITIONAL_ID = 60002;
+    private static final int LANGUAGE_ENGLISH_ID = 60003;
 
     public SettingsDialog(Context context, BackgroundRepository repository, Listener listener) {
         super(context);
@@ -408,6 +418,10 @@ public class SettingsDialog extends BottomSheetDialog {
         // The lunar date is part of the date line, so its toggle sits with the date settings.
         showLunarSwitch = createStyleSwitch(context, R.string.show_lunar, repository.isShowLunar());
         styleContent.addView(showLunarSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        dateLunarDualLineSwitch = createStyleSwitch(context, R.string.date_lunar_dual_line,
+                repository.isDateLunarDualLine());
+        addSwitchWithSummary(styleContent, dateLunarDualLineSwitch,
+                R.string.date_lunar_dual_line_desc, dp(8));
 
         // Status bar section
         styleContent.addView(createSectionLabel(context, R.string.status_settings_group),
@@ -461,7 +475,8 @@ public class SettingsDialog extends BottomSheetDialog {
         networkTimeSwitch.setTextAppearance(
                 com.google.android.material.R.style.TextAppearance_Material3_BodyLarge);
         networkTimeSwitch.setChecked(repository.isUseNetworkTime());
-        functionContent.addView(networkTimeSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        addSwitchWithSummary(functionContent, networkTimeSwitch,
+                R.string.use_network_time_desc, dp(8));
 
         // Controls that are only meaningful when network time is enabled.
         LinearLayout locked = new LinearLayout(context);
@@ -498,13 +513,31 @@ public class SettingsDialog extends BottomSheetDialog {
 
         functionContent.addView(createSectionLabel(context, R.string.clock_language_settings_group),
             topMargin(sectionLabelParams(), dp(20)));
-        clockUseEnglishSwitch = new MaterialSwitch(context);
-        clockUseEnglishSwitch.setText(R.string.clock_use_english);
-        clockUseEnglishSwitch.setTextAppearance(
-            com.google.android.material.R.style.TextAppearance_Material3_BodyLarge);
-        clockUseEnglishSwitch.setChecked(repository.isClockUseEnglish());
-        functionContent.addView(clockUseEnglishSwitch, topMargin(matchWrap(dp(48)), dp(8)));
-        originalClockUseEnglish = repository.isClockUseEnglish();
+        originalClockLanguage = repository.getClockLanguage();
+        selectedLanguage = originalClockLanguage;
+        chineseVariant = ClockPreferences.LANGUAGE_TRADITIONAL.equals(selectedLanguage)
+                ? DateFormatter.Lang.TRADITIONAL : DateFormatter.Lang.CHINESE;
+        if (isPro()) {
+            // Pro exposes Simplified / Traditional / English; the other flavors keep a binary switch.
+            clockLanguageGroup = new MaterialButtonToggleGroup(context);
+            clockLanguageGroup.setSingleSelection(true);
+            clockLanguageGroup.setSelectionRequired(true);
+            clockLanguageGroup.addView(createModeButton(context, LANGUAGE_SIMPLIFIED_ID,
+                    R.string.clock_language_simplified), weightedButtonParams());
+            clockLanguageGroup.addView(createModeButton(context, LANGUAGE_TRADITIONAL_ID,
+                    R.string.clock_language_traditional), weightedButtonParams());
+            clockLanguageGroup.addView(createModeButton(context, LANGUAGE_ENGLISH_ID,
+                    R.string.clock_language_english), weightedButtonParams());
+            clockLanguageGroup.check(idForLanguage(selectedLanguage));
+            functionContent.addView(clockLanguageGroup, topMargin(matchWrap(dp(48)), dp(8)));
+        } else {
+            clockUseEnglishSwitch = new MaterialSwitch(context);
+            clockUseEnglishSwitch.setText(R.string.clock_use_english);
+            clockUseEnglishSwitch.setTextAppearance(
+                com.google.android.material.R.style.TextAppearance_Material3_BodyLarge);
+            clockUseEnglishSwitch.setChecked(repository.isClockUseEnglish());
+            functionContent.addView(clockUseEnglishSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        }
 
         functionContent.addView(createSectionLabel(context, R.string.date_format_settings_group),
             topMargin(sectionLabelParams(), dp(20)));
@@ -513,13 +546,17 @@ public class SettingsDialog extends BottomSheetDialog {
         functionContent.addView(dateFormatContainer,
             topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(4)));
         initDateFormatState();
-        dateSectionEnglish = originalClockUseEnglish;
+        dateSectionEnglish = ClockPreferences.LANGUAGE_ENGLISH.equals(selectedLanguage);
         rebuildDateFormatSection(context, dateSectionEnglish);
-        clockUseEnglishSwitch.setOnCheckedChangeListener((button, checked) -> {
-            captureDateSectionInto(dateSectionEnglish);
-            dateSectionEnglish = checked;
-            rebuildDateFormatSection(context, checked);
-        });
+        if (clockLanguageGroup != null) {
+            clockLanguageGroup.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
+                if (isChecked) onLanguageSelectionChanged(context, languageForId(checkedId));
+            });
+        } else {
+            clockUseEnglishSwitch.setOnCheckedChangeListener((button, checked) ->
+                    onLanguageSelectionChanged(context, checked
+                            ? ClockPreferences.LANGUAGE_ENGLISH : ClockPreferences.LANGUAGE_SIMPLIFIED));
+        }
 
         functionContent.addView(createSectionLabel(context, R.string.custom_message_settings_group),
             topMargin(sectionLabelParams(), dp(20)));
@@ -696,6 +733,22 @@ public class SettingsDialog extends BottomSheetDialog {
         control.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_BodyLarge);
         control.setChecked(checked);
         return control;
+    }
+
+    /**
+     * Adds {@code control} followed by a secondary summary line, emulating a two-line
+     * title-and-summary switch row without a Preference screen.
+     */
+    private void addSwitchWithSummary(LinearLayout container, MaterialSwitch control, int summaryRes,
+            int topMarginPx) {
+        container.addView(control, topMargin(matchWrap(dp(48)), topMarginPx));
+        TextView summary = new TextView(getContext());
+        summary.setText(summaryRes);
+        summary.setTextAppearance(
+                com.google.android.material.R.style.TextAppearance_Material3_BodySmall);
+        summary.setTextColor(MaterialColors.getColor(getContext(),
+                com.google.android.material.R.attr.colorOnSurfaceVariant, Color.GRAY));
+        container.addView(summary, topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(2)));
     }
 
     private void updateSmallSecondsState(boolean showSeconds) {
@@ -1039,6 +1092,7 @@ public class SettingsDialog extends BottomSheetDialog {
         showSecondsSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_SECONDS);
         smallSecondsSwitch.setChecked(ClockPreferences.DEFAULT_SMALL_SECONDS);
         showLunarSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_LUNAR);
+        dateLunarDualLineSwitch.setChecked(ClockPreferences.DEFAULT_DATE_LUNAR_DUAL_LINE);
         if (calendarWeekStartGroup != null) {
             calendarWeekStartGroup.check(idForCalendarWeekStart(
                     ClockPreferences.DEFAULT_CALENDAR_WEEK_START));
@@ -1048,7 +1102,14 @@ public class SettingsDialog extends BottomSheetDialog {
                     ClockPreferences.DEFAULT_CALENDAR_MORE_FESTIVALS);
         }
         use24HourSwitch.setChecked(ClockPreferences.DEFAULT_USE_24_HOUR);
-        clockUseEnglishSwitch.setChecked(ClockPreferences.DEFAULT_CLOCK_USE_ENGLISH);
+        selectedLanguage = ClockPreferences.DEFAULT_CLOCK_LANGUAGE;
+        chineseVariant = DateFormatter.Lang.CHINESE;
+        dateSectionEnglish = false;
+        if (clockLanguageGroup != null) {
+            clockLanguageGroup.check(idForLanguage(selectedLanguage));
+        } else {
+            clockUseEnglishSwitch.setChecked(false);
+        }
         resetDateFormatToDefaults();
         customMessageInput.setText(ClockPreferences.DEFAULT_CUSTOM_MESSAGE);
         orientationGroup.check(idForOrientation(ClockPreferences.DEFAULT_SCREEN_ORIENTATION));
@@ -1103,8 +1164,9 @@ public class SettingsDialog extends BottomSheetDialog {
         repository.setShowSeconds(showSecondsSwitch.isChecked());
         repository.setSmallSeconds(showSecondsSwitch.isChecked() && smallSecondsSwitch.isChecked());
         repository.setShowLunar(showLunarSwitch.isChecked());
+        repository.setDateLunarDualLine(dateLunarDualLineSwitch.isChecked());
         repository.setUse24Hour(use24HourSwitch.isChecked());
-        repository.setClockUseEnglish(clockUseEnglishSwitch.isChecked());
+        repository.setClockLanguage(selectedLanguage);
         captureDateSectionInto(dateSectionEnglish);
         repository.setDatePatternCn(pendingDatePatternCn);
         repository.setDatePatternEn(pendingDatePatternEn);
@@ -1143,7 +1205,7 @@ public class SettingsDialog extends BottomSheetDialog {
         } else {
             listener.onColorApplied(backgroundPicker.getColor());
         }
-        if (clockUseEnglishSwitch.isChecked() != originalClockUseEnglish) {
+        if (!selectedLanguage.equals(originalClockLanguage)) {
             listener.onLanguageChanged();
         }
         dismiss();
@@ -1166,8 +1228,30 @@ public class SettingsDialog extends BottomSheetDialog {
         return "pro".equals(BuildConfig.FLAVOR);
     }
 
-    private static DateFormatter.Lang langOf(boolean english) {
-        return english ? DateFormatter.Lang.ENGLISH : DateFormatter.Lang.CHINESE;
+    private DateFormatter.Lang langOf(boolean english) {
+        return english ? DateFormatter.Lang.ENGLISH : chineseVariant;
+    }
+
+    private void onLanguageSelectionChanged(Context context, String language) {
+        selectedLanguage = language;
+        chineseVariant = ClockPreferences.LANGUAGE_TRADITIONAL.equals(language)
+                ? DateFormatter.Lang.TRADITIONAL : DateFormatter.Lang.CHINESE;
+        boolean english = ClockPreferences.LANGUAGE_ENGLISH.equals(language);
+        captureDateSectionInto(dateSectionEnglish);
+        dateSectionEnglish = english;
+        rebuildDateFormatSection(context, english);
+    }
+
+    private static int idForLanguage(String language) {
+        if (ClockPreferences.LANGUAGE_ENGLISH.equals(language)) return LANGUAGE_ENGLISH_ID;
+        if (ClockPreferences.LANGUAGE_TRADITIONAL.equals(language)) return LANGUAGE_TRADITIONAL_ID;
+        return LANGUAGE_SIMPLIFIED_ID;
+    }
+
+    private static String languageForId(int id) {
+        if (id == LANGUAGE_ENGLISH_ID) return ClockPreferences.LANGUAGE_ENGLISH;
+        if (id == LANGUAGE_TRADITIONAL_ID) return ClockPreferences.LANGUAGE_TRADITIONAL;
+        return ClockPreferences.LANGUAGE_SIMPLIFIED;
     }
 
     private void initDateFormatState() {
@@ -1208,13 +1292,13 @@ public class SettingsDialog extends BottomSheetDialog {
         return stored >= 0 ? stored : defaultComboIndex(english);
     }
 
-    private static int defaultCoreIndex(boolean english) {
+    private int defaultCoreIndex(boolean english) {
         String[] cores = DateFormatter.dateCores(langOf(english));
         int index = indexOf(cores, english ? "yyyy/M/d" : "yyyy年M月d日");
         return index >= 0 ? index : 0;
     }
 
-    private static int defaultComboIndex(boolean english) {
+    private int defaultComboIndex(boolean english) {
         int index = indexOf(DateFormatter.weekdayCombos(langOf(english)), "DATE EEEE");
         return index >= 0 ? index : 0;
     }
@@ -1281,6 +1365,12 @@ public class SettingsDialog extends BottomSheetDialog {
 
         LinearLayout customRow = new LinearLayout(context);
         customRow.setOrientation(LinearLayout.VERTICAL);
+        MaterialButton customHelpButton = new MaterialButton(context, null,
+                com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        customHelpButton.setText(R.string.date_format_help_button);
+        customHelpButton.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        customHelpButton.setOnClickListener(v -> showDateFormatHelp(english));
+        customRow.addView(customHelpButton, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
         dateCustomInput = new EditText(context);
         dateCustomInput.setSingleLine(true);
         dateCustomInput.setHint(R.string.date_format_custom_hint);
@@ -1308,6 +1398,16 @@ public class SettingsDialog extends BottomSheetDialog {
         }));
         dateComboSpinner.setOnItemSelectedListener(onItemSelected(() -> updateDatePreview(english)));
         dateCustomInput.addTextChangedListener(onTextChanged(() -> updateDatePreview(english)));
+    }
+
+    /** Explains the custom date-format tokens for the language currently being edited (Pro only). */
+    private void showDateFormatHelp(boolean english) {
+        int body = english ? R.string.date_format_help_body_en : R.string.date_format_help_body_cn;
+        new MaterialAlertDialogBuilder(getContext())
+                .setTitle(R.string.date_format_help_title)
+                .setMessage(body)
+                .setPositiveButton(android.R.string.ok, null)
+                .show();
     }
 
     private void buildFixedDateControls(Context context, boolean english) {
