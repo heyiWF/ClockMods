@@ -21,7 +21,11 @@ class SntpClient {
     private static final int NTP_PORT = 123;
     private static final int NTP_PACKET_SIZE = 48;
     private static final int NTP_MODE_CLIENT = 3;
+    private static final int NTP_MODE_SERVER = 4;
+    private static final int NTP_MODE_BROADCAST = 5;
     private static final int NTP_VERSION = 3;
+    private static final int NTP_LEAP_NOSYNC = 3;
+    private static final int NTP_STRATUM_MAX = 15;
     private static final int TIMEOUT_MS = 5000;
 
     // Offset of the transmit timestamp within the NTP packet.
@@ -63,6 +67,17 @@ class SntpClient {
             socket.receive(response);
             long responseTicks = SystemClock.elapsedRealtime();
             long responseTime = requestTime + (responseTicks - requestTicks);
+
+            // Reject unsynchronized / kiss-of-death / malformed responses so the
+            // caller can fall back to the next server (RFC 4330 §5, per AOSP).
+            int leap = (buffer[0] >> 6) & 0x3;
+            int mode = buffer[0] & 0x7;
+            int stratum = buffer[1] & 0xFF;
+            if (leap == NTP_LEAP_NOSYNC
+                    || (mode != NTP_MODE_SERVER && mode != NTP_MODE_BROADCAST)
+                    || stratum < 1 || stratum > NTP_STRATUM_MAX) {
+                return false;
+            }
 
             long originateTime = readTimeStamp(buffer, ORIGINATE_TIME_OFFSET);
             long receiveTime = readTimeStamp(buffer, RECEIVE_TIME_OFFSET);

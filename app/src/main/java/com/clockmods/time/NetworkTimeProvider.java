@@ -10,20 +10,34 @@ import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
  * Provides the current time in milliseconds, optionally sourced from an NTP
- * server ({@code ntp.aliyun.com}).
+ * server (see {@link #NTP_HOSTS}).
  *
- * <p>When network time is enabled the provider periodically queries the NTP
+ * <p>When network time is enabled the provider periodically queries an NTP
  * server on a background thread and stores the offset between the server time
  * and the device's monotonic clock ({@link SystemClock#elapsedRealtime()}).
  * {@link #currentTimeMillis()} then projects the last known server time forward
  * using that monotonic clock, so it never blocks the UI thread and does not
  * drift when the wall clock is changed.
  *
+ * <p>Several servers are configured; each sync tries them in turn until one
+ * responds, so a single unreachable server does not prevent synchronization.
+ *
  * <p>If network time is disabled, or a fresh sample has never been obtained,
  * the device local time ({@link System#currentTimeMillis()}) is returned.
  */
 public class NetworkTimeProvider {
-    private static final String NTP_HOST = "ntp.aliyun.com";
+    /**
+     * NTP servers tried in turn until one responds. Ordered China-first for
+     * reliability on the devices this app targets, with a global fallback. The
+     * server that last succeeded is remembered and tried first next time.
+     */
+    private static final String[] NTP_HOSTS = {
+        "ntp.aliyun.com",
+        "ntp.tencent.com",
+        "ntp.ntsc.ac.cn",
+        "cn.pool.ntp.org",
+        "time.apple.com",
+    };
 
     /** Default re-sync interval while enabled (used until configured). */
     private static final long DEFAULT_SYNC_INTERVAL_MS = 60L * 60L * 1000L;
@@ -49,6 +63,8 @@ public class NetworkTimeProvider {
     /** {@link SystemClock#elapsedRealtime()} of the last sync attempt (success or failure). */
     private volatile long lastAttemptReference = Long.MIN_VALUE;
     private volatile boolean lastAttemptSucceeded;
+    /** Index into {@link #NTP_HOSTS} of the server to try first; touched only on the executor thread. */
+    private volatile int preferredHostIndex;
 
     /** Enables or disables the use of network time. Triggers a sync when enabling. */
     public void setEnabled(boolean enabled) {
@@ -111,14 +127,21 @@ public class NetworkTimeProvider {
                 boolean success = false;
                 long serverTime = 0L;
                 long reference = 0L;
-                try {
-                    if (sntpClient.requestTime(NTP_HOST)) {
-                        serverTime = sntpClient.getNtpTime();
-                        reference = sntpClient.getNtpTimeReference();
-                        success = true;
+                // Try each server in turn, starting from the last known-good one,
+                // until one responds — so a single dead server does not stop sync.
+                int hostCount = NTP_HOSTS.length;
+                for (int i = 0; i < hostCount && !success; i++) {
+                    int index = (preferredHostIndex + i) % hostCount;
+                    try {
+                        if (sntpClient.requestTime(NTP_HOSTS[index])) {
+                            serverTime = sntpClient.getNtpTime();
+                            reference = sntpClient.getNtpTimeReference();
+                            preferredHostIndex = index;
+                            success = true;
+                        }
+                    } catch (RuntimeException ignored) {
+                        // Move on to the next server.
                     }
-                } catch (RuntimeException ignored) {
-                    success = false;
                 }
                 final boolean ok = success;
                 final long capturedTime = serverTime;

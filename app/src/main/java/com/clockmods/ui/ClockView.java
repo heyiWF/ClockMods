@@ -51,7 +51,12 @@ public class ClockView extends View {
         @Override
         public void run() {
             invalidate();
-            long now = System.currentTimeMillis();
+            // Schedule the next tick against the same clock source onDraw draws
+            // from, so the seconds digit flips exactly on the network-time
+            // boundary (not the system-clock boundary) when network time is on.
+            NetworkTimeProvider timeProvider = networkTimeProvider;
+            long now = timeProvider == null
+                ? System.currentTimeMillis() : timeProvider.currentTimeMillis();
             long next = MILLIS_PER_SECOND - (now % MILLIS_PER_SECOND);
             handler.postDelayed(this, next);
         }
