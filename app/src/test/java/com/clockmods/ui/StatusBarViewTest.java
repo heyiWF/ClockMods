@@ -21,4 +21,21 @@ public class StatusBarViewTest {
         Assert.assertEquals(0, StatusBarView.normalizeSignalLevel(-1, 6));
         Assert.assertEquals(0, StatusBarView.normalizeSignalLevel(1, 0));
     }
+
+    @Test
+    public void scalesStatusGroupFromTheExistingIconHeight() {
+        Assert.assertEquals(14f,
+                StatusBarView.calculateStatusIconHeight(28f, 1f, 1f), 0.0001f);
+        Assert.assertEquals(8.4f,
+                StatusBarView.calculateStatusIconHeight(28f, 1f, 0.60f), 0.0001f);
+        Assert.assertEquals(17.5f,
+                StatusBarView.calculateStatusIconHeight(28f, 1f, 1.25f), 0.0001f);
+    }
+
+    @Test
+    public void maximumScaleKeepsBatteryBoxInsideFixedHeightViews() {
+        float iconHeight = StatusBarView.calculateStatusIconHeight(28f, 1f, 1.25f);
+
+        Assert.assertTrue(iconHeight * 1.55f <= 28f);
+    }
 }

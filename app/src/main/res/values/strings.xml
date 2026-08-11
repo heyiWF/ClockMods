@@ -101,6 +101,8 @@
     <string name="font_size_percent">占屏幕宽度 %1$d%%</string>
     <string name="status_settings_group">状态栏</string>
     <string name="show_status_icons">显示网络与电量</string>
+    <string name="status_icon_size">图标大小</string>
+    <string name="status_icon_size_percent">%1$d%%</string>
     <string name="status_wifi_signal">Wi-Fi 信号 %1$d，共 %2$d 级</string>
     <string name="status_mobile_signal">移动网络信号 %1$d，共 %2$d 级</string>
     <string name="status_ethernet">以太网已连接</string>
@@ -186,7 +188,9 @@
     <string name="weather_fetch_failed">天气获取失败：%1$s</string>
     <string name="forecast_fetching">正在获取天气预报…</string>
     <string name="forecast_fetch_failed">天气预报获取失败：%1$s</string>
-    <string name="weather_feels_format">体感 %1$s ℃</string>
+    <string name="weather_feels_format">体感 %1$s℃</string>
+    <string name="weather_temperature_format">%1$s℃</string>
+    <string name="weather_temperature_range_format">%1$s - %2$s℃</string>
     <string name="weather_humidity_format">湿度 %1$s%%</string>
     <string name="weather_wind_scale_format">%1$s 级</string>
     <string name="weather_precip_format">降水 %1$s mm</string>

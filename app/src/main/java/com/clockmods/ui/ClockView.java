@@ -524,7 +524,7 @@ public class ClockView extends View {
             if (weatherState.data != null) {
                 String leftText = WeatherModels.locationText(
                         weatherState.data.city, weatherState.data.district);
-                String rightText = weatherState.data.text + " " + weatherState.data.temperature + " ℃";
+                String rightText = weatherState.data.text + " " + weatherState.data.temperature + "℃";
                 WeatherIcon icon = WeatherIcon.load(getContext(), weatherState.data.icon, weatherIconFill);
                 weatherItem = icon != null
                         ? WeatherLineItem.weather(leftText, rightText, icon)
@@ -791,65 +791,79 @@ public class ClockView extends View {
             canvas.restore();
         } else {
             datePaint.setAlpha(Math.round(clampedAlpha / 255f * originalAlpha));
-                drawWeatherLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
+            drawWeatherLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
         }
         datePaint.setAlpha(originalAlpha);
     }
 
-            private long weatherDetailDisplayDuration(WeatherLineItem item) {
-            float overflow = itemWidth(item) - weatherDetailAvailableWidth();
-            if (overflow <= 0f) return WEATHER_DETAIL_HOLD_MILLIS;
-            float speed = WEATHER_DETAIL_SCROLL_DP_PER_SECOND
+    private long weatherDetailDisplayDuration(WeatherLineItem item) {
+        float overflow = itemWidth(item) - weatherDetailAvailableWidth();
+        if (overflow <= 0f) return WEATHER_DETAIL_HOLD_MILLIS;
+        float speed = WEATHER_DETAIL_SCROLL_DP_PER_SECOND
                 * getResources().getDisplayMetrics().density;
-            long scrollMillis = (long) Math.ceil(overflow / speed * 1000f);
-            return Math.max(WEATHER_DETAIL_HOLD_MILLIS,
+        long scrollMillis = (long) Math.ceil(overflow / speed * 1000f);
+        return Math.max(WEATHER_DETAIL_HOLD_MILLIS,
                 WEATHER_DETAIL_SCROLL_PAUSE_MILLIS * 2L + scrollMillis);
-            }
+    }
 
-            private float weatherDetailAvailableWidth() {
-            float padding = WEATHER_DETAIL_HORIZONTAL_PADDING_DP
+    private float weatherDetailAvailableWidth() {
+        float padding = WEATHER_DETAIL_HORIZONTAL_PADDING_DP
                 * getResources().getDisplayMetrics().density;
-            return Math.max(1f, getWidth() - padding * 2f);
-            }
+        return Math.max(1f, getWidth() - padding * 2f);
+    }
 
-            private void drawScrollingWeatherText(Canvas canvas, String text, float centerX,
-                float baseline, long elapsed) {
-            float textWidth = measureSupportingText(text);
-            float availableWidth = weatherDetailAvailableWidth();
-            if (textWidth <= availableWidth) {
-                drawSupportingText(canvas, text, centerX, baseline, Paint.Align.CENTER);
-                return;
-            }
+    private void drawScrollingWeatherText(Canvas canvas, String text, float centerX,
+            float baseline, long elapsed) {
+        float textWidth = measureSupportingText(text);
+        float availableWidth = weatherDetailAvailableWidth();
+        if (textWidth <= availableWidth) {
+            drawSupportingText(canvas, text, centerX, baseline, Paint.Align.CENTER);
+            return;
+        }
 
-            float left = centerX - availableWidth / 2f;
-            float overflow = textWidth - availableWidth;
-            float speed = WEATHER_DETAIL_SCROLL_DP_PER_SECOND
+        float left = centerX - availableWidth / 2f;
+        float overflow = textWidth - availableWidth;
+        float speed = WEATHER_DETAIL_SCROLL_DP_PER_SECOND
                 * getResources().getDisplayMetrics().density;
-            long scrollMillis = (long) Math.ceil(overflow / speed * 1000f);
-            float progress = Math.max(0f, Math.min(1f,
+        long scrollMillis = (long) Math.ceil(overflow / speed * 1000f);
+        float progress = Math.max(0f, Math.min(1f,
                 (elapsed - WEATHER_DETAIL_SCROLL_PAUSE_MILLIS) / (float) scrollMillis));
-            canvas.save();
-            canvas.clipRect(left, 0f, left + availableWidth, getHeight());
-            drawSupportingText(canvas, text, left - overflow * progress, baseline, Paint.Align.LEFT);
-            canvas.restore();
-            }
+        canvas.save();
+        canvas.clipRect(left, 0f, left + availableWidth, getHeight());
+        drawSupportingText(canvas, text, left - overflow * progress, baseline, Paint.Align.LEFT);
+        canvas.restore();
+    }
 
     private float measureSupportingText(String text) {
         if (text == null || text.length() == 0) return 0f;
-        int characterCount = text.codePointCount(0, text.length());
         Typeface originalTypeface = datePaint.getTypeface();
         float width = 0f;
+        float spacing = datePaint.getTextSize() * SUPPORTING_TEXT_LETTER_SPACING;
         for (int start = 0; start < text.length();) {
             int codePoint = text.codePointAt(start);
             int end = start + Character.charCount(codePoint);
             datePaint.setTypeface(supportingTypefaceFor(codePoint));
             width += datePaint.measureText(text, start, end);
+            if (hasSupportingTrackingAt(text, end)) width += spacing;
             start = end;
         }
         datePaint.setTypeface(originalTypeface);
-        return width
-            + Math.max(0, characterCount - 1)
-                * datePaint.getTextSize() * SUPPORTING_TEXT_LETTER_SPACING;
+        return width;
+    }
+
+    /** Keeps a pangu U+0020 space at its font-defined width instead of widening it further. */
+    static boolean hasSupportingTrackingAt(String text, int boundary) {
+        if (boundary <= 0 || boundary >= text.length()) return false;
+        if (text.charAt(boundary - 1) == ' '
+                && isPanguSpaceAt(text, boundary - 1)) return false;
+        return text.charAt(boundary) != ' ' || !isPanguSpaceAt(text, boundary);
+    }
+
+    private static boolean isPanguSpaceAt(String text, int spaceOffset) {
+        return spaceOffset > 0 && spaceOffset + 1 < text.length()
+                && text.charAt(spaceOffset) == ' '
+                && TextSpacing.needsPanguSpace(text.codePointBefore(spaceOffset),
+                        text.codePointAt(spaceOffset + 1));
     }
 
     /**
@@ -933,7 +947,7 @@ public class ClockView extends View {
             datePaint.setTypeface(supportingTypefaceFor(codePoint));
             canvas.drawText(text, start, end, cursor, baseline, datePaint);
             cursor += datePaint.measureText(text, start, end);
-            if (end < text.length()) cursor += spacing;
+            if (hasSupportingTrackingAt(text, end)) cursor += spacing;
             start = end;
         }
         datePaint.setTypeface(originalTypeface);

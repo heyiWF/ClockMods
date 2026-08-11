@@ -101,6 +101,8 @@
     <string name="font_size_percent">%1$d%% of screen width</string>
     <string name="status_settings_group">Status bar</string>
     <string name="show_status_icons">Show network and battery</string>
+    <string name="status_icon_size">Icon size</string>
+    <string name="status_icon_size_percent">%1$d%%</string>
     <string name="status_wifi_signal">Wi-Fi signal %1$d of %2$d</string>
     <string name="status_mobile_signal">Mobile signal %1$d of %2$d</string>
     <string name="status_ethernet">Ethernet connected</string>
@@ -186,7 +188,9 @@
     <string name="weather_fetch_failed">Weather failed: %1$s</string>
     <string name="forecast_fetching">Fetching forecast…</string>
     <string name="forecast_fetch_failed">Forecast failed: %1$s</string>
-    <string name="weather_feels_format">Feels %1$s ℃</string>
+    <string name="weather_feels_format">Feels %1$s℃</string>
+    <string name="weather_temperature_format">%1$s℃</string>
+    <string name="weather_temperature_range_format">%1$s - %2$s℃</string>
     <string name="weather_humidity_format">Humidity %1$s%%</string>
     <string name="weather_wind_scale_format">Force %1$s</string>
     <string name="weather_precip_format">Precip %1$s mm</string>

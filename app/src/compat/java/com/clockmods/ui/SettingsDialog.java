@@ -53,6 +53,12 @@ public class SettingsDialog extends Dialog {
     private static final int MIN_FONT_PERCENT = 20;
     private static final int MAX_FONT_PERCENT = 150;
     private static final int FONT_PERCENT_RANGE = MAX_FONT_PERCENT - MIN_FONT_PERCENT;
+    private static final int MIN_STATUS_ICON_PERCENT =
+            Math.round(ClockPreferences.MIN_STATUS_ICON_SCALE * 100f);
+    private static final int MAX_STATUS_ICON_PERCENT =
+            Math.round(ClockPreferences.MAX_STATUS_ICON_SCALE * 100f);
+    private static final int STATUS_ICON_PERCENT_RANGE =
+            MAX_STATUS_ICON_PERCENT - MIN_STATUS_ICON_PERCENT;
 
     private static final int MODE_COLOR_ID = 30003;
     private static final int MODE_IMAGE_ID = 30004;
@@ -105,6 +111,9 @@ public class SettingsDialog extends Dialog {
     private final Switch showLunarSwitch;
     private final Switch dateLunarDualLineSwitch;
     private final Switch statusIconsSwitch;
+    private final SeekBar statusIconSizeBar;
+    private final TextView statusIconSizeValue;
+    private final View statusIconSizeControls;
     private final Switch use24HourSwitch;
     private final Switch clockUseEnglishSwitch;
     private final SegmentedSelector orientationSelector;
@@ -377,12 +386,22 @@ public class SettingsDialog extends Dialog {
         statusIconsSwitch.setChecked(repository.isShowStatusIcons());
         styleContent.addView(statusIconsSwitch, topMargin(matchWrap(dp(48)), dp(8)));
 
-        // Reset default lives in the style board.
+        statusIconSizeValue = new TextView(context);
+        statusIconSizeBar = new SeekBar(context);
+        statusIconSizeControls = createStatusIconSizeRow(
+                context, statusIconSizeBar, statusIconSizeValue);
+        styleContent.addView(statusIconSizeControls,
+                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(2)));
+        configureStatusIconSizeBar(repository.getStatusIconScale());
+        statusIconsSwitch.setOnCheckedChangeListener(
+                (button, checked) -> updateStatusIconSizeState(checked));
+        updateStatusIconSizeState(statusIconsSwitch.isChecked());
+
+        // Reset applies to both boards and is placed after their shared content below.
         Button reset = new Button(context);
         reset.setText(R.string.reset_default);
         tintButton(reset);
         reset.setOnClickListener(view -> restoreDefaults());
-        styleContent.addView(reset, topMargin(matchWrap(dp(48)), dp(18)));
 
         // ---- Function board ----
         final LinearLayout functionContent = new LinearLayout(context);
@@ -559,6 +578,7 @@ public class SettingsDialog extends Dialog {
         // ---- Boards container ----
         content.addView(styleContent, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
         content.addView(functionContent, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
+        content.addView(reset, topMargin(matchWrap(dp(48)), dp(18)));
 
         boardSelector.setOnSelectionChangedListener(index -> {
             boolean style = index == 0;
@@ -716,6 +736,61 @@ public class SettingsDialog extends Dialog {
 
     private void updateSizeLabel(TextView valueLabel, int progress) {
         valueLabel.setText(getContext().getString(R.string.font_size_percent, progressToPercent(progress)));
+    }
+
+    private View createStatusIconSizeRow(Context context, SeekBar bar, TextView valueLabel) {
+        LinearLayout row = new LinearLayout(context);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+
+        TextView label = new TextView(context);
+        label.setText(R.string.status_icon_size);
+        label.setTextColor(COLOR_SECONDARY_TEXT);
+        label.setTextSize(13);
+        row.addView(label, new LinearLayout.LayoutParams(dp(72),
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+
+        bar.setMax(STATUS_ICON_PERCENT_RANGE);
+        tintSeekBar(bar);
+        row.addView(bar, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        valueLabel.setTextColor(COLOR_PRIMARY_TEXT);
+        valueLabel.setTextSize(13);
+        valueLabel.setGravity(Gravity.END);
+        valueLabel.setSingleLine(true);
+        row.addView(valueLabel, new LinearLayout.LayoutParams(dp(52),
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        return row;
+    }
+
+    private void configureStatusIconSizeBar(float currentScale) {
+        statusIconSizeBar.setProgress(statusIconScaleToProgress(currentScale));
+        updateStatusIconSizeLabel(statusIconSizeBar.getProgress());
+        statusIconSizeBar.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
+            @Override
+            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
+                updateStatusIconSizeLabel(progress);
+            }
+
+            @Override
+            public void onStartTrackingTouch(SeekBar seekBar) {
+            }
+
+            @Override
+            public void onStopTrackingTouch(SeekBar seekBar) {
+            }
+        });
+    }
+
+    private void updateStatusIconSizeLabel(int progress) {
+        statusIconSizeValue.setText(getContext().getString(
+                R.string.status_icon_size_percent, progress + MIN_STATUS_ICON_PERCENT));
+    }
+
+    private void updateStatusIconSizeState(boolean enabled) {
+        setViewTreeEnabled(statusIconSizeControls, enabled);
+        statusIconSizeControls.setAlpha(enabled ? 1f : 0.45f);
     }
 
     private View createSwatchPreview(Context context, int color) {
@@ -927,6 +1002,9 @@ public class SettingsDialog extends Dialog {
         updateSizeLabel(dateSizeValue, dateSizeBar.getProgress());
 
         statusIconsSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_STATUS_ICONS);
+        statusIconSizeBar.setProgress(statusIconScaleToProgress(
+                ClockPreferences.DEFAULT_STATUS_ICON_SCALE));
+        updateStatusIconSizeLabel(statusIconSizeBar.getProgress());
         blinkColonSwitch.setChecked(ClockPreferences.DEFAULT_BLINK_COLON);
         animateTimeChangesSwitch.setChecked(ClockPreferences.DEFAULT_ANIMATE_TIME_CHANGES);
         portraitStackedSwitch.setChecked(ClockPreferences.DEFAULT_PORTRAIT_STACKED);
@@ -972,6 +1050,7 @@ public class SettingsDialog extends Dialog {
         repository.setTimeColor(timeColor);
         repository.setDateColor(dateColor);
         repository.setShowStatusIcons(statusIconsSwitch.isChecked());
+        repository.setStatusIconScale(statusIconProgressToScale(statusIconSizeBar.getProgress()));
         repository.setBlinkColon(blinkColonSwitch.isChecked());
         repository.setAnimateTimeChanges(animateTimeChangesSwitch.isChecked());
         repository.setPortraitStacked(portraitStackedSwitch.isChecked());
@@ -1111,6 +1190,17 @@ public class SettingsDialog extends Dialog {
 
     private static int progressToPercent(int progress) {
         return progress + MIN_FONT_PERCENT;
+    }
+
+    private static int statusIconScaleToProgress(float scale) {
+        int percent = Math.round(ClockPreferences.normalizeStatusIconScale(scale) * 100f);
+        return Math.max(0, Math.min(STATUS_ICON_PERCENT_RANGE,
+                percent - MIN_STATUS_ICON_PERCENT));
+    }
+
+    private static float statusIconProgressToScale(int progress) {
+        int clampedProgress = Math.max(0, Math.min(STATUS_ICON_PERCENT_RANGE, progress));
+        return (clampedProgress + MIN_STATUS_ICON_PERCENT) / 100f;
     }
 
     private Spinner createFontFamilySpinner(Context context, String family) {

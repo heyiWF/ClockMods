@@ -28,9 +28,7 @@ public final class TextSpacing {
         int previous = -1;
         for (int offset = 0; offset < text.length(); ) {
             int codePoint = text.codePointAt(offset);
-            if (previous != -1
-                    && ((isCjk(previous) && isLatinAlphanumeric(codePoint))
-                            || (isLatinAlphanumeric(previous) && isCjk(codePoint)))) {
+            if (previous != -1 && needsPanguSpace(previous, codePoint)) {
                 result.append(' ');
             }
             result.appendCodePoint(codePoint);
@@ -38,6 +36,11 @@ public final class TextSpacing {
             offset += Character.charCount(codePoint);
         }
         return result.toString();
+    }
+
+    static boolean needsPanguSpace(int left, int right) {
+        return (isCjk(left) && isLatinAlphanumeric(right))
+                || (isLatinAlphanumeric(left) && isCjk(right));
     }
 
     private static boolean isLatinAlphanumeric(int codePoint) {

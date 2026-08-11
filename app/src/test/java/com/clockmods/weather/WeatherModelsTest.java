@@ -60,4 +60,15 @@ public class WeatherModelsTest {
         Assert.assertEquals("台风红色预警", items.get(0));
         Assert.assertEquals("暴雨橙色预警", items.get(1));
     }
+
+    @Test
+    public void keepsTemperatureUnitAttachedLikePercent() {
+        WeatherModels.WeatherDetail detail = new WeatherModels.WeatherDetail(
+                "27", "40", null, null, null, null, null, null);
+
+        List<String> items = detail.carouselItems();
+
+        Assert.assertEquals("体感 27℃", items.get(0));
+        Assert.assertEquals("湿度 40%", items.get(1));
+    }
 }

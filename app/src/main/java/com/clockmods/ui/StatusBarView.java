@@ -19,6 +19,7 @@ import android.view.View;
 
 import com.clockmods.R;
 import com.clockmods.background.BackgroundRepository;
+import com.clockmods.background.ClockPreferences;
 
 /**
  * Draws the current network state and battery level (with percentage) in the
@@ -273,6 +274,18 @@ public class StatusBarView extends View {
         return 0xFFFFFFFF;
     }
 
+    private float resolveStatusIconScale() {
+        return backgroundRepository == null
+                ? ClockPreferences.DEFAULT_STATUS_ICON_SCALE
+                : backgroundRepository.getStatusIconScale();
+    }
+
+    static float calculateStatusIconHeight(float viewHeight, float density, float scale) {
+        float baseHeight = viewHeight * 0.5f;
+        if (baseHeight <= 0f) baseHeight = 18f * density;
+        return baseHeight * ClockPreferences.normalizeStatusIconScale(scale);
+    }
+
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
@@ -280,17 +293,17 @@ public class StatusBarView extends View {
             return;
         }
         int tint = resolveTint();
+        float scale = resolveStatusIconScale();
         fillPaint.setColor(tint);
         textPaint.setColor(tint);
-        fillPaint.setShadowLayer(4f * density, 0f, 1.5f * density, 0x66000000);
-        textPaint.setShadowLayer(4f * density, 0f, 1.5f * density, 0x66000000);
+        fillPaint.setShadowLayer(4f * density * scale, 0f,
+                1.5f * density * scale, 0x66000000);
+        textPaint.setShadowLayer(4f * density * scale, 0f,
+                1.5f * density * scale, 0x66000000);
 
-        float iconHeight = getHeight() * 0.5f;
-        if (iconHeight <= 0f) {
-            iconHeight = 18f * density;
-        }
+        float iconHeight = calculateStatusIconHeight(getHeight(), density, scale);
         float centerY = getHeight() / 2f;
-        float gap = 8f * density;
+        float gap = 8f * density * scale;
         if (contentAlignedStart) {
             drawAlignedStart(canvas, iconHeight, centerY, gap);
             fillPaint.setAlpha(255);

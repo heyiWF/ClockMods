@@ -114,6 +114,14 @@ public class BackgroundRepository {
         preferences.setShowStatusIcons(show);
     }
 
+    public float getStatusIconScale() {
+        return preferences.getStatusIconScale();
+    }
+
+    public void setStatusIconScale(float scale) {
+        preferences.setStatusIconScale(scale);
+    }
+
     public boolean isBlinkColon() {
         return preferences.isBlinkColon();
     }
@@ -360,7 +368,7 @@ public class BackgroundRepository {
         preferences.setManualWeatherLocation(locationId, province, city, district, latitude, longitude);
     }
 
-    /** Resets background, font size and font colors to defaults (black background, white text). */
+    /** Restores all user-configurable settings to their defaults. */
     public void restoreDefaults() {
         preferences.restoreDefaults();
     }

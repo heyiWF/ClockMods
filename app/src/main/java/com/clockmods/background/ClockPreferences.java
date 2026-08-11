@@ -41,6 +41,7 @@ public class ClockPreferences {
     private static final String KEY_TIME_COLOR = "time_color";
     private static final String KEY_DATE_COLOR = "date_color";
     private static final String KEY_SHOW_STATUS_ICONS = "show_status_icons";
+    private static final String KEY_STATUS_ICON_SCALE = "status_icon_scale";
     private static final String KEY_BLINK_COLON = "blink_colon";
     private static final String KEY_ANIMATE_TIME_CHANGES = "animate_time_changes";
     private static final String KEY_TIME_TRANSITION = "time_transition";
@@ -108,6 +109,9 @@ public class ClockPreferences {
     public static final int DEFAULT_DIM_END_MINUTES = 6 * 60;
     /** Status icons (network + battery) are hidden by default. */
     public static final boolean DEFAULT_SHOW_STATUS_ICONS = false;
+    public static final float DEFAULT_STATUS_ICON_SCALE = 1.0f;
+    public static final float MIN_STATUS_ICON_SCALE = 0.60f;
+    public static final float MAX_STATUS_ICON_SCALE = 1.25f;
     public static final boolean DEFAULT_BLINK_COLON = false;
     public static final boolean DEFAULT_ANIMATE_TIME_CHANGES = true;
     public static final String DEFAULT_TIME_TRANSITION = TRANSITION_FADE;
@@ -262,6 +266,21 @@ public class ClockPreferences {
 
     public void setShowStatusIcons(boolean show) {
         preferences.edit().putBoolean(KEY_SHOW_STATUS_ICONS, show).apply();
+    }
+
+    public float getStatusIconScale() {
+        return normalizeStatusIconScale(
+                preferences.getFloat(KEY_STATUS_ICON_SCALE, DEFAULT_STATUS_ICON_SCALE));
+    }
+
+    public void setStatusIconScale(float scale) {
+        preferences.edit().putFloat(
+                KEY_STATUS_ICON_SCALE, normalizeStatusIconScale(scale)).apply();
+    }
+
+    public static float normalizeStatusIconScale(float scale) {
+        if (Float.isNaN(scale)) return DEFAULT_STATUS_ICON_SCALE;
+        return Math.max(MIN_STATUS_ICON_SCALE, Math.min(MAX_STATUS_ICON_SCALE, scale));
     }
 
     public boolean isBlinkColon() {
@@ -708,7 +727,7 @@ public class ClockPreferences {
                 .apply();
     }
 
-    /** Restores background, font size and font color settings to their defaults (black background, white text). */
+    /** Restores all user-configurable settings to their defaults. */
     public void restoreDefaults() {
         preferences.edit()
                 .putString(KEY_BACKGROUND_MODE, MODE_COLOR)
@@ -722,6 +741,7 @@ public class ClockPreferences {
                 .putInt(KEY_TIME_COLOR, DEFAULT_TEXT_COLOR)
                 .putInt(KEY_DATE_COLOR, DEFAULT_TEXT_COLOR)
                 .putBoolean(KEY_SHOW_STATUS_ICONS, DEFAULT_SHOW_STATUS_ICONS)
+                .putFloat(KEY_STATUS_ICON_SCALE, DEFAULT_STATUS_ICON_SCALE)
                 .putBoolean(KEY_BLINK_COLON, DEFAULT_BLINK_COLON)
                 .putBoolean(KEY_ANIMATE_TIME_CHANGES, DEFAULT_ANIMATE_TIME_CHANGES)
                 .putString(KEY_TIME_TRANSITION, DEFAULT_TIME_TRANSITION)

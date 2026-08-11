@@ -268,9 +268,10 @@ public final class ProCalendarFragment extends Fragment {
         }
         WeatherModels.WeatherDisplayData data = state.data;
         currentWeatherIcon.setIconCode(data.icon, preferences.isWeatherIconFill());
-        currentTemperature.setText(data.temperature + " ℃");
+        currentTemperature.setText(getString(R.string.weather_temperature_format,
+                data.temperature));
         String feel = data.detail == null || empty(data.detail.feelsLike) ? "--" : data.detail.feelsLike;
-        feelsLike.setText(feel + " ℃");
+        feelsLike.setText(getString(R.string.weather_temperature_format, feel));
         StringBuilder summary = new StringBuilder(WeatherModels.locationText(data.city, data.district));
         append(summary, data.text);
         if (data.detail != null) {
@@ -318,7 +319,8 @@ public final class ProCalendarFragment extends Fragment {
                 iconParams.setMargins(0, iconGap, 0, iconGap);
                 column.addView(icon, iconParams);
                 addForecastText(column, forecast.textDay, R.dimen.calendar_forecast_text_size, false);
-                addForecastText(column, forecast.tempMin + " - " + forecast.tempMax + " ℃",
+                addForecastText(column, getString(R.string.weather_temperature_range_format,
+                                forecast.tempMin, forecast.tempMax),
                         R.dimen.calendar_forecast_text_size, false);
             } else addForecastText(column, getString(R.string.calendar_forecast_unavailable),
                     R.dimen.calendar_forecast_text_size, false);

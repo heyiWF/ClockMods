@@ -60,6 +60,10 @@ public class SettingsDialog extends BottomSheetDialog {
     private static final int IMAGE_MODE_ID = 10002;
     private static final int MIN_FONT_PERCENT = 20;
     private static final int MAX_FONT_PERCENT = 150;
+    private static final int MIN_STATUS_ICON_PERCENT =
+            Math.round(ClockPreferences.MIN_STATUS_ICON_SCALE * 100f);
+    private static final int MAX_STATUS_ICON_PERCENT =
+            Math.round(ClockPreferences.MAX_STATUS_ICON_SCALE * 100f);
     // Card grouping: each run of controls between two section labels becomes one rounded card.
     private static final int CARD_RADIUS = 16;   // dp, Material card corner
     private static final int CARD_PADDING = 16;  // dp, inner padding
@@ -101,6 +105,9 @@ public class SettingsDialog extends BottomSheetDialog {
     private final MaterialSwitch showLunarSwitch;
     private final MaterialSwitch dateLunarDualLineSwitch;
     private final MaterialSwitch statusIconsSwitch;
+    private final Slider statusIconSizeBar;
+    private final TextView statusIconSizeValue;
+    private final View statusIconSizeControls;
     private final MaterialSwitch use24HourSwitch;
     // Non-Pro flavors show a binary English switch; Pro shows a three-way language toggle instead.
     private MaterialSwitch clockUseEnglishSwitch;
@@ -442,12 +449,23 @@ public class SettingsDialog extends BottomSheetDialog {
         statusIconsSwitch.setChecked(repository.isShowStatusIcons());
         styleContent.addView(statusIconsSwitch, topMargin(matchWrap(dp(48)), dp(8)));
 
-        // Reset default lives in the style board.
+        statusIconSizeValue = new TextView(context);
+        statusIconSizeBar = new Slider(context);
+        statusIconSizeControls = createSizeRow(context, R.string.status_icon_size,
+                statusIconSizeBar, statusIconSizeValue);
+        statusIconSizeBar.setValueFrom(MIN_STATUS_ICON_PERCENT);
+        statusIconSizeBar.setValueTo(MAX_STATUS_ICON_PERCENT);
+        configureStatusIconSizeBar(repository.getStatusIconScale());
+        styleContent.addView(statusIconSizeControls, sizeRowParams());
+        statusIconsSwitch.setOnCheckedChangeListener(
+                (button, checked) -> updateStatusIconSizeState(checked));
+        updateStatusIconSizeState(statusIconsSwitch.isChecked());
+
+        // Shared reset action is mounted after both boards so it remains visible on either tab.
         MaterialButton reset = new MaterialButton(context, null,
                 com.google.android.material.R.attr.materialButtonOutlinedStyle);
         reset.setText(R.string.reset_default);
         reset.setOnClickListener(view -> restoreDefaults());
-        styleContent.addView(reset, topMargin(matchWrap(dp(48)), dp(20)));
 
         // ---- Function board ----
         final LinearLayout functionContent = new LinearLayout(context);
@@ -708,6 +726,7 @@ public class SettingsDialog extends BottomSheetDialog {
         LinearLayout content = new LinearLayout(context);
         content.setOrientation(LinearLayout.VERTICAL);
         content.addView(boards, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
+        content.addView(reset, topMargin(matchWrap(dp(48)), dp(20)));
 
         scrollContent.addView(content, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -898,7 +917,28 @@ public class SettingsDialog extends BottomSheetDialog {
             updateSizeLabel(slider, valueLabel, value));
     }
 
-        private void updateSizeLabel(Slider bar, TextView valueLabel, float progress) {
+    private void configureStatusIconSizeBar(float currentScale) {
+        statusIconSizeBar.setValue(statusIconScaleToProgress(currentScale));
+        updateStatusIconSizeLabel(statusIconSizeBar.getValue());
+        statusIconSizeBar.addOnChangeListener((slider, value, fromUser) ->
+                updateStatusIconSizeLabel(value));
+    }
+
+    private void updateStatusIconSizeLabel(float progress) {
+        String value = getContext().getString(
+                R.string.status_icon_size_percent, progressToPercent(progress));
+        statusIconSizeValue.setText(value);
+        if (Build.VERSION.SDK_INT >= 30) {
+            statusIconSizeBar.setStateDescription(value);
+        }
+    }
+
+    private void updateStatusIconSizeState(boolean enabled) {
+        statusIconSizeControls.setAlpha(enabled ? 1f : 0.4f);
+        setViewTreeEnabled(statusIconSizeControls, enabled);
+    }
+
+    private void updateSizeLabel(Slider bar, TextView valueLabel, float progress) {
         String value = getContext().getString(
                 R.string.font_size_percent, progressToPercent(progress));
         valueLabel.setText(value);
@@ -1153,6 +1193,9 @@ public class SettingsDialog extends BottomSheetDialog {
         updateSizeLabel(dateSizeBar, dateSizeValue, dateSizeBar.getValue());
 
         statusIconsSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_STATUS_ICONS);
+        statusIconSizeBar.setValue(statusIconScaleToProgress(
+                ClockPreferences.DEFAULT_STATUS_ICON_SCALE));
+        updateStatusIconSizeLabel(statusIconSizeBar.getValue());
         blinkColonSwitch.setChecked(ClockPreferences.DEFAULT_BLINK_COLON);
         animateTimeChangesSwitch.setChecked(ClockPreferences.DEFAULT_ANIMATE_TIME_CHANGES);
         if (proTransitionSpinner != null) proTransitionSpinner.setSelection(0);
@@ -1227,6 +1270,7 @@ public class SettingsDialog extends BottomSheetDialog {
         repository.setTimeColor(timeColor);
         repository.setDateColor(dateColor);
         repository.setShowStatusIcons(statusIconsSwitch.isChecked());
+        repository.setStatusIconScale(progressToScale(statusIconSizeBar.getValue()));
         repository.setBlinkColon(blinkColonSwitch.isChecked());
         repository.setAnimateTimeChanges(animateTimeChangesSwitch.isChecked());
         if (proTransitionSpinner != null) {
@@ -1303,6 +1347,10 @@ public class SettingsDialog extends BottomSheetDialog {
 
     private static float progressToScale(float progress) {
         return Math.round(progress) / 100f;
+    }
+
+    private static float statusIconScaleToProgress(float scale) {
+        return Math.round(ClockPreferences.normalizeStatusIconScale(scale) * 100f);
     }
 
     private static int progressToPercent(float progress) {

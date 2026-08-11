@@ -51,7 +51,7 @@ public final class WeatherModels {
          * testable. Each format string takes a single {@code %s} value except unit-only ones.
          */
         public static final class DetailLabels {
-            public final String feelsFormat;   // e.g. "体感 %s ℃" / "Feels %s ℃"
+            public final String feelsFormat;   // e.g. "体感 %s℃" / "Feels %s℃"
             public final String humidityFormat; // "湿度 %s%%" / "Humidity %s%%"
             public final String windScaleFormat; // "%s 级" / "Force %s"
             public final String precipFormat;   // "降水 %s mm" / "Precip %s mm"
@@ -71,7 +71,7 @@ public final class WeatherModels {
 
         /** Chinese labels, matching the app's historical default wording. */
         public static final DetailLabels CHINESE_LABELS = new DetailLabels(
-                "体感 %s ℃", "湿度 %s%%", "%s 级", "降水 %s mm", "空气 %s", "预警");
+                "体感 %s℃", "湿度 %s%%", "%s 级", "降水 %s mm", "空气 %s", "预警");
 
         /**
          * Builds the ordered list of detail strings that should be shown in the rotating
