@@ -1,61 +1,41 @@
-.qweather.properties
+# Credentials. The web build reads QWeather credentials from the settings sheet
+# (localStorage), but the Android-era file may still be lying around locally with
+# real keys in it — never commit it.
 qweather.properties
-# Gradle
-.gradle/
-**/build/
+.qweather.properties
 
-# Local Android SDK configuration
-local.properties
+# Dependencies
+node_modules/
 
-# Android Studio / IntelliJ IDEA
-.idea/caches/
-.idea/libraries/
-.idea/modules.xml
-.idea/workspace.xml
-.idea/usage.statistics.xml
-.idea/dictionaries/
-.idea/shelf/
-*.iml
-*.ipr
-*.iws
+# Build output
+dist/
+dist-ssr/
+*.local
 
-# VS Code local settings
+# Vite / tooling caches
+.vite/
+.eslintcache
+*.tsbuildinfo
+
+# Test output
+coverage/
+
+# Editors
 .vscode/*
 !.vscode/extensions.json
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
-
-# Kotlin / Java / Android generated files
-*.class
-*.log
-captures/
-.externalNativeBuild/
-.cxx/
-
-# Packaging and signing artifacts
-*.apk
-*.aab
-*.ap_
-*.dex
-*.keystore
-*.jks
-
-# Native build outputs
-obj/
+.idea/
+*.swp
+*.swo
+*~
 
 # OS metadata
 .DS_Store
 Thumbs.db
 Desktop.ini
 
-# Temporary and editor files
-*.tmp
-*.temp
-*.swp
-*.swo
-*~
-
-# Crash reports and profiling output
-hs_err_pid*
-replay_pid*
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log

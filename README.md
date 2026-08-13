@@ -1,32 +1,22 @@
 <div align="center">
 
-<img src="docs/media/app-icon-playstore.png" alt="ClockMods" width="120" />
+<img src="public/icons/icon-192.png" alt="ClockMods" width="120" />
 
-# ClockMods
+# ClockMods Web
 
-**一款高度可定制的 Android 全屏时钟**
+**一款高度可定制的全屏时钟 PWA**
 
-放在桌面、床头、旧手机或平板上，持续、优雅地显示时间。
+放在桌面、床头、旧手机、平板或任意一块闲置屏幕上，持续、优雅地显示时间。
 
-兼容版 · 现代版 · 专业版　|　Android 4.0+　|　离线优先 · 无广告 · 无账号
+可安装 · 离线可用 · 自适应 · 无广告 · 无账号 · 无后端
 
 </div>
 
 ---
 
-ClockMods 以沉浸式全屏界面显示时间，并保持屏幕常亮。它同时呈现公历日期、星期与中国农历，可自由定制背景、字体、时间格式、时区与网络校时方式，并能显示实时天气。项目提供 **兼容版 / 现代版 / 专业版** 三个版本，各自拥有独立的应用 ID，可在同一台设备上并存。
+ClockMods 以沉浸式全屏界面显示时间，并保持屏幕常亮。它同时呈现公历日期、星期与中国农历，可自由定制背景、字体、时间格式、时区与校时方式，并能显示实时天气。除时钟外还提供月历、番茄钟、闹钟、倒计时与秒表五个页面，可左右滑动切换。
 
-## 功能演示
-
-以下视频均由专业版在 Android 模拟器上横屏实机录制，可直接在 GitHub 中播放：
-
-| 演示内容 | 视频 |
-| --- | --- |
-| 专业版功能概览：时钟、日历、番茄钟、闹钟、倒计时、秒表 | [观看](docs/media/pro-features-overview.mp4) |
-| 中文 12 小时制整点报时（`下午1:00`） | [观看](docs/media/pro-chime-12h-zh.mp4) |
-| English 12-hour hourly chime (`1:00 PM`) | [观看](docs/media/pro-chime-12h-en.mp4) |
-
-整点报时沿用时钟的字体与粗体样式，按界面语言和 12/24 小时制显示时间，并在动画结束时平滑淡出。
+本项目由原 Android 版 **ClockMods Pro** 完整重写而来：全部功能逻辑（日期格式表达式、农历宜忌、天气缓存策略、字号自适应公式、整点报时时序）都是逐一移植的，行为与原生版本保持一致。
 
 ## 主要功能
 
@@ -34,113 +24,136 @@ ClockMods 以沉浸式全屏界面显示时间，并保持屏幕常亮。它同�
 
 - 实时显示时、分、秒，按秒边界刷新；可隐藏秒数或以较小字号显示。
 - 支持 24 小时制与 12 小时制（12 小时制可显示「上午/下午」或 `AM/PM`）。
-- 冒号每秒闪烁、数字变化渐变动效；专业版另提供滑动、缩放、翻转等多种过渡风格。
-- 显示公历日期、星期与中国农历（主时钟农历覆盖 1900–2050 年）。
-- 可切换日期格式：兼容版/现代版提供一组固定格式，专业版可用表达式与自定义分隔符（含 emoji）自由组合中/英文日期与星期。
+- 冒号每秒闪烁；数字变化提供淡变、上滑、下滑、缩放、翻页五种过渡动效，且**逐字符**只对变化的位数做动画。
+- 数字按最宽字形对齐，比例字体下时间也不会左右跳动。
+- 显示公历日期、星期与中国农历（由离线农历引擎实时计算，可用到 2100 年以后）。
+- 日期格式可用表达式与自定义分隔符（含 emoji）自由组合中/英文日期与星期，共 27/52 种日期主体 × 25 种星期组合，或直接手写格式串。
 - 横屏优先单行显示，竖屏自动分行；竖屏还可切换为时/分/秒竖排大字。
 - 中英文之间、中文与数字之间按书写规范自动加入半角空隙；温度与百分比等符号紧跟数字显示。
 
 ### 🎨 背景与外观
 
 - 纯色背景，支持 HSV 连续取色与常用色快捷选择。
-- 自定义背景图片：自动读取 EXIF 方向，按屏幕尺寸采样、居中裁剪并铺满。
+- 自定义背景图片：自动读取 EXIF 方向，按屏幕尺寸采样、居中裁剪并铺满，存于浏览器本地（IndexedDB）。
 - 图片背景可随时压暗，或设置定时压暗（支持跨越午夜）以减少对时间文字的干扰。
 - 可分别调整时间与日期的字号和颜色，一键加粗，一键恢复默认。
-- 多种字体可选（系统、Roboto、Google Sans；专业版内置更多字体）。
-- **设置面板采用 Material 3 分组卡片**，各功能区清晰分区、间距统一。
-
-### 🌐 时间与状态
-
-- 默认使用设备系统时间，也可开启网络校时（SNTP/NTP）。
-- 网络校时内置 **多台服务器自动故障转移**（`ntp.aliyun.com`、`ntp.tencent.com`、`ntp.ntsc.ac.cn`、`cn.pool.ntp.org`），可选每 30 分钟、1 小时、6 小时或每天同步；失败时自动回退设备时间。
-- 可跟随系统时区，或从内置地区列表中选择其他时区。
-- 可选显示网络与电池状态图标。
-- 运行时保持屏幕常亮，采用沉浸式系统栏与边到边布局，横竖屏自动适配。
+- 9 种字体可选：系统字体、Roboto、Google Sans Display / Text、Inter、Lato、Lora、Noto Sans、Bitcount Grid Double，另有 SF Pro Display / Rounded 两项走系统字体栈（在 Apple 设备上即为原生 SF Pro）。
+- 界面语言支持简体中文、繁體中文、English 三语。
 
 ### 🌦️ 实时天气
 
-- 由 [和风天气（QWeather）](https://www.qweather.com) 提供数据。
-- 支持自动定位或手动指定省/市/区县；天气随界面语言显示为中文或英文。
+- 由 [和风天气（QWeather）](https://www.qweather.com) 提供数据，含 124 个官方天气图标（实心/线条两种风格，可用主题色着色）。
+- 支持浏览器定位或手动指定省/市/区县（内置 3577 个地区），天气随界面语言显示为中/繁/英。
 - 更新频率可选 10 分钟、30 分钟、1 小时、3 小时、6 小时、12 小时（默认 30 分钟）。
-- 可开启「详细天气」，轮播体感温度、相对湿度、风向风力与气象灾害预警等；单条过宽时横向滚动，不换行、不拆分、不缩小字号。
-- 可设置自定义留言，非空时与天气在同一行轮播显示；无论留言长短，字号始终保持设定值，过宽时横向滚动。
+- 可开启「详细天气」，轮播体感温度、相对湿度、风向风力、降水、空气质量与气象灾害预警；单条过宽时横向滚动，不换行、不拆分、不缩小字号。
+- 可设置自定义留言，非空时与天气在同一行轮播显示。
 
-### ⭐ 专业版扩展（仅 Pro）
+### 📅 月历
 
-专业版在全屏时钟之外提供一组可左右滑动切换的工具页面：
+- 仪表盘式月历，横屏左右两栏（时间 / 实时天气 / 未来三日预报 + 月历），竖屏自动上下堆叠。
+- 可滑动或翻月、点选日期并一键回到今天，点击标题可跳转到任意年月。
+- 离线整合二十四节气、传统与公历节日、数九/三伏，并展示所选日期的「宜 / 忌」。
+- 法定节假日「休 / 班」标记随应用打包，运行时不联网抓取任何日历数据。
+- 可设置一周起始日、周末高亮与是否显示更多节日。
 
-- **时钟**：全屏时钟主界面，支持整点报时（可设静音时段，支持跨越午夜）。
-- **日历**：仪表盘式月历，可滑动或翻月、点选日期并一键回到今天；离线整合二十四节气、传统与公历节日、法定节假日「休/班」标记，并展示所选日期的「宜 / 忌」。横屏时左侧同时显示时间、实时天气与未来三日预报。
-- **番茄钟**：基于计时器的番茄工作法。
-- **闹钟**：全屏提醒 + 前台服务 + 通知 + 振动响铃；开机、应用更新、系统时间或时区变化后自动重新排程。
-- **倒计时**：设置倒计时并在结束时提醒。
-- **秒表**：计时与计次。
+### ⏱️ 计时与提醒
 
-## 版本一览
+- **番茄钟**：25 / 5 / 15 分钟三阶段循环，可跳过与自定义预设。
+- **倒计时**：5 / 10 / 30 / 60 分钟预设或自定义时分秒；计时状态持久化，刷新页面后继续。
+- **秒表**：百分秒精度，支持计次。
+- **闹钟**：每日重复，到点全屏提醒 + 提示音 + 振动 + 系统通知。
+- **整点报时**：整点前两秒触发的径向扩散动画，字号与当前时钟一致，可设静音时段（支持跨越午夜）。
 
-| 版本 | 最低系统 | 应用 ID | 界面与能力 |
-| --- | --- | --- | --- |
-| 兼容版 `compat` / ClockMods Lite | Android 4.0（API 14） | `com.clockmods.compat` | 使用平台原生控件，面向旧设备；API 19+ 使用系统文档选择器；界面支持中/英文 |
-| 现代版 `modern` / ClockMods | Android 6.0（API 23） | `com.clockmods.modern` | Material 3 设置面板；Android 12+ 支持动态取色；Android 13+ 使用 Photo Picker；界面支持中/英文 |
-| 专业版 `pro` / ClockMods Pro | Android 12（API 31） | `com.clockmods.pro` | 在现代版基础上增加日历、闹钟、倒计时、番茄钟、秒表、整点报时等工具页面；界面支持简体/繁体/英文三语 |
+## 快速开始
+
+```bash
+npm install
+npm run dev       # 开发服务器
+npm run build     # 生产构建到 dist/
+npm run preview   # 预览构建产物
+npm run test      # 单元与渲染测试
+```
+
+构建产物是纯静态文件，可部署到任意静态托管（GitHub Pages、Netlify、Vercel、Nginx、对象存储等）。构建使用相对路径，放在子目录下也能正常工作。
+
+首次打开后，可在浏览器菜单中「添加到主屏幕 / 安装应用」以全屏独立窗口运行，此时屏幕常亮与方向锁定才会生效。
 
 ## 使用方法
 
-1. 打开应用即进入全屏时钟界面。
+1. 打开页面即进入全屏时钟界面。
 2. **双击**时钟区域打开设置。
-3. 在「样式」页调整背景、字体、秒数、农历与状态图标。
-4. 在「功能」页设置时间制式、网络校时、时区、界面语言、日期格式、自定义留言与天气。
+3. 在「样式」页调整背景、字体、字号、颜色、动效、秒数与农历。
+4. 在「功能」页设置屏幕方向、时间制式、校时、时区、界面语言、日期格式、自定义留言、天气与月历。
 5. 点击「应用」保存设置。
+6. 单击时钟或月历页可临时唤出底部导航栏（3 秒后自动隐藏），也可左右滑动切换页面。
 
-## 权限与隐私
+## 天气配置
 
-ClockMods 不含账号、广告、云同步或用户行为统计，所有数据仅保存在应用私有存储中。
+天气需要你自己的和风天气凭据。在 [和风天气开发平台](https://dev.qweather.com) 创建项目与凭据后，在「设置 → 功能 → 天气服务凭据」中填入：
 
-- `INTERNET`：仅在启用网络时间或天气后访问 NTP / QWeather 服务器。
-- `ACCESS_NETWORK_STATE`、`ACCESS_WIFI_STATE`：用于显示网络状态图标。
-- `ACCESS_COARSE_LOCATION`、`ACCESS_FINE_LOCATION`：仅在开启天气且使用自动定位时获取当前地区，不进行后台定位。
-- 背景图片只处理用户主动选择的单张图片，不申请读取整个相册的权限。
-- 专业版额外申请 `POST_NOTIFICATIONS`、`SCHEDULE_EXACT_ALARM`、`USE_FULL_SCREEN_INTENT`、`RECEIVE_BOOT_COMPLETED`、`VIBRATE`、`FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_MEDIA_PLAYBACK`：用于闹钟精确排程、到点全屏提醒、响铃前台服务、振动，以及设备重启或时间变化后重新排程。
+| 字段 | 说明 |
+| --- | --- |
+| API Host | 控制台分配的专属 Host，如 `xxxx.re.qweatherapi.com` |
+| 凭据 ID（kid） | 凭据的 Credential ID |
+| 项目 ID（sub） | 项目的 Project ID |
+| Ed25519 私钥 | PKCS#8 的 Base64 内容，可带 PEM 头 |
 
-## QWeather 配置
+凭据只保存在本机浏览器的 localStorage，不会上传到任何第三方。浏览器使用 WebCrypto 的 Ed25519 签发 JWT（不支持时自动回退到纯 JS 实现）。
 
-复制 `qweather.properties.example` 为 `qweather.properties`，填写 API Host、凭据 ID、项目 ID 及 PKCS#8 Ed25519 私钥的 Base64 内容。天气图标来自 [QWeather Icons](https://icons.qweather.com)（CC BY 4.0），已随项目打包 fill 与 line 两种风格。
+### 若遇到跨域（CORS）错误
 
-## 日历数据
+浏览器直连和风可能被跨域策略拦截；私钥留在浏览器也意味着任何能打开你页面的人都能提取它。两种情况都可以用附带的签名代理解决：
 
-专业版日历的农历、二十四节气、传统与公历节日、数九/三伏以及每日「宜/忌」，均由离线农历引擎 [lunar-java](https://github.com/6tail/lunar-java)（`cn.6tail:lunar`，MIT 许可）实时计算，可准确覆盖至 2100 年以后，宜忌依据《钦定协纪辨方书》神煞规则推算。
+1. 部署 [`proxy/cloudflare-worker.js`](proxy/cloudflare-worker.js)（文件顶部有 Cloudflare Workers 的完整步骤，同一份代码也可跑在 Vercel / Netlify Edge / Deno Deploy）。
+2. 把私钥等凭据设为 Worker 的 Secret。
+3. 在「设置 → 天气服务凭据 → 代理地址」填入 Worker 的 URL。
 
-法定节假日「休/班」安排每年由国务院公布、无法算法推导，故使用随应用打包的离线数据 [holiday-cn](https://github.com/NateScarlet/holiday-cn)（MIT 许可，见 `app/src/pro/assets/holidays`）。应用运行时不会联网抓取任何日历数据。
+填了代理地址后，浏览器不再接触私钥，请求由服务端签名转发。
 
-## 构建
+## Web 平台限制
 
-环境要求：Android Studio 或 JDK 17+、Android SDK Platform 36.1、Build Tools 36.1.0、Gradle Wrapper 9.4.1。
+从 Android 重写到浏览器，有几项能力的实现方式必须改变：
 
-```powershell
-# 运行单元测试
-.\gradlew.bat testCompatDebugUnitTest testModernDebugUnitTest testProDebugUnitTest
-
-# 构建三个版本的 Debug APK
-.\gradlew.bat assembleCompatDebug assembleModernDebug assembleProDebug
-
-# Lint 检查
-.\gradlew.bat lintCompatDebug lintModernDebug lintProDebug
-```
-
-构建产物位于 `app/build/outputs/apk/<flavor>/debug/`。
+| 原生能力 | Web 版处理 |
+| --- | --- |
+| NTP 网络校时 | 浏览器没有 UDP，改为读取 HTTP 响应的 `Date` 头并扣除半个往返时延，精度约 1 秒（原生为毫秒级）。开关与同步频率保留，校时地址可在设置中指定。 |
+| 闹钟精确排程 | 页面打开时可靠触发；**页面完全关闭后浏览器不会唤醒它**（未引入推送服务端）。安装为 PWA 独立窗口可显著降低后台节流。 |
+| 网络与电量状态图标 | 按需求未实现，相关设置项一并移除。 |
+| Material You 动态取色 | 改为主题色变量，「主题色天气图标」选项保留。 |
+| 屏幕常亮 | 使用 Screen Wake Lock API，需页面可见；部分浏览器要求先有一次用户交互。 |
+| 强制屏幕方向 | 使用 Screen Orientation API，多数浏览器仅在已安装 / 全屏下允许；不支持时自动降级为按视口比例排版。 |
 
 ## 项目结构
 
 ```text
-app/src/main/    三个版本共享的时钟、农历、时间、天气、背景与资源代码
-app/src/compat/  兼容版设置界面与平台适配（无 Material 依赖）
-app/src/modern/  现代版 Material 3 设置界面与平台适配
-app/src/pro/     专业版工具页面（日历、闹钟、倒计时、番茄钟、秒表、整点报时），复用现代版界面与资源
-app/src/test/    共享逻辑单元测试
+index.html              应用外壳：六个页面容器与底部导航
+src/core/               偏好、三语文案、时区、字体、校时、方向、常亮、背景图存储
+src/format/             日期格式表达式、时间格式化、pangu 间距、字号与文本测量
+src/lunar/              农历与宜忌、法定节假日、42 格月历
+src/weather/            QWeather 签名与接口、缓存、控制器、图标、城市表
+src/pages/              时钟、月历、番茄钟/倒计时、秒表、闹钟
+src/ui/                 逐字符时钟渲染、轮播、取色器、控件、报时、提示音、通知
+src/app/                路由与设置面板
+src/styles/             设计变量与各页样式
+public/data/            天气图标路径、城市表、节假日数据
+tests/                  18 个测试文件，159 项断言
+proxy/                  可选的天气签名代理
 ```
+
+## 测试
+
+`npm run test` 覆盖从原 Android 单元测试逐项移植的逻辑，以及针对 DOM 渲染新增的用例：
+
+- 日期格式表达式（含 27+52 种日期主体、25 种星期组合、引号转义、emoji、注入安全）
+- pangu 半角间距、字号自适应公式、42 格月历、节假日解析、偏好默认值与归一化、压暗时段
+- 农历输出格式与 1800 / 1900 / 2100 / 2200 年的可用性
+- 天气模型轮播项、QWeather JWT 签名（用公钥验签）、预警文案三语、城市表解析
+- 时钟页与月历页的完整渲染：字符级动画、12/24 小时制、竖排大字、双行日期、压暗、休/班角标、宜忌页脚、月份切换
+- 番茄钟三阶段循环、倒计时持久化、秒表计次、闹钟下次触发时刻、整点报时时刻与勿扰时段
 
 ## 致谢
 
-- 天气数据与图标：[QWeather 和风天气](https://www.qweather.com) · [QWeather Icons](https://icons.qweather.com)
-- 农历与宜忌引擎：[lunar-java](https://github.com/6tail/lunar-java)
-- 法定节假日数据：[holiday-cn](https://github.com/NateScarlet/holiday-cn)
+- 天气数据与图标：[QWeather 和风天气](https://www.qweather.com) · [QWeather Icons](https://icons.qweather.com)（CC BY 4.0）
+- 农历与宜忌引擎：[lunar-javascript](https://github.com/6tail/lunar-javascript)（MIT）
+- 法定节假日数据：[holiday-cn](https://github.com/NateScarlet/holiday-cn)（MIT）
+- 打包字体均为 OFL 或等价开源许可，许可文件位于 `src/assets/fonts/` 与 `public/licenses/`

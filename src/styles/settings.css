@@ -1,0 +1,361 @@
+/*
+ * Settings sheet.
+ *
+ * A bottom sheet with two tabbed boards, each section in a rounded card — the
+ * layout SettingsDialog built with MaterialCardView and MaterialButtonToggleGroup.
+ */
+
+.settings-sheet {
+  position: fixed;
+  inset: auto 0 0 0;
+  width: 100%;
+  max-width: 720px;
+  max-height: 92dvh;
+  margin: 0 auto;
+  padding: 12px 20px calc(20px + var(--safe-bottom));
+  border: 0;
+  border-radius: var(--card-radius) var(--card-radius) 0 0;
+  background: var(--m3-surface);
+  color: var(--m3-on-surface);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.settings-sheet[open] {
+  animation: sheet-in 220ms cubic-bezier(0.05, 0.7, 0.1, 1);
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding-bottom: 12px;
+}
+
+.settings-title {
+  flex: 1 1 auto;
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.settings-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.settings-board {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-board[hidden] {
+  display: none;
+}
+
+.settings-card {
+  border: 1px solid var(--m3-outline-variant);
+  border-radius: var(--card-radius);
+  background: var(--m3-surface-container-high);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-card-title {
+  margin: 0;
+  font-size: 15px;
+  font-weight: 600;
+  color: var(--m3-primary);
+}
+
+.settings-sublabel {
+  margin: 6px 0 0;
+  font-size: 13px;
+  font-weight: 500;
+  color: var(--m3-on-surface);
+}
+
+.settings-summary {
+  margin: 0;
+  font-size: 12px;
+  line-height: 1.5;
+  color: var(--m3-on-surface-variant);
+}
+
+.settings-error {
+  margin: 0;
+  font-size: 12px;
+  color: var(--m3-error);
+}
+
+.settings-error[hidden] {
+  display: none;
+}
+
+.settings-preview {
+  margin: 8px 0 0;
+  font-size: 14px;
+  color: var(--m3-on-surface-variant);
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-group[hidden] {
+  display: none;
+}
+
+.settings-row {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-row > * {
+  flex: 1 1 0;
+}
+
+/* ---- Switch ---- */
+
+.settings-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 44px;
+  font-size: 15px;
+  cursor: pointer;
+}
+
+.settings-switch-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-switch input[type='checkbox'] {
+  appearance: none;
+  flex: 0 0 auto;
+  width: 52px;
+  height: 32px;
+  margin: 0;
+  border-radius: 999px;
+  background: var(--m3-surface-variant);
+  border: 2px solid var(--m3-outline-variant);
+  position: relative;
+  cursor: pointer;
+  transition: background 150ms ease;
+}
+
+.settings-switch input[type='checkbox']::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 4px;
+  width: 18px;
+  height: 18px;
+  border-radius: 50%;
+  background: var(--m3-on-surface-variant);
+  transform: translateY(-50%);
+  transition:
+    transform 150ms ease,
+    background 150ms ease;
+}
+
+.settings-switch input[type='checkbox']:checked {
+  background: var(--m3-primary);
+  border-color: var(--m3-primary);
+}
+
+.settings-switch input[type='checkbox']:checked::after {
+  background: var(--m3-on-primary);
+  transform: translate(20px, -50%);
+}
+
+/* ---- Slider ---- */
+
+.settings-slider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-slider-label {
+  flex: 0 0 64px;
+  font-size: 14px;
+}
+
+.settings-slider input[type='range'] {
+  flex: 1 1 auto;
+  accent-color: var(--m3-primary);
+  min-width: 0;
+}
+
+.settings-slider-value {
+  flex: 0 0 auto;
+  min-width: 96px;
+  text-align: right;
+  font-size: 12px;
+  color: var(--m3-on-surface-variant);
+  white-space: nowrap;
+}
+
+/* ---- Segmented ---- */
+
+.settings-segmented {
+  display: flex;
+  border: 1px solid var(--m3-outline-variant);
+  border-radius: 999px;
+  overflow: hidden;
+}
+
+.settings-segment {
+  flex: 1 1 0;
+  min-height: 42px;
+  padding: 0 8px;
+  border: 0;
+  border-left: 1px solid var(--m3-outline-variant);
+  background: none;
+  color: var(--m3-on-surface-variant);
+  font: inherit;
+  font-size: 14px;
+  cursor: pointer;
+  white-space: nowrap;
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+.settings-segment:first-child {
+  border-left: 0;
+}
+
+.settings-segment.is-active {
+  background: color-mix(in srgb, var(--m3-primary) 24%, transparent);
+  color: var(--m3-on-surface);
+}
+
+/* ---- Inputs ---- */
+
+.settings-select,
+.settings-input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 12px;
+  border: 1px solid var(--m3-outline-variant);
+  border-radius: 8px;
+  background: var(--m3-surface-container);
+  color: var(--m3-on-surface);
+  font: inherit;
+  font-size: 15px;
+}
+
+.settings-select {
+  appearance: none;
+  background-image: linear-gradient(45deg, transparent 50%, var(--m3-on-surface-variant) 50%),
+    linear-gradient(135deg, var(--m3-on-surface-variant) 50%, transparent 50%);
+  background-position:
+    calc(100% - 18px) calc(50% + 2px),
+    calc(100% - 13px) calc(50% + 2px);
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 34px;
+}
+
+.settings-time {
+  position: relative;
+  font-weight: 400;
+}
+
+.settings-time-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.is-disabled {
+  opacity: 0.4;
+}
+
+.settings-reset {
+  width: 100%;
+  margin-top: 20px;
+}
+
+/* ---- Colour picker ---- */
+
+.color-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.color-preview {
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid var(--m3-outline-variant);
+}
+
+.color-swatches {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.color-swatch {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: 8px;
+  border: 1px solid rgba(0, 0, 0, 0.2);
+  cursor: pointer;
+}
+
+.color-advanced {
+  align-self: flex-start;
+}
+
+.color-advanced-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.color-advanced-panel[hidden] {
+  display: none;
+}
+
+.color-square,
+.color-hue {
+  width: 100%;
+  border-radius: 8px;
+  touch-action: none;
+}
+
+.color-square {
+  height: 160px;
+}
+
+.color-hue {
+  height: 24px;
+}

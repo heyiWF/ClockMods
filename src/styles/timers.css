@@ -1,0 +1,274 @@
+/* Pomodoro, countdown, stopwatch and alarm pages. */
+
+.timer-page {
+  background: var(--m3-surface);
+  color: var(--m3-on-surface);
+  overflow-y: auto;
+}
+
+.timer {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 16px;
+  min-height: 100%;
+  padding: calc(24px + var(--safe-top)) 20px 32px;
+  text-align: center;
+}
+
+.timer-title {
+  margin: 0;
+  font-size: 20px;
+  font-weight: 600;
+}
+
+.timer-phase {
+  font-size: 15px;
+  color: var(--m3-primary);
+  min-height: 1lh;
+}
+
+.timer-phase[hidden] {
+  display: none;
+}
+
+.timer-display {
+  font-size: clamp(56px, 18vw, 128px);
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+  letter-spacing: 0.02em;
+}
+
+.stopwatch-display {
+  font-size: clamp(48px, 15vw, 104px);
+}
+
+.timer-actions {
+  display: flex;
+  gap: 12px;
+  flex-wrap: wrap;
+  justify-content: center;
+}
+
+.timer-actions button[hidden] {
+  display: none;
+}
+
+.timer-presets {
+  display: flex;
+  gap: 8px;
+  flex-wrap: wrap;
+  justify-content: center;
+  max-width: 480px;
+}
+
+.timer-preset {
+  min-height: 40px;
+  padding: 0 14px;
+  font-size: 14px;
+  font-weight: 400;
+}
+
+.stopwatch-laps {
+  list-style: none;
+  margin: 8px 0 0;
+  padding: 0;
+  width: min(420px, 100%);
+  font-variant-numeric: tabular-nums;
+}
+
+.stopwatch-laps li {
+  padding: 8px 12px;
+  border-bottom: 1px solid var(--m3-outline-variant);
+  font-size: 15px;
+  text-align: left;
+}
+
+/* ---- Alarm ---- */
+
+.alarm-time {
+  font-size: clamp(64px, 20vw, 132px);
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+  line-height: 1.1;
+}
+
+.alarm-next {
+  font-size: 15px;
+  color: var(--m3-on-surface-variant);
+}
+
+.alarm-toggle {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+  font-size: 16px;
+}
+
+.alarm-note {
+  max-width: 420px;
+  margin: 8px 0 0;
+  font-size: 13px;
+  line-height: 1.6;
+  color: var(--m3-on-surface-variant);
+}
+
+.alarm-time-input {
+  position: absolute;
+  opacity: 0;
+  pointer-events: none;
+  width: 1px;
+  height: 1px;
+}
+
+/* Full-screen alert, replacing AlarmRingingActivity. */
+#alarm-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 80;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  background: rgba(0, 0, 0, 0.92);
+}
+
+#alarm-layer[hidden] {
+  display: none;
+}
+
+.alarm-ringing {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 20px;
+  animation: alarm-pulse 1.6s ease-in-out infinite;
+}
+
+.alarm-ringing-time {
+  font-size: clamp(72px, 22vw, 160px);
+  font-weight: 300;
+  font-variant-numeric: tabular-nums;
+}
+
+.alarm-ringing-label {
+  font-size: 18px;
+  color: var(--m3-on-surface-variant);
+}
+
+.alarm-ringing-dismiss {
+  min-height: 52px;
+  padding: 0 32px;
+  font-size: 17px;
+}
+
+@keyframes alarm-pulse {
+  50% {
+    opacity: 0.72;
+  }
+}
+
+/* ---- Timer dialog ---- */
+
+.timer-dialog-row {
+  display: flex;
+  gap: 12px;
+}
+
+.timer-dialog-field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  flex: 1 1 0;
+  font-size: 13px;
+  color: var(--m3-on-surface-variant);
+}
+
+.timer-dialog-field input {
+  width: 100%;
+  min-height: 44px;
+  padding: 0 10px;
+  border: 1px solid var(--m3-outline-variant);
+  border-radius: 8px;
+  background: var(--m3-surface-container);
+  color: var(--m3-on-surface);
+  font: inherit;
+  font-size: 18px;
+  text-align: center;
+}
+
+.timer-dialog-error {
+  margin: 12px 0 0;
+  color: var(--m3-error);
+  font-size: 13px;
+}
+
+.timer-dialog-error[hidden] {
+  display: none;
+}
+
+/* ---- Hourly chime overlay (RadialChimeView) ---- */
+
+#chime-layer {
+  position: fixed;
+  inset: 0;
+  z-index: 70;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  overflow: hidden;
+  pointer-events: auto;
+}
+
+#chime-layer[hidden] {
+  display: none;
+}
+
+.chime-circle {
+  position: absolute;
+  left: 50%;
+  top: 50%;
+  width: 240vmax;
+  height: 240vmax;
+  margin: -120vmax 0 0 -120vmax;
+  border-radius: 50%;
+  background: #f4c430;
+  transform: scale(0);
+  /* Expansion finishes at 52% of the 5s burst, then everything fades from 82%. */
+  animation:
+    chime-expand 2600ms cubic-bezier(0.23, 1, 0.32, 1) forwards,
+    chime-fade 900ms 4100ms forwards;
+}
+
+.chime-text {
+  position: relative;
+  color: #000;
+  line-height: 1;
+  white-space: nowrap;
+  animation:
+    chime-text-in 1000ms 1400ms both,
+    chime-fade 900ms 4100ms forwards;
+}
+
+@keyframes chime-expand {
+  to {
+    transform: scale(1);
+  }
+}
+
+@keyframes chime-text-in {
+  from {
+    opacity: 0;
+    transform: scale(0.94);
+  }
+  to {
+    opacity: 1;
+    transform: scale(1);
+  }
+}
+
+@keyframes chime-fade {
+  to {
+    opacity: 0;
+  }
+}
