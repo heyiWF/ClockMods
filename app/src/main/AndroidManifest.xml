@@ -26,6 +26,28 @@
                 <category android:name="android.intent.category.LAUNCHER" />
             </intent-filter>
         </activity>
+
+        <!--
+            Boot auto-start via launcher disguise. Disabled by default; the "开机自启动" setting
+            enables this alias and guides the user to set the app as the default home, so the system
+            launches the clock at boot (exempt from the Android 10+ background-activity-start rule).
+            targetActivity resolves per flavor through the ${launcherActivity} placeholder.
+        -->
+        <activity-alias
+            android:name=".HomeLauncherAlias"
+            android:targetActivity="${launcherActivity}"
+            android:enabled="false"
+            android:exported="true"
+            android:icon="@mipmap/ic_launcher"
+            android:label="@string/app_name"
+            android:roundIcon="@mipmap/ic_launcher_round">
+            <intent-filter>
+                <action android:name="android.intent.action.MAIN" />
+
+                <category android:name="android.intent.category.HOME" />
+                <category android:name="android.intent.category.DEFAULT" />
+            </intent-filter>
+        </activity-alias>
     </application>
 
 </manifest>

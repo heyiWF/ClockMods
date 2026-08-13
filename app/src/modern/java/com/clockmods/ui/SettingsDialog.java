@@ -25,6 +25,7 @@ import android.widget.Toast;
 
 import com.clockmods.BuildConfig;
 import com.clockmods.R;
+import com.clockmods.background.AutoStartManager;
 import com.clockmods.background.BackgroundRepository;
 import com.clockmods.background.ClockPreferences;
 import com.clockmods.time.RegionTimeZones;
@@ -113,6 +114,7 @@ public class SettingsDialog extends BottomSheetDialog {
     private MaterialSwitch clockUseEnglishSwitch;
     private MaterialButtonToggleGroup clockLanguageGroup;
     private final MaterialButtonToggleGroup orientationGroup;
+    private final MaterialSwitch autoStartSwitch;
     private final MaterialSwitch networkTimeSwitch;
     private final View functionLockedControls;
     private final MaterialButtonToggleGroup syncIntervalGroup;
@@ -127,7 +129,6 @@ public class SettingsDialog extends BottomSheetDialog {
     private MaterialSwitch weatherIconDynamicColorSwitch;
     private final MaterialButtonToggleGroup calendarWeekStartGroup;
     private final MaterialSwitch calendarHighlightWeekendsSwitch;
-    private final MaterialSwitch calendarMoreFestivalsSwitch;
     // ---- Date-format section (rebuilt when the interface language toggles) ----
     private LinearLayout dateFormatContainer;
     private boolean dateSectionEnglish;
@@ -487,6 +488,8 @@ public class SettingsDialog extends BottomSheetDialog {
                 R.string.orientation_landscape), weightedButtonParams());
         orientationGroup.check(idForOrientation(repository.getScreenOrientation()));
         functionContent.addView(orientationGroup, topMargin(matchWrap(dp(48)), dp(6)));
+        autoStartSwitch = createStyleSwitch(context, R.string.auto_start, repository.isAutoStart());
+        addSwitchWithSummary(functionContent, autoStartSwitch, R.string.auto_start_desc, dp(8));
 
         functionContent.addView(createSectionLabel(context, R.string.time_settings_group),
                 topMargin(sectionLabelParams(), dp(20)));
@@ -686,13 +689,9 @@ public class SettingsDialog extends BottomSheetDialog {
                     repository.isCalendarHighlightWeekends());
             functionContent.addView(calendarHighlightWeekendsSwitch,
                     topMargin(matchWrap(dp(48)), dp(8)));
-            calendarMoreFestivalsSwitch = createStyleSwitch(context, R.string.calendar_more_festivals,
-                repository.isCalendarMoreFestivals());
-            functionContent.addView(calendarMoreFestivalsSwitch, topMargin(matchWrap(dp(48)), dp(8)));
         } else {
             calendarWeekStartGroup = null;
             calendarHighlightWeekendsSwitch = null;
-            calendarMoreFestivalsSwitch = null;
         }
         weatherSwitch.setOnCheckedChangeListener((button, checked) -> updateWeatherState(checked));
         weatherLocationModeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
@@ -1218,8 +1217,6 @@ public class SettingsDialog extends BottomSheetDialog {
                     ClockPreferences.DEFAULT_CALENDAR_WEEK_START));
             calendarHighlightWeekendsSwitch.setChecked(
                     ClockPreferences.DEFAULT_CALENDAR_HIGHLIGHT_WEEKENDS);
-            calendarMoreFestivalsSwitch.setChecked(
-                    ClockPreferences.DEFAULT_CALENDAR_MORE_FESTIVALS);
         }
         use24HourSwitch.setChecked(ClockPreferences.DEFAULT_USE_24_HOUR);
         selectedLanguage = ClockPreferences.DEFAULT_CLOCK_LANGUAGE;
@@ -1233,6 +1230,7 @@ public class SettingsDialog extends BottomSheetDialog {
         resetDateFormatToDefaults();
         customMessageInput.setText(ClockPreferences.DEFAULT_CUSTOM_MESSAGE);
         orientationGroup.check(idForOrientation(ClockPreferences.DEFAULT_SCREEN_ORIENTATION));
+        autoStartSwitch.setChecked(ClockPreferences.DEFAULT_AUTO_START);
         weatherSwitch.setChecked(ClockPreferences.DEFAULT_WEATHER_ENABLED);
         weatherLocationModeSpinner.setSelection(0);
         selectedWeatherLocationId = "";
@@ -1301,6 +1299,13 @@ public class SettingsDialog extends BottomSheetDialog {
         }
         repository.setCustomMessage(customMessageInput.getText().toString());
         repository.setScreenOrientation(orientationForId(orientationGroup.getCheckedButtonId()));
+        boolean autoStartOn = autoStartSwitch.isChecked();
+        boolean autoStartWasOn = repository.isAutoStart();
+        repository.setAutoStart(autoStartOn);
+        AutoStartManager.setEnabled(getContext(), autoStartOn);
+        if (autoStartOn && !autoStartWasOn) {
+            AutoStartManager.requestHomeRole(getContext());
+        }
         repository.setDimBackground(dimBackgroundSwitch.isChecked());
         repository.setScheduleDimBackground(scheduleDimBackgroundSwitch.isChecked());
         repository.setDimStartMinutes(dimStartMinutes);
@@ -1321,7 +1326,6 @@ public class SettingsDialog extends BottomSheetDialog {
                     calendarWeekStartGroup.getCheckedButtonId()));
             repository.setCalendarHighlightWeekends(
                     calendarHighlightWeekendsSwitch.isChecked());
-            repository.setCalendarMoreFestivals(calendarMoreFestivalsSwitch.isChecked());
         }
         repository.setWeatherLocationMode(manualWeather
             ? ClockPreferences.WEATHER_LOCATION_MANUAL : ClockPreferences.WEATHER_LOCATION_AUTOMATIC);

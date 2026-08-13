@@ -181,12 +181,12 @@ public class BackgroundRepository {
         preferences.setShowLunar(showLunar);
     }
 
-    public boolean isCalendarMoreFestivals() {
-        return preferences.isCalendarMoreFestivals();
+    public boolean isAutoStart() {
+        return preferences.isAutoStart();
     }
 
-    public void setCalendarMoreFestivals(boolean moreFestivals) {
-        preferences.setCalendarMoreFestivals(moreFestivals);
+    public void setAutoStart(boolean autoStart) {
+        preferences.setAutoStart(autoStart);
     }
 
     public int getCalendarWeekStart() {

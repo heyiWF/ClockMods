@@ -30,6 +30,7 @@ import android.widget.TextView;
 import android.widget.Toast;
 
 import com.clockmods.R;
+import com.clockmods.background.AutoStartManager;
 import com.clockmods.background.BackgroundRepository;
 import com.clockmods.background.ClockPreferences;
 import com.clockmods.time.RegionTimeZones;
@@ -115,6 +116,7 @@ public class SettingsDialog extends Dialog {
     private final TextView statusIconSizeValue;
     private final View statusIconSizeControls;
     private final Switch use24HourSwitch;
+    private final Switch autoStartSwitch;
     private final Switch clockUseEnglishSwitch;
     private final SegmentedSelector orientationSelector;
     private final Switch networkTimeSwitch;
@@ -420,6 +422,8 @@ public class SettingsDialog extends Dialog {
             }, COLOR_ACCENT, 0xFF252830, Color.WHITE, COLOR_SECONDARY_TEXT);
         orientationSelector.setSelectedIndex(repository.getScreenOrientation());
         functionContent.addView(orientationSelector, topMargin(matchWrap(dp(46)), dp(6)));
+        autoStartSwitch = createStyleSwitch(context, R.string.auto_start, repository.isAutoStart());
+        addSwitchWithSummary(functionContent, autoStartSwitch, R.string.auto_start_desc, dp(8));
 
         functionContent.addView(createSectionLabel(context, R.string.time_settings_group),
                 topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(18)));
@@ -1021,6 +1025,7 @@ public class SettingsDialog extends Dialog {
         rebuildDateFormatSection(getContext(), dateSectionEnglish);
         customMessageInput.setText(ClockPreferences.DEFAULT_CUSTOM_MESSAGE);
         orientationSelector.setSelectedIndex(ClockPreferences.DEFAULT_SCREEN_ORIENTATION);
+        autoStartSwitch.setChecked(ClockPreferences.DEFAULT_AUTO_START);
         weatherSwitch.setChecked(ClockPreferences.DEFAULT_WEATHER_ENABLED);
         weatherLocationModeSpinner.setSelection(0);
         selectedWeatherLocationId = "";
@@ -1067,6 +1072,13 @@ public class SettingsDialog extends Dialog {
         repository.setDatePatternEn(pendingDatePatternEn);
         repository.setCustomMessage(customMessageInput.getText().toString());
         repository.setScreenOrientation(orientationSelector.getSelectedIndex());
+        boolean autoStartOn = autoStartSwitch.isChecked();
+        boolean autoStartWasOn = repository.isAutoStart();
+        repository.setAutoStart(autoStartOn);
+        AutoStartManager.setEnabled(getContext(), autoStartOn);
+        if (autoStartOn && !autoStartWasOn) {
+            AutoStartManager.requestHomeRole(getContext());
+        }
         repository.setDimBackground(dimBackgroundSwitch.isChecked());
         repository.setScheduleDimBackground(scheduleDimBackgroundSwitch.isChecked());
         repository.setDimStartMinutes(dimStartMinutes);

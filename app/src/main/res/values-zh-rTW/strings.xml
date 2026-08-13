@@ -96,6 +96,8 @@
     <string name="small_seconds">使用小字號秒數</string>
     <string name="portrait_stacked_clock">直向時鐘直排大字</string>
     <string name="show_lunar">顯示農曆</string>
+    <string name="auto_start">開機自啟動</string>
+    <string name="auto_start_desc">將本應用設為預設桌面，開機後自動顯示時鐘介面</string>
     <string name="date_lunar_dual_line">日期與農曆雙行顯示</string>
     <string name="date_lunar_dual_line_desc">僅橫向生效；直向始終雙行顯示</string>
     <string name="font_size_percent">佔螢幕寬度 %1$d%%</string>
@@ -161,7 +163,6 @@
     <string name="calendar_week_start_sunday">週日</string>
     <string name="calendar_week_start_monday">週一</string>
     <string name="calendar_highlight_weekends">月曆突顯週末</string>
-    <string name="calendar_more_festivals">月曆顯示更多節日</string>
     <string name="weather_update_interval">更新頻率</string>
     <string name="weather_location">天氣位置</string>
     <string name="weather_location_automatic">自動定位</string>

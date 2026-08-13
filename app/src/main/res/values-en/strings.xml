@@ -96,6 +96,8 @@
     <string name="small_seconds">Use smaller seconds</string>
     <string name="portrait_stacked_clock">Stacked clock in portrait</string>
     <string name="show_lunar">Show lunar date</string>
+    <string name="auto_start">Auto-start on boot</string>
+    <string name="auto_start_desc">Set this app as the default home so the clock shows on boot</string>
     <string name="date_lunar_dual_line">Date and lunar on two lines</string>
     <string name="date_lunar_dual_line_desc">Landscape only; portrait always uses two lines</string>
     <string name="font_size_percent">%1$d%% of screen width</string>
@@ -161,7 +163,6 @@
     <string name="calendar_week_start_sunday">Sunday</string>
     <string name="calendar_week_start_monday">Monday</string>
     <string name="calendar_highlight_weekends">Highlight weekends</string>
-    <string name="calendar_more_festivals">Show more festivals</string>
     <string name="weather_update_interval">Update interval</string>
     <string name="weather_location">Weather location</string>
     <string name="weather_location_automatic">Automatic</string>

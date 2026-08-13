@@ -96,6 +96,8 @@
     <string name="small_seconds">使用小字号秒数</string>
     <string name="portrait_stacked_clock">竖屏时钟竖排大字</string>
     <string name="show_lunar">显示农历</string>
+    <string name="auto_start">开机自启动</string>
+    <string name="auto_start_desc">将本应用设为默认桌面，开机后自动显示时钟界面</string>
     <string name="date_lunar_dual_line">日期与农历双行显示</string>
     <string name="date_lunar_dual_line_desc">仅横屏生效；竖屏始终双行显示</string>
     <string name="font_size_percent">占屏幕宽度 %1$d%%</string>
@@ -161,7 +163,6 @@
     <string name="calendar_week_start_sunday">周日</string>
     <string name="calendar_week_start_monday">周一</string>
     <string name="calendar_highlight_weekends">月历高亮周末</string>
-    <string name="calendar_more_festivals">月历显示更多节日</string>
     <string name="weather_update_interval">更新频率</string>
     <string name="weather_location">天气位置</string>
     <string name="weather_location_automatic">自动定位</string>

@@ -54,7 +54,7 @@ public class ClockPreferences {
     private static final String LEGACY_FONT_GOOGLE_SANS = "google_sans";
     private static final String KEY_SHOW_SECONDS = "show_seconds";
     private static final String KEY_SHOW_LUNAR = "show_lunar";
-    private static final String KEY_CALENDAR_MORE_FESTIVALS = "calendar_more_festivals";
+    private static final String KEY_AUTO_START = "auto_start";
     private static final String KEY_CALENDAR_WEEK_START = "calendar_week_start";
     private static final String KEY_CALENDAR_HIGHLIGHT_WEEKENDS = "calendar_highlight_weekends";
     private static final String KEY_SMALL_SECONDS = "small_seconds";
@@ -123,7 +123,7 @@ public class ClockPreferences {
     public static final String DEFAULT_FONT_FAMILY = FONT_SYSTEM;
     public static final boolean DEFAULT_SHOW_SECONDS = true;
     public static final boolean DEFAULT_SHOW_LUNAR = true;
-    public static final boolean DEFAULT_CALENDAR_MORE_FESTIVALS = false;
+    public static final boolean DEFAULT_AUTO_START = false;
     public static final int CALENDAR_WEEK_START_SUNDAY = Calendar.SUNDAY;
     public static final int CALENDAR_WEEK_START_MONDAY = Calendar.MONDAY;
     public static final int DEFAULT_CALENDAR_WEEK_START = CALENDAR_WEEK_START_SUNDAY;
@@ -393,12 +393,12 @@ public class ClockPreferences {
         preferences.edit().putBoolean(KEY_SHOW_LUNAR, showLunar).apply();
     }
 
-    public boolean isCalendarMoreFestivals() {
-        return preferences.getBoolean(KEY_CALENDAR_MORE_FESTIVALS, DEFAULT_CALENDAR_MORE_FESTIVALS);
+    public boolean isAutoStart() {
+        return preferences.getBoolean(KEY_AUTO_START, DEFAULT_AUTO_START);
     }
 
-    public void setCalendarMoreFestivals(boolean moreFestivals) {
-        preferences.edit().putBoolean(KEY_CALENDAR_MORE_FESTIVALS, moreFestivals).apply();
+    public void setAutoStart(boolean autoStart) {
+        preferences.edit().putBoolean(KEY_AUTO_START, autoStart).apply();
     }
 
     public int getCalendarWeekStart() {
@@ -753,7 +753,7 @@ public class ClockPreferences {
                 .putString(KEY_FONT_FAMILY, DEFAULT_FONT_FAMILY)
                 .putBoolean(KEY_SHOW_SECONDS, DEFAULT_SHOW_SECONDS)
                 .putBoolean(KEY_SHOW_LUNAR, DEFAULT_SHOW_LUNAR)
-                .putBoolean(KEY_CALENDAR_MORE_FESTIVALS, DEFAULT_CALENDAR_MORE_FESTIVALS)
+                .putBoolean(KEY_AUTO_START, DEFAULT_AUTO_START)
                 .putInt(KEY_CALENDAR_WEEK_START, DEFAULT_CALENDAR_WEEK_START)
                 .putBoolean(KEY_CALENDAR_HIGHLIGHT_WEEKENDS,
                         DEFAULT_CALENDAR_HIGHLIGHT_WEEKENDS)

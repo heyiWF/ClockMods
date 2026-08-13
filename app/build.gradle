@@ -108,8 +108,10 @@ dependencies {
     proImplementation 'com.google.android.material:material:1.14.0'
     proImplementation 'androidx.appcompat:appcompat:1.7.1'
     proImplementation 'androidx.viewpager2:viewpager2:1.1.0'
-    // Offline almanac engine: lunar/solar-term/festival/宜忌 computed to year 2100+ (Pro calendar).
-    proImplementation 'cn.6tail:lunar:1.7.7'
+    // Offline almanac engine (6tail, MIT, pure-Java/no deps): lunar date, solar terms, festivals and
+    // 宜忌, computed astronomically for years 1–9999. Shared by the main clock (LunarCalendar) and the
+    // Pro calendar (LunarAlmanac), so it must be available to every flavor.
+    implementation 'cn.6tail:tyme4j:1.5.1'
 
     testImplementation 'junit:junit:4.13.2'
     implementation 'net.i2p.crypto:eddsa:0.3.0'

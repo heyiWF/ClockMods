@@ -559,7 +559,7 @@ public final class ProCalendarFragment extends Fragment {
                 : getColor(R.color.calendar_dashboard_amber));
         }
         cell.addView(solar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
-        List<String> labels = almanac.festivals(preferences.isCalendarMoreFestivals());
+        List<String> labels = almanac.festivals();
         List<String> carouselItems = new ArrayList<>();
         carouselItems.add(almanac.shortLabel());
         carouselItems.addAll(labels);

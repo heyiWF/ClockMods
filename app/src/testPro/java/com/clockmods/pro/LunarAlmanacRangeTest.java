@@ -23,7 +23,7 @@ public class LunarAlmanacRangeTest {
         for (CalendarMonth.Day day : month.days) {
             LunarAlmanac almanac = LunarAlmanac.of(day.year, day.month, day.dayOfMonth);
             Assert.assertFalse(almanac.shortLabel().isEmpty());
-            Assert.assertNotNull(almanac.festivals(true));
+            Assert.assertNotNull(almanac.festivals());
         }
         assertFooterUsable(year, month0, 1);
     }
@@ -32,7 +32,7 @@ public class LunarAlmanacRangeTest {
         LunarAlmanac almanac = LunarAlmanac.of(year, month0, day);
         Assert.assertFalse(almanac.shortLabel().isEmpty());
         Assert.assertFalse(almanac.naturalLabel().isEmpty());
-        Assert.assertNotNull(almanac.festivals(true));
+        Assert.assertNotNull(almanac.festivals());
         Assert.assertNotNull(almanac.suitable());
         Assert.assertNotNull(almanac.avoid());
     }

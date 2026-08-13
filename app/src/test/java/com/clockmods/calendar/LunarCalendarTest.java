@@ -16,9 +16,11 @@ public class LunarCalendarTest {
     }
 
     @Test
-    public void returnsEmptyForOutOfRangeDate() {
+    public void formatsDatesBelowLegacyLowerBound() {
+        // The former table-based engine capped at 1900 and returned ""; the tyme4j engine has no
+        // such limit, so dates before 1900 now resolve to their real lunar value.
         Calendar calendar = new GregorianCalendar(1899, Calendar.DECEMBER, 31);
-        Assert.assertEquals("", LunarCalendar.format(calendar));
+        Assert.assertEquals("己亥[猪]年冬月廿九", LunarCalendar.format(calendar));
     }
 
     @Test
