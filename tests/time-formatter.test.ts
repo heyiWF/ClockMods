@@ -53,8 +53,8 @@ describe('formatTime', () => {
 describe('formatHourlyChime', () => {
   it('formats for both twelve- and twenty-four-hour clocks', () => {
     expect(formatHourlyChime(13, 0, true, false)).toBe('13:00');
-    expect(formatHourlyChime(13, 0, false, false)).toBe('下午1:00');
-    expect(formatHourlyChime(0, 0, false, false)).toBe('上午12:00');
+    expect(formatHourlyChime(13, 0, false, false)).toBe('下午 1:00');
+    expect(formatHourlyChime(0, 0, false, false)).toBe('上午 12:00');
     expect(formatHourlyChime(12, 0, false, true)).toBe('12:00 PM');
   });
 });

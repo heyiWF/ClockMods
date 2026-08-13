@@ -12,6 +12,7 @@ import { fontStack } from '../core/fonts';
 import { timeSource, millisUntilNextSecond } from '../core/time-source';
 import { addMonths, dateKey, daysInMonth, zonedFields } from '../core/zoned-time';
 import { format as formatDate } from '../format/date-formatter';
+import { pangu } from '../format/text-spacing';
 import { periodTextFor, twoDigits } from '../format/time-formatter';
 import { almanacOf } from '../lunar/lunar';
 import { holidayOn } from '../lunar/holidays';
@@ -132,12 +133,14 @@ export class CalendarPage implements Page {
       direction = 0;
       this.grid.style.transition = 'none';
       this.preview.style.transition = 'none';
-      this.viewport.setPointerCapture?.(event.pointerId);
     });
     this.viewport.addEventListener('pointermove', (event) => {
       if (!dragging) return;
       const offset = event.clientX - startX;
       if (Math.abs(offset) < 4) return;
+      if (!this.viewport.hasPointerCapture?.(event.pointerId)) {
+        this.viewport.setPointerCapture?.(event.pointerId);
+      }
       const nextDirection = offset < 0 ? 1 : -1;
       if (nextDirection !== direction) {
         direction = nextDirection;
@@ -207,6 +210,12 @@ export class CalendarPage implements Page {
     const weatherEnabled = prefs.isWeatherEnabled();
     this.weatherCard.hidden = !weatherEnabled;
     this.forecastCard.hidden = !weatherEnabled;
+    const attributionText = t('weather_attribution');
+    this.attribution.setAttribute('aria-label', attributionText);
+    const attributionLabel = this.attribution.querySelector<HTMLElement>(
+      '.weather-attribution-label'
+    );
+    if (attributionLabel) attributionLabel.textContent = attributionText;
     this.attribution.hidden = !weatherEnabled;
     this.feelsLabel.textContent = t('calendar_feels_like');
     this.root.querySelector('#cal-today')!.textContent = t('calendar_today');
@@ -250,7 +259,7 @@ export class CalendarPage implements Page {
 
   private bindWeather(state: WeatherState): void {
     if (!state.data) {
-      this.summary.textContent = state.message ?? t('calendar_forecast_loading');
+      this.summary.textContent = pangu(state.message ?? t('calendar_forecast_loading'));
       return;
     }
     const data = state.data;
@@ -270,7 +279,7 @@ export class CalendarPage implements Page {
       if (wind) parts.push(wind);
       if (data.detail.humidity) parts.push(t('weather_humidity_format', data.detail.humidity));
     }
-    this.summary.textContent = parts.filter(Boolean).join(' · ');
+    this.summary.textContent = pangu(parts.filter(Boolean).join(' · '));
   }
 
   private bindForecast(state: DailyForecastState): void {
@@ -362,8 +371,11 @@ export class CalendarPage implements Page {
   }
 
   private createDayCell(day: CalendarDay, interactive: boolean): HTMLElement {
-    const cell = document.createElement('div');
+    const cell: HTMLElement = interactive
+      ? document.createElement('button')
+      : document.createElement('div');
     cell.className = 'cal-day';
+    if (interactive) cell.setAttribute('type', 'button');
     if (!day.currentMonth) cell.classList.add('is-other-month');
     if (day.today) cell.classList.add('is-today');
     if (prefs.isCalendarHighlightWeekends() && isWeekend(day.dayOfWeek)) {
@@ -410,7 +422,10 @@ export class CalendarPage implements Page {
     if (interactive) {
       carousel.setActive(this.running);
       this.cellCarousels.push(carousel);
-      cell.addEventListener('click', () => this.selectDay(day));
+      cell.addEventListener('click', (event) => {
+        event.stopPropagation();
+        this.selectDay(day);
+      });
     }
 
     const separator = prefs.isClockUseEnglish() ? ', ' : '，';
@@ -421,7 +436,7 @@ export class CalendarPage implements Page {
     );
     if (almanac.festivals.length > 0) description += separator + almanac.festivals.join(separator);
     if (status) description += t(status.offDay ? 'calendar_day_rest' : 'calendar_day_makeup');
-    cell.setAttribute('aria-label', description);
+    cell.setAttribute('aria-label', pangu(description));
     return cell;
   }
 
@@ -643,6 +658,6 @@ export class CalendarPage implements Page {
 function text(className: string, value: string): HTMLElement {
   const element = document.createElement('div');
   element.className = className;
-  element.textContent = value;
+  element.textContent = pangu(value);
   return element;
 }

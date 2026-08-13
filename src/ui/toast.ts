@@ -1,5 +1,7 @@
 /** Transient message, replacing android.widget.Toast. */
 
+import { pangu } from '../format/text-spacing';
+
 const DURATION_MS = 2200;
 
 export function toast(message: string): void {
@@ -7,7 +9,7 @@ export function toast(message: string): void {
   if (!root) return;
   const element = document.createElement('div');
   element.className = 'toast';
-  element.textContent = message;
+  element.textContent = pangu(message);
   root.appendChild(element);
   setTimeout(() => {
     element.classList.add('is-leaving');

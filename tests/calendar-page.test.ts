@@ -91,6 +91,13 @@ describe('CalendarPage', () => {
     expect(labels).toContain('立秋');
   });
 
+  it('spaces digits from Chinese text in the date accessibility label', () => {
+    const { root } = mount();
+    const date = root.querySelector('.cal-day[data-date="2026-08-20"]')!;
+
+    expect(date.getAttribute('aria-label')).toContain('20 日');
+  });
+
   it('shows 休 and 班 badges from the holiday table', () => {
     const { root, page } = mount();
     // Move to October, where the fixture has both kinds of day. With a zero-width
@@ -124,6 +131,51 @@ describe('CalendarPage', () => {
     expect(target.classList.contains('is-selected')).toBe(true);
     expect(root.querySelectorAll('.cal-day.is-selected')).toHaveLength(1);
     expect(root.querySelector('#cal-footer')!.textContent).toContain('2026 年 8 月 20 日');
+  });
+
+  it('uses date buttons and keeps their clicks inside the calendar', () => {
+    const { root } = mount();
+    const pageClick = vi.fn();
+    root.addEventListener('click', pageClick);
+    const target = root.querySelector<HTMLButtonElement>(
+      '.cal-day[data-date="2026-08-20"]'
+    )!;
+
+    expect(target.tagName).toBe('BUTTON');
+    expect(target.type).toBe('button');
+    target.click();
+
+    expect(target.classList.contains('is-selected')).toBe(true);
+    expect(root.querySelectorAll('.cal-day.is-selected')).toHaveLength(1);
+    expect(pageClick).not.toHaveBeenCalled();
+  });
+
+  it('captures the pointer only after a month drag starts', () => {
+    const { root } = mount();
+    const viewport = root.querySelector<HTMLElement>('#cal-days-viewport')!;
+    const capture = vi.fn();
+    Object.defineProperties(viewport, {
+      hasPointerCapture: { configurable: true, value: () => false },
+      setPointerCapture: { configurable: true, value: capture },
+    });
+    const pointer = { bubbles: true };
+
+    viewport.dispatchEvent(
+      Object.assign(new Event('pointerdown', pointer), {
+        button: 0,
+        clientX: 200,
+        pointerId: 1,
+      })
+    );
+    expect(capture).not.toHaveBeenCalled();
+
+    viewport.dispatchEvent(
+      Object.assign(new Event('pointermove', pointer), {
+        clientX: 190,
+        pointerId: 1,
+      })
+    );
+    expect(capture).toHaveBeenCalledWith(1);
   });
 
   it('jumps back to today after visiting another month', () => {

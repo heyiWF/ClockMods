@@ -8,6 +8,8 @@
  * left once at 40px/s, pauses for another second, then advances vertically.
  */
 
+import { pangu } from '../format/text-spacing';
+
 const HOLD_MS = 3000;
 const TRANSITION_MS = 200;
 const SCROLL_PAUSE_MS = 1000;
@@ -103,9 +105,10 @@ export class LabelCarousel {
     line.className = 'label-carousel-item';
     if (item.color) line.style.color = item.color;
     const inner = document.createElement('span');
-    inner.textContent = item.text;
+    const displayText = pangu(item.text);
+    inner.textContent = displayText;
     // Only labels longer than three characters need overflow measurement.
-    if (item.text.length > MAX_STATIC_CHARS) inner.classList.add('can-scroll');
+    if (displayText.length > MAX_STATIC_CHARS) inner.classList.add('can-scroll');
     line.appendChild(inner);
     return line;
   }

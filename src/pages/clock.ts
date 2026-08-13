@@ -146,6 +146,12 @@ export class ClockPage implements Page {
     this.layoutSignature = '';
     this.render();
     const enabled = prefs.isWeatherEnabled();
+    const attributionText = t('weather_attribution');
+    this.attribution.setAttribute('aria-label', attributionText);
+    const attributionLabel = this.attribution.querySelector<HTMLElement>(
+      '.weather-attribution-label'
+    );
+    if (attributionLabel) attributionLabel.textContent = attributionText;
     this.attribution.hidden = !enabled;
     if (!enabled) {
       this.weatherController.stop();
@@ -490,9 +496,9 @@ export class ClockPage implements Page {
     const gapFactor = portrait ? 0.9 : 0.35;
     const gap = Math.max(portrait ? 32 : 12, dateSize * gapFactor);
     style.setProperty('--time-gap', `${gap}px`);
-    // The date<->lunar and weather<->detail row gaps are deliberately identical.
-    const rowGap = dateSize * LINE_HEIGHT * (portrait ? 1.35 : 1);
-    style.setProperty('--row-gap', `${rowGap}px`);
+    // The date<->lunar and weather<->detail gaps are deliberately identical.
+    const supportingGap = Math.max(portrait ? 10 : 6, dateSize * (portrait ? 0.5 : 0.35));
+    style.setProperty('--supporting-gap', `${supportingGap}px`);
   }
 
   private inlineTimeSize(
@@ -547,11 +553,12 @@ export class ClockPage implements Page {
     const dateLineHeight = dateSize * LINE_HEIGHT;
     const hasLunar = prefs.isShowLunar();
     const weatherShown = prefs.isWeatherEnabled() || prefs.getCustomMessage().length > 0;
-    const dateBlockHeight = hasLunar ? dateLineHeight * 1.5 + dateLineHeight : dateLineHeight;
+    const supportingGap = Math.max(dateLineHeight * 0.5, 10);
+    const dateBlockHeight = hasLunar ? dateLineHeight * 2 + supportingGap : dateLineHeight;
     const weatherBlockHeight = !weatherShown
       ? 0
       : weatherTwoLines
-        ? dateLineHeight * 1.35 + dateLineHeight
+        ? dateLineHeight * 2 + supportingGap
         : dateLineHeight;
     const available = height * 0.88; // the 6%/94% safe area
     const minGap = dateLineHeight * 0.25;

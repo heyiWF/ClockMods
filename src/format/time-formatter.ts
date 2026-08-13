@@ -1,5 +1,7 @@
 /** Ported from com.clockmods.ui.ClockTimeFormatter. */
 
+import { pangu } from './text-spacing';
+
 export interface DisplayTime {
   mainText: string;
   secondsText: string;
@@ -61,7 +63,7 @@ export function formatHourlyChime(
   if (displayHour === 0) displayHour = 12;
   const time = displayHour + ':' + twoDigits(minute);
   const period = periodTextFor(hour, useEnglish);
-  return useEnglish ? time + ' ' + period : period + time;
+  return pangu(useEnglish ? time + ' ' + period : period + time);
 }
 
 export function periodTextFor(hour: number, useEnglish: boolean): string {

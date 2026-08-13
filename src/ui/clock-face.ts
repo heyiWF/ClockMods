@@ -11,7 +11,7 @@
  *   - the colon is nudged so its optical centre matches the digits' centre
  *     (ClockTextLayout.alignedCharacterBaseline) and fades when blinking.
  */
-import { hasSupportingTrackingAt } from '../format/text-spacing';
+import { hasSupportingTrackingAt, pangu } from '../format/text-spacing';
 import {
   TRANSITION_FADE,
   TRANSITION_FLIP,
@@ -139,7 +139,10 @@ export class CharacterLine {
       outgoing.remove();
       incoming.classList.remove('is-in', `anim-${transitionClass}`);
     };
-    outgoing.addEventListener('animationend', cleanup, { once: true });
+    // The flip transition is sequential: the outgoing half ends at 150ms while
+    // the incoming half is only starting. Cleaning up from the outgoing event
+    // would freeze the new digit at its edge-on first frame.
+    incoming.addEventListener('animationend', cleanup, { once: true });
     // animationend never fires when animations are disabled (prefers-reduced-motion
     // or a background tab), so guarantee cleanup.
     setTimeout(cleanup, TRANSITION_DURATION_MS + 80);
@@ -162,9 +165,10 @@ export class CharacterLine {
  * that must not be widened are wrapped in a span that zeroes it.
  */
 export function renderSupportingText(element: HTMLElement, text: string): void {
-  if (element.dataset.text === text) return;
-  element.dataset.text = text;
-  if (!text) {
+  const displayText = pangu(text);
+  if (element.dataset.text === displayText) return;
+  element.dataset.text = displayText;
+  if (!displayText) {
     element.replaceChildren();
     return;
   }
@@ -183,9 +187,9 @@ export function renderSupportingText(element: HTMLElement, text: string): void {
     }
     buffer = '';
   };
-  for (const character of text) {
+  for (const character of displayText) {
     index += character.length;
-    const tight = !hasSupportingTrackingAt(text, index);
+    const tight = !hasSupportingTrackingAt(displayText, index);
     // A character whose trailing gap is suppressed goes into its own run.
     if (tight) {
       flush(false);

@@ -51,11 +51,31 @@ function setup() {
 }
 
 function swipe(container: HTMLElement, fromX: number, toX: number, y = 100): void {
+  vi.useFakeTimers();
   container.dispatchEvent(
-    Object.assign(new Event('pointerdown', { bubbles: true }), { clientX: fromX, clientY: y })
+    pointerEvent('pointerdown', fromX, y)
   );
+  container.dispatchEvent(pointerEvent('pointermove', toX, y));
   container.dispatchEvent(
-    Object.assign(new Event('pointerup', { bubbles: true }), { clientX: toX, clientY: y })
+    pointerEvent('pointerup', toX, y)
+  );
+  vi.advanceTimersByTime(350);
+  vi.useRealTimers();
+}
+
+function pointerEvent(type: string, clientX: number, clientY: number, pointerId = 1): Event {
+  return Object.assign(new Event(type, { bubbles: true, cancelable: true }), {
+    clientX,
+    clientY,
+    pointerId,
+    pointerType: 'touch',
+    isPrimary: true,
+  });
+}
+
+function finishTransform(element: HTMLElement): void {
+  element.dispatchEvent(
+    Object.assign(new Event('transitionend', { bubbles: true }), { propertyName: 'transform' })
   );
 }
 
@@ -87,9 +107,11 @@ describe('Router', () => {
     const { router, nav } = setup();
     router.navigate('clock');
     expect(nav.classList.contains('is-hidden')).toBe(true);
+    expect(nav.classList.contains('is-overlay')).toBe(true);
 
     router.navigate('pomodoro');
     expect(nav.classList.contains('is-hidden')).toBe(false);
+    expect(nav.classList.contains('is-overlay')).toBe(false);
   });
 
   it('reveals the chrome temporarily on an immersive page', () => {
@@ -100,11 +122,25 @@ describe('Router', () => {
 
     router.showChromeTemporarily();
     expect(nav.classList.contains('is-hidden')).toBe(false);
+    expect(nav.classList.contains('is-overlay')).toBe(true);
 
     // Matches ProMainActivity.CHROME_VISIBLE_MILLIS.
     vi.advanceTimersByTime(3000);
     expect(nav.classList.contains('is-hidden')).toBe(true);
     vi.useRealTimers();
+  });
+
+  it('does not reveal chrome when an interactive date is clicked', () => {
+    const { router, container, nav } = setup();
+    router.navigate('calendar');
+    const date = document.createElement('button');
+    date.className = 'cal-day';
+    container.querySelector('[data-page="calendar"]')!.appendChild(date);
+
+    date.click();
+
+    expect(nav.classList.contains('is-hidden')).toBe(true);
+    expect(nav.classList.contains('is-overlay')).toBe(true);
   });
 
   it('navigates by clicking the bottom navigation', () => {
@@ -126,11 +162,123 @@ describe('Router', () => {
     expect(container.querySelector('.page.is-active')!.getAttribute('data-page')).toBe('clock');
   });
 
+  it('moves the current and adjacent pages with the pointer before navigation completes', () => {
+    vi.useFakeTimers();
+    const { router, container, pages } = setup();
+    Object.defineProperty(container, 'clientWidth', { configurable: true, value: 400 });
+    router.navigate('clock');
+
+    container.dispatchEvent(pointerEvent('pointerdown', 300, 100));
+    container.dispatchEvent(pointerEvent('pointermove', 180, 102));
+
+    const clock = container.querySelector<HTMLElement>('[data-page="clock"]')!;
+    const calendar = container.querySelector<HTMLElement>('[data-page="calendar"]')!;
+    expect(clock.style.transform).toContain('-120px');
+    expect(calendar.classList.contains('is-swipe-target')).toBe(true);
+    expect(calendar.style.transform).toContain('280px');
+    expect(pages[0].stopped).toBe(0);
+    expect(pages[1].started).toBe(0);
+
+    container.dispatchEvent(pointerEvent('pointerup', 180, 102));
+    expect(container.querySelector('.page.is-active')!.getAttribute('data-page')).toBe('clock');
+    expect(calendar.style.transform).toBe('translateX(0)');
+
+    vi.advanceTimersByTime(210);
+    expect(container.querySelector('.page.is-active')!.getAttribute('data-page')).toBe('clock');
+
+    finishTransform(calendar);
+    expect(container.querySelector('.page.is-active')!.getAttribute('data-page')).toBe('calendar');
+    expect(calendar.classList.contains('is-swipe-target')).toBe(false);
+    expect(clock.style.transform).toBe('');
+    vi.useRealTimers();
+  });
+
+  it('animates a short horizontal drag back to the current page', () => {
+    vi.useFakeTimers();
+    const { router, container } = setup();
+    Object.defineProperty(container, 'clientWidth', { configurable: true, value: 400 });
+    router.navigate('clock');
+
+    container.dispatchEvent(pointerEvent('pointerdown', 300, 100));
+    container.dispatchEvent(pointerEvent('pointermove', 270, 100));
+    container.dispatchEvent(pointerEvent('pointerup', 270, 100));
+
+    const clock = container.querySelector<HTMLElement>('[data-page="clock"]')!;
+    expect(clock.style.transform).toBe('translateX(0)');
+    expect(container.querySelector('[data-page="calendar"]')!.classList.contains('is-swipe-target')).toBe(
+      true
+    );
+
+    finishTransform(container.querySelector<HTMLElement>('[data-page="calendar"]')!);
+    expect(container.querySelector('.page.is-active')!.getAttribute('data-page')).toBe('clock');
+    expect(container.querySelector('.is-swipe-target')).toBeNull();
+    vi.useRealTimers();
+  });
+
+  it('leaves calendar month drags to their own handler', () => {
+    const { router, container } = setup();
+    router.navigate('calendar');
+    const calendar = container.querySelector<HTMLElement>('[data-page="calendar"]')!;
+    const monthSurface = document.createElement('div');
+    monthSurface.className = 'no-page-swipe';
+    calendar.append(monthSurface);
+
+    monthSurface.dispatchEvent(pointerEvent('pointerdown', 300, 100));
+    monthSurface.dispatchEvent(pointerEvent('pointermove', 100, 100));
+    monthSurface.dispatchEvent(pointerEvent('pointerup', 100, 100));
+
+    expect(container.querySelector('.page.is-active')!.getAttribute('data-page')).toBe('calendar');
+    expect(container.querySelector('.is-swipe-target')).toBeNull();
+  });
+
+  it('tracks horizontal drags that start on a page control while preserving taps', () => {
+    vi.useFakeTimers();
+    const { router, container } = setup();
+    Object.defineProperty(container, 'clientWidth', { configurable: true, value: 400 });
+    router.navigate('pomodoro');
+    const button = document.createElement('button');
+    let clicks = 0;
+    button.addEventListener('click', () => clicks++);
+    container.querySelector('[data-page="pomodoro"]')!.append(button);
+
+    button.click();
+    expect(clicks).toBe(1);
+
+    button.dispatchEvent(pointerEvent('pointerdown', 300, 100));
+    button.dispatchEvent(pointerEvent('pointermove', 180, 100));
+    expect(container.querySelector<HTMLElement>('[data-page="pomodoro"]')!.style.transform).toBe(
+      'translateX(-120px)'
+    );
+    button.dispatchEvent(pointerEvent('pointerup', 180, 100));
+    button.click();
+    expect(clicks).toBe(1);
+
+    finishTransform(container.querySelector<HTMLElement>('[data-page="alarm"]')!);
+    expect(container.querySelector('.page.is-active')!.getAttribute('data-page')).toBe('alarm');
+    vi.useRealTimers();
+  });
+
+  it('suppresses the click synthesized after a horizontal drag', () => {
+    vi.useFakeTimers();
+    const { router, container, nav } = setup();
+    Object.defineProperty(container, 'clientWidth', { configurable: true, value: 400 });
+    router.navigate('clock');
+
+    container.dispatchEvent(pointerEvent('pointerdown', 300, 100));
+    container.dispatchEvent(pointerEvent('pointermove', 270, 100));
+    container.dispatchEvent(pointerEvent('pointerup', 270, 100));
+    container.dispatchEvent(new MouseEvent('click', { bubbles: true, cancelable: true }));
+
+    expect(nav.classList.contains('is-hidden')).toBe(true);
+    vi.advanceTimersByTime(330);
+    vi.useRealTimers();
+  });
+
   it('ignores short swipes and mostly-vertical drags', () => {
     const { router, container } = setup();
     router.navigate('clock');
 
-    swipe(container, 300, 260); // below the 60px threshold
+    swipe(container, 300, 270); // below the 40px threshold
     expect(container.querySelector('.page.is-active')!.getAttribute('data-page')).toBe('clock');
 
     container.dispatchEvent(

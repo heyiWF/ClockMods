@@ -75,7 +75,7 @@
   /* The AM/PM marker and the small seconds sit on the digits' bottom edge
      (ClockTextLayout.bottomAlignedBaseline). */
   align-self: baseline;
-  margin-right: 0.09em;
+  margin-right: 0.25em;
 }
 
 .time-seconds {
@@ -96,6 +96,7 @@
   display: inline-block;
   text-align: center;
   vertical-align: baseline;
+  perspective: 1.6em;
 }
 
 /* Digits share the widest digit's advance so the clock never jitters. */
@@ -168,12 +169,17 @@
   animation: glyph-scale-in 300ms cubic-bezier(0.22, 1, 0.36, 1);
 }
 
-/* Flip is sequential: the old glyph squashes away, then the new one unfolds. */
+/* Flip is sequential. The face fades before it turns edge-on, so no flattened
+   digit is exposed between the outgoing and incoming halves. */
 .glyph.anim-flip.is-out {
-  animation: glyph-flip-out 150ms linear forwards;
+  transform-origin: center bottom;
+  backface-visibility: hidden;
+  animation: glyph-flip-out 150ms cubic-bezier(0.4, 0, 1, 1) forwards;
 }
 .glyph.anim-flip.is-in {
-  animation: glyph-flip-in 150ms linear 150ms backwards;
+  transform-origin: center top;
+  backface-visibility: hidden;
+  animation: glyph-flip-in 150ms cubic-bezier(0, 0, 0.2, 1) 150ms backwards;
 }
 
 @keyframes glyph-fade-out {
@@ -227,13 +233,21 @@
 }
 
 @keyframes glyph-flip-out {
+  70% {
+    opacity: 0;
+  }
   to {
-    transform: scaleY(0.05);
+    opacity: 0;
+    transform: rotateX(90deg);
   }
 }
 @keyframes glyph-flip-in {
   from {
-    transform: scaleY(0.05);
+    opacity: 0;
+    transform: rotateX(-90deg);
+  }
+  30% {
+    opacity: 0;
   }
 }
 
@@ -276,7 +290,7 @@
 }
 
 #clock-date:not([hidden]) + #clock-lunar:not([hidden]) {
-  margin-top: calc(var(--row-gap, 24px) - var(--date-size, 24px) * 1.2);
+  margin-top: var(--supporting-gap, 10px);
 }
 
 #clock-time + #clock-weather:not([hidden]) {
@@ -284,7 +298,7 @@
 }
 
 #clock-weather:not([hidden]) + #clock-detail:not([hidden]) {
-  margin-top: calc(var(--row-gap, 24px) - var(--date-size, 24px) * 1.2);
+  margin-top: var(--supporting-gap, 10px);
 }
 
 /* ---- Carousel (weather / message / detail lines) ---- */

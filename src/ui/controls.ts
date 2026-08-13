@@ -6,6 +6,8 @@
  * MaterialButtonToggleGroup segments, Spinners and the rounded section cards.
  */
 
+import { pangu } from '../format/text-spacing';
+
 export function element<K extends keyof HTMLElementTagNameMap>(
   tag: K,
   className?: string,
@@ -13,7 +15,7 @@ export function element<K extends keyof HTMLElementTagNameMap>(
 ): HTMLElementTagNameMap[K] {
   const node = document.createElement(tag);
   if (className) node.className = className;
-  if (text !== undefined) node.textContent = text;
+  if (text !== undefined) node.textContent = pangu(text);
   return node;
 }
 
@@ -75,7 +77,7 @@ export function sliderRow(
   input.value = String(value);
   const readout = element('span', 'settings-slider-value', format(value));
   input.addEventListener('input', () => {
-    readout.textContent = format(Number(input.value));
+    readout.textContent = pangu(format(Number(input.value)));
   });
   row.append(caption, input, readout);
   return {
@@ -175,7 +177,7 @@ export function timeButton(labelPrefix: string, initialMinutes: number): TimeBut
   const render = () => {
     const hh = String(Math.floor(minutes / 60)).padStart(2, '0');
     const mm = String(minutes % 60).padStart(2, '0');
-    button.textContent = `${labelPrefix} ${hh}:${mm}`;
+    button.textContent = pangu(`${labelPrefix} ${hh}:${mm}`);
     input.value = `${hh}:${mm}`;
   };
   render();

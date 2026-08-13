@@ -99,4 +99,12 @@ describe('application shell', () => {
     expect(document.getElementById('chime-layer')!.hasAttribute('hidden')).toBe(true);
     expect(document.getElementById('alarm-layer')!.hasAttribute('hidden')).toBe(true);
   });
+
+  it('includes readable QWeather attribution copy on both weather pages', () => {
+    const labels = [...document.querySelectorAll('.weather-attribution-label')].map((node) =>
+      node.textContent?.trim()
+    );
+    expect(labels).toHaveLength(2);
+    expect(labels.every(Boolean)).toBe(true);
+  });
 });

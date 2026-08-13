@@ -37,6 +37,8 @@ body {
   position: relative;
   flex: 1 1 auto;
   min-height: 0;
+  overflow: hidden;
+  touch-action: pan-y;
 }
 
 .page {
@@ -46,8 +48,18 @@ body {
   overflow: hidden;
 }
 
-.page.is-active {
+.page.is-active,
+.page.is-swipe-target {
   display: block;
+}
+
+.page.is-swipe-layer {
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+.page.is-swipe-target {
+  pointer-events: none;
 }
 
 /* ---- Bottom navigation ---- */
@@ -60,6 +72,15 @@ body {
   padding-bottom: var(--safe-bottom);
   background: var(--m3-surface-container);
   border-top: 1px solid var(--m3-outline-variant);
+}
+
+/* Clock and calendar keep their full viewport when the temporary nav appears. */
+#nav.is-overlay {
+  position: absolute;
+  z-index: 30;
+  right: 0;
+  bottom: 0;
+  left: 0;
 }
 
 #nav.is-hidden {
@@ -155,20 +176,50 @@ body {
 .weather-attribution {
   position: absolute;
   right: 12px;
-  bottom: 8px;
+  bottom: calc(8px + var(--safe-bottom));
   z-index: 5;
-  display: flex;
+  display: inline-flex;
   align-items: center;
-  opacity: 0.75;
+  gap: 5px;
+  min-height: 24px;
+  max-width: calc(100% - 24px);
+  padding: 3px 7px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: 6px;
+  background: rgba(0, 0, 0, 0.48);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 11px;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+  transition: translate 180ms ease;
 }
 
 .weather-attribution img {
+  width: 14px;
   height: 14px;
-  width: auto;
+  flex: 0 0 auto;
+  filter: brightness(0) invert(1);
+}
+
+.weather-attribution-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#pages.has-visible-overlay-nav .weather-attribution {
+  translate: 0 calc(-1 * (var(--nav-height) + var(--safe-bottom)));
 }
 
 .weather-attribution[hidden] {
   display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weather-attribution {
+    transition: none;
+  }
 }
 
 /* ---- Shared buttons ---- */

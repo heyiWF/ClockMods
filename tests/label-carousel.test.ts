@@ -12,6 +12,15 @@ afterEach(() => {
 });
 
 describe('LabelCarousel', () => {
+  it('spaces Chinese and digits in dynamic labels', () => {
+    const host = document.createElement('div');
+    const carousel = new LabelCarousel(host);
+
+    carousel.setItems([{ text: '第2项' }]);
+
+    expect(host.querySelector('.label-carousel-item')?.textContent).toBe('第 2 项');
+  });
+
   it('adds a repeated first item for a continuous final transition', () => {
     const host = document.createElement('div');
     const carousel = new LabelCarousel(host);

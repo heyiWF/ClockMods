@@ -13,6 +13,7 @@ import { ARRAYS, MESSAGES } from './messages.generated';
 import type { ArrayKey, MessageKey } from './messages.generated';
 import { LANGUAGE_ENGLISH, LANGUAGE_SIMPLIFIED, LANGUAGE_TRADITIONAL, prefs } from './prefs';
 import type { Lang } from '../format/date-formatter';
+import { pangu } from '../format/text-spacing';
 
 export type { ArrayKey, MessageKey };
 
@@ -148,12 +149,13 @@ export function t(key: MessageKey | string, ...args: (string | number)[]): strin
     WEB_MESSAGES[LANGUAGE_SIMPLIFIED]?.[key] ??
     MESSAGES[LANGUAGE_SIMPLIFIED]?.[key] ??
     key;
-  return substitute(template, args);
+  return pangu(substitute(template, args));
 }
 
 /** Looks up a string array (region names, weekday names, forecast labels). */
 export function ta(key: ArrayKey | string): string[] {
-  return ARRAYS[current]?.[key] ?? ARRAYS[LANGUAGE_SIMPLIFIED]?.[key] ?? [];
+  const values = ARRAYS[current]?.[key] ?? ARRAYS[LANGUAGE_SIMPLIFIED]?.[key] ?? [];
+  return values.map(pangu);
 }
 
 function substitute(template: string, args: (string | number)[]): string {

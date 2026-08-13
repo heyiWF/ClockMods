@@ -7,7 +7,7 @@
  */
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
 import { CharacterLine, renderSupportingText } from '../src/ui/clock-face';
-import { TRANSITION_FADE, TRANSITION_SLIDE_UP } from '../src/core/prefs';
+import { TRANSITION_FADE, TRANSITION_FLIP, TRANSITION_SLIDE_UP } from '../src/core/prefs';
 
 const options = (overrides: Partial<{ animate: boolean; transition: string; colonVisible: boolean }> = {}) => ({
   animate: true,
@@ -100,6 +100,22 @@ describe('CharacterLine', () => {
     vi.advanceTimersByTime(500);
     expect(host.querySelector('.glyph.is-out')).toBeNull();
     expect(host.textContent).toBe('2');
+  });
+
+  it('keeps the incoming flip active until its own animation finishes', () => {
+    const line = new CharacterLine(host);
+    line.setText('1', options({ transition: TRANSITION_FLIP }));
+    line.setText('2', options({ transition: TRANSITION_FLIP }));
+    const outgoing = host.querySelector<HTMLElement>('.glyph.is-out')!;
+    const incoming = host.querySelector<HTMLElement>('.glyph.is-in')!;
+
+    outgoing.dispatchEvent(new Event('animationend'));
+    expect(incoming.classList.contains('anim-flip')).toBe(true);
+    expect(outgoing.isConnected).toBe(true);
+
+    incoming.dispatchEvent(new Event('animationend'));
+    expect(incoming.classList.contains('anim-flip')).toBe(false);
+    expect(outgoing.isConnected).toBe(false);
   });
 });
 
