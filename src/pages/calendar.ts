@@ -61,6 +61,8 @@ export class CalendarPage implements Page {
   private visibleMonth0 = 0;
   private selected = { year: 0, month0: 0, day: 1 };
   private tickHandle: number | null = null;
+  private monthAnimationFrame: number | null = null;
+  private monthAnimationTimer: number | null = null;
   private running = false;
   private animating = false;
 
@@ -124,12 +126,13 @@ export class CalendarPage implements Page {
     let dragging = false;
     let direction = 0;
     this.viewport.addEventListener('pointerdown', (event) => {
-      if (this.animating) return;
+      if (this.animating || (event.button !== -1 && event.button !== 0)) return;
       dragging = true;
       startX = event.clientX;
       direction = 0;
       this.grid.style.transition = 'none';
       this.preview.style.transition = 'none';
+      this.viewport.setPointerCapture?.(event.pointerId);
     });
     this.viewport.addEventListener('pointermove', (event) => {
       if (!dragging) return;
@@ -147,11 +150,16 @@ export class CalendarPage implements Page {
     const finish = (event: PointerEvent) => {
       if (!dragging) return;
       dragging = false;
-      this.grid.style.transition = '';
-      this.preview.style.transition = '';
       const offset = event.clientX - startX;
-      if (Math.abs(offset) >= DRAG_THRESHOLD_PX && direction !== 0) this.changeMonth(direction);
-      else this.snapBack();
+      const shouldChange =
+        event.type !== 'pointercancel' &&
+        Math.abs(offset) >= DRAG_THRESHOLD_PX &&
+        direction !== 0;
+      if (shouldChange) this.changeMonth(direction, true);
+      else this.snapBack(direction);
+      if (this.viewport.hasPointerCapture?.(event.pointerId)) {
+        this.viewport.releasePointerCapture(event.pointerId);
+      }
     };
     this.viewport.addEventListener('pointerup', finish);
     this.viewport.addEventListener('pointercancel', finish);
@@ -188,6 +196,7 @@ export class CalendarPage implements Page {
   }
 
   refreshSettings(): void {
+    this.cancelMonthAnimation();
     const style = this.root.style;
     style.setProperty('--cal-font', fontStack(prefs.getFontFamily()));
     style.setProperty('--cal-time-color', cssColor(prefs.getTimeColor()));
@@ -470,45 +479,68 @@ export class CalendarPage implements Page {
 
   // ---- Month navigation ----
 
-  private changeMonth(direction: number): void {
+  private changeMonth(direction: number, previewReady = false): void {
     if (this.animating || direction === 0) return;
     const width = this.grid.clientWidth;
     if (width === 0) {
       this.applyMonthOffset(direction);
       return;
     }
-    this.renderPreview(direction);
+    if (!previewReady) this.renderPreview(direction);
     this.animating = true;
-    const finish = () => {
-      this.grid.style.transition = 'none';
-      this.preview.style.transition = 'none';
+    this.startLayerAnimation(
+      direction > 0 ? -width : width,
+      0,
+      () => {
       this.applyMonthOffset(direction);
       this.resetLayers();
       this.animating = false;
-    };
-    requestAnimationFrame(() => {
-      this.grid.style.transition = `transform ${MONTH_ANIMATION_MS}ms cubic-bezier(0, 0, 0.2, 1)`;
-      this.preview.style.transition = this.grid.style.transition;
-      this.grid.style.transform = `translateX(${direction > 0 ? -width : width}px)`;
-      this.preview.style.transform = 'translateX(0)';
-      setTimeout(finish, MONTH_ANIMATION_MS);
+      }
+    );
+  }
+
+  private snapBack(direction: number): void {
+    if (this.preview.hidden || direction === 0) {
+      this.resetLayers();
+      return;
+    }
+    const width = this.grid.clientWidth;
+    this.animating = true;
+    this.startLayerAnimation(0, direction * width, () => {
+      this.resetLayers();
+      this.animating = false;
     });
   }
 
-  private snapBack(): void {
-    this.grid.style.transform = 'translateX(0)';
-    if (this.preview.hidden) return;
-    const width = this.grid.clientWidth;
-    const direction = this.preview.style.transform.includes('-') ? -1 : 1;
-    this.preview.style.transform = `translateX(${direction * width}px)`;
-    setTimeout(() => this.resetLayers(), MONTH_ANIMATION_MS);
+  private startLayerAnimation(
+    gridTarget: number,
+    previewTarget: number,
+    finish: () => void
+  ): void {
+    this.clearMonthAnimationHandles();
+    this.monthAnimationFrame = requestAnimationFrame(() => {
+      this.monthAnimationFrame = null;
+      const transition = `transform ${MONTH_ANIMATION_MS}ms cubic-bezier(0, 0, 0.2, 1)`;
+      this.grid.style.transition = transition;
+      this.preview.style.transition = transition;
+      this.grid.style.transform = `translateX(${gridTarget}px)`;
+      this.preview.style.transform = `translateX(${previewTarget}px)`;
+      this.monthAnimationTimer = window.setTimeout(() => {
+        this.monthAnimationTimer = null;
+        finish();
+      }, MONTH_ANIMATION_MS);
+    });
   }
 
   private resetLayers(): void {
+    this.clearMonthAnimationHandles();
+    this.grid.style.transition = 'none';
+    this.preview.style.transition = 'none';
     this.grid.style.transform = 'translateX(0)';
     this.preview.hidden = true;
     this.preview.replaceChildren();
-    requestAnimationFrame(() => {
+    this.monthAnimationFrame = requestAnimationFrame(() => {
+      this.monthAnimationFrame = null;
       this.grid.style.transition = '';
       this.preview.style.transition = '';
     });
@@ -528,13 +560,29 @@ export class CalendarPage implements Page {
   }
 
   private resetToToday(): void {
+    this.cancelMonthAnimation();
     const today = this.today();
     this.visibleYear = today.year;
     this.visibleMonth0 = today.month0;
     this.selected = { year: today.year, month0: today.month0, day: today.day };
-    this.resetLayers();
-    this.animating = false;
     this.renderMonth();
+  }
+
+  private clearMonthAnimationHandles(): void {
+    if (this.monthAnimationFrame !== null) {
+      cancelAnimationFrame(this.monthAnimationFrame);
+      this.monthAnimationFrame = null;
+    }
+    if (this.monthAnimationTimer !== null) {
+      clearTimeout(this.monthAnimationTimer);
+      this.monthAnimationTimer = null;
+    }
+  }
+
+  private cancelMonthAnimation(): void {
+    this.clearMonthAnimationHandles();
+    this.animating = false;
+    this.resetLayers();
   }
 
   /** Year/month quick jump, replacing the NumberPicker dialog. */
@@ -576,10 +624,10 @@ export class CalendarPage implements Page {
     confirm.className = 'button';
     confirm.textContent = t('ok');
     confirm.addEventListener('click', () => {
+      this.cancelMonthAnimation();
       this.visibleYear = Number(yearSelect.value);
       this.visibleMonth0 = Number(monthSelect.value);
       this.selected = { year: this.visibleYear, month0: this.visibleMonth0, day: 1 };
-      this.resetLayers();
       this.renderMonth();
       dialog.close();
     });

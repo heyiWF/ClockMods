@@ -51,6 +51,7 @@ describe('CalendarPage', () => {
   it('renders a six-week grid with the weekday header', () => {
     const { root } = mount();
 
+    expect(root.querySelector('#cal-days-viewport')?.classList).toContain('no-page-swipe');
     expect(root.querySelectorAll('.cal-day')).toHaveLength(42);
     expect(root.querySelectorAll('.cal-weekday')).toHaveLength(7);
     expect([...root.querySelectorAll('.cal-weekday')].map((cell) => cell.textContent)).toEqual([

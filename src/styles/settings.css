@@ -41,6 +41,11 @@
   padding-bottom: 12px;
 }
 
+.settings-sheet > .settings-segmented {
+  flex: 0 0 auto;
+  margin-bottom: 12px;
+}
+
 .settings-title {
   flex: 1 1 auto;
   margin: 0;

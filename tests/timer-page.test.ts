@@ -107,6 +107,17 @@ describe('TimerPage', () => {
     ]);
   });
 
+  it('labels every timer action button', () => {
+    new TimerPage(host(), 'pomodoro').refreshSettings();
+
+    expect(host().querySelector('[data-act="reset"]')?.textContent).toBe('重置');
+    expect(host().querySelector('[data-act="toggle"]')?.textContent).toBe('开始');
+    expect(host().querySelector('[data-act="skip"]')?.textContent).toBe('跳过');
+
+    new TimerPage(host(), 'countdown').refreshSettings();
+    expect(host().querySelector('[data-act="reset"]')?.textContent).toBe('重置');
+  });
+
   it('resets a pomodoro back to the first phase', () => {
     const page = new TimerPage(host(), 'pomodoro');
     page.refreshSettings();

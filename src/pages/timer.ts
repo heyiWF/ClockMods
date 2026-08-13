@@ -37,7 +37,9 @@ export class TimerPage implements Page {
   private display!: HTMLElement;
   private phase!: HTMLElement;
   private title!: HTMLElement;
+  private resetButton!: HTMLButtonElement;
   private startPause!: HTMLButtonElement;
+  private skipButton!: HTMLButtonElement;
   private presets!: HTMLElement;
 
   private durationMillis: number;
@@ -79,15 +81,17 @@ export class TimerPage implements Page {
     this.title = this.root.querySelector('.timer-title')!;
     this.phase = this.root.querySelector('.timer-phase')!;
     this.display = this.root.querySelector('.timer-display')!;
+    this.resetButton = this.root.querySelector('[data-act="reset"]')!;
     this.startPause = this.root.querySelector('[data-act="toggle"]')!;
+    this.skipButton = this.root.querySelector('[data-act="skip"]')!;
     this.presets = this.root.querySelector('.timer-presets')!;
 
-    this.root.querySelector('[data-act="reset"]')!.addEventListener('click', () => this.reset());
+    this.resetButton.addEventListener('click', () => this.reset());
     this.startPause.addEventListener('click', () => this.toggle());
-    const skip = this.root.querySelector<HTMLElement>('[data-act="skip"]')!;
-    skip.hidden = !this.pomodoro;
-    skip.addEventListener('click', () => this.advancePomodoro());
+    this.skipButton.hidden = !this.pomodoro;
+    this.skipButton.addEventListener('click', () => this.advancePomodoro());
     this.phase.hidden = !this.pomodoro;
+    this.renderLabels();
   }
 
   private buildPresets(): void {
@@ -126,9 +130,15 @@ export class TimerPage implements Page {
   }
 
   refreshSettings(): void {
-    this.title.textContent = t(this.pomodoro ? 'pro_page_pomodoro' : 'pro_page_countdown');
+    this.renderLabels();
     this.buildPresets();
     this.refresh();
+  }
+
+  private renderLabels(): void {
+    this.title.textContent = t(this.pomodoro ? 'pro_page_pomodoro' : 'pro_page_countdown');
+    this.resetButton.textContent = t('timer_reset');
+    this.skipButton.textContent = t('timer_skip');
   }
 
   private setDuration(duration: number): void {
