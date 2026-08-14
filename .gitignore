@@ -59,6 +59,3 @@ Desktop.ini
 # Crash reports and profiling output
 hs_err_pid*
 replay_pid*
-
-dist/
-node_modules/
