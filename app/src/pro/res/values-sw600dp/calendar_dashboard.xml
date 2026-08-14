@@ -1,0 +1,19 @@
+<resources>
+    <dimen name="calendar_dashboard_time_size_port">94sp</dimen>
+    <dimen name="calendar_dashboard_seconds_size_port">46sp</dimen>
+    <dimen name="calendar_dashboard_period_size_port">23sp</dimen>
+    <dimen name="calendar_dashboard_weather_icon_size_port">88dp</dimen>
+    <dimen name="calendar_dashboard_temperature_size_port">70sp</dimen>
+    <dimen name="calendar_dashboard_feels_label_size_port">20sp</dimen>
+    <dimen name="calendar_dashboard_feels_size_port">44sp</dimen>
+    <dimen name="calendar_dashboard_weather_summary_size_port">19sp</dimen>
+
+    <dimen name="calendar_dashboard_time_size_land">126sp</dimen>
+    <dimen name="calendar_dashboard_seconds_size_land">61sp</dimen>
+    <dimen name="calendar_dashboard_period_size_land">30sp</dimen>
+    <dimen name="calendar_dashboard_weather_icon_size_land">104dp</dimen>
+    <dimen name="calendar_dashboard_temperature_size_land">80sp</dimen>
+    <dimen name="calendar_dashboard_feels_label_size_land">22sp</dimen>
+    <dimen name="calendar_dashboard_feels_size_land">50sp</dimen>
+    <dimen name="calendar_dashboard_weather_summary_size_land">22sp</dimen>
+</resources>

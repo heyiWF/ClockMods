@@ -1,0 +1,8 @@
+<resources>
+    <dimen name="calendar_forecast_label_size">16sp</dimen>
+    <dimen name="calendar_forecast_text_size">14sp</dimen>
+    <dimen name="calendar_forecast_min_text_size">10sp</dimen>
+    <dimen name="calendar_forecast_icon_size">40dp</dimen>
+    <dimen name="calendar_forecast_icon_gap">5dp</dimen>
+    <dimen name="calendar_attribution_logo_size">16dp</dimen>
+</resources>

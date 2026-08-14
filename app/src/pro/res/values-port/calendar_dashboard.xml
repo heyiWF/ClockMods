@@ -8,13 +8,12 @@
     <dimen name="calendar_dashboard_day_size">26sp</dimen>
     <dimen name="calendar_dashboard_lunar_size">13sp</dimen>
     <dimen name="calendar_weekday_text_size">18sp</dimen>
-    <dimen name="calendar_forecast_label_size">15sp</dimen>
-    <dimen name="calendar_forecast_text_size">13sp</dimen>
-    <dimen name="calendar_forecast_min_text_size">9sp</dimen>
-    <dimen name="calendar_forecast_icon_size">36dp</dimen>
-    <dimen name="calendar_forecast_icon_gap">4dp</dimen>
+    <dimen name="calendar_forecast_label_size">13sp</dimen>
+    <dimen name="calendar_forecast_text_size">11sp</dimen>
+    <dimen name="calendar_forecast_min_text_size">8sp</dimen>
+    <dimen name="calendar_forecast_icon_size">24dp</dimen>
+    <dimen name="calendar_forecast_icon_gap">1dp</dimen>
     <dimen name="calendar_label_height">19dp</dimen>
     <dimen name="calendar_footer_text_size">14sp</dimen>
-    <dimen name="calendar_attribution_text_size">14sp</dimen>
-    <dimen name="calendar_attribution_logo_size">16dp</dimen>
+    <dimen name="calendar_attribution_logo_size">14dp</dimen>
 </resources>

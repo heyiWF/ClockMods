@@ -92,6 +92,7 @@
                 android:includeFontPadding="false"
                 android:textColor="@color/calendar_dashboard_text"
                 android:textSize="@dimen/calendar_dashboard_temperature_size"
+                android:textStyle="bold"
                 android:translationY="4dp" />
 
             <LinearLayout

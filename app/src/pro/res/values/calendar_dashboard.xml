@@ -1,4 +1,5 @@
 <resources>
+    <bool name="calendar_forecast_show_details">true</bool>
     <dimen name="pro_navigation_height">64dp</dimen>
     <color name="calendar_dashboard_background">#171918</color>
     <color name="calendar_dashboard_panel">#363836</color>
@@ -12,7 +13,6 @@
     <color name="calendar_dashboard_weekend">#FF9B9B</color>
 
     <dimen name="calendar_dashboard_gutter">8dp</dimen>
-    <dimen name="calendar_dashboard_radius">10dp</dimen>
     <dimen name="calendar_dashboard_time_height">190dp</dimen>
     <dimen name="calendar_dashboard_weather_height">180dp</dimen>
     <dimen name="calendar_dashboard_forecast_height">160dp</dimen>
@@ -20,6 +20,22 @@
     <dimen name="calendar_dashboard_time_size">92sp</dimen>
     <dimen name="calendar_dashboard_seconds_size">42sp</dimen>
     <dimen name="calendar_dashboard_temperature_size">58sp</dimen>
+    <dimen name="calendar_dashboard_time_size_port">58sp</dimen>
+    <dimen name="calendar_dashboard_seconds_size_port">27sp</dimen>
+    <dimen name="calendar_dashboard_period_size_port">15sp</dimen>
+    <dimen name="calendar_dashboard_weather_icon_size_port">44dp</dimen>
+    <dimen name="calendar_dashboard_temperature_size_port">44sp</dimen>
+    <dimen name="calendar_dashboard_feels_label_size_port">13sp</dimen>
+    <dimen name="calendar_dashboard_feels_size_port">26sp</dimen>
+    <dimen name="calendar_dashboard_weather_summary_size_port">13sp</dimen>
+    <dimen name="calendar_dashboard_time_size_land">50sp</dimen>
+    <dimen name="calendar_dashboard_seconds_size_land">25sp</dimen>
+    <dimen name="calendar_dashboard_period_size_land">14sp</dimen>
+    <dimen name="calendar_dashboard_weather_icon_size_land">40dp</dimen>
+    <dimen name="calendar_dashboard_temperature_size_land">37sp</dimen>
+    <dimen name="calendar_dashboard_feels_label_size_land">12sp</dimen>
+    <dimen name="calendar_dashboard_feels_size_land">22sp</dimen>
+    <dimen name="calendar_dashboard_weather_summary_size_land">12sp</dimen>
     <dimen name="calendar_dashboard_day_size">27sp</dimen>
     <dimen name="calendar_dashboard_lunar_size">14sp</dimen>
     <dimen name="calendar_weekday_text_size">16sp</dimen>
@@ -33,6 +49,5 @@
     <!-- Vertical offset of the 上午/下午 (AM/PM) indicator relative to the seconds below it.
          Negative pulls it down so it sits snugly above the seconds; density-independent (dp). -->
     <dimen name="calendar_period_gap">-4dp</dimen>
-    <dimen name="calendar_attribution_text_size">12sp</dimen>
     <dimen name="calendar_attribution_logo_size">14dp</dimen>
 </resources>

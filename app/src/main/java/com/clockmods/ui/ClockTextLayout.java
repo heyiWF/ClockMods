@@ -33,6 +33,26 @@ final class ClockTextLayout {
         return widestDigit;
     }
 
+    static int stableTextHeight(int top, int ascent, int descent, int bottom,
+            boolean includeFontPadding, int paddingTop, int paddingBottom, int minimumHeight) {
+        int fontTop = includeFontPadding ? top : ascent;
+        int fontBottom = includeFontPadding ? bottom : descent;
+        return Math.max(minimumHeight, fontBottom - fontTop + paddingTop + paddingBottom);
+    }
+
+    static int stableBaseline(int measuredHeight, int fontTop, int fontBottom,
+            int paddingTop, int paddingBottom, int verticalGravity) {
+        int textHeight = fontBottom - fontTop;
+        int availableHeight = Math.max(0, measuredHeight - paddingTop - paddingBottom);
+        int contentTop = paddingTop;
+        if (verticalGravity == android.view.Gravity.BOTTOM) {
+            contentTop += Math.max(0, availableHeight - textHeight);
+        } else if (verticalGravity == android.view.Gravity.CENTER_VERTICAL) {
+            contentTop += Math.max(0, availableHeight - textHeight) / 2;
+        }
+        return contentTop - fontTop;
+    }
+
     static float alignedCharacterBaseline(String character, float baseline, Paint paint) {
         if (!":".equals(character)) return baseline;
         Rect digitBounds = new Rect();

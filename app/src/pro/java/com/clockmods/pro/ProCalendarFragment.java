@@ -8,6 +8,10 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.provider.Settings;
+import android.text.SpannableString;
+import android.text.Spanned;
+import android.text.style.ForegroundColorSpan;
+import android.text.style.StyleSpan;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -304,9 +308,8 @@ public final class ProCalendarFragment extends Fragment {
             LinearLayout column = forecastColumns[index];
             column.removeAllViews();
             WeatherModels.DailyForecast forecast = state.data.findByDate(format.format(date.getTime()));
-                addForecastText(column, forecastLabels[index],
-                    R.dimen.calendar_forecast_label_size, index == 0);
             if (forecast != null) {
+                addForecastHeading(column, forecastLabels[index], forecast.textDay, index == 0);
                 WeatherIconView icon = new WeatherIconView(requireContext());
                 int accent = preferences.isWeatherIconDynamicColor()
                         ? ExperienceBridge.resolveAccentColor(requireContext(), Color.WHITE) : Color.WHITE;
@@ -318,34 +321,68 @@ public final class ProCalendarFragment extends Fragment {
                 iconParams.gravity = Gravity.CENTER_HORIZONTAL;
                 iconParams.setMargins(0, iconGap, 0, iconGap);
                 column.addView(icon, iconParams);
-                addForecastText(column, forecast.textDay, R.dimen.calendar_forecast_text_size, false);
                 addForecastText(column, getString(R.string.weather_temperature_range_format,
                                 forecast.tempMin, forecast.tempMax),
                         R.dimen.calendar_forecast_text_size, false);
-            } else addForecastText(column, getString(R.string.calendar_forecast_unavailable),
-                    R.dimen.calendar_forecast_text_size, false);
+                StringBuilder details = new StringBuilder();
+                if (!empty(forecast.humidity)) {
+                    append(details, getString(R.string.weather_humidity_format, forecast.humidity));
+                }
+                String windScale = empty(forecast.windScaleDay) ? ""
+                        : getString(R.string.weather_wind_scale_format, forecast.windScaleDay);
+                append(details, join(forecast.windDirDay, windScale));
+                if (details.length() > 0 && getResources().getBoolean(
+                        R.bool.calendar_forecast_show_details)) {
+                    TextView detailView = addForecastText(column, details.toString(),
+                            R.dimen.calendar_forecast_min_text_size, false);
+                    detailView.setTextColor(getColor(R.color.calendar_dashboard_secondary));
+                }
+            } else {
+                addForecastHeading(column, forecastLabels[index], "", index == 0);
+                addForecastText(column, getString(R.string.calendar_forecast_unavailable),
+                        R.dimen.calendar_forecast_text_size, false);
+            }
             date.add(Calendar.DAY_OF_MONTH, 1);
         }
     }
 
-    private void addForecastText(LinearLayout parent, String text, int sizeRes, boolean accent) {
+    private void addForecastHeading(LinearLayout parent, String dayLabel, String weather,
+            boolean accent) {
+        String text = join(dayLabel, weather);
+        SpannableString heading = new SpannableString(text);
+        heading.setSpan(new StyleSpan(Typeface.BOLD), 0, dayLabel.length(),
+                Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        if (accent) {
+            heading.setSpan(new ForegroundColorSpan(getColor(R.color.calendar_dashboard_blue)),
+                    0, dayLabel.length(), Spanned.SPAN_EXCLUSIVE_EXCLUSIVE);
+        }
+        addForecastText(parent, heading, R.dimen.calendar_forecast_label_size, false);
+    }
+
+    private TextView addForecastText(LinearLayout parent, CharSequence text, int sizeRes,
+            boolean accent) {
         TextView view = new TextView(requireContext());
         view.setText(text);
         view.setTextSize(TypedValue.COMPLEX_UNIT_PX, getResources().getDimension(sizeRes));
         view.setGravity(Gravity.CENTER);
         view.setIncludeFontPadding(false);
         view.setSingleLine(true);
+        view.setEllipsize(android.text.TextUtils.TruncateAt.END);
         view.setTextColor(accent ? getColor(R.color.calendar_dashboard_blue) : Color.WHITE);
         view.setTypeface(ClockTypefaceResolver.resolveTime(requireContext(),
-            preferences.getFontFamily(), true));
+            preferences.getFontFamily(), false));
         int maximumTextSize = getResources().getDimensionPixelSize(sizeRes);
-        TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(view,
-                getResources().getDimensionPixelSize(R.dimen.calendar_forecast_min_text_size),
-                maximumTextSize, 1, TypedValue.COMPLEX_UNIT_PX);
+        int minimumTextSize = getResources().getDimensionPixelSize(
+                R.dimen.calendar_forecast_min_text_size);
+        if (maximumTextSize > minimumTextSize) {
+            TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(view,
+                    minimumTextSize, maximumTextSize, 1, TypedValue.COMPLEX_UNIT_PX);
+        }
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
         params.gravity = Gravity.CENTER_HORIZONTAL;
         parent.addView(view, params);
+        return view;
     }
 
     private void populateWeekdays() {

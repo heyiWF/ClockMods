@@ -14,7 +14,7 @@
         android:layout_height="wrap_content"
         android:text="@string/weather_attribution_prefix"
         android:textColor="#CCFFFFFF"
-        android:textSize="@dimen/calendar_attribution_text_size" />
+        android:textSize="9sp" />
 
     <com.clockmods.ui.QWeatherLogoView
         android:layout_width="@dimen/calendar_attribution_logo_size"
@@ -27,5 +27,5 @@
         android:layout_height="wrap_content"
         android:text="@string/weather_attribution_brand"
         android:textColor="#CCFFFFFF"
-        android:textSize="@dimen/calendar_attribution_text_size" />
+        android:textSize="9sp" />
 </LinearLayout>
