@@ -7,12 +7,9 @@ import android.graphics.Typeface;
 import android.util.AttributeSet;
 import android.view.View;
 
-import com.clockmods.R;
-
 final class CalendarDayNumberView extends View {
     private final Paint dayPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
     private final Paint badgePaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
-    private final float maximumDayTextSize;
     private String day = "";
     private String badge = "";
 
@@ -21,8 +18,7 @@ final class CalendarDayNumberView extends View {
     CalendarDayNumberView(Context context, AttributeSet attrs) {
         super(context, attrs);
         dayPaint.setTextAlign(Paint.Align.CENTER);
-        maximumDayTextSize = getResources().getDimension(R.dimen.calendar_dashboard_day_size);
-        dayPaint.setTextSize(maximumDayTextSize);
+        dayPaint.setTextSize(1f);
         badgePaint.setTextAlign(Paint.Align.LEFT);
         badgePaint.setTextSize(dayPaint.getTextSize() * 0.48f);
         setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
@@ -48,8 +44,8 @@ final class CalendarDayNumberView extends View {
 
     @Override protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
         super.onSizeChanged(width, height, oldWidth, oldHeight);
-        float availableSize = Math.min(width * 0.46f, height * 0.72f);
-        dayPaint.setTextSize(Math.min(maximumDayTextSize, availableSize));
+        dayPaint.setTextSize(CalendarDashboardSizing.monthDaySize(width, height,
+                getResources().getDisplayMetrics().density));
         badgePaint.setTextSize(dayPaint.getTextSize() * 0.48f);
     }
 

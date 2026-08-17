@@ -3,9 +3,13 @@ package com.clockmods.ui;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.LinearGradient;
 import android.graphics.Matrix;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.graphics.Rect;
+import android.graphics.Shader;
 import android.graphics.Typeface;
 import android.os.Handler;
 import android.os.Looper;
@@ -38,6 +42,8 @@ public class ClockView extends View {
     private static final long WEATHER_DETAIL_FRAME_DELAY_MILLIS = 16L;
     private static final float WEATHER_DETAIL_SCROLL_DP_PER_SECOND = 40f;
     private static final float WEATHER_DETAIL_HORIZONTAL_PADDING_DP = 24f;
+    private static final float MESSAGE_MARQUEE_GAP_EM = 4f;
+    private static final float MESSAGE_EDGE_FADE_FRACTION = 0.08f;
     private static final float SMALL_SECONDS_GAP_SPACE_FRACTION = 0.35f;
     // Fractions the main time size is fitted to: it never spans more than
     // TIME_MAX_WIDTH_FRACTION of the width nor TIME_HEIGHT_FRACTION of the height.
@@ -68,6 +74,7 @@ public class ClockView extends View {
     private final Paint periodPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
     private final Paint datePaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
     private final Paint bitmapPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
+    private final Paint marqueeFadePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Matrix bitmapMatrix = new Matrix();
     private final Object workerLock = new Object();
     private ExecutorService imageExecutor;
@@ -143,6 +150,7 @@ public class ClockView extends View {
         datePaint.setColor(0xFFFFFFFF);
         datePaint.setTextAlign(Paint.Align.CENTER);
         datePaint.setShadowLayer(6f * density, 0f, 2f * density, 0x66000000);
+        marqueeFadePaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
     }
 
     public void setBackgroundRepository(BackgroundRepository repository) {
@@ -542,7 +550,9 @@ public class ClockView extends View {
         // Build the main-line carousel items: the weather summary (with icon) and/or message.
         java.util.List<WeatherLineItem> mainItems = new java.util.ArrayList<>();
         if (weatherItem != null) mainItems.add(weatherItem);
-        if (hasMessage) mainItems.add(WeatherLineItem.plain(customMessage));
+        if (hasMessage) {
+            mainItems.add(WeatherLineItem.message(customMessage, weatherItem == null));
+        }
         if (mainItems.isEmpty()) {
             datePaint.setTextSize(originalSize);
             datePaint.setTypeface(originalTypeface);
@@ -560,7 +570,7 @@ public class ClockView extends View {
             WeatherLineItem only = mainItems.get(0);
             drawWeatherDetailItem(canvas, only, null, centerX, baseline,
                 weatherMetrics, 0f, mainCarouselElapsed(only));
-            if (itemWidth(only) > weatherDetailAvailableWidth()) {
+            if (only.continuousMarquee || itemWidth(only) > weatherDetailAvailableWidth()) {
                 postInvalidateDelayed(WEATHER_DETAIL_FRAME_DELAY_MILLIS);
             }
         } else {
@@ -631,6 +641,10 @@ public class ClockView extends View {
             float centerX, float baseline, Paint.FontMetrics metrics, long elapsed) {
         if (item.hasIcon()) {
             drawScrollingWeatherSummary(canvas, item, centerX, baseline, metrics, elapsed);
+        } else if (item.continuousMarquee) {
+            drawLoopingMessage(canvas, item.text, centerX, baseline, metrics, elapsed);
+        } else if (item.message) {
+            drawScrollingMessage(canvas, item.text, centerX, baseline, metrics, elapsed);
         } else {
             drawScrollingWeatherText(canvas, item.text, centerX, baseline, elapsed);
         }
@@ -647,6 +661,7 @@ public class ClockView extends View {
             messageCarousel.cycleStartedAt = now;
         }
         long elapsed = now - messageCarousel.cycleStartedAt;
+        if (item.continuousMarquee) return elapsed;
         long duration = weatherDetailDisplayDuration(item);
         if (elapsed >= duration) {
             messageCarousel.cycleStartedAt = now;
@@ -683,13 +698,14 @@ public class ClockView extends View {
         long displayDuration = weatherDetailDisplayDuration(currentItem);
 
         if (carousel.items.size() == 1) {
-            if (elapsed >= displayDuration) {
+            if (!currentItem.continuousMarquee && elapsed >= displayDuration) {
                 carousel.cycleStartedAt = now;
                 elapsed = 0L;
             }
             drawWeatherDetailItem(canvas, currentItem, null, centerX,
                 baseline, metrics, 0f, elapsed);
-            if (itemWidth(currentItem) > weatherDetailAvailableWidth()) {
+            if (currentItem.continuousMarquee
+                    || itemWidth(currentItem) > weatherDetailAvailableWidth()) {
                 postInvalidateDelayed(WEATHER_DETAIL_FRAME_DELAY_MILLIS);
             }
             return;
@@ -797,6 +813,25 @@ public class ClockView extends View {
     }
 
     private long weatherDetailDisplayDuration(WeatherLineItem item) {
+        if (item.continuousMarquee) {
+            float speed = WEATHER_DETAIL_SCROLL_DP_PER_SECOND
+                    * getResources().getDisplayMetrics().density;
+            float cycleDistance = itemWidth(item) + datePaint.getTextSize()
+                    * MESSAGE_MARQUEE_GAP_EM;
+            long cycleMillis = (long) Math.ceil(cycleDistance / speed * 1000f);
+            return Math.max(WEATHER_DETAIL_HOLD_MILLIS, cycleMillis);
+        }
+        if (item.message) {
+            float available = weatherDetailAvailableWidth();
+            float distance = oneShotMarqueeDistance(itemWidth(item), available,
+                    messageEdgeFadeWidth(available));
+            if (distance <= 0f) return WEATHER_DETAIL_HOLD_MILLIS;
+            float speed = WEATHER_DETAIL_SCROLL_DP_PER_SECOND
+                    * getResources().getDisplayMetrics().density;
+            long scrollMillis = (long) Math.ceil(distance / speed * 1000f);
+            return Math.max(WEATHER_DETAIL_HOLD_MILLIS,
+                    WEATHER_DETAIL_SCROLL_PAUSE_MILLIS * 2L + scrollMillis);
+        }
         float overflow = itemWidth(item) - weatherDetailAvailableWidth();
         if (overflow <= 0f) return WEATHER_DETAIL_HOLD_MILLIS;
         float speed = WEATHER_DETAIL_SCROLL_DP_PER_SECOND
@@ -832,6 +867,101 @@ public class ClockView extends View {
         canvas.clipRect(left, 0f, left + availableWidth, getHeight());
         drawSupportingText(canvas, text, left - overflow * progress, baseline, Paint.Align.LEFT);
         canvas.restore();
+    }
+
+    private void drawLoopingMessage(Canvas canvas, String text, float centerX, float baseline,
+            Paint.FontMetrics metrics, long elapsed) {
+        float textWidth = measureSupportingText(text);
+        if (textWidth <= 0f) return;
+        float available = weatherDetailAvailableWidth();
+        float left = centerX - available / 2f;
+        float right = left + available;
+        float gap = datePaint.getTextSize() * MESSAGE_MARQUEE_GAP_EM;
+        float cycleDistance = textWidth + gap;
+        float speed = WEATHER_DETAIL_SCROLL_DP_PER_SECOND
+                * getResources().getDisplayMetrics().density;
+        float offset = loopingMarqueeOffset(elapsed, cycleDistance, speed);
+        float top = Math.max(0f, baseline + metrics.ascent - datePaint.getTextSize() * 0.12f);
+        float bottom = Math.min(getHeight(), baseline + metrics.descent
+                + datePaint.getTextSize() * 0.12f);
+        int layer = canvas.saveLayer(left, top, right, bottom, null);
+        canvas.clipRect(left, top, right, bottom);
+        float drawX = left - offset;
+        while (drawX + textWidth < left) drawX += cycleDistance;
+        while (drawX < right) {
+            drawSupportingText(canvas, text, drawX, baseline, Paint.Align.LEFT);
+            drawX += cycleDistance;
+        }
+        drawMessageEdgeFade(canvas, left, right, top, bottom);
+        canvas.restoreToCount(layer);
+    }
+
+    private void drawScrollingMessage(Canvas canvas, String text, float centerX, float baseline,
+            Paint.FontMetrics metrics, long elapsed) {
+        float textWidth = measureSupportingText(text);
+        if (textWidth <= 0f) return;
+        float available = weatherDetailAvailableWidth();
+        float fadeWidth = messageEdgeFadeWidth(available);
+        float distance = oneShotMarqueeDistance(textWidth, available, fadeWidth);
+        if (distance <= 0f) {
+            drawSupportingText(canvas, text, centerX, baseline, Paint.Align.CENTER);
+            return;
+        }
+
+        float left = centerX - available / 2f;
+        float right = left + available;
+        float speed = WEATHER_DETAIL_SCROLL_DP_PER_SECOND
+                * getResources().getDisplayMetrics().density;
+        float offset = oneShotMarqueeOffset(elapsed, WEATHER_DETAIL_SCROLL_PAUSE_MILLIS,
+                distance, speed);
+        float top = Math.max(0f, baseline + metrics.ascent - datePaint.getTextSize() * 0.12f);
+        float bottom = Math.min(getHeight(), baseline + metrics.descent
+                + datePaint.getTextSize() * 0.12f);
+        int layer = canvas.saveLayer(left, top, right, bottom, null);
+        canvas.clipRect(left, top, right, bottom);
+        drawSupportingText(canvas, text, left + fadeWidth - offset, baseline, Paint.Align.LEFT);
+        drawMessageEdgeFade(canvas, left, right, top, bottom);
+        canvas.restoreToCount(layer);
+    }
+
+    private float messageEdgeFadeWidth(float availableWidth) {
+        float edgeFraction = Math.min(0.25f, Math.max(0.01f,
+                MESSAGE_EDGE_FADE_FRACTION));
+        return availableWidth * edgeFraction;
+    }
+
+    private void drawMessageEdgeFade(Canvas canvas, float left, float right,
+            float top, float bottom) {
+        float edgeFraction = Math.min(0.25f, Math.max(0.01f,
+                MESSAGE_EDGE_FADE_FRACTION));
+        marqueeFadePaint.setShader(new LinearGradient(left, 0f, right, 0f,
+                new int[] {0x00FFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00FFFFFF},
+                new float[] {0f, edgeFraction, 1f - edgeFraction, 1f},
+                Shader.TileMode.CLAMP));
+        canvas.drawRect(left, top, right, bottom, marqueeFadePaint);
+        marqueeFadePaint.setShader(null);
+    }
+
+    static float loopingMarqueeOffset(long elapsedMillis, float cycleDistance,
+            float pixelsPerSecond) {
+        if (cycleDistance <= 0f || pixelsPerSecond <= 0f) return 0f;
+        float travelled = Math.max(0L, elapsedMillis) * pixelsPerSecond / 1000f;
+        return travelled % cycleDistance;
+    }
+
+    static float oneShotMarqueeDistance(float textWidth, float availableWidth,
+            float edgeFadeWidth) {
+        if (textWidth <= 0f || availableWidth <= 0f) return 0f;
+        float safeFade = Math.max(0f, Math.min(availableWidth / 2f, edgeFadeWidth));
+        return Math.max(0f, textWidth - availableWidth + safeFade * 2f);
+    }
+
+    static float oneShotMarqueeOffset(long elapsedMillis, long pauseMillis,
+            float distance, float pixelsPerSecond) {
+        if (distance <= 0f || pixelsPerSecond <= 0f) return 0f;
+        long scrollingMillis = Math.max(0L, elapsedMillis - Math.max(0L, pauseMillis));
+        float travelled = scrollingMillis * pixelsPerSecond / 1000f;
+        return Math.min(distance, travelled);
     }
 
     private float measureSupportingText(String text) {
@@ -898,20 +1028,29 @@ public class ClockView extends View {
         final String left;
         final String right;
         final WeatherIcon icon;
+        final boolean message;
+        final boolean continuousMarquee;
 
-        private WeatherLineItem(String text, String left, String right, WeatherIcon icon) {
+        private WeatherLineItem(String text, String left, String right, WeatherIcon icon,
+                boolean message, boolean continuousMarquee) {
             this.text = text;
             this.left = left;
             this.right = right;
             this.icon = icon;
+            this.message = message;
+            this.continuousMarquee = continuousMarquee;
         }
 
         static WeatherLineItem plain(String text) {
-            return new WeatherLineItem(text, null, null, null);
+            return new WeatherLineItem(text, null, null, null, false, false);
+        }
+
+        static WeatherLineItem message(String text, boolean continuousMarquee) {
+            return new WeatherLineItem(text, null, null, null, true, continuousMarquee);
         }
 
         static WeatherLineItem weather(String left, String right, WeatherIcon icon) {
-            return new WeatherLineItem(left + "  " + right, left, right, icon);
+            return new WeatherLineItem(left + "  " + right, left, right, icon, false, false);
         }
 
         boolean hasIcon() {
@@ -923,11 +1062,15 @@ public class ClockView extends View {
             if (!(o instanceof WeatherLineItem)) return false;
             WeatherLineItem other = (WeatherLineItem) o;
             // WeatherIcon is cached per (code, style) so equal items share the same instance.
-            return text.equals(other.text) && icon == other.icon;
+            return text.equals(other.text) && icon == other.icon
+                    && message == other.message
+                    && continuousMarquee == other.continuousMarquee;
         }
 
         @Override public int hashCode() {
-            return text.hashCode() * 31 + (icon == null ? 0 : System.identityHashCode(icon));
+            int hash = text.hashCode() * 31 + (icon == null ? 0 : System.identityHashCode(icon));
+            hash = hash * 31 + (message ? 1 : 0);
+            return hash * 31 + (continuousMarquee ? 1 : 0);
         }
     }
 

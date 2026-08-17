@@ -46,6 +46,7 @@
     <string name="alarm_open_to_dismiss">Open ClockMods Pro to stop the alarm</string>
     <string name="alarm_dismiss">Stop alarm</string>
     <string name="pro_hourly_chime">Hourly visual chime</string>
+    <string name="pro_half_hour_chime">Half-hour visual chime</string>
     <string name="pro_hourly_chime_quiet">Enable quiet hours</string>
     <string name="pro_quiet_start">Start %1$s</string>
     <string name="pro_quiet_end">End %1$s</string>

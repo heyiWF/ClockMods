@@ -34,4 +34,30 @@ public class ClockViewTest {
         Assert.assertTrue(ClockView.hasSupportingTrackingAt(calendarEmoji + " A", 2));
         Assert.assertTrue(ClockView.hasSupportingTrackingAt(calendarEmoji + " A", 3));
     }
+
+    @Test
+    public void loopingMarqueeAlwaysMovesForwardAndWrapsAtCycleBoundary() {
+        Assert.assertEquals(0f, ClockView.loopingMarqueeOffset(0L, 300f, 40f), 0f);
+        Assert.assertEquals(40f, ClockView.loopingMarqueeOffset(1000L, 300f, 40f), 0f);
+        Assert.assertEquals(20f, ClockView.loopingMarqueeOffset(8000L, 300f, 40f), 0f);
+        Assert.assertEquals(0f, ClockView.loopingMarqueeOffset(1000L, 0f, 40f), 0f);
+    }
+
+    @Test
+    public void oneShotMarqueeReservesBothFadedEdges() {
+        Assert.assertEquals(248f,
+                ClockView.oneShotMarqueeDistance(500f, 300f, 24f), 0f);
+        Assert.assertEquals(0f,
+                ClockView.oneShotMarqueeDistance(200f, 300f, 24f), 0f);
+    }
+
+    @Test
+    public void oneShotMarqueePausesThenStopsAtReadableEnd() {
+        Assert.assertEquals(0f,
+                ClockView.oneShotMarqueeOffset(500L, 1000L, 248f, 40f), 0f);
+        Assert.assertEquals(40f,
+                ClockView.oneShotMarqueeOffset(2000L, 1000L, 248f, 40f), 0f);
+        Assert.assertEquals(248f,
+                ClockView.oneShotMarqueeOffset(10000L, 1000L, 248f, 40f), 0f);
+    }
 }

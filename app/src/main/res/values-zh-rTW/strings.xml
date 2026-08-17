@@ -46,6 +46,7 @@
     <string name="alarm_open_to_dismiss">開啟 ClockMods Pro 停止鬧鐘</string>
     <string name="alarm_dismiss">停止鬧鐘</string>
     <string name="pro_hourly_chime">整點視覺報時</string>
+    <string name="pro_half_hour_chime">半點視覺報時</string>
     <string name="pro_hourly_chime_quiet">啟用勿擾時段</string>
     <string name="pro_quiet_start">開始 %1$s</string>
     <string name="pro_quiet_end">結束 %1$s</string>

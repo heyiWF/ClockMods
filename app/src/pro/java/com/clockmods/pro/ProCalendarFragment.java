@@ -43,6 +43,7 @@ import com.clockmods.ui.WeatherIconView;
 import com.clockmods.weather.DailyForecastController;
 import com.clockmods.weather.WeatherController;
 import com.clockmods.weather.WeatherModels;
+import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.text.SimpleDateFormat;
@@ -69,13 +70,15 @@ public final class ProCalendarFragment extends Fragment {
             handler.postDelayed(this, 1000L - System.currentTimeMillis() % 1000L);
         }
     };
-    private TextView timeView, secondsView, periodView, title, currentTemperature, feelsLike, weatherSummary;
+    private TextView timeView, secondsView, periodView, title, currentTemperature, feelsLike,
+            feelsLikeLabel, weatherSummary;
     private CalendarFooterCarouselView footer;
     private GridLayout weekdayGrid, grid, previewGrid;
     private CalendarMonth visibleCalendar;
     private StatusBarView statusBar;
     private WeatherIconView currentWeatherIcon;
-    private View currentWeatherCard, forecastCard, attribution;
+    private View clockCard, currentWeatherCard, forecastCard, attribution;
+    private MaterialButton previousButton, todayButton, nextButton;
     private MonthGestureLayout monthPanel;
     private LinearLayout[] forecastColumns;
     private ClockPreferences preferences;
@@ -118,11 +121,16 @@ public final class ProCalendarFragment extends Fragment {
         currentWeatherIcon = root.findViewById(R.id.calendar_current_weather_icon);
         currentTemperature = root.findViewById(R.id.calendar_current_temperature);
         feelsLike = root.findViewById(R.id.calendar_feels_like);
+        feelsLikeLabel = root.findViewById(R.id.calendar_feels_like_label);
         weatherSummary = root.findViewById(R.id.calendar_weather_summary);
+        clockCard = root.findViewById(R.id.calendar_clock_card);
         currentWeatherCard = root.findViewById(R.id.calendar_current_weather_card);
         forecastCard = root.findViewById(R.id.calendar_forecast_card);
         attribution = root.findViewById(R.id.calendar_weather_attribution);
         monthPanel = root.findViewById(R.id.calendar_month_panel);
+        previousButton = root.findViewById(R.id.calendar_previous);
+        todayButton = root.findViewById(R.id.calendar_today);
+        nextButton = root.findViewById(R.id.calendar_next);
         forecastColumns = new LinearLayout[] {root.findViewById(R.id.calendar_forecast_today),
                 root.findViewById(R.id.calendar_forecast_tomorrow),
                 root.findViewById(R.id.calendar_forecast_after_tomorrow)};
@@ -130,9 +138,9 @@ public final class ProCalendarFragment extends Fragment {
 
     private void configureViews(View root) {
         title.setAccessibilityHeading(true);
-        root.findViewById(R.id.calendar_previous).setOnClickListener(view -> animateMonthChange(-1));
-        root.findViewById(R.id.calendar_next).setOnClickListener(view -> animateMonthChange(1));
-        root.findViewById(R.id.calendar_today).setOnClickListener(view -> resetToToday());
+        previousButton.setOnClickListener(view -> animateMonthChange(-1));
+        nextButton.setOnClickListener(view -> animateMonthChange(1));
+        todayButton.setOnClickListener(view -> resetToToday());
         title.setOnClickListener(view -> showMonthPicker());
         title.setTooltipText(getString(R.string.calendar_jump_title));
         attribution.setOnClickListener(view -> startActivity(new Intent(Intent.ACTION_VIEW,
@@ -150,6 +158,15 @@ public final class ProCalendarFragment extends Fragment {
                 else animateMonthChange(direction);
             }
         });
+        clockCard.addOnLayoutChangeListener((view, left, top, right, bottom,
+                oldLeft, oldTop, oldRight, oldBottom) -> applyClockSizing());
+        currentWeatherCard.addOnLayoutChangeListener((view, left, top, right, bottom,
+                oldLeft, oldTop, oldRight, oldBottom) -> applyCurrentWeatherSizing());
+        forecastCard.addOnLayoutChangeListener((view, left, top, right, bottom,
+                oldLeft, oldTop, oldRight, oldBottom) -> applyForecastSizing());
+        monthPanel.addOnLayoutChangeListener((view, left, top, right, bottom,
+                oldLeft, oldTop, oldRight, oldBottom) -> applyMonthSizing());
+        root.post(this::applyResponsiveSizing);
     }
 
     private void restoreState(Bundle state) {
@@ -222,7 +239,222 @@ public final class ProCalendarFragment extends Fragment {
         timeView.setTypeface(typeface);
         secondsView.setTypeface(typeface);
         periodView.setTypeface(typeface);
+        applyResponsiveSizing();
         if (resumed) startWeatherIfEnabled();
+    }
+
+    private void applyResponsiveSizing() {
+        applyClockSizing();
+        applyCurrentWeatherSizing();
+        applyForecastSizing();
+        applyMonthSizing();
+    }
+
+    private void applyClockSizing() {
+        if (clockCard == null || clockCard.getWidth() <= 0 || clockCard.getHeight() <= 0) return;
+        float density = getResources().getDisplayMetrics().density;
+        float timeSize = CalendarDashboardSizing.clockTimeSize(clockCard.getWidth(),
+                clockCard.getHeight(), preferences.isShowSeconds(), density);
+        timeView.setTextSize(TypedValue.COMPLEX_UNIT_PX, timeSize);
+        secondsView.setTextSize(TypedValue.COMPLEX_UNIT_PX, timeSize * 0.46f);
+        periodView.setTextSize(TypedValue.COMPLEX_UNIT_PX, timeSize * 0.25f);
+        ViewGroup.LayoutParams statusParams = statusBar.getLayoutParams();
+        statusParams.width = Math.round(clockCard.getWidth() * 0.38f);
+        statusParams.height = Math.round(Math.min(clockCard.getHeight() * 0.16f,
+                clockCard.getWidth() * 0.065f));
+        statusBar.setLayoutParams(statusParams);
+        ViewGroup.LayoutParams rawPeriodParams = periodView.getLayoutParams();
+        if (rawPeriodParams instanceof android.widget.RelativeLayout.LayoutParams) {
+            android.widget.RelativeLayout.LayoutParams periodParams =
+                    (android.widget.RelativeLayout.LayoutParams) rawPeriodParams;
+            periodParams.bottomMargin = -Math.round(timeSize * 0.04f);
+            periodView.setLayoutParams(periodParams);
+        }
+    }
+
+    private void applyCurrentWeatherSizing() {
+        if (currentWeatherCard == null || currentWeatherCard.getWidth() <= 0
+                || currentWeatherCard.getHeight() <= 0) return;
+        float width = currentWeatherCard.getWidth();
+        float height = currentWeatherCard.getHeight();
+        float density = getResources().getDisplayMetrics().density;
+        float iconSize = CalendarDashboardSizing.weatherIconSize(width, height, density);
+        float temperatureSize = CalendarDashboardSizing.weatherTemperatureSize(
+                width, height, density);
+        TextViewCompat.setAutoSizeTextTypeWithDefaults(currentTemperature,
+                TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE);
+        TextViewCompat.setAutoSizeTextTypeWithDefaults(feelsLikeLabel,
+                TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE);
+        TextViewCompat.setAutoSizeTextTypeWithDefaults(feelsLike,
+                TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE);
+        TextViewCompat.setAutoSizeTextTypeWithDefaults(weatherSummary,
+                TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE);
+        currentTemperature.setTextSize(TypedValue.COMPLEX_UNIT_PX, temperatureSize);
+        feelsLikeLabel.setTextSize(TypedValue.COMPLEX_UNIT_PX, temperatureSize * 0.26f);
+        feelsLike.setTextSize(TypedValue.COMPLEX_UNIT_PX, temperatureSize * 0.53f);
+        weatherSummary.setTextSize(TypedValue.COMPLEX_UNIT_PX,
+                CalendarDashboardSizing.weatherSummarySize(width, height, density));
+        ViewGroup.LayoutParams iconParams = currentWeatherIcon.getLayoutParams();
+        if (currentWeatherCard instanceof LinearLayout
+                && ((LinearLayout) currentWeatherCard).getOrientation() == LinearLayout.HORIZONTAL) {
+            iconParams.height = Math.round(iconSize);
+        } else {
+            iconParams.width = Math.round(iconSize);
+            iconParams.height = Math.round(iconSize);
+        }
+        currentWeatherIcon.setLayoutParams(iconParams);
+        int horizontalPadding = Math.round(CalendarDashboardSizing.spacing(
+                width * 0.02f, density, 12f));
+        int verticalPadding = Math.round(CalendarDashboardSizing.spacing(
+                height * 0.035f, density, 8f));
+        setPadding(currentWeatherCard, horizontalPadding, verticalPadding);
+    }
+
+    private void applyForecastSizing() {
+        if (forecastCard == null || forecastCard.getWidth() <= 0 || forecastCard.getHeight() <= 0) {
+            return;
+        }
+        float density = getResources().getDisplayMetrics().density;
+        float cardHeight = forecastCard.getHeight();
+        int horizontalPadding = Math.round(CalendarDashboardSizing.spacing(
+                forecastCard.getWidth() * 0.012f, density, 8f));
+        int verticalPadding = Math.round(CalendarDashboardSizing.spacing(
+                cardHeight * 0.012f, density, 6f));
+        setPadding(forecastCard, horizontalPadding, verticalPadding);
+        float columnWidth = Math.max(1f,
+                (forecastCard.getWidth() - horizontalPadding * 2f) / 3f);
+        int iconSize = Math.round(CalendarDashboardSizing.forecastIconSize(
+                columnWidth, cardHeight, density));
+        int iconGap = Math.max(1, Math.round(CalendarDashboardSizing.spacing(
+                cardHeight * 0.05f, density, 15f)));
+        int detailGap = Math.max(1, Math.round(CalendarDashboardSizing.spacing(
+                cardHeight * 0.024f, density, 8f)));
+        for (LinearLayout column : forecastColumns) {
+            for (int index = 0; index < column.getChildCount(); index++) {
+                View child = column.getChildAt(index);
+                if (child instanceof WeatherIconView) {
+                    LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) child.getLayoutParams();
+                    params.width = iconSize;
+                    params.height = iconSize;
+                    params.setMargins(0, iconGap, 0, iconGap);
+                    child.setLayoutParams(params);
+                } else if (child instanceof TextView && child.getTag() instanceof Integer) {
+                    int sizeRes = (Integer) child.getTag();
+                    TextView text = (TextView) child;
+                    LinearLayout.LayoutParams params =
+                            (LinearLayout.LayoutParams) child.getLayoutParams();
+                    params.setMargins(0, sizeRes == R.dimen.calendar_forecast_min_text_size
+                            ? detailGap : 0, 0, 0);
+                    child.setLayoutParams(params);
+                    TextViewCompat.setAutoSizeTextTypeWithDefaults(text,
+                            TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE);
+                    text.setTextSize(TypedValue.COMPLEX_UNIT_PX,
+                            forecastTextSize(sizeRes, columnWidth, cardHeight, density));
+                }
+            }
+        }
+    }
+
+    private float forecastTextSize(int sizeRes, float columnWidth, float cardHeight,
+            float density) {
+        if (sizeRes == R.dimen.calendar_forecast_label_size) {
+            return CalendarDashboardSizing.forecastHeadingSize(columnWidth, cardHeight, density);
+        }
+        if (sizeRes == R.dimen.calendar_forecast_min_text_size) {
+            return CalendarDashboardSizing.forecastDetailSize(columnWidth, cardHeight, density);
+        }
+        return CalendarDashboardSizing.forecastTextSize(columnWidth, cardHeight, density);
+    }
+
+    private void applyMonthSizing() {
+        if (monthPanel == null || monthPanel.getWidth() <= 0 || monthPanel.getHeight() <= 0) return;
+        int panelWidth = monthPanel.getWidth() - monthPanel.getPaddingLeft()
+                - monthPanel.getPaddingRight();
+        int panelHeight = monthPanel.getHeight() - monthPanel.getPaddingTop()
+                - monthPanel.getPaddingBottom();
+        float density = getResources().getDisplayMetrics().density;
+        View toolbar = (View) title.getParent();
+        int toolbarHeight = Math.round(CalendarDashboardSizing.monthToolbarHeight(
+                panelHeight, density));
+        int weekdayHeight = Math.round(CalendarDashboardSizing.monthWeekdayHeight(
+                panelHeight, density));
+        int footerHeight = Math.round(CalendarDashboardSizing.monthFooterHeight(
+                panelHeight, density));
+        setViewHeight(toolbar, toolbarHeight);
+        setViewHeight(weekdayGrid, weekdayHeight);
+        setViewHeight(footer, footerHeight);
+        title.setTextSize(TypedValue.COMPLEX_UNIT_PX,
+                CalendarDashboardSizing.monthTitleSize(toolbarHeight, density));
+        applyMonthButtonSize(previousButton, toolbarHeight);
+        applyMonthButtonSize(todayButton, toolbarHeight);
+        applyMonthButtonSize(nextButton, toolbarHeight);
+        float weekdaySize = CalendarDashboardSizing.monthWeekdaySize(
+                panelWidth / 7f, weekdayHeight, density);
+        for (int index = 0; index < weekdayGrid.getChildCount(); index++) {
+            ((TextView) weekdayGrid.getChildAt(index)).setTextSize(
+                    TypedValue.COMPLEX_UNIT_PX, weekdaySize);
+        }
+        footer.setTextSizePx(CalendarDashboardSizing.monthFooterSize(footerHeight, density));
+        float cellWidth = Math.max(1f, (grid.getWidth() > 0 ? grid.getWidth() : panelWidth) / 7f);
+        float remainingGridHeight = Math.max(1f, panelHeight - toolbarHeight - weekdayHeight
+                - footerHeight);
+        float cellHeight = Math.max(1f, remainingGridHeight / 6f);
+        applyGridSizing(grid, cellWidth, cellHeight, density);
+        applyGridSizing(previewGrid, cellWidth, cellHeight, density);
+    }
+
+    private void applyMonthButtonSize(MaterialButton button, int toolbarHeight) {
+        ViewGroup.LayoutParams params = button.getLayoutParams();
+        params.width = toolbarHeight;
+        params.height = toolbarHeight;
+        button.setLayoutParams(params);
+        int iconSize = Math.round(toolbarHeight * 0.44f);
+        if (button.getIconSize() != iconSize) button.setIconSize(iconSize);
+        button.setMinWidth(0);
+        button.setMinimumWidth(0);
+        button.setMinHeight(0);
+        button.setMinimumHeight(0);
+    }
+
+    private void applyGridSizing(GridLayout target, float cellWidth, float cellHeight,
+            float density) {
+        float lunarSize = CalendarDashboardSizing.monthLunarSize(
+                cellWidth, cellHeight, density);
+        int labelHeight = Math.max(1, Math.round(
+                CalendarDashboardSizing.monthLabelHeight(cellHeight, lunarSize)));
+        int horizontalPadding = Math.max(1, Math.round(CalendarDashboardSizing.spacing(
+                cellWidth * 0.015f, density, 3f)));
+        int verticalPadding = Math.max(1, Math.round(CalendarDashboardSizing.spacing(
+                cellHeight * 0.025f, density, 3f)));
+        for (int index = 0; index < target.getChildCount(); index++) {
+            View child = target.getChildAt(index);
+            if (!(child instanceof LinearLayout)) continue;
+            LinearLayout cell = (LinearLayout) child;
+            cell.setPadding(horizontalPadding, verticalPadding, horizontalPadding, verticalPadding);
+            for (int item = 0; item < cell.getChildCount(); item++) {
+                View content = cell.getChildAt(item);
+                if (content instanceof CalendarLabelCarouselView) {
+                    ((CalendarLabelCarouselView) content).setTextSizePx(lunarSize);
+                    ViewGroup.LayoutParams params = content.getLayoutParams();
+                    params.height = labelHeight;
+                    content.setLayoutParams(params);
+                }
+            }
+        }
+    }
+
+    private static void setViewHeight(View view, int height) {
+        ViewGroup.LayoutParams params = view.getLayoutParams();
+        if (params.height == height) return;
+        params.height = height;
+        view.setLayoutParams(params);
+    }
+
+    private static void setPadding(View view, int horizontal, int vertical) {
+        if (view.getPaddingLeft() == horizontal && view.getPaddingTop() == vertical
+                && view.getPaddingRight() == horizontal
+                && view.getPaddingBottom() == vertical) return;
+        view.setPadding(horizontal, vertical, horizontal, vertical);
     }
 
     void onCalendarDestinationEntered(boolean fromAnotherDestination) {
@@ -298,6 +530,7 @@ public final class ProCalendarFragment extends Fragment {
                     ? getString(R.string.calendar_forecast_loading) : state.message,
                     R.dimen.calendar_forecast_text_size, false);
             }
+            applyForecastSizing();
             return;
         }
         Calendar date = Calendar.getInstance(appTimeZone());
@@ -344,6 +577,7 @@ public final class ProCalendarFragment extends Fragment {
             }
             date.add(Calendar.DAY_OF_MONTH, 1);
         }
+        applyForecastSizing();
     }
 
     private void addForecastHeading(LinearLayout parent, String dayLabel, String weather,
@@ -363,6 +597,7 @@ public final class ProCalendarFragment extends Fragment {
             boolean accent) {
         TextView view = new TextView(requireContext());
         view.setText(text);
+        view.setTag(sizeRes);
         view.setTextSize(TypedValue.COMPLEX_UNIT_PX, getResources().getDimension(sizeRes));
         view.setGravity(Gravity.CENTER);
         view.setIncludeFontPadding(false);
@@ -404,6 +639,7 @@ public final class ProCalendarFragment extends Fragment {
                     preferences.getFontFamily(), false));
             weekdayGrid.addView(label, cellParams());
         }
+        applyMonthSizing();
     }
 
     private void applyMonthOffset(int offset) {
@@ -568,6 +804,7 @@ public final class ProCalendarFragment extends Fragment {
         labelCarousels.clear();
         for (CalendarMonth.Day day : calendarMonth.days) grid.addView(createDayCell(day, true), cellParams());
         updateFooter();
+        applyMonthSizing();
     }
 
     private View createDayCell(CalendarMonth.Day day, boolean interactive) {
@@ -602,14 +839,24 @@ public final class ProCalendarFragment extends Fragment {
         carouselItems.addAll(labels);
         CalendarLabelCarouselView lunar = new CalendarLabelCarouselView(requireContext());
         lunar.setItems(carouselItems);
-        lunar.setTextSizePx(getResources().getDimension(R.dimen.calendar_dashboard_lunar_size));
+        float cellWidth = grid == null || grid.getWidth() <= 0 ? 0f : grid.getWidth() / 7f;
+        float cellHeight = grid == null || grid.getHeight() <= 0 ? 0f : grid.getHeight() / 6f;
+        float density = getResources().getDisplayMetrics().density;
+        float lunarSize = cellWidth > 0f && cellHeight > 0f
+                ? CalendarDashboardSizing.monthLunarSize(cellWidth, cellHeight, density)
+                : getResources().getDimension(R.dimen.calendar_dashboard_lunar_size);
+        lunar.setTextSizePx(lunarSize);
         lunar.setTextColor(labels.isEmpty() ? getColor(R.color.calendar_dashboard_secondary)
             : getColor(R.color.calendar_dashboard_text));
         lunar.setTypeface(calendarTypeface);
         lunar.setActive(interactive && resumed);
         if (interactive) labelCarousels.add(lunar);
-        cell.addView(lunar, new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT,
-            getResources().getDimensionPixelSize(R.dimen.calendar_label_height)));
+        int labelHeight = cellHeight > 0f
+                ? Math.max(1, Math.round(
+                        CalendarDashboardSizing.monthLabelHeight(cellHeight, lunarSize)))
+                : getResources().getDimensionPixelSize(R.dimen.calendar_label_height);
+        cell.addView(lunar, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, labelHeight));
         String description = getString(day.today
                         ? R.string.calendar_day_today_accessibility
                         : R.string.calendar_day_accessibility,
@@ -688,7 +935,10 @@ public final class ProCalendarFragment extends Fragment {
                 formattedDate, almanac.naturalLabel());
         footer.setTypeface(ClockTypefaceResolver.resolveTime(requireContext(),
                 preferences.getFontFamily(), false));
-        footer.setTextSizePx(getResources().getDimension(R.dimen.calendar_footer_text_size));
+        footer.setTextSizePx(footer.getHeight() > 0
+                ? CalendarDashboardSizing.monthFooterSize(footer.getHeight(),
+                        getResources().getDisplayMetrics().density)
+                : getResources().getDimension(R.dimen.calendar_footer_text_size));
         List<CalendarFooterCarouselView.Item> items = new ArrayList<>();
         items.add(new CalendarFooterCarouselView.Item(dateLine,
                 getColor(R.color.calendar_dashboard_text)));

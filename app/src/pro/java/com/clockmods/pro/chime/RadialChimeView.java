@@ -45,7 +45,8 @@ public final class RadialChimeView extends View {
 
     public void startChime(BackgroundRepository repository, long chimeAtMillis) {
         startedAt = SystemClock.uptimeMillis();
-        Calendar now = Calendar.getInstance();
+        Calendar now = Calendar.getInstance(HourlyChimeController.resolveTimeZone(
+                repository.getTimeZoneId()));
         now.setTimeInMillis(chimeAtMillis);
         int hour = now.get(Calendar.HOUR_OF_DAY);
         int minute = now.get(Calendar.MINUTE);

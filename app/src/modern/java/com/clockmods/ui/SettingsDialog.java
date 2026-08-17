@@ -94,6 +94,7 @@ public class SettingsDialog extends BottomSheetDialog {
     private final Spinner proTransitionSpinner;
     private final MaterialSwitch portraitStackedSwitch;
     private final MaterialSwitch proHourlyChimeSwitch;
+    private final MaterialSwitch proHalfHourChimeSwitch;
     private final MaterialSwitch proHourlyQuietSwitch;
     private final MaterialButton proQuietStartButton;
     private final MaterialButton proQuietEndButton;
@@ -385,6 +386,9 @@ public class SettingsDialog extends BottomSheetDialog {
                 proHourlyChimeSwitch = createStyleSwitch(context, R.string.pro_hourly_chime,
                     repository.isHourlyChimeEnabled());
                 styleContent.addView(proHourlyChimeSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+                proHalfHourChimeSwitch = createStyleSwitch(context, R.string.pro_half_hour_chime,
+                    repository.isHalfHourChimeEnabled());
+                styleContent.addView(proHalfHourChimeSwitch, matchWrap(dp(48)));
                 proHourlyQuietSwitch = createStyleSwitch(context, R.string.pro_hourly_chime_quiet,
                     repository.isHourlyChimeQuietEnabled());
                 styleContent.addView(proHourlyQuietSwitch, matchWrap(dp(48)));
@@ -403,6 +407,7 @@ public class SettingsDialog extends BottomSheetDialog {
         } else {
             proTransitionSpinner = null;
                 proHourlyChimeSwitch = null;
+                proHalfHourChimeSwitch = null;
                 proHourlyQuietSwitch = null;
                 proQuietStartButton = null;
                 proQuietEndButton = null;
@@ -1201,6 +1206,7 @@ public class SettingsDialog extends BottomSheetDialog {
         portraitStackedSwitch.setChecked(ClockPreferences.DEFAULT_PORTRAIT_STACKED);
         if (proHourlyChimeSwitch != null) {
             proHourlyChimeSwitch.setChecked(ClockPreferences.DEFAULT_HOURLY_CHIME);
+            proHalfHourChimeSwitch.setChecked(ClockPreferences.DEFAULT_HALF_HOUR_CHIME);
             proHourlyQuietSwitch.setChecked(ClockPreferences.DEFAULT_HOURLY_CHIME_QUIET);
             proQuietStartMinutes = ClockPreferences.DEFAULT_HOURLY_CHIME_QUIET_START;
             proQuietEndMinutes = ClockPreferences.DEFAULT_HOURLY_CHIME_QUIET_END;
@@ -1278,6 +1284,7 @@ public class SettingsDialog extends BottomSheetDialog {
         repository.setPortraitStacked(portraitStackedSwitch.isChecked());
         if (proHourlyChimeSwitch != null) {
             repository.setHourlyChimeEnabled(proHourlyChimeSwitch.isChecked());
+            repository.setHalfHourChimeEnabled(proHalfHourChimeSwitch.isChecked());
             repository.setHourlyChimeQuietEnabled(proHourlyQuietSwitch.isChecked());
             repository.setHourlyChimeQuietStart(proQuietStartMinutes);
             repository.setHourlyChimeQuietEnd(proQuietEndMinutes);

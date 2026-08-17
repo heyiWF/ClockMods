@@ -13,6 +13,7 @@
     <color name="calendar_dashboard_weekend">#FF9B9B</color>
 
     <dimen name="calendar_dashboard_gutter">8dp</dimen>
+    <dimen name="calendar_dashboard_card_corner_radius">10dp</dimen>
     <dimen name="calendar_dashboard_time_height">190dp</dimen>
     <dimen name="calendar_dashboard_weather_height">180dp</dimen>
     <dimen name="calendar_dashboard_forecast_height">160dp</dimen>

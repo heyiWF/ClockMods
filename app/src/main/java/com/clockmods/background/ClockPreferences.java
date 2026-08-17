@@ -46,6 +46,7 @@ public class ClockPreferences {
     private static final String KEY_ANIMATE_TIME_CHANGES = "animate_time_changes";
     private static final String KEY_TIME_TRANSITION = "time_transition";
     private static final String KEY_HOURLY_CHIME = "hourly_visual_chime";
+    private static final String KEY_HALF_HOUR_CHIME = "half_hour_visual_chime";
     private static final String KEY_HOURLY_CHIME_QUIET = "hourly_chime_quiet";
     private static final String KEY_HOURLY_CHIME_QUIET_START = "hourly_chime_quiet_start";
     private static final String KEY_HOURLY_CHIME_QUIET_END = "hourly_chime_quiet_end";
@@ -116,6 +117,7 @@ public class ClockPreferences {
     public static final boolean DEFAULT_ANIMATE_TIME_CHANGES = true;
     public static final String DEFAULT_TIME_TRANSITION = TRANSITION_FADE;
     public static final boolean DEFAULT_HOURLY_CHIME = true;
+    public static final boolean DEFAULT_HALF_HOUR_CHIME = false;
     public static final boolean DEFAULT_HOURLY_CHIME_QUIET = true;
     public static final int DEFAULT_HOURLY_CHIME_QUIET_START = 22 * 60;
     public static final int DEFAULT_HOURLY_CHIME_QUIET_END = 7 * 60;
@@ -315,6 +317,14 @@ public class ClockPreferences {
 
     public void setHourlyChimeEnabled(boolean enabled) {
         preferences.edit().putBoolean(KEY_HOURLY_CHIME, enabled).apply();
+    }
+
+    public boolean isHalfHourChimeEnabled() {
+        return preferences.getBoolean(KEY_HALF_HOUR_CHIME, DEFAULT_HALF_HOUR_CHIME);
+    }
+
+    public void setHalfHourChimeEnabled(boolean enabled) {
+        preferences.edit().putBoolean(KEY_HALF_HOUR_CHIME, enabled).apply();
     }
 
     public boolean isHourlyChimeQuietEnabled() {
@@ -746,6 +756,7 @@ public class ClockPreferences {
                 .putBoolean(KEY_ANIMATE_TIME_CHANGES, DEFAULT_ANIMATE_TIME_CHANGES)
                 .putString(KEY_TIME_TRANSITION, DEFAULT_TIME_TRANSITION)
                 .putBoolean(KEY_HOURLY_CHIME, DEFAULT_HOURLY_CHIME)
+                .putBoolean(KEY_HALF_HOUR_CHIME, DEFAULT_HALF_HOUR_CHIME)
                 .putBoolean(KEY_HOURLY_CHIME_QUIET, DEFAULT_HOURLY_CHIME_QUIET)
                 .putInt(KEY_HOURLY_CHIME_QUIET_START, DEFAULT_HOURLY_CHIME_QUIET_START)
                 .putInt(KEY_HOURLY_CHIME_QUIET_END, DEFAULT_HOURLY_CHIME_QUIET_END)

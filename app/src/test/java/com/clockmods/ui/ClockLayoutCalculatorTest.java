@@ -59,8 +59,12 @@ public class ClockLayoutCalculatorTest {
     public void formatsHourlyChimeForTwelveAndTwentyFourHourClocks() {
         Assert.assertEquals("13:00",
                 ClockTimeFormatter.formatHourlyChime(13, 0, true, false));
+        Assert.assertEquals("13:30",
+                ClockTimeFormatter.formatHourlyChime(13, 30, true, false));
         Assert.assertEquals("下午1:00",
                 ClockTimeFormatter.formatHourlyChime(13, 0, false, false));
+        Assert.assertEquals("下午1:30",
+                ClockTimeFormatter.formatHourlyChime(13, 30, false, false));
         Assert.assertEquals("上午12:00",
                 ClockTimeFormatter.formatHourlyChime(0, 0, false, false));
         Assert.assertEquals("12:00 PM",

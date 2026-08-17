@@ -5,6 +5,7 @@
     android:orientation="vertical">
 
     <LinearLayout
+        android:id="@+id/calendar_clock_card"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="1.06"
@@ -131,6 +132,7 @@
                     android:orientation="vertical">
 
                     <TextView
+                        android:id="@+id/calendar_feels_like_label"
                         android:layout_width="match_parent"
                         android:layout_height="wrap_content"
                         android:autoSizeMaxTextSize="@dimen/calendar_dashboard_feels_label_size_land"

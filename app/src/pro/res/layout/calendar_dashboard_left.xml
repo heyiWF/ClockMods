@@ -5,6 +5,7 @@
     android:orientation="vertical">
 
     <FrameLayout
+        android:id="@+id/calendar_clock_card"
         android:layout_width="match_parent"
         android:layout_height="@dimen/calendar_dashboard_time_height"
         android:background="@drawable/calendar_dashboard_panel"
@@ -102,6 +103,7 @@
                 android:orientation="vertical">
 
                 <TextView
+                    android:id="@+id/calendar_feels_like_label"
                     android:layout_width="wrap_content"
                     android:layout_height="wrap_content"
                     android:includeFontPadding="false"
