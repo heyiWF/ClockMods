@@ -21,6 +21,7 @@ import androidx.fragment.app.Fragment;
 import com.clockmods.R;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.button.MaterialButton;
+import com.clockmods.ui.ButtonTextSizer;
 import com.clockmods.pro.timer.TimerScheduler;
 
 import java.util.Locale;
@@ -75,6 +76,7 @@ public final class ProTimerFragment extends Fragment {
         root.findViewById(R.id.timer_skip).setOnClickListener(view -> advancePomodoro());
         setupPresets(root.findViewById(R.id.timer_presets));
         ProFontApplier.apply(root);
+        ButtonTextSizer.applyToTree(root);
         restore();
         refresh();
         return root;
@@ -134,6 +136,7 @@ public final class ProTimerFragment extends Fragment {
         button.setMinimumWidth(0);
         button.setPadding(dp(4), 0, dp(4), 0);
         button.setSingleLine(true);
+        ButtonTextSizer.apply(button);
     }
 
     private int dp(int value) {
@@ -176,6 +179,7 @@ public final class ProTimerFragment extends Fragment {
             }));
         dialog.show();
         ProFontApplier.apply(dialog.getWindow().getDecorView());
+        ButtonTextSizer.applyToTree(dialog.getWindow().getDecorView());
         }
 
         static long customDurationMillis(int hours, int minutes, int seconds) {

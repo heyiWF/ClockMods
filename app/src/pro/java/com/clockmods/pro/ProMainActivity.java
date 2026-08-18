@@ -28,6 +28,7 @@ import com.clockmods.LocaleManager;
 import com.clockmods.background.BackgroundRepository;
 import com.clockmods.background.ClockPreferences;
 import com.clockmods.platform.ExperienceBridge;
+import com.clockmods.ui.ButtonTextSizer;
 import com.clockmods.ui.SettingsDialog;
 import com.clockmods.pro.chime.HourlyChimeController;
 import com.clockmods.pro.chime.RadialChimeView;
@@ -94,6 +95,7 @@ public final class ProMainActivity extends AppCompatActivity {
         }
         pager.setCurrentItem(selectedPage, false);
         ProFontApplier.apply(navigation);
+        ButtonTextSizer.applyAllTextToTree(navigation);
         navigation.setSelectedItemId(NAVIGATION_IDS[selectedPage]);
         navigation.setOnItemSelectedListener(item -> {
             for (int position = 0; position < NAVIGATION_IDS.length; position++) {

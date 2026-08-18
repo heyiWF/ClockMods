@@ -600,6 +600,7 @@ public class SettingsDialog extends Dialog {
         scrollParams.topMargin = dp(12);
         dialogRoot.addView(scrollView, scrollParams);
         setContentView(dialogRoot);
+        ButtonTextSizer.applyToTree(dialogRoot);
 
         boolean usingImage = ClockPreferences.MODE_IMAGE.equals(repository.getBackgroundMode());
         imageMode.setChecked(usingImage);
@@ -1147,6 +1148,7 @@ public class SettingsDialog extends Dialog {
         dateFormatContainer.addView(datePreviewLabel,
                 topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(8)));
         updateDatePreview(english);
+        ButtonTextSizer.applyToTree(dateFormatContainer);
     }
 
     private void updateDatePreview(boolean english) {

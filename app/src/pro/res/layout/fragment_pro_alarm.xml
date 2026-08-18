@@ -41,6 +41,8 @@
         android:id="@+id/alarm_edit"
         android:layout_width="match_parent"
         android:layout_height="56dp"
+        android:ellipsize="none"
+        android:maxLines="1"
         android:text="@string/alarm_choose_time" />
 
 </LinearLayout>

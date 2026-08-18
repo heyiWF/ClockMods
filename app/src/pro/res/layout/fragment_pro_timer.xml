@@ -50,6 +50,8 @@
             android:layout_width="0dp"
             android:layout_height="56dp"
             android:layout_weight="1"
+            android:ellipsize="none"
+            android:maxLines="1"
             android:text="@string/timer_reset" />
 
         <com.google.android.material.button.MaterialButton
@@ -58,6 +60,8 @@
             android:layout_height="56dp"
             android:layout_marginStart="12dp"
             android:layout_weight="1"
+            android:ellipsize="none"
+            android:maxLines="1"
             android:text="@string/timer_start" />
 
         <com.google.android.material.button.MaterialButton
@@ -67,6 +71,8 @@
             android:layout_height="56dp"
             android:layout_marginStart="12dp"
             android:layout_weight="1"
+            android:ellipsize="none"
+            android:maxLines="1"
             android:text="@string/timer_skip" />
 
     </LinearLayout>

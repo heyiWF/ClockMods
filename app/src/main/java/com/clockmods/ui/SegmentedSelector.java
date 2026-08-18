@@ -47,6 +47,7 @@ public final class SegmentedSelector extends LinearLayout {
             segment.setGravity(Gravity.CENTER);
             segment.setSingleLine(true);
             segment.setClickable(true);
+            ButtonTextSizer.applyClickableLabel(segment);
             segment.setFocusable(true);
             segment.setOnClickListener(view -> setSelectedIndex(segmentIndex));
             segments[index] = segment;

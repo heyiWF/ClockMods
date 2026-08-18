@@ -12,6 +12,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.clockmods.R;
+import com.clockmods.ui.ButtonTextSizer;
 import com.clockmods.pro.alarm.AlarmScheduler;
 import com.clockmods.pro.alarm.AlarmStore;
 import com.google.android.material.materialswitch.MaterialSwitch;
@@ -49,11 +50,14 @@ public final class ProAlarmFragment extends Fragment {
                     AlarmScheduler.schedule(requireContext(), hour, minute);
                     render();
                 }, store.hour(), store.minute(), true);
-            dialog.setOnShowListener(ignored ->
-                    ProFontApplier.apply(dialog.getWindow().getDecorView()));
+            dialog.setOnShowListener(ignored -> {
+                ProFontApplier.apply(dialog.getWindow().getDecorView());
+                ButtonTextSizer.applyToTree(dialog.getWindow().getDecorView());
+            });
             dialog.show();
         });
-            ProFontApplier.apply(root);
+        ProFontApplier.apply(root);
+        ButtonTextSizer.applyToTree(root);
         render();
         return root;
     }

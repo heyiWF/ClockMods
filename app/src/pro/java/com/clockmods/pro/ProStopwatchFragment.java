@@ -17,6 +17,7 @@ import androidx.annotation.Nullable;
 import androidx.fragment.app.Fragment;
 
 import com.clockmods.R;
+import com.clockmods.ui.ButtonTextSizer;
 import com.google.android.material.button.MaterialButton;
 
 import java.util.Locale;
@@ -51,6 +52,7 @@ public final class ProStopwatchFragment extends Fragment {
         root.findViewById(R.id.stopwatch_reset).setOnClickListener(view -> reset());
         root.findViewById(R.id.stopwatch_lap).setOnClickListener(view -> addLap());
         ProFontApplier.apply(root);
+        ButtonTextSizer.applyToTree(root);
         render();
         return root;
     }

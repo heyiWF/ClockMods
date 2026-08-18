@@ -743,6 +743,7 @@ public class SettingsDialog extends BottomSheetDialog {
         scrollParams.topMargin = dp(12);
         root.addView(scrollView, scrollParams);
         setContentView(root);
+        ButtonTextSizer.applyToTree(root);
 
         boolean usingImage = ClockPreferences.MODE_IMAGE.equals(repository.getBackgroundMode());
         modeGroup.check(usingImage ? IMAGE_MODE_ID : COLOR_MODE_ID);
@@ -1479,6 +1480,7 @@ public class SettingsDialog extends BottomSheetDialog {
         dateFormatContainer.addView(datePreviewLabel,
                 topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(8)));
         updateDatePreview(english);
+        ButtonTextSizer.applyToTree(dateFormatContainer);
     }
 
     private void buildProDateControls(Context context, boolean english) {

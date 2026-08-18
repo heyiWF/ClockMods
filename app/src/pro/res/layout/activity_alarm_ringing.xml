@@ -29,6 +29,8 @@
         android:layout_width="match_parent"
         android:layout_height="64dp"
         android:layout_marginTop="32dp"
+        android:ellipsize="none"
+        android:maxLines="1"
         android:text="@string/alarm_dismiss" />
 
 </LinearLayout>
