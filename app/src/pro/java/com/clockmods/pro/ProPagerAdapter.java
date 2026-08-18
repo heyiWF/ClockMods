@@ -5,8 +5,8 @@ import androidx.fragment.app.Fragment;
 import androidx.fragment.app.FragmentActivity;
 import androidx.viewpager2.adapter.FragmentStateAdapter;
 
-final class ProPagerAdapter extends FragmentStateAdapter {
-    ProPagerAdapter(FragmentActivity activity) {
+public class ProPagerAdapter extends FragmentStateAdapter {
+    public ProPagerAdapter(FragmentActivity activity) {
         super(activity);
     }
 

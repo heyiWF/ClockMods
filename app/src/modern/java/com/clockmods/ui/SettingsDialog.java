@@ -72,6 +72,7 @@ public class SettingsDialog extends BottomSheetDialog {
     private static final String SECTION_LABEL_TAG = "clockmods:section";
     private final BackgroundRepository repository;
     private final Listener listener;
+    private final boolean functionOnly;
     private final ColorPickerView backgroundPicker;
     private final View backgroundPreview;
     private final MaterialButtonToggleGroup modeGroup;
@@ -185,9 +186,19 @@ public class SettingsDialog extends BottomSheetDialog {
     private static final int LANGUAGE_ENGLISH_ID = 60003;
 
     public SettingsDialog(Context context, BackgroundRepository repository, Listener listener) {
+        this(context, repository, listener, false);
+    }
+
+    /**
+     * Creates the editor with an optional function-only surface for hosts that provide their own
+     * visual-style system. Hidden style controls are neither reset nor persisted in this mode.
+     */
+    public SettingsDialog(Context context, BackgroundRepository repository, Listener listener,
+            boolean functionOnly) {
         super(context);
         this.repository = repository;
         this.listener = listener;
+        this.functionOnly = functionOnly;
         this.timeColor = repository.getTimeColor();
         this.dateColor = repository.getDateColor();
         this.dimStartMinutes = repository.getDimStartMinutes();
@@ -216,7 +227,7 @@ public class SettingsDialog extends BottomSheetDialog {
         header.setGravity(Gravity.CENTER_VERTICAL);
 
         TextView title = new TextView(context);
-        title.setText(R.string.background_settings);
+        title.setText(functionOnly ? R.string.tab_function : R.string.background_settings);
         title.setTextAppearance(com.google.android.material.R.style.TextAppearance_Material3_TitleLarge);
         title.setGravity(Gravity.CENTER_VERTICAL);
         header.addView(title, new LinearLayout.LayoutParams(0, dp(48), 1f));
@@ -249,7 +260,8 @@ public class SettingsDialog extends BottomSheetDialog {
             weightedButtonParams());
         boardSelector.addView(createModeButton(context, functionTabId, R.string.tab_function),
             weightedButtonParams());
-        boardSelector.check(styleTabId);
+        boardSelector.check(functionOnly ? functionTabId : styleTabId);
+        boardSelector.setVisibility(functionOnly ? View.GONE : View.VISIBLE);
         root.addView(boardSelector, topMargin(matchWrap(dp(48)), dp(12)));
 
         // ---- Style board ----
@@ -378,7 +390,7 @@ public class SettingsDialog extends BottomSheetDialog {
         portraitStackedSwitch = createStyleSwitch(context, R.string.portrait_stacked_clock,
                 repository.isPortraitStacked());
         styleContent.addView(portraitStackedSwitch, topMargin(matchWrap(dp(48)), dp(8)));
-        if ("pro".equals(BuildConfig.FLAVOR)) {
+        if (BuildConfig.PRO_FONTS) {
             styleContent.addView(createSubLabel(context, R.string.pro_time_transition), subLabelParams());
             proTransitionSpinner = createStringSpinner(context, R.array.pro_time_transitions,
                     transitionIndex(repository.getTimeTransition()));
@@ -552,7 +564,7 @@ public class SettingsDialog extends BottomSheetDialog {
         selectedLanguage = originalClockLanguage;
         chineseVariant = ClockPreferences.LANGUAGE_TRADITIONAL.equals(selectedLanguage)
                 ? DateFormatter.Lang.TRADITIONAL : DateFormatter.Lang.CHINESE;
-        if (isPro()) {
+        if (isPro() && !functionOnly) {
             // Pro exposes Simplified / Traditional / English; the other flavors keep a binary switch.
             clockLanguageGroup = new MaterialButtonToggleGroup(context);
             clockLanguageGroup.setSingleSelection(true);
@@ -671,7 +683,7 @@ public class SettingsDialog extends BottomSheetDialog {
         }
         // Pro-only 月历 section: the calendar page exists only in Pro, so this is its own group
         // rather than being tucked under 天气.
-        if ("pro".equals(BuildConfig.FLAVOR)) {
+        if (BuildConfig.PRO_FONTS) {
             functionContent.addView(createSectionLabel(context, R.string.calendar_settings_group),
                     topMargin(sectionLabelParams(), dp(20)));
             functionContent.addView(createSubLabel(context, R.string.calendar_week_start),
@@ -719,6 +731,8 @@ public class SettingsDialog extends BottomSheetDialog {
         boards.setOrientation(LinearLayout.VERTICAL);
         boards.addView(styleContent, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
         boards.addView(functionContent, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
+        styleContent.setVisibility(functionOnly ? View.GONE : View.VISIBLE);
+        functionContent.setVisibility(functionOnly ? View.VISIBLE : View.GONE);
 
         boardSelector.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
             if (!isChecked) return;
@@ -731,6 +745,7 @@ public class SettingsDialog extends BottomSheetDialog {
         content.setOrientation(LinearLayout.VERTICAL);
         content.addView(boards, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
         content.addView(reset, topMargin(matchWrap(dp(48)), dp(20)));
+        reset.setVisibility(functionOnly ? View.GONE : View.VISIBLE);
 
         scrollContent.addView(content, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
 
@@ -1266,36 +1281,39 @@ public class SettingsDialog extends BottomSheetDialog {
             Toast.makeText(getContext(), R.string.weather_location_not_selected, Toast.LENGTH_SHORT).show();
             return;
         }
-        if (modeGroup.getCheckedButtonId() == IMAGE_MODE_ID && !repository.hasImage()) {
+        if (!functionOnly && modeGroup.getCheckedButtonId() == IMAGE_MODE_ID
+                && !repository.hasImage()) {
             Toast.makeText(getContext(), R.string.select_image_first, Toast.LENGTH_SHORT).show();
             return;
         }
-        repository.setTimeFontScale(progressToScale(timeSizeBar.getValue()));
-        repository.setDateFontScale(progressToScale(dateSizeBar.getValue()));
-        repository.setTimeColor(timeColor);
-        repository.setDateColor(dateColor);
-        repository.setShowStatusIcons(statusIconsSwitch.isChecked());
-        repository.setStatusIconScale(progressToScale(statusIconSizeBar.getValue()));
-        repository.setBlinkColon(blinkColonSwitch.isChecked());
-        repository.setAnimateTimeChanges(animateTimeChangesSwitch.isChecked());
-        if (proTransitionSpinner != null) {
-            repository.setTimeTransition(transitionForIndex(
-                    proTransitionSpinner.getSelectedItemPosition()));
+        if (!functionOnly) {
+            repository.setTimeFontScale(progressToScale(timeSizeBar.getValue()));
+            repository.setDateFontScale(progressToScale(dateSizeBar.getValue()));
+            repository.setTimeColor(timeColor);
+            repository.setDateColor(dateColor);
+            repository.setShowStatusIcons(statusIconsSwitch.isChecked());
+            repository.setStatusIconScale(progressToScale(statusIconSizeBar.getValue()));
+            repository.setBlinkColon(blinkColonSwitch.isChecked());
+            repository.setAnimateTimeChanges(animateTimeChangesSwitch.isChecked());
+            if (proTransitionSpinner != null) {
+                repository.setTimeTransition(transitionForIndex(
+                        proTransitionSpinner.getSelectedItemPosition()));
+            }
+            repository.setPortraitStacked(portraitStackedSwitch.isChecked());
+            if (proHourlyChimeSwitch != null) {
+                repository.setHourlyChimeEnabled(proHourlyChimeSwitch.isChecked());
+                repository.setHalfHourChimeEnabled(proHalfHourChimeSwitch.isChecked());
+                repository.setHourlyChimeQuietEnabled(proHourlyQuietSwitch.isChecked());
+                repository.setHourlyChimeQuietStart(proQuietStartMinutes);
+                repository.setHourlyChimeQuietEnd(proQuietEndMinutes);
+            }
+            repository.setBoldText(boldTextSwitch.isChecked());
+            repository.setFontFamily(fontFamilyForIndex(fontFamilySpinner.getSelectedItemPosition()));
+            repository.setShowSeconds(showSecondsSwitch.isChecked());
+            repository.setSmallSeconds(showSecondsSwitch.isChecked() && smallSecondsSwitch.isChecked());
+            repository.setShowLunar(showLunarSwitch.isChecked());
+            repository.setDateLunarDualLine(dateLunarDualLineSwitch.isChecked());
         }
-        repository.setPortraitStacked(portraitStackedSwitch.isChecked());
-        if (proHourlyChimeSwitch != null) {
-            repository.setHourlyChimeEnabled(proHourlyChimeSwitch.isChecked());
-            repository.setHalfHourChimeEnabled(proHalfHourChimeSwitch.isChecked());
-            repository.setHourlyChimeQuietEnabled(proHourlyQuietSwitch.isChecked());
-            repository.setHourlyChimeQuietStart(proQuietStartMinutes);
-            repository.setHourlyChimeQuietEnd(proQuietEndMinutes);
-        }
-        repository.setBoldText(boldTextSwitch.isChecked());
-        repository.setFontFamily(fontFamilyForIndex(fontFamilySpinner.getSelectedItemPosition()));
-        repository.setShowSeconds(showSecondsSwitch.isChecked());
-        repository.setSmallSeconds(showSecondsSwitch.isChecked() && smallSecondsSwitch.isChecked());
-        repository.setShowLunar(showLunarSwitch.isChecked());
-        repository.setDateLunarDualLine(dateLunarDualLineSwitch.isChecked());
         repository.setUse24Hour(use24HourSwitch.isChecked());
         repository.setClockLanguage(selectedLanguage);
         captureDateSectionInto(dateSectionEnglish);
@@ -1314,10 +1332,12 @@ public class SettingsDialog extends BottomSheetDialog {
         if (autoStartOn && !autoStartWasOn) {
             AutoStartManager.requestHomeRole(getContext());
         }
-        repository.setDimBackground(dimBackgroundSwitch.isChecked());
-        repository.setScheduleDimBackground(scheduleDimBackgroundSwitch.isChecked());
-        repository.setDimStartMinutes(dimStartMinutes);
-        repository.setDimEndMinutes(dimEndMinutes);
+        if (!functionOnly) {
+            repository.setDimBackground(dimBackgroundSwitch.isChecked());
+            repository.setScheduleDimBackground(scheduleDimBackgroundSwitch.isChecked());
+            repository.setDimStartMinutes(dimStartMinutes);
+            repository.setDimEndMinutes(dimEndMinutes);
+        }
         repository.setUseNetworkTime(networkTimeSwitch.isChecked());
         repository.setSyncIntervalMinutes(minutesForSyncIntervalId(syncIntervalGroup.getCheckedButtonId()));
         repository.setTimeZoneId(RegionTimeZones.ZONE_IDS[selectedRegionIndex]);
@@ -1341,10 +1361,12 @@ public class SettingsDialog extends BottomSheetDialog {
             weatherIntervalSpinner.getSelectedItemPosition()));
         listener.onFontSettingsApplied();
 
-        if (modeGroup.getCheckedButtonId() == IMAGE_MODE_ID) {
-            listener.onImageModeApplied();
-        } else {
-            listener.onColorApplied(backgroundPicker.getColor());
+        if (!functionOnly) {
+            if (modeGroup.getCheckedButtonId() == IMAGE_MODE_ID) {
+                listener.onImageModeApplied();
+            } else {
+                listener.onColorApplied(backgroundPicker.getColor());
+            }
         }
         if (!selectedLanguage.equals(originalClockLanguage)) {
             listener.onLanguageChanged();
@@ -1370,7 +1392,7 @@ public class SettingsDialog extends BottomSheetDialog {
     }
 
     private static boolean isPro() {
-        return "pro".equals(BuildConfig.FLAVOR);
+        return BuildConfig.PRO_FONTS;
     }
 
     private DateFormatter.Lang langOf(boolean english) {

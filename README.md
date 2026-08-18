@@ -8,13 +8,13 @@
 
 优雅地让你的旧设备继续发光发热。（但你还得管它充电不是）
 
-兼容版 · 现代版 · 专业版　|　Android 4.0+　|　离线优先 · 无广告 · 无账号
+兼容版 · 现代版 · 专业版 · Ultimate　|　Android 4.0+　|　离线优先 · 无广告 · 无账号
 
 </div>
 
 ---
 
-ClockMods 以沉浸式全屏界面显示时间，并保持屏幕常亮。它同时呈现公历日期、星期与中国农历，可自由定制背景、字体、时间格式、时区与网络校时方式，并能显示实时天气。项目提供 **兼容版 / 现代版 / 专业版** 三个版本，各自拥有独立的应用 ID，可在同一台设备上并存。
+ClockMods 以沉浸式全屏界面显示时间，并保持屏幕常亮。它同时呈现公历日期、星期与中国农历，可自由定制背景、字体、时间格式、时区与网络校时方式，并能显示实时天气。项目提供 **兼容版 / 现代版 / 专业版 / Ultimate** 四个版本，各自拥有独立的应用 ID，可在同一台设备上并存。
 
 ## 功能演示
 
@@ -56,7 +56,7 @@ ClockMods 以沉浸式全屏界面显示时间，并保持屏幕常亮。它同�
 - 可跟随系统时区，或从内置地区列表中选择其他时区。
 - 可选显示网络与电池状态图标。
 - 运行时保持屏幕常亮，采用沉浸式系统栏与边到边布局，横竖屏自动适配。
-- 可开启「开机自启动」：将应用设为设备默认桌面，开机后由系统自动拉起时钟界面（三个版本均支持，设置中一键开关，无需额外系统权限）。
+- 可开启「开机自启动」：将应用设为设备默认桌面，开机后由系统自动拉起时钟界面（四个版本均支持，设置中一键开关，无需额外系统权限）。
 
 ### 🌦️ 实时天气
 
@@ -66,9 +66,9 @@ ClockMods 以沉浸式全屏界面显示时间，并保持屏幕常亮。它同�
 - 可开启「详细天气」，轮播体感温度、相对湿度、风向风力与气象灾害预警等；单条过宽时横向滚动，不换行、不拆分、不缩小字号。
 - 可设置自定义留言，非空时与天气在同一行轮播显示；无论留言长短，字号始终保持设定值，过宽时横向滚动。
 
-### ⭐ 专业版扩展（仅 Pro）
+### ⭐ 专业版扩展（Pro 与 Ultimate）
 
-专业版在全屏时钟之外提供一组可左右滑动切换的工具页面：
+Pro 在全屏时钟之外提供一组可左右滑动切换的工具页面；Ultimate 完整继承这些 Pro 能力：
 
 - **时钟**：全屏时钟主界面，支持整点报时（可设静音时段，支持跨越午夜）。
 - **日历**：仪表盘式月历，可滑动或翻月、点选日期并一键回到今天；离线整合二十四节气、传统与公历节日、法定节假日「休/班」标记，并展示所选日期的「宜 / 忌」。横屏时左侧同时显示时间、实时天气与未来三日预报。
@@ -77,6 +77,14 @@ ClockMods 以沉浸式全屏界面显示时间，并保持屏幕常亮。它同�
 - **倒计时**：设置倒计时并在结束时提醒。
 - **秒表**：计时与计次。
 
+### ✨ Ultimate 主题与开发者能力
+
+- 内置 Glass Atelier、Noir Instrument、Paper Station、Orbit Neon、Digital Grid、Typographic 六套完整主题，涵盖模拟、数字与混合时钟。
+- 秒针支持平滑扫秒、跳秒和关闭，并跟随 Android 的减少动画设置；应用进入后台或失去窗口焦点时停止逐帧刷新。
+- 设置改为独立全屏入口：首页只展示分类和摘要，时钟样式、背景、时间日期、天气、系统及 Pro 高级功能各有二级页面。
+- 复用 Pro 的日历、番茄钟、闹钟、倒计时、秒表、整点提示、图片背景、网络校时与天气能力。
+- 提供无状态 Canvas renderer、不可变状态、主题 token、能力声明、稳定 metadata 与 registry/fallback；接入方式见 [Clock Style SDK](docs/clock-style-sdk.md)。
+
 ## 版本一览
 
 | 版本 | 最低系统 | 应用 ID | 界面与能力 |
@@ -84,14 +92,14 @@ ClockMods 以沉浸式全屏界面显示时间，并保持屏幕常亮。它同�
 | 兼容版 `compat` / ClockMods Lite | Android 4.0（API 14） | `com.clockmods.compat` | 使用平台原生控件，面向旧设备；API 19+ 使用系统文档选择器；界面支持中/英文 |
 | 现代版 `modern` / ClockMods | Android 6.0（API 23） | `com.clockmods.modern` | Material 3 设置面板；Android 12+ 支持动态取色；Android 13+ 使用 Photo Picker；界面支持中/英文 |
 | 专业版 `pro` / ClockMods Pro | Android 12（API 31） | `com.clockmods.pro` | 在现代版基础上增加日历、闹钟、倒计时、番茄钟、秒表、整点报时等工具页面；界面支持简体/繁体/英文三语 |
+| Ultimate `ultimate` / ClockMods Ultimate | Android 12（API 31） | `com.clockmods.ultimate` | 完整继承 Pro 工具页与相关能力，增加六套完整时钟主题、模拟/数字样式切换、二级设置导航与可扩展 Clock Style SDK |
 
 ## 使用方法
 
 1. 打开应用即进入全屏时钟界面。
 2. **双击**时钟区域打开设置。
-3. 在「样式」页调整背景、字体、秒数、农历与状态图标。
-4. 在「功能」页设置屏幕方向、开机自启动、时间制式、网络校时、时区、界面语言、日期格式、自定义留言与天气。
-5. 点击「应用」保存设置。
+3. 兼容版、现代版和 Pro：在「样式」与「功能」页完成调整，然后点击「应用」保存设置。
+4. Ultimate：从分类首页进入时钟样式、背景、时间日期、天气、系统或 Pro 高级功能二级页面；这些原生二级页会即时保存。进入「Pro 附加设置」兼容编辑器时，仍需点击其中的「应用」。
 
 ## 权限与隐私
 
@@ -101,7 +109,7 @@ ClockMods 不含账号、广告、云同步或用户行为统计，所有数据�
 - `ACCESS_NETWORK_STATE`、`ACCESS_WIFI_STATE`：用于显示网络状态图标。
 - `ACCESS_COARSE_LOCATION`、`ACCESS_FINE_LOCATION`：仅在开启天气且使用自动定位时获取当前地区，不进行后台定位。
 - 背景图片只处理用户主动选择的单张图片，不申请读取整个相册的权限。
-- 专业版额外申请 `POST_NOTIFICATIONS`、`SCHEDULE_EXACT_ALARM`、`USE_FULL_SCREEN_INTENT`、`RECEIVE_BOOT_COMPLETED`、`VIBRATE`、`FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_MEDIA_PLAYBACK`：用于闹钟精确排程、到点全屏提醒、响铃前台服务、振动，以及设备重启或时间变化后重新排程。
+- Pro 与 Ultimate 额外申请 `POST_NOTIFICATIONS`、`SCHEDULE_EXACT_ALARM`、`USE_FULL_SCREEN_INTENT`、`RECEIVE_BOOT_COMPLETED`、`VIBRATE`、`FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_MEDIA_PLAYBACK`：用于闹钟精确排程、到点全屏提醒、响铃前台服务、振动，以及设备重启或时间变化后重新排程。
 
 ## QWeather 配置
 
@@ -119,13 +127,13 @@ ClockMods 不含账号、广告、云同步或用户行为统计，所有数据�
 
 ```powershell
 # 运行单元测试
-.\gradlew.bat testCompatDebugUnitTest testModernDebugUnitTest testProDebugUnitTest
+.\gradlew.bat testCompatDebugUnitTest testModernDebugUnitTest testProDebugUnitTest testUltimateDebugUnitTest
 
-# 构建三个版本的 Debug APK
-.\gradlew.bat assembleCompatDebug assembleModernDebug assembleProDebug
+# 构建四个版本的 Debug APK
+.\gradlew.bat assembleCompatDebug assembleModernDebug assembleProDebug assembleUltimateDebug
 
 # Lint 检查
-.\gradlew.bat lintCompatDebug lintModernDebug lintProDebug
+.\gradlew.bat lintCompatDebug lintModernDebug lintProDebug lintUltimateDebug
 ```
 
 构建产物位于 `app/build/outputs/apk/<flavor>/debug/`。
@@ -133,11 +141,14 @@ ClockMods 不含账号、广告、云同步或用户行为统计，所有数据�
 ## 项目结构
 
 ```text
-app/src/main/    三个版本共享的时钟、农历、时间、天气、背景与资源代码
+app/src/main/    四个版本共享的时钟、农历、时间、天气、背景与资源代码
 app/src/compat/  兼容版设置界面与平台适配（无 Material 依赖）
 app/src/modern/  现代版 Material 3 设置界面与平台适配
 app/src/pro/     专业版工具页面（日历、闹钟、倒计时、番茄钟、秒表、整点报时），复用现代版界面与资源
+app/src/ultimate/ Ultimate 时钟宿主、六套内置主题、二级设置与 Pro 集成层
+app/src/main/java/com/clockmods/sdk/clock/ 公开的时钟样式 SDK 契约
 app/src/test/    共享逻辑单元测试
+app/src/testUltimate/ Ultimate registry 与主题契约测试
 ```
 
 ## 致谢

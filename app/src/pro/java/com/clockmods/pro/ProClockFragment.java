@@ -26,7 +26,7 @@ import com.clockmods.ui.StatusBarView;
 import com.clockmods.weather.WeatherController;
 import com.clockmods.weather.WeatherModels.WeatherState;
 
-public final class ProClockFragment extends Fragment {
+public final class ProClockFragment extends Fragment implements SettingsRefreshable {
     private static final int REQUEST_LOCATION = 3101;
 
     private ClockView clockView;
@@ -88,15 +88,15 @@ public final class ProClockFragment extends Fragment {
     @Override
     public void onResume() {
         super.onResume();
-        clockView.start();
-        statusBarView.start();
+        if (clockView != null) clockView.start();
+        if (statusBarView != null) statusBarView.start();
         startWeatherIfEnabled();
     }
 
     @Override
     public void onPause() {
-        clockView.stop();
-        statusBarView.stop();
+        if (clockView != null) clockView.stop();
+        if (statusBarView != null) statusBarView.stop();
         if (weatherController != null) weatherController.stop();
         super.onPause();
     }
@@ -108,7 +108,8 @@ public final class ProClockFragment extends Fragment {
         super.onDestroyView();
     }
 
-    void refreshSettings() {
+    @Override
+    public void refreshSettings() {
         if (clockView == null) return;
         ProFontApplier.apply(getView());
         BackgroundRepository repository = new BackgroundRepository(requireContext());

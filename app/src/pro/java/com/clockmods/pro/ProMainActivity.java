@@ -39,7 +39,7 @@ import java.io.InputStream;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
-public final class ProMainActivity extends AppCompatActivity {
+public class ProMainActivity extends AppCompatActivity {
     private static final int REQUEST_IMAGE = 3001;
     private static final int REQUEST_NOTIFICATIONS = 3002;
     private static final String STATE_SELECTED_PAGE = "selected_page";
@@ -86,7 +86,7 @@ public final class ProMainActivity extends AppCompatActivity {
         radialChimeView = findViewById(R.id.radial_chime);
         hourlyChimeController = new HourlyChimeController(radialChimeView,
             new BackgroundRepository(this));
-        pager.setAdapter(new ProPagerAdapter(this));
+        pager.setAdapter(createPagerAdapter());
         pager.setOffscreenPageLimit(1);
         navigation = findViewById(R.id.pro_navigation);
         if (savedInstanceState != null) {
@@ -123,6 +123,14 @@ public final class ProMainActivity extends AppCompatActivity {
                     }
                 });
         requestNotificationPermissionIfNeeded();
+    }
+
+    /**
+     * Flavor extension point for replacing individual Pro destinations without copying the
+     * activity's navigation, alarms, chime, edge-to-edge, and image-import orchestration.
+     */
+    protected ProPagerAdapter createPagerAdapter() {
+        return new ProPagerAdapter(this);
     }
 
     @Override
@@ -189,6 +197,11 @@ public final class ProMainActivity extends AppCompatActivity {
     }
 
     public void showSettings() {
+        showLegacySettings();
+    }
+
+    /** Opens the complete Pro settings editor for flavors that provide a category front page. */
+    protected final void showLegacySettings() {
         navigation.setVisibility(View.VISIBLE);
         showSystemBars();
         chromeHandler.removeCallbacks(hideChromeRunnable);
@@ -324,15 +337,15 @@ public final class ProMainActivity extends AppCompatActivity {
         super.onDestroy();
     }
 
-    private void refreshClockPage() {
+    protected void refreshClockPage() {
         androidx.fragment.app.Fragment fragment = getSupportFragmentManager()
                 .findFragmentByTag("f" + ProPage.CLOCK.ordinal());
-        if (fragment instanceof ProClockFragment) {
-            ((ProClockFragment) fragment).refreshSettings();
+        if (fragment instanceof SettingsRefreshable) {
+            ((SettingsRefreshable) fragment).refreshSettings();
         }
     }
 
-    private void refreshSettingsPages() {
+    protected void refreshSettingsPages() {
         refreshClockPage();
         ProFontApplier.apply(navigation);
         for (int position = 0; position < ProPage.values().length; position++) {

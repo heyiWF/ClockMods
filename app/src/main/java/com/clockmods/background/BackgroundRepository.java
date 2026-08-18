@@ -37,6 +37,10 @@ public class BackgroundRepository {
         return preferences.getBackgroundMode();
     }
 
+    public void useColor() {
+        preferences.setBackgroundMode(ClockPreferences.MODE_COLOR);
+    }
+
     public void setCurrentColor(int color) {
         preferences.setBackgroundMode(ClockPreferences.MODE_COLOR);
         preferences.setBackgroundColor(color);

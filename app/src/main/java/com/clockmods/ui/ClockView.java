@@ -1132,7 +1132,7 @@ public class ClockView extends View {
         customMessage = backgroundRepository.getCustomMessage();
         // Weather-icon style/colour are Pro-only options; other flavours keep the solid fill
         // style and follow the date text colour (their historical behaviour).
-        boolean proIcons = "pro".equals(com.clockmods.BuildConfig.FLAVOR);
+        boolean proIcons = com.clockmods.BuildConfig.PRO_FONTS;
         weatherIconFill = !proIcons || backgroundRepository.isWeatherIconFill();
         weatherIconColor = proIcons
                 ? (backgroundRepository.isWeatherIconDynamicColor()
