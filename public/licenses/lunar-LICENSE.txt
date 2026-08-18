@@ -1,7 +1,8 @@
-lunar-java (cn.6tail:lunar) — offline lunar/almanac engine used by the Pro calendar to
-compute lunar dates, solar terms, festivals and 宜/忌.
+lunar-javascript / lunar-java by 6tail — offline lunar/almanac engines used by
+ClockMods to compute lunar dates, solar terms, festivals and 宜/忌.
 
-Project: https://github.com/6tail/lunar-java
+Projects: https://github.com/6tail/lunar-javascript
+          https://github.com/6tail/lunar-java
 
 MIT License
 
