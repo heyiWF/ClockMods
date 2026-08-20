@@ -79,9 +79,9 @@ Pro 在全屏时钟之外提供一组可左右滑动切换的工具页面；Ulti
 
 ### ✨ Ultimate 主题与开发者能力
 
-- 内置 Glass Atelier、Noir Instrument、Paper Station、Orbit Neon、Digital Grid、Typographic 六套完整主题，涵盖模拟、数字与混合时钟。
+- 内置 Pro Classic、Glass Atelier、Noir Instrument、Paper Station、Orbit Neon、Digital Grid、Typographic 七套样式，涵盖原版 Pro、模拟、数字与混合时钟。
 - 秒针支持平滑扫秒、跳秒和关闭，并跟随 Android 的减少动画设置；应用进入后台或失去窗口焦点时停止逐帧刷新。
-- 设置改为独立全屏入口：首页只展示分类和摘要，时钟样式、背景、时间日期、天气、系统及 Pro 高级功能各有二级页面。
+- 设置改为独立全屏入口，按样式、背景、时间日期、天气、日历、报时、系统语言七类进入原生过渡的二级页面；Pro Classic 专属选项会随样式选择显示。
 - 复用 Pro 的日历、番茄钟、闹钟、倒计时、秒表、整点提示、图片背景、网络校时与天气能力。
 - 提供无状态 Canvas renderer、不可变状态、主题 token、能力声明、稳定 metadata 与 registry/fallback；接入方式见 [Clock Style SDK](docs/clock-style-sdk.md)。
 
@@ -92,14 +92,14 @@ Pro 在全屏时钟之外提供一组可左右滑动切换的工具页面；Ulti
 | 兼容版 `compat` / ClockMods Lite | Android 4.0（API 14） | `com.clockmods.compat` | 使用平台原生控件，面向旧设备；API 19+ 使用系统文档选择器；界面支持中/英文 |
 | 现代版 `modern` / ClockMods | Android 6.0（API 23） | `com.clockmods.modern` | Material 3 设置面板；Android 12+ 支持动态取色；Android 13+ 使用 Photo Picker；界面支持中/英文 |
 | 专业版 `pro` / ClockMods Pro | Android 12（API 31） | `com.clockmods.pro` | 在现代版基础上增加日历、闹钟、倒计时、番茄钟、秒表、整点报时等工具页面；界面支持简体/繁体/英文三语 |
-| Ultimate `ultimate` / ClockMods Ultimate | Android 12（API 31） | `com.clockmods.ultimate` | 完整继承 Pro 工具页与相关能力，增加六套完整时钟主题、模拟/数字样式切换、二级设置导航与可扩展 Clock Style SDK |
+| Ultimate `ultimate` / ClockMods Ultimate | Android 12（API 31） | `com.clockmods.ultimate` | 完整继承 Pro 工具页与相关能力，增加 Pro Classic 与六套完整时钟主题、模拟/数字样式切换、二级设置导航与可扩展 Clock Style SDK |
 
 ## 使用方法
 
 1. 打开应用即进入全屏时钟界面。
 2. **双击**时钟区域打开设置。
 3. 兼容版、现代版和 Pro：在「样式」与「功能」页完成调整，然后点击「应用」保存设置。
-4. Ultimate：从分类首页进入时钟样式、背景、时间日期、天气、系统或 Pro 高级功能二级页面；这些原生二级页会即时保存。进入「Pro 附加设置」兼容编辑器时，仍需点击其中的「应用」。
+4. Ultimate：从分类首页进入对应二级页面；Pro Classic 的字体、颜色和数字动效等选项已归入「时钟样式」，其他功能按其所属分类设置。
 
 ## 权限与隐私
 

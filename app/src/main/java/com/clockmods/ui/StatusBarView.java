@@ -93,6 +93,7 @@ public class StatusBarView extends View {
 
     public void setBackgroundRepository(BackgroundRepository repository) {
         backgroundRepository = repository;
+        requestLayout();
         invalidate();
     }
 
@@ -284,6 +285,25 @@ public class StatusBarView extends View {
         float baseHeight = viewHeight * 0.5f;
         if (baseHeight <= 0f) baseHeight = 18f * density;
         return baseHeight * ClockPreferences.normalizeStatusIconScale(scale);
+    }
+
+    @Override
+    protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        int desiredHeight = Math.round(28f * density);
+        int measuredHeight = resolveSize(desiredHeight, heightMeasureSpec);
+        float scale = ClockPreferences.MAX_STATUS_ICON_SCALE;
+        float iconHeight = calculateStatusIconHeight(measuredHeight, density, scale);
+        float gap = 8f * density * scale;
+        textPaint.setTextSize(iconHeight * 0.9f);
+        if (backgroundRepository != null) {
+            textPaint.setTypeface(ClockTypefaceResolver.resolveTime(
+                    getContext(), backgroundRepository.getFontFamily(), false));
+        }
+        float contentWidth = iconHeight * 1.15f + gap * 0.4f
+                + iconHeight * 1.55f + gap * 0.6f + textPaint.measureText("100%");
+        int desiredWidth = Math.max(Math.round(104f * density),
+                Math.round(getPaddingLeft() + contentWidth + getPaddingRight()));
+        setMeasuredDimension(resolveSize(desiredWidth, widthMeasureSpec), measuredHeight);
     }
 
     @Override
