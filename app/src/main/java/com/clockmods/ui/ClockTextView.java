@@ -9,8 +9,7 @@ import android.util.AttributeSet;
 import android.view.Gravity;
 import android.widget.TextView;
 
-// Shared by every flavor, including the compat flavor which has no AppCompat dependency,
-// so this deliberately extends the framework TextView instead of AppCompatTextView.
+// The clock owns its drawing behavior, so this deliberately extends the framework TextView.
 @SuppressLint("AppCompatCustomView")
 public final class ClockTextView extends TextView {
     private boolean includeFontPadding = true;

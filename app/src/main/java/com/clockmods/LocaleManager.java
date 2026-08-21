@@ -48,7 +48,7 @@ public final class LocaleManager {
 
     /**
      * Returns a context whose resources are configured for the selected interface language. On
-     * API 17+ this is a fresh configuration context; on older devices (compat, API 14-16) it
+     * API 17+ this is a fresh configuration context; on older devices it
      * mutates the shared resources configuration as a fallback and returns the original context.
      */
     @SuppressLint("AppBundleLocaleChanges") // Deliberate, user-driven in-app language override.

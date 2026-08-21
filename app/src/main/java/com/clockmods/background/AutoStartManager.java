@@ -18,8 +18,7 @@ import android.provider.Settings;
  * automatically at boot, which is exempt from the Android 10+ background-activity-start restriction.
  * Turning the toggle off disables the alias and the device falls back to its normal launcher.
  *
- * <p>Uses framework APIs only (no AppCompat/Material) so it compiles for every flavor, including
- * the API-14 {@code compat} build; the API 29 {@link android.app.role.RoleManager} reference is
+ * <p>Uses framework APIs only. The API 29 {@link android.app.role.RoleManager} reference is
  * isolated in a nested class that is only loaded on Android 10+.
  */
 public final class AutoStartManager {

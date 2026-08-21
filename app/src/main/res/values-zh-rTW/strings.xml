@@ -1,12 +1,11 @@
 <resources>
-    <string name="pro_navigation">Pro 功能導覽</string>
+    <string name="pro_navigation">功能導覽</string>
     <string name="pro_page_clock">時鐘</string>
     <string name="pro_page_calendar">月曆</string>
     <string name="pro_page_pomodoro">番茄鐘</string>
     <string name="pro_page_alarm">鬧鐘</string>
     <string name="pro_page_countdown">倒數計時</string>
     <string name="pro_page_stopwatch">碼錶</string>
-    <string name="pro_feature_in_progress">功能正在接入</string>
     <string name="calendar_previous_month">上個月</string>
     <string name="calendar_next_month">下個月</string>
     <string name="calendar_today">今天</string>
@@ -43,7 +42,7 @@
     <string name="alarm_next_trigger">下次響鈴：%1$s</string>
     <string name="alarm_channel">鬧鐘</string>
     <string name="alarm_ringing">鬧鐘正在響鈴</string>
-    <string name="alarm_open_to_dismiss">開啟 ClockMods Pro 停止鬧鐘</string>
+    <string name="alarm_open_to_dismiss">開啟 ClockMods Ultimate 停止鬧鐘</string>
     <string name="alarm_dismiss">停止鬧鐘</string>
     <string name="pro_hourly_chime">整點視覺報時</string>
     <string name="pro_half_hour_chime">半點視覺報時</string>
@@ -53,7 +52,7 @@
     <string name="timer_channel">計時提醒</string>
     <string name="pomodoro_complete">番茄鐘階段完成</string>
     <string name="countdown_complete">倒數計時結束</string>
-    <string name="timer_complete_open">開啟 ClockMods Pro 查看</string>
+    <string name="timer_complete_open">開啟 ClockMods Ultimate 查看</string>
     <string-array name="pro_time_transitions">
         <item>淡變</item>
         <item>上滑</item>

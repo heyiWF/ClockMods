@@ -2,7 +2,6 @@ package com.clockmods.background;
 
 import android.content.Context;
 
-import com.clockmods.BuildConfig;
 import com.clockmods.R;
 
 import java.util.ArrayList;
@@ -12,10 +11,8 @@ import java.util.List;
 /**
  * Central, data-driven registry of the clock font families.
  *
- * <p>The base families (system, Roboto, Google Sans Display) are available in every
- * flavor. The extra families bundled in the Pro flavor's assets are only
- * exposed when {@link BuildConfig#PRO_FONTS} is set, so the compat and modern
- * flavors neither list nor try to load fonts they do not ship.
+ * <p>All bundled Ultimate families are registered here so settings and rendering share the same
+ * stable IDs and asset paths.
  */
 public final class FontCatalog {
 
@@ -52,28 +49,26 @@ public final class FontCatalog {
                 "fonts/Roboto-Regular.ttf", "fonts/Roboto-Bold.ttf"));
         options.add(new FontOption(ClockPreferences.FONT_GOOGLE_SANS_DISPLAY, "Google Sans Display",
             "fonts/GoogleSansDisplay-Regular.ttf", "fonts/GoogleSansDisplay-Bold.ttf"));
-        if (BuildConfig.PRO_FONTS) {
-            options.add(new FontOption(ClockPreferences.FONT_GOOGLE_SANS_TEXT, "Google Sans Text",
+        options.add(new FontOption(ClockPreferences.FONT_GOOGLE_SANS_TEXT, "Google Sans Text",
                 "fonts/GoogleSansText-Regular.ttf", "fonts/GoogleSansText-Bold.ttf"));
-            options.add(new FontOption(ClockPreferences.FONT_SF_PRO_DISPLAY, "SF Pro Display",
+        options.add(new FontOption(ClockPreferences.FONT_SF_PRO_DISPLAY, "SF Pro Display",
                     "fonts/SFProDisplay-Regular.otf", "fonts/SFProDisplay-Bold.otf"));
-            options.add(new FontOption(ClockPreferences.FONT_SF_PRO_ROUNDED, "SF Pro Rounded",
+        options.add(new FontOption(ClockPreferences.FONT_SF_PRO_ROUNDED, "SF Pro Rounded",
                     "fonts/SFProRounded-Regular.otf", "fonts/SFProRounded-Bold.otf"));
-            options.add(new FontOption(ClockPreferences.FONT_INTER, "Inter",
+        options.add(new FontOption(ClockPreferences.FONT_INTER, "Inter",
                     "fonts/Inter-Regular.ttf", "fonts/Inter-Bold.ttf"));
-            options.add(new FontOption(ClockPreferences.FONT_LATO, "Lato",
+        options.add(new FontOption(ClockPreferences.FONT_LATO, "Lato",
                     "fonts/Lato-Regular.ttf", "fonts/Lato-Bold.ttf"));
-            options.add(new FontOption(ClockPreferences.FONT_LORA, "Lora",
+        options.add(new FontOption(ClockPreferences.FONT_LORA, "Lora",
                     "fonts/Lora-Regular.ttf", "fonts/Lora-Bold.ttf"));
-            options.add(new FontOption(ClockPreferences.FONT_NOTO_SANS, "Noto Sans",
+        options.add(new FontOption(ClockPreferences.FONT_NOTO_SANS, "Noto Sans",
                     "fonts/NotoSans-Regular.ttf", "fonts/NotoSans-Bold.ttf"));
-            options.add(new FontOption(ClockPreferences.FONT_BITCOUNT, "Bitcount Grid Double",
+        options.add(new FontOption(ClockPreferences.FONT_BITCOUNT, "Bitcount Grid Double",
                     "fonts/BitcountGridDouble-Regular.ttf", "fonts/BitcountGridDouble-Bold.ttf"));
-        }
         return Collections.unmodifiableList(options);
     }
 
-    /** Ordered list of the font families available in the current flavor. */
+    /** Ordered list of the font families available in ClockMods Ultimate. */
     public static List<FontOption> options() {
         return OPTIONS;
     }
@@ -106,7 +101,7 @@ public final class FontCatalog {
         return OPTIONS.get(index).id;
     }
 
-    /** {@code true} when {@code id} is a family available in the current flavor. */
+    /** {@code true} when {@code id} is a bundled family. */
     public static boolean isAvailable(String id) {
         for (FontOption option : OPTIONS) {
             if (option.id.equals(id)) {

@@ -1,12 +1,11 @@
 <resources>
-    <string name="pro_navigation">Pro navigation</string>
+    <string name="pro_navigation">Feature navigation</string>
     <string name="pro_page_clock">Clock</string>
     <string name="pro_page_calendar">Calendar</string>
     <string name="pro_page_pomodoro">Pomodoro</string>
     <string name="pro_page_alarm">Alarm</string>
     <string name="pro_page_countdown">Timer</string>
     <string name="pro_page_stopwatch">Stopwatch</string>
-    <string name="pro_feature_in_progress">Coming soon</string>
     <string name="calendar_previous_month">Previous month</string>
     <string name="calendar_next_month">Next month</string>
     <string name="calendar_today">Today</string>
@@ -43,7 +42,7 @@
     <string name="alarm_next_trigger">Next alarm: %1$s</string>
     <string name="alarm_channel">Alarm</string>
     <string name="alarm_ringing">Alarm ringing</string>
-    <string name="alarm_open_to_dismiss">Open ClockMods Pro to stop the alarm</string>
+    <string name="alarm_open_to_dismiss">Open ClockMods Ultimate to stop the alarm</string>
     <string name="alarm_dismiss">Stop alarm</string>
     <string name="pro_hourly_chime">Hourly visual chime</string>
     <string name="pro_half_hour_chime">Half-hour visual chime</string>
@@ -53,7 +52,7 @@
     <string name="timer_channel">Timer alerts</string>
     <string name="pomodoro_complete">Pomodoro phase complete</string>
     <string name="countdown_complete">Timer finished</string>
-    <string name="timer_complete_open">Open ClockMods Pro to view</string>
+    <string name="timer_complete_open">Open ClockMods Ultimate to view</string>
     <string-array name="pro_time_transitions">
         <item>Fade</item>
         <item>Slide up</item>

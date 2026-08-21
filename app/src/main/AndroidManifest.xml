@@ -31,7 +31,7 @@
             Boot auto-start via launcher disguise. Disabled by default; the "开机自启动" setting
             enables this alias and guides the user to set the app as the default home, so the system
             launches the clock at boot (exempt from the Android 10+ background-activity-start rule).
-            targetActivity resolves per flavor through the ${launcherActivity} placeholder.
+            targetActivity resolves to the Ultimate launcher through the manifest placeholder.
         -->
         <activity-alias
             android:name=".HomeLauncherAlias"

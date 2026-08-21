@@ -117,7 +117,7 @@ public class ClockView extends View {
     // message (or a message alone). Shares the exact timing/scroll logic of the detail line.
     private final Carousel messageCarousel = new Carousel();
     private String customMessage = ClockPreferences.DEFAULT_CUSTOM_MESSAGE;
-    // Weather-icon styling (Pro exposes these; other flavours keep fill + date colour).
+    // User-selectable weather icon treatment.
     private boolean weatherIconFill = true;
     private int weatherIconColor = 0xFFFFFFFF;
     private final Paint weatherIconPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
@@ -749,14 +749,12 @@ public class ClockView extends View {
             float centerX, float baseline, Paint.FontMetrics metrics, float progress,
             long itemElapsed) {
         boolean transitioning = next != null;
-        boolean useTimeTransition =
-            com.clockmods.BuildConfig.WEATHER_DETAIL_USES_TIME_TRANSITION;
         if (!transitioning) {
             drawWeatherDetailLine(canvas, current, centerX, baseline, metrics, 255,
                 ClockPreferences.TRANSITION_FADE, 0f, itemElapsed);
             return;
         }
-        String transition = useTimeTransition ? timeTransition : ClockPreferences.TRANSITION_FADE;
+        String transition = timeTransition;
         if (progress < 0.5f) {
             float outProgress = progress / 0.5f;
             drawWeatherDetailLine(canvas, current, centerX, baseline, metrics,
@@ -1130,15 +1128,10 @@ public class ClockView extends View {
         clockUseEnglish = backgroundRepository.isClockUseEnglish();
         dateLang = LocaleManager.dateLang(backgroundRepository.getClockLanguage());
         customMessage = backgroundRepository.getCustomMessage();
-        // Weather-icon style/colour are Pro-only options; other flavours keep the solid fill
-        // style and follow the date text colour (their historical behaviour).
-        boolean proIcons = com.clockmods.BuildConfig.PRO_FONTS;
-        weatherIconFill = !proIcons || backgroundRepository.isWeatherIconFill();
-        weatherIconColor = proIcons
-                ? (backgroundRepository.isWeatherIconDynamicColor()
-                        ? ExperienceBridge.resolveAccentColor(getContext(), 0xFFFFFFFF)
-                        : 0xFFFFFFFF)
-                : backgroundRepository.getDateColor();
+        weatherIconFill = backgroundRepository.isWeatherIconFill();
+        weatherIconColor = backgroundRepository.isWeatherIconDynamicColor()
+                ? ExperienceBridge.resolveAccentColor(getContext(), 0xFFFFFFFF)
+                : 0xFFFFFFFF;
         datePatternCn = backgroundRepository.getDatePatternCn();
         datePatternEn = backgroundRepository.getDatePatternEn();
         portraitStacked = backgroundRepository.isPortraitStacked();

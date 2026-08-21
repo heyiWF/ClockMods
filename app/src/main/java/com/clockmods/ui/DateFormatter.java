@@ -6,7 +6,7 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 /**
- * Renders dates from a compact, injection-safe pattern language shared by all flavors.
+ * Renders dates from the compact, injection-safe pattern language used by ClockMods Ultimate.
  *
  * <p>A pattern is a sequence of field tokens (runs of a single reserved letter) and literal
  * text. Recognized tokens, interpreted per {@link Lang}:
@@ -113,7 +113,7 @@ public final class DateFormatter {
             "DATE | EEEE", "DATE | E",
             "EEEE | DATE", "E | DATE"};
 
-    // ---- Fixed, non-customizable format lists for Compat/Modern ----
+    // ---- Fixed format lists retained for stored-pattern fallback and previews ----
     private static final String[] CN_FIXED_FORMATS = {
             "yyyy/MM/dd EEEE", "yyyy/M/d EEEE",
             "yyyy年MM月dd日 EEEE", "yyyy年M月d日 EEEE",

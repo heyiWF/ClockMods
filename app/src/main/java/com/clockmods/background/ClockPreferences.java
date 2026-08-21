@@ -14,7 +14,7 @@ public class ClockPreferences {
     public static final String FONT_SYSTEM = "system";
     public static final String FONT_ROBOTO = "roboto";
     public static final String FONT_GOOGLE_SANS_DISPLAY = "google_sans_display";
-    // Pro-only font families (bundled in the pro flavor assets).
+    // Additional font families bundled with ClockMods Ultimate.
     public static final String FONT_GOOGLE_SANS_TEXT = "google_sans_text";
     public static final String FONT_SF_PRO_DISPLAY = "sf_pro_display";
     public static final String FONT_SF_PRO_ROUNDED = "sf_pro_rounded";
