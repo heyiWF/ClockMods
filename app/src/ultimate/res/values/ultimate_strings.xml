@@ -16,8 +16,6 @@
     <string name="ultimate_category_chime_summary">整点、半点提示与勿扰时段</string>
     <string name="ultimate_category_system">系统与语言</string>
     <string name="ultimate_category_system_summary">屏幕方向、时钟语言与开机启动</string>
-    <string name="ultimate_settings_search_hint">在设置中搜索</string>
-    <string name="ultimate_settings_search_no_results">没有匹配的设置</string>
     <string name="ultimate_settings_selected_state">已选择</string>
     <string name="ultimate_back_to_settings">返回设置</string>
     <string name="ultimate_close_settings">关闭设置</string>
@@ -124,6 +122,7 @@
 
     <string name="ultimate_weather_title">天气</string>
     <string name="ultimate_weather_section">天气信息</string>
+    <string name="ultimate_weather_appearance_section">天气外观</string>
     <string name="ultimate_weather_enabled">显示天气</string>
     <string name="ultimate_weather_enabled_summary">在支持的主题中显示当前天气。</string>
     <string name="ultimate_weather_detailed">显示详细天气</string>

@@ -16,8 +16,6 @@
     <string name="ultimate_category_chime_summary">Hourly and half-hour cues with quiet hours</string>
     <string name="ultimate_category_system">System &amp; language</string>
     <string name="ultimate_category_system_summary">Screen orientation, clock language, and startup behavior</string>
-    <string name="ultimate_settings_search_hint">Search settings</string>
-    <string name="ultimate_settings_search_no_results">No matching settings</string>
     <string name="ultimate_settings_selected_state">Selected</string>
     <string name="ultimate_back_to_settings">Back to settings</string>
     <string name="ultimate_close_settings">Close settings</string>
@@ -124,6 +122,7 @@
 
     <string name="ultimate_weather_title">Weather</string>
     <string name="ultimate_weather_section">Weather information</string>
+    <string name="ultimate_weather_appearance_section">Weather appearance</string>
     <string name="ultimate_weather_enabled">Show weather</string>
     <string name="ultimate_weather_enabled_summary">Show current weather in supported themes.</string>
     <string name="ultimate_weather_detailed">Show detailed weather</string>

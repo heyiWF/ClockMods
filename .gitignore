@@ -1,5 +1,10 @@
 .qweather.properties
 qweather.properties
+
+.codex*/
+.claude/
+.tmp*/
+
 # Gradle
 .gradle/
 **/build/

@@ -41,6 +41,7 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
     private StatusBarView statusBarView;
     private View weatherAttribution;
     private WeatherController weatherController;
+    private boolean weatherControllerUsesDetailedPreference;
     private BackgroundRepository statusOverlayRepository;
     private WeatherState lastWeatherState;
     private String lastWeatherMessage;
@@ -64,12 +65,7 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
         statusBarView.setVisibility(repository.isShowStatusIcons() ? View.VISIBLE : View.GONE);
         ProFontApplier.apply(root);
 
-        weatherController = new WeatherController(requireContext(),
-                state -> {
-                    lastWeatherState = state;
-                    lastWeatherMessage = null;
-                    deliverWeatherState(state);
-                });
+        ensureWeatherController();
         applyWeatherEnabled(repository);
         if (weatherAttribution != null) {
             weatherAttribution.setOnClickListener(view -> startActivity(new Intent(
@@ -156,6 +152,7 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
         ProFontApplier.apply(getView());
         BackgroundRepository repository = new BackgroundRepository(requireContext());
         applyClockStyle(repository);
+        ensureWeatherController();
         if (statusOverlayRepository == null) {
             statusOverlayRepository = new UltimateStatusOverlayRepository(requireContext());
         }
@@ -260,6 +257,21 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
         deliverWeatherMessage(message);
     }
 
+    private void ensureWeatherController() {
+        boolean usesDetailedPreference = proClassicActive;
+        if (weatherController != null
+                && weatherControllerUsesDetailedPreference == usesDetailedPreference) {
+            return;
+        }
+        if (weatherController != null) weatherController.shutdown();
+        weatherControllerUsesDetailedPreference = usesDetailedPreference;
+        weatherController = new WeatherController(requireContext(), state -> {
+            lastWeatherState = state;
+            lastWeatherMessage = null;
+            deliverWeatherState(state);
+        }, usesDetailedPreference ? null : Boolean.FALSE);
+    }
+
     private void clearWeather() {
         lastWeatherState = null;
         lastWeatherMessage = null;
@@ -308,9 +320,14 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
         if (requestCode != REQUEST_LOCATION || weatherController == null) return;
         boolean granted = false;
         for (int result : grantResults) if (result == PackageManager.PERMISSION_GRANTED) granted = true;
+        BackgroundRepository repository = new BackgroundRepository(requireContext());
+        if (!repository.isWeatherEnabled()) {
+            weatherController.stop();
+            clearWeather();
+            return;
+        }
         if (granted) {
-            weatherController.start(new BackgroundRepository(requireContext())
-                    .getWeatherIntervalMinutes());
+            weatherController.start(repository.getWeatherIntervalMinutes());
         } else {
             showWeatherMessage(getString(R.string.weather_permission_denied));
         }

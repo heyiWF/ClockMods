@@ -504,7 +504,12 @@ public final class ProCalendarFragment extends Fragment {
     }
 
     private void startWeatherIfEnabled() {
-        if (!preferences.isWeatherEnabled() || weatherController == null || forecastController == null) return;
+        if (weatherController == null || forecastController == null) return;
+        if (!preferences.isWeatherEnabled()) {
+            weatherController.stop();
+            forecastController.stop();
+            return;
+        }
         weatherController.start(preferences.getWeatherIntervalMinutes());
         forecastController.start();
     }

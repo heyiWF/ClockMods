@@ -754,7 +754,10 @@ public class ClockView extends View {
                 ClockPreferences.TRANSITION_FADE, 0f, itemElapsed);
             return;
         }
-        String transition = timeTransition;
+        // The selected transition is specifically a digit-change preference. Weather and the
+        // custom-message carousel keep their own neutral cross-fade instead of silently reusing
+        // a Pro Classic clock-style control.
+        String transition = ClockPreferences.TRANSITION_FADE;
         if (progress < 0.5f) {
             float outProgress = progress / 0.5f;
             drawWeatherDetailLine(canvas, current, centerX, baseline, metrics,

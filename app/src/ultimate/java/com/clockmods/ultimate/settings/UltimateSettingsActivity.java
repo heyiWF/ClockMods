@@ -1,5 +1,6 @@
 package com.clockmods.ultimate.settings;
 
+import android.annotation.SuppressLint;
 import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.Intent;
@@ -8,42 +9,49 @@ import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
-import android.text.Editable;
 import android.text.InputFilter;
 import android.text.InputType;
-import android.text.TextWatcher;
-import android.view.inputmethod.EditorInfo;
+import android.text.StaticLayout;
+import android.text.TextPaint;
+import android.util.TypedValue;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
+import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
-import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AlertDialog;
 import androidx.annotation.OptIn;
+import androidx.coordinatorlayout.widget.CoordinatorLayout;
+import androidx.core.widget.NestedScrollView;
 import androidx.core.util.Consumer;
+import androidx.window.WindowSdkExtensions;
 import androidx.window.core.ExperimentalWindowApi;
 import androidx.window.embedding.ActivityEmbeddingController;
+import androidx.window.embedding.EmbeddedActivityWindowInfo;
 import androidx.window.embedding.SplitController;
 import androidx.window.embedding.SplitInfo;
+import androidx.window.java.embedding.ActivityEmbeddingControllerCallbackAdapter;
 import androidx.window.java.embedding.SplitControllerCallbackAdapter;
+import androidx.window.layout.WindowMetricsCalculator;
 
 import com.clockmods.LocaleManager;
 import com.clockmods.R;
@@ -64,6 +72,8 @@ import com.clockmods.ultimate.clock.UltimateClockPreferences;
 import com.clockmods.ultimate.clock.UltimateClockStyles;
 import com.clockmods.weather.WeatherLocationCatalog;
 import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.appbar.AppBarLayout;
+import com.google.android.material.appbar.CollapsingToolbarLayout;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.google.android.material.card.MaterialCardView;
@@ -71,8 +81,6 @@ import com.google.android.material.color.DynamicColors;
 import com.google.android.material.color.MaterialColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.materialswitch.MaterialSwitch;
-import com.google.android.material.textfield.TextInputEditText;
-import com.google.android.material.textfield.TextInputLayout;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -126,9 +134,17 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     private static final String STATE_CHANGE_SOURCE = "ultimate_settings_change_source";
     private static final String STATE_SELECTED_PAGE = "ultimate_settings_selected_page";
     private static final String STATE_REVISION_AT_OPEN = "ultimate_settings_revision_at_open";
+    private static final String STATE_EMBEDDING_RESOLVED =
+            "ultimate_settings_embedding_resolved";
+    private static final String STATE_HAS_EMBEDDING_SNAPSHOT =
+            "ultimate_settings_has_embedding_snapshot";
+    private static final String STATE_LAST_KNOWN_EMBEDDED =
+            "ultimate_settings_last_known_embedded";
     private static final String CHANGE_SOURCE_CLOCK_LANGUAGE = "clock_language";
     private static final String EXTRA_PAGE_ID =
             "com.clockmods.ultimate.settings.extra.PAGE_ID";
+    private static final String EXTRA_EXPECT_EMBEDDED =
+            "com.clockmods.ultimate.settings.extra.EXPECT_EMBEDDED";
     private static final int REQUEST_BACKGROUND_IMAGE = 4801;
     private static final int REQUEST_SUBPAGE = 4802;
 
@@ -172,12 +188,21 @@ public class UltimateSettingsActivity extends AppCompatActivity {
 
     private BackgroundRepository repository;
     private UltimateClockPreferences ultimatePreferences;
-    private LinearLayout rootLayout;
+    private CoordinatorLayout rootLayout;
+    private AppBarLayout appBarLayout;
+    private CollapsingToolbarLayout collapsingToolbar;
     private MaterialToolbar toolbar;
     private FrameLayout pageHost;
+    private LinearLayout mainSwitchHost;
     private LinearLayout currentPageBody;
+    private NestedScrollView currentScrollView;
     private SplitControllerCallbackAdapter splitCallbackAdapter;
+    private ActivityEmbeddingControllerCallbackAdapter embeddingWindowInfoCallbackAdapter;
+    private Consumer<List<SplitInfo>> splitInfoListener;
+    private Consumer<EmbeddedActivityWindowInfo> embeddingWindowInfoListener;
     private boolean splitListenerRegistered;
+    private boolean embeddingWindowInfoListenerRegistered;
+    private int embeddingListenerGeneration;
     private Page currentPage = Page.HOME;
     private Page selectedSubPage = Page.STYLE;
     private boolean settingsChanged;
@@ -188,14 +213,48 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     private final List<MaterialCardView> styleCards = new ArrayList<>();
     private final List<StyleSpec> styleSpecs = new ArrayList<>();
     private final EnumMap<Page, NavigationItem> navigationItems = new EnumMap<>(Page.class);
-    private final List<NavigationGroup> navigationGroups = new ArrayList<>();
-    private TextView navigationEmptyState;
-    private Page navigationSelectedPage;
-    private boolean navigationSelectionEmbedded;
+    private boolean expectedEmbedded;
+    private boolean embeddingStateResolved;
+    private boolean hasEmbeddingSnapshot;
+    private boolean lastKnownEmbedded;
+    private boolean hasObservedEmbeddingInThisInstance;
+    private int systemBarTopInset;
+    private CharSequence shellTitle;
     private final ClockStyleRegistry styleRegistry = UltimateClockStyles.sharedRegistry();
     private final ExecutorService imageExecutor = Executors.newSingleThreadExecutor();
-    private final Consumer<List<SplitInfo>> splitInfoListener = splitInfoList ->
-            updateEmbeddingChrome();
+
+    private void handleSplitInfo(List<SplitInfo> splitInfoList) {
+        boolean embedded = false;
+        if (splitInfoList != null) {
+            for (SplitInfo info : splitInfoList) {
+                if (info != null && info.contains(this)) {
+                    embedded = true;
+                    break;
+                }
+            }
+        }
+        if (embedded) hasObservedEmbeddingInThisInstance = true;
+        boolean authoritativeUnembedded = !embedded && hasObservedEmbeddingInThisInstance;
+        boolean definitelyCompact = !embedded && expectedEmbedded
+                && isCurrentWindowDefinitelyTooNarrowForSplit();
+        // The first empty callback can be provisional while the same wide-window rule that
+        // launched this detail can still match. Once this Activity has observed a real split,
+        // a later empty callback is authoritative and means that embedding was removed.
+        hasEmbeddingSnapshot = embedded || authoritativeUnembedded
+                || !expectedEmbedded || definitelyCompact;
+        lastKnownEmbedded = embedded;
+        embeddingStateResolved = embedded || authoritativeUnembedded
+                || definitelyCompact || !expectedEmbedded;
+        updateEmbeddingChrome();
+    }
+
+    private void handleEmbeddingWindowInfo(EmbeddedActivityWindowInfo info) {
+        if (info == null) return;
+        hasEmbeddingSnapshot = true;
+        lastKnownEmbedded = info.isEmbedded();
+        embeddingStateResolved = true;
+        updateEmbeddingChrome();
+    }
     private final SharedPreferences.OnSharedPreferenceChangeListener settingsChangeListener =
             (preferences, key) -> {
                 if (!UltimateSettingsChangeTracker.isRevisionKey(key)) return;
@@ -229,13 +288,19 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     }
 
     public static Intent createSubpageIntent(Context context, String pageId) {
+        return createSubpageIntent(context, pageId, false);
+    }
+
+    private static Intent createSubpageIntent(Context context, String pageId,
+            boolean expectEmbedded) {
         return new Intent(context, UltimateSubSettingsActivity.class)
                 .setAction(ACTION_OPEN_SUBPAGE)
-                .putExtra(EXTRA_PAGE_ID, pageId);
+                .putExtra(EXTRA_PAGE_ID, pageId)
+                .putExtra(EXTRA_EXPECT_EMBEDDED, expectEmbedded);
     }
 
     static Intent createDefaultSubpageIntent(Context context) {
-        return createSubpageIntent(context, Page.STYLE.id);
+        return createSubpageIntent(context, Page.STYLE.id, true);
     }
 
     @Override
@@ -244,10 +309,17 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         repository = new BackgroundRepository(this);
         ultimatePreferences = new UltimateClockPreferences(this);
+        ActivityEmbeddingController activityEmbeddingController =
+                ActivityEmbeddingController.getInstance(this);
         SplitController splitController = SplitController.getInstance(this);
         if (splitController.getSplitSupportStatus()
                 == SplitController.SplitSupportStatus.SPLIT_AVAILABLE) {
             splitCallbackAdapter = new SplitControllerCallbackAdapter(splitController);
+            if (WindowSdkExtensions.getInstance().getExtensionVersion() >= 6) {
+                embeddingWindowInfoCallbackAdapter =
+                        new ActivityEmbeddingControllerCallbackAdapter(
+                                activityEmbeddingController);
+            }
         }
         settingsChangePreferences = UltimateSettingsChangeTracker.preferences(this);
         observedSettingsRevision = UltimateSettingsChangeTracker.revision(this);
@@ -262,8 +334,21 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             lastChangeSource = savedInstanceState.getString(STATE_CHANGE_SOURCE, "");
             selectedSubPage = Page.fromId(savedInstanceState.getString(
                     STATE_SELECTED_PAGE, Page.STYLE.id));
+            embeddingStateResolved = savedInstanceState.getBoolean(
+                    STATE_EMBEDDING_RESOLVED, false);
+            hasEmbeddingSnapshot = savedInstanceState.getBoolean(
+                    STATE_HAS_EMBEDDING_SNAPSHOT, false);
+            lastKnownEmbedded = savedInstanceState.getBoolean(
+                    STATE_LAST_KNOWN_EMBEDDED, false);
         }
         currentPage = Page.fromId(getIntent().getStringExtra(EXTRA_PAGE_ID));
+        expectedEmbedded = currentPage != Page.HOME
+                && getIntent().getBooleanExtra(EXTRA_EXPECT_EMBEDDED, false);
+        if (expectedEmbedded && splitCallbackAdapter == null) {
+            embeddingStateResolved = true;
+            hasEmbeddingSnapshot = true;
+            lastKnownEmbedded = false;
+        }
         configureEdgeToEdge();
         buildShell();
         showPage(currentPage);
@@ -303,39 +388,67 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     }
 
     private void buildShell() {
-        rootLayout = new LinearLayout(this);
-        rootLayout.setOrientation(LinearLayout.VERTICAL);
+        setContentView(R.layout.ultimate_settings_shell);
+        rootLayout = findViewById(R.id.ultimate_settings_root);
+        appBarLayout = findViewById(R.id.ultimate_settings_app_bar);
+        collapsingToolbar = findViewById(R.id.ultimate_settings_collapsing_toolbar);
+        toolbar = findViewById(R.id.ultimate_settings_toolbar);
+        pageHost = findViewById(R.id.ultimate_settings_page_host);
+        mainSwitchHost = findViewById(R.id.ultimate_settings_main_switch_host);
+
         rootLayout.setBackgroundColor(surfaceColor());
-        rootLayout.setFitsSystemWindows(false);
+        rootLayout.setFitsSystemWindows(true);
         rootLayout.setOnApplyWindowInsetsListener((view, insets) -> {
             int type = WindowInsets.Type.systemBars()
                     | WindowInsets.Type.displayCutout();
             android.graphics.Insets bars = insets.getInsets(type);
-            view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+            android.graphics.Insets ime = insets.getInsets(WindowInsets.Type.ime());
+            systemBarTopInset = bars.top;
+            view.setPadding(bars.left, 0, bars.right, Math.max(bars.bottom, ime.bottom));
+            if (pageHost != null) {
+                pageHost.setPadding(0,
+                        appBarLayout != null && appBarLayout.getVisibility() == View.GONE
+                                ? systemBarTopInset : 0,
+                        0, 0);
+            }
             return insets;
         });
 
         navigationItems.clear();
-        toolbar = createToolbar();
-        rootLayout.addView(toolbar, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(64)));
-        pageHost = new FrameLayout(this);
+        appBarLayout.setBackgroundColor(Color.TRANSPARENT);
+        appBarLayout.setElevation(0f);
+        appBarLayout.setLiftOnScroll(false);
+        if (android.os.Build.VERSION.SDK_INT >= 28) {
+            appBarLayout.setOutlineAmbientShadowColor(Color.TRANSPARENT);
+            appBarLayout.setOutlineSpotShadowColor(Color.TRANSPARENT);
+        }
+
+        collapsingToolbar.setExpandedTitleTextAppearance(
+                R.style.UltimateSettings_CollapsingTitle_Expanded);
+        collapsingToolbar.setCollapsedTitleTextAppearance(
+                R.style.UltimateSettings_CollapsingTitle_Collapsed);
+        collapsingToolbar.setExpandedTitleColor(onSurfaceColor());
+        collapsingToolbar.setCollapsedTitleTextColor(onSurfaceColor());
+        collapsingToolbar.setExpandedTitleGravity(Gravity.START | Gravity.BOTTOM);
+        collapsingToolbar.setCollapsedTitleGravity(Gravity.START | Gravity.CENTER_VERTICAL);
+        collapsingToolbar.setExpandedTitleMargin(dp(24), 0, dp(24), dp(32));
+        collapsingToolbar.setScrimVisibleHeightTrigger(dp(137));
+        collapsingToolbar.setScrimAnimationDuration(50L);
+        collapsingToolbar.setContentScrimColor(surfaceContainerColor());
+        collapsingToolbar.setStatusBarScrimColor(surfaceContainerColor());
+
+        toolbar.setTitleTextColor(onSurfaceColor());
+        toolbar.setMinimumHeight(dp(64));
+        toolbar.setTitle((CharSequence) null);
         pageHost.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
-        rootLayout.addView(pageHost, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
-        setContentView(rootLayout);
+        rootLayout.addOnLayoutChangeListener((view, left, top, right, bottom,
+                oldLeft, oldTop, oldRight, oldBottom) -> {
+            if (right - left != oldRight - oldLeft || bottom - top != oldBottom - oldTop) {
+                updateCollapsingToolbarHeight(shellTitle);
+            }
+        });
         rootLayout.requestApplyInsets();
         rootLayout.post(this::updateEmbeddingChrome);
-    }
-
-    private MaterialToolbar createToolbar() {
-        MaterialToolbar result = new MaterialToolbar(this);
-        result.setTitleTextColor(onSurfaceColor());
-        result.setMinimumHeight(dp(64));
-        result.setNavigationIcon(R.drawable.ultimate_ic_arrow_back);
-        result.setNavigationIconTint(onSurfaceColor());
-        result.setNavigationOnClickListener(view -> finishAfterTransition());
-        return result;
     }
 
     @Override
@@ -345,6 +458,9 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         outState.putString(STATE_CHANGE_SOURCE, lastChangeSource);
         outState.putString(STATE_SELECTED_PAGE, selectedSubPage.id);
         outState.putLong(STATE_REVISION_AT_OPEN, settingsRevisionAtOpen);
+        outState.putBoolean(STATE_EMBEDDING_RESOLVED, embeddingStateResolved);
+        outState.putBoolean(STATE_HAS_EMBEDDING_SNAPSHOT, hasEmbeddingSnapshot);
+        outState.putBoolean(STATE_LAST_KNOWN_EMBEDDED, lastKnownEmbedded);
         super.onSaveInstanceState(outState);
     }
 
@@ -359,7 +475,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
-        unregisterSplitListener();
+        unregisterEmbeddingListeners();
         if (settingsChangePreferences != null) {
             settingsChangePreferences.unregisterOnSharedPreferenceChangeListener(
                     settingsChangeListener);
@@ -369,25 +485,90 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     }
 
     @Override
+    @SuppressLint("RequiresWindowSdk")
     protected void onStart() {
         super.onStart();
-        if (splitCallbackAdapter != null && !splitListenerRegistered) {
-            splitCallbackAdapter.addSplitListener(this, getMainExecutor(), splitInfoListener);
+        int listenerGeneration = ++embeddingListenerGeneration;
+        boolean hadResolvedSnapshot = hasEmbeddingSnapshot && embeddingStateResolved;
+
+        boolean useEmbeddingWindowInfo = embeddingWindowInfoCallbackAdapter != null
+                && WindowSdkExtensions.getInstance().getExtensionVersion() >= 6;
+        if (useEmbeddingWindowInfo && !embeddingWindowInfoListenerRegistered) {
+            embeddingWindowInfoListener = info -> {
+                if (listenerGeneration != embeddingListenerGeneration
+                        || !embeddingWindowInfoListenerRegistered) {
+                    return;
+                }
+                handleEmbeddingWindowInfo(info);
+            };
+            embeddingWindowInfoListenerRegistered = true;
+            embeddingWindowInfoCallbackAdapter.addEmbeddedActivityWindowInfoListener(
+                    this, getMainExecutor(), embeddingWindowInfoListener);
+        } else if (!useEmbeddingWindowInfo && splitCallbackAdapter != null
+                && !splitListenerRegistered) {
+            splitInfoListener = splitInfoList -> {
+                if (listenerGeneration != embeddingListenerGeneration
+                        || !splitListenerRegistered) {
+                    return;
+                }
+                handleSplitInfo(splitInfoList);
+            };
             splitListenerRegistered = true;
+            splitCallbackAdapter.addSplitListener(this, getMainExecutor(), splitInfoListener);
+        }
+
+        if (hadResolvedSnapshot) {
+            hasEmbeddingSnapshot = true;
+            lastKnownEmbedded = isActivityEmbedded();
+            embeddingStateResolved = true;
+            updateEmbeddingChrome();
+        } else if (!expectedEmbedded) {
+            resolveEmbeddingStateFromCurrentWindow();
+        } else if (splitCallbackAdapter == null) {
+            hasEmbeddingSnapshot = true;
+            lastKnownEmbedded = false;
+            embeddingStateResolved = true;
+            updateEmbeddingChrome();
+        } else {
+            // Keep the icon masked through the first layout. The embedding callback gets the
+            // first chance to provide authoritative host bounds; the posted check only covers
+            // the API's intentionally suppressed initial-unembedded callback.
+            updateEmbeddingChrome();
+            if (rootLayout != null) {
+                rootLayout.post(() -> {
+                    if (listenerGeneration == embeddingListenerGeneration) {
+                        resolveEmbeddingStateFromCurrentWindow();
+                    }
+                });
+            }
         }
     }
 
     @Override
     protected void onStop() {
-        unregisterSplitListener();
+        unregisterEmbeddingListeners();
         super.onStop();
     }
 
-    private void unregisterSplitListener() {
-        if (splitCallbackAdapter != null && splitListenerRegistered) {
+    @SuppressLint("RequiresWindowSdk")
+    private void unregisterEmbeddingListeners() {
+        ++embeddingListenerGeneration;
+        if (splitCallbackAdapter != null && splitListenerRegistered
+                && splitInfoListener != null) {
             splitCallbackAdapter.removeSplitListener(splitInfoListener);
-            splitListenerRegistered = false;
         }
+        splitListenerRegistered = false;
+        splitInfoListener = null;
+        if (WindowSdkExtensions.getInstance().getExtensionVersion() >= 6) {
+            if (embeddingWindowInfoCallbackAdapter != null
+                    && embeddingWindowInfoListenerRegistered
+                    && embeddingWindowInfoListener != null) {
+                embeddingWindowInfoCallbackAdapter.removeEmbeddedActivityWindowInfoListener(
+                        embeddingWindowInfoListener);
+            }
+        }
+        embeddingWindowInfoListenerRegistered = false;
+        embeddingWindowInfoListener = null;
     }
 
     @Override
@@ -398,15 +579,14 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         updateEmbeddingChrome();
     }
 
-    @Override
-    public void onWindowFocusChanged(boolean hasFocus) {
-        super.onWindowFocusChanged(hasFocus);
-        updateEmbeddingChrome();
-    }
-
     private void showPage(Page page) {
         Page targetPage = page == null ? Page.HOME : page;
+        boolean replacingSamePage = currentPage == targetPage && pageHost != null
+                && pageHost.getChildCount() > 0;
+        int previousScrollY = replacingSamePage && currentScrollView != null
+                ? currentScrollView.getScrollY() : 0;
         styleCards.clear();
+        hideMainSwitch();
         View incoming;
         int titleRes;
         switch (targetPage) {
@@ -445,24 +625,31 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 break;
         }
 
-        toolbar.setTitle(titleRes);
+        setShellTitle(titleRes);
 
         pageHost.removeAllViews();
         pageHost.addView(incoming);
 
         currentPage = targetPage;
         updateEmbeddingChrome();
+        if (replacingSamePage && currentScrollView != null) {
+            NestedScrollView restoredScroll = currentScrollView;
+            restoredScroll.post(() -> restoredScroll.scrollTo(0, previousScrollY));
+        } else if (appBarLayout != null) {
+            appBarLayout.post(() -> {
+                if (appBarLayout != null) appBarLayout.setExpanded(true, false);
+                if (currentScrollView != null) currentScrollView.scrollTo(0, 0);
+            });
+        }
         pageHost.setContentDescription(getString(R.string.ultimate_page_accessibility));
     }
 
     private View homePage() {
         navigationItems.clear();
-        navigationGroups.clear();
         LinearLayout body = pageBody(0);
-        addNavigationSearch(body);
 
         NavigationGroup appearanceGroup = addNavigationGroup(body,
-                R.dimen.ultimate_settings_home_search_group_gap);
+                R.dimen.ultimate_settings_home_group_gap);
         addCategory(appearanceGroup, Page.STYLE, R.string.ultimate_category_clock_style,
                 R.string.ultimate_category_clock_style_summary, R.drawable.ultimate_ic_palette,
                 () -> openPage(Page.STYLE));
@@ -488,22 +675,17 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 R.string.ultimate_category_system_summary, R.drawable.ultimate_ic_language,
                 () -> openPage(Page.SYSTEM));
 
-        navigationEmptyState = label(R.string.ultimate_settings_search_no_results, 14, false);
-        navigationEmptyState.setGravity(Gravity.CENTER);
-        navigationEmptyState.setPadding(0, dp(32), 0, dp(32));
-        navigationEmptyState.setVisibility(View.GONE);
-        body.addView(navigationEmptyState, wrapParams());
-        applyNavigationFilter("");
         return scrollable(body);
     }
 
     private void openPage(Page page) {
         if (currentPage != Page.HOME || page == null || page == Page.HOME) return;
-        boolean embedded = isActivityEmbedded();
+        boolean embedded = hasEmbeddingSnapshot
+                ? lastKnownEmbedded : isActivityEmbedded();
         if (embedded && page == selectedSubPage) return;
         selectedSubPage = page;
-        updateNavigationSelection(embedded ? selectedSubPage : null, embedded);
-        Intent intent = createSubpageIntent(this, page.id);
+        updateNavigationSelection(embedded ? selectedSubPage : null);
+        Intent intent = createSubpageIntent(this, page.id, embedded);
         startActivityForResult(intent, REQUEST_SUBPAGE);
     }
 
@@ -511,13 +693,77 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         return ActivityEmbeddingController.getInstance(this).isActivityEmbedded(this);
     }
 
+    private void resolveEmbeddingStateFromCurrentWindow() {
+        if (toolbar == null) return;
+        if (hasEmbeddingSnapshot) {
+            updateEmbeddingChrome();
+            return;
+        }
+        boolean embedded = isActivityEmbedded();
+        boolean definitelyCompact = false;
+        if (!embedded && expectedEmbedded) {
+            definitelyCompact = embeddingWindowInfoCallbackAdapter == null
+                    ? isCurrentWindowDefinitelyTooNarrowForSplit()
+                    : isMaximumWindowDefinitelyTooNarrowForSplit();
+        }
+        hasEmbeddingSnapshot = embedded || !expectedEmbedded || definitelyCompact;
+        lastKnownEmbedded = embedded;
+        embeddingStateResolved = embedded || !expectedEmbedded || definitelyCompact;
+        updateEmbeddingChrome();
+    }
+
+    private boolean isCurrentWindowDefinitelyTooNarrowForSplit() {
+        Rect bounds = WindowMetricsCalculator.getOrCreate()
+                .computeCurrentWindowMetrics(this).getBounds();
+        return areBoundsDefinitelyTooNarrow(bounds);
+    }
+
+    private boolean isMaximumWindowDefinitelyTooNarrowForSplit() {
+        Rect bounds = WindowMetricsCalculator.getOrCreate()
+                .computeMaximumWindowMetrics(this).getBounds();
+        return areBoundsDefinitelyTooNarrow(bounds);
+    }
+
+    private boolean areBoundsDefinitelyTooNarrow(Rect bounds) {
+        int minimumWidth = getResources().getInteger(
+                R.integer.ultimate_settings_split_min_width_dp);
+        int minimumSmallestWidth = getResources().getInteger(
+                R.integer.ultimate_settings_split_min_smallest_width_dp);
+        if (bounds != null && !bounds.isEmpty()) {
+            float density = getResources().getDisplayMetrics().density;
+            float widthDp = bounds.width() / density;
+            float smallestWidthDp = Math.min(bounds.width(), bounds.height())
+                    / density;
+            return widthDp < minimumWidth || smallestWidthDp < minimumSmallestWidth;
+        }
+        Configuration configuration = getResources().getConfiguration();
+        return (configuration.screenWidthDp > 0
+                        && configuration.screenWidthDp < minimumWidth)
+                || (configuration.smallestScreenWidthDp > 0
+                        && configuration.smallestScreenWidthDp < minimumSmallestWidth);
+    }
+
     private void updateEmbeddingChrome() {
         if (toolbar == null) return;
-        boolean embedded = isActivityEmbedded();
+        boolean embedded = hasEmbeddingSnapshot
+                ? lastKnownEmbedded : isActivityEmbedded();
+        if (embedded) {
+            lastKnownEmbedded = true;
+            embeddingStateResolved = true;
+        }
+        // A detail Intent is marked expected only when it comes from an already embedded
+        // primary pane, or from a placeholder rule whose constraints have matched. The first
+        // split callback may still be an empty snapshot while AndroidX replaces the detail
+        // Activity, so keep the navigation icon masked until a real split is observed. A fixed
+        // timeout here can recreate the exact arrow flash this state is intended to prevent.
+        if (!embedded && expectedEmbedded
+                && (!hasEmbeddingSnapshot || !embeddingStateResolved)) {
+            embedded = true;
+        }
         boolean detailPage = currentPage != Page.HOME;
         updatePaneAppearance(embedded, detailPage);
         if (!detailPage) {
-            toolbar.setTitle(embedded ? R.string.ultimate_settings_pane_title
+            setShellTitle(embedded ? R.string.ultimate_settings_pane_title
                     : R.string.ultimate_settings_title);
         }
         if (embedded && detailPage) {
@@ -532,18 +778,34 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     ? R.string.ultimate_back_to_settings
                     : R.string.ultimate_close_settings);
         }
-        updateNavigationSelection(embedded && !detailPage ? selectedSubPage : null,
-                embedded && !detailPage);
+        updateNavigationSelection(embedded && !detailPage ? selectedSubPage : null);
     }
 
     private void updatePaneAppearance(boolean embedded, boolean detailPage) {
         if (rootLayout != null) {
             rootLayout.setBackgroundColor(detailPage ? surfaceColor() : settingsHomeCanvasColor());
         }
-        if (toolbar != null) {
-            toolbar.setVisibility(embedded && !detailPage ? View.GONE : View.VISIBLE);
+        if (toolbar != null && pageHost != null) {
+            boolean hideAppBar = embedded && !detailPage;
+            int previousVisibility = appBarLayout.getVisibility();
+            appBarLayout.setVisibility(hideAppBar ? View.GONE : View.VISIBLE);
+            CoordinatorLayout.LayoutParams pageParams =
+                    (CoordinatorLayout.LayoutParams) pageHost.getLayoutParams();
+            CoordinatorLayout.Behavior currentBehavior = pageParams.getBehavior();
+            if (hideAppBar && currentBehavior != null) {
+                pageParams.setBehavior(null);
+                pageHost.setLayoutParams(pageParams);
+            } else if (!hideAppBar
+                    && !(currentBehavior instanceof AppBarLayout.ScrollingViewBehavior)) {
+                pageParams.setBehavior(new AppBarLayout.ScrollingViewBehavior());
+                pageHost.setLayoutParams(pageParams);
+            }
+            if (!hideAppBar && previousVisibility != View.VISIBLE) {
+                appBarLayout.setExpanded(true, false);
+            }
+            pageHost.setPadding(0, hideAppBar ? systemBarTopInset : 0, 0, 0);
         }
-        if (currentPageBody != null) {
+        if (currentPageBody != null || mainSwitchHost != null) {
             int horizontalPadding;
             int topPadding;
             if (!detailPage) {
@@ -557,8 +819,16 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                         : R.dimen.ultimate_settings_page_padding_horizontal);
                 topPadding = dp(12);
             }
-            currentPageBody.setPadding(horizontalPadding, topPadding,
-                    horizontalPadding, dp(32));
+            if (currentPageBody != null) {
+                currentPageBody.setPadding(horizontalPadding, topPadding,
+                        horizontalPadding, dp(32));
+            }
+            if (mainSwitchHost != null) {
+                mainSwitchHost.setPaddingRelative(horizontalPadding, dp(12),
+                        horizontalPadding, dp(12));
+                mainSwitchHost.setBackgroundColor(detailPage
+                        ? surfaceColor() : settingsHomeCanvasColor());
+            }
         }
     }
 
@@ -570,7 +840,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         galleryScroll.setClipToPadding(false);
         LinearLayout gallery = new LinearLayout(this);
         gallery.setOrientation(LinearLayout.HORIZONTAL);
-        gallery.setPadding(0, dp(4), dp(20), dp(8));
+        gallery.setPaddingRelative(0, dp(4), dp(20), dp(8));
         buildStyleSpecs();
         final String selectedId = selectedStyleId();
         final ClockStyle selectedStyle = styleRegistry.resolveForApi(
@@ -603,6 +873,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             name.setEllipsize(android.text.TextUtils.TruncateAt.END);
             cardContent.addView(name, topMargin(wrapParams(), dp(8)));
             TextView summary = label(spec.summary, 12, false);
+            summary.setTextColor(onSurfaceVariantColor());
             summary.setMaxLines(1);
             summary.setEllipsize(android.text.TextUtils.TruncateAt.END);
             cardContent.addView(summary, topMargin(wrapParams(), dp(2)));
@@ -635,6 +906,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             addSectionLabel(body, R.string.ultimate_style_second_motion, 22);
             TextView motionSummary = label(
                     R.string.ultimate_style_second_motion_summary, 13, false);
+            motionSummary.setTextColor(onSurfaceVariantColor());
             body.addView(motionSummary, topMargin(wrapParams(), dp(2)));
             ClockState.SecondHandMotion motion = ultimatePreferences.getSecondHandMotion();
             if (capabilities.supports(ClockStyleCapabilities.Capability.SMOOTH_SECONDS)) {
@@ -673,6 +945,9 @@ public class UltimateSettingsActivity extends AppCompatActivity {
 
         if (proClassic) {
             addProClassicTypographySettings(body);
+            addProClassicTimeAppearanceSettings(body);
+            addProClassicDateAppearanceSettings(body);
+            addProClassicWeatherAppearanceSettings(body);
         }
         return scrollable(body);
     }
@@ -713,11 +988,15 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     repository.setBlinkColon(value);
                     markChanged("blink_colon");
                 });
+        final View[] transitionRow = new View[1];
         addSwitch(body, R.string.ultimate_animate_time_changes,
                 R.string.ultimate_animate_time_changes_summary,
                 repository.isAnimateTimeChanges(), value -> {
                     repository.setAnimateTimeChanges(value);
                     markChanged("animate_time_changes");
+                    if (transitionRow[0] != null) {
+                        setViewTreeEnabled(transitionRow[0], value);
+                    }
                 });
         String[] transitionNames = {
                 getString(R.string.ultimate_transition_fade),
@@ -726,19 +1005,20 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 getString(R.string.ultimate_transition_scale),
                 getString(R.string.ultimate_transition_flip)
         };
-        addActionRow(body, R.string.ultimate_time_transition,
+        transitionRow[0] = addActionRow(body, R.string.ultimate_time_transition,
                 transitionNames[transitionIndex(repository.getTimeTransition())],
                 R.drawable.ultimate_ic_chevron_right, () -> showSingleChoiceDialog(
                         R.string.ultimate_time_transition, transitionNames,
                         transitionIndex(repository.getTimeTransition()), value ->
                                 repository.setTimeTransition(transitionForIndex(value)),
                         "time_transition", true));
+        setViewTreeEnabled(transitionRow[0], repository.isAnimateTimeChanges());
         MaterialSwitch smallSeconds = addSwitch(body, R.string.ultimate_small_seconds,
                 R.string.ultimate_small_seconds_summary, repository.isSmallSeconds(), value -> {
                     repository.setSmallSeconds(value);
                     markChanged("small_seconds");
                 });
-        smallSeconds.setEnabled(repository.isShowSeconds());
+        setSwitchPreferenceEnabled(smallSeconds, repository.isShowSeconds());
         addSwitch(body, R.string.ultimate_portrait_stacked,
                 R.string.ultimate_portrait_stacked_summary, repository.isPortraitStacked(), value -> {
                     repository.setPortraitStacked(value);
@@ -759,12 +1039,24 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 () -> showColorDialog(R.string.ultimate_date_color,
                         R.string.ultimate_date_color_picker, repository.getDateColor(),
                         repository::setDateColor, "date_color"));
-        addSwitch(body, R.string.ultimate_date_lunar_dual_line,
+        MaterialSwitch dualLine = addSwitch(body, R.string.ultimate_date_lunar_dual_line,
                 R.string.ultimate_date_lunar_dual_line_summary,
                 repository.isDateLunarDualLine(), value -> {
                     repository.setDateLunarDualLine(value);
                     markChanged("date_lunar_dual_line");
                 });
+        setSwitchPreferenceEnabled(dualLine, repository.isShowLunar());
+    }
+
+    private void addProClassicWeatherAppearanceSettings(LinearLayout body) {
+        addSectionLabel(body, R.string.ultimate_weather_appearance_section, 22);
+        MaterialSwitch detailed = addSwitch(body, R.string.ultimate_weather_detailed,
+                R.string.ultimate_weather_detailed_summary, repository.isWeatherDetailed(),
+                value -> {
+                    repository.setWeatherDetailed(value);
+                    markChanged("weather_detailed");
+                });
+        setSwitchPreferenceEnabled(detailed, repository.isWeatherEnabled());
     }
 
     private View backgroundPage() {
@@ -877,13 +1169,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 R.string.ultimate_show_seconds_summary, repository.isShowSeconds(), value -> {
                     repository.setShowSeconds(value);
                     markChanged("show_seconds");
-                    if (STYLE_PRO_CLASSIC.equals(selectedStyleId())) {
-                        showPage(Page.TIME_DATE);
-                    }
                 });
-        if (STYLE_PRO_CLASSIC.equals(selectedStyleId())) {
-            addProClassicTimeAppearanceSettings(body);
-        }
 
         addSectionLabel(body, R.string.ultimate_time_sync_section, 22);
         addSwitch(body, R.string.ultimate_network_time,
@@ -924,38 +1210,34 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 });
         addActionRow(body, R.string.ultimate_date_format, currentDatePattern(),
                 R.drawable.ultimate_ic_chevron_right, this::showDatePatternEditor);
-        if (STYLE_PRO_CLASSIC.equals(selectedStyleId())) {
-            addProClassicDateAppearanceSettings(body);
-        }
         return scrollable(body);
     }
 
     private View weatherPage() {
         LinearLayout body = pageBody(0);
-        addSectionLabel(body, R.string.ultimate_weather_section);
-        MaterialSwitch enabled = addSwitch(body, R.string.ultimate_weather_enabled,
-                R.string.ultimate_weather_enabled_summary, repository.isWeatherEnabled(), value -> {
+        final View[] weatherControlsRef = new View[1];
+        final View[] locationRowRef = new View[1];
+        final boolean[] manualLocationRef = new boolean[1];
+        showMainSwitch(R.string.ultimate_weather_enabled,
+                repository.isWeatherEnabled(), value -> {
                     repository.setWeatherEnabled(value);
                     markChanged("weather_enabled");
+                    updateWeatherControlsEnabled(weatherControlsRef[0], locationRowRef[0],
+                            manualLocationRef[0], value);
                 });
 
-        LinearLayout weatherControls = new LinearLayout(this);
-        weatherControls.setOrientation(LinearLayout.VERTICAL);
-        MaterialSwitch detailed = addSwitch(weatherControls, R.string.ultimate_weather_detailed,
-                R.string.ultimate_weather_detailed_summary, repository.isWeatherDetailed(), value -> {
-                    repository.setWeatherDetailed(value);
-                    markChanged("weather_detailed");
-                });
-
-        addSectionLabel(weatherControls, R.string.ultimate_custom_message_section, 22);
+        addSectionLabel(body, R.string.ultimate_custom_message_section, 10);
         String message = repository.getCustomMessage();
-        addActionRow(weatherControls, R.string.ultimate_custom_message,
+        addActionRow(body, R.string.ultimate_custom_message,
                 message.length() == 0 ? getString(R.string.ultimate_custom_message_empty) : message,
                 R.drawable.ultimate_ic_chevron_right, this::showCustomMessageEditor);
 
+        LinearLayout weatherControls = new LinearLayout(this);
+        weatherControls.setOrientation(LinearLayout.VERTICAL);
         addSectionLabel(weatherControls, R.string.ultimate_weather_location_section, 22);
         boolean manualLocation = ClockPreferences.WEATHER_LOCATION_MANUAL.equals(
                 repository.getWeatherLocationMode());
+        manualLocationRef[0] = manualLocation;
         addSegmented(weatherControls, new int[] {R.string.ultimate_weather_location_auto,
                         R.string.ultimate_weather_location_manual}, manualLocation ? 1 : 0, value -> {
                     repository.setWeatherLocationMode(value == 1
@@ -1016,13 +1298,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 });
         body.addView(weatherControls, wrapParams());
 
-        enabled.setOnCheckedChangeListener((button, value) -> {
-            repository.setWeatherEnabled(value);
-            markChanged("weather_enabled");
-            showPage(Page.WEATHER);
-        });
-        setViewTreeEnabled(weatherControls, enabled.isChecked());
-        setViewTreeEnabled(locationRow, enabled.isChecked() && manualLocation);
+        weatherControlsRef[0] = weatherControls;
+        locationRowRef[0] = locationRow;
+        updateWeatherControlsEnabled(weatherControls, locationRow, manualLocation,
+                repository.isWeatherEnabled());
         return scrollable(body);
     }
 
@@ -1136,6 +1415,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         body.setPadding(horizontalPadding, dp(12), horizontalPadding, dp(32));
         if (introRes != 0) {
             TextView intro = label(introRes, 14, false);
+            intro.setTextColor(onSurfaceVariantColor());
             intro.setLineSpacing(0f, 1.15f);
             body.addView(intro, wrapParams());
         }
@@ -1143,12 +1423,75 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     }
 
     private View scrollable(LinearLayout body) {
-        ScrollView scroll = new ScrollView(this);
+        NestedScrollView scroll = new NestedScrollView(this);
+        scroll.setId(R.id.ultimate_settings_scroll);
         scroll.setFillViewport(true);
         scroll.setClipToPadding(false);
         scroll.addView(body, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        currentScrollView = scroll;
         return scroll;
+    }
+
+    private void setShellTitle(int titleRes) {
+        CharSequence title = getText(titleRes);
+        shellTitle = title;
+        setTitle(title);
+        if (collapsingToolbar != null) collapsingToolbar.setTitle(title);
+        if (toolbar != null) toolbar.setTitle((CharSequence) null);
+        updateCollapsingToolbarHeight(title);
+        if (collapsingToolbar != null) {
+            collapsingToolbar.post(() -> updateCollapsingToolbarHeight(shellTitle));
+        }
+    }
+
+    private void updateCollapsingToolbarHeight(CharSequence title) {
+        if (collapsingToolbar == null) return;
+        int containerWidth = collapsingToolbar.getWidth();
+        if (containerWidth <= 0 && rootLayout != null) containerWidth = rootLayout.getWidth();
+        if (containerWidth <= 0) {
+            containerWidth = getResources().getDisplayMetrics().widthPixels;
+        }
+        int titleWidth = Math.max(dp(1), containerWidth - dp(48));
+
+        TextPaint scaledPaint = new TextPaint(TextPaint.ANTI_ALIAS_FLAG);
+        scaledPaint.setTypeface(Typeface.create("sans", Typeface.NORMAL));
+        scaledPaint.setTextSize(TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 36f,
+                getResources().getDisplayMetrics()));
+        StaticLayout titleLayout = StaticLayout.Builder.obtain(
+                        title == null ? "" : title, 0, title == null ? 0 : title.length(),
+                        scaledPaint, titleWidth)
+                .setIncludePad(true)
+                .setMaxLines(2)
+                .build();
+
+        TextPaint baselinePaint = new TextPaint(TextPaint.ANTI_ALIAS_FLAG);
+        baselinePaint.setTypeface(scaledPaint.getTypeface());
+        baselinePaint.setTextSize(36f * getResources().getDisplayMetrics().density);
+        StaticLayout baselineLayout = StaticLayout.Builder.obtain(
+                        "Ag", 0, 2, baselinePaint, titleWidth)
+                .setIncludePad(true)
+                .setMaxLines(1)
+                .build();
+
+        int baseHeight = dp(179);
+        int measuredHeight = baseHeight
+                + Math.max(0, titleLayout.getHeight() - baselineLayout.getHeight());
+        int availableHeight = rootLayout != null && rootLayout.getHeight() > 0
+                ? rootLayout.getHeight() : getResources().getDisplayMetrics().heightPixels;
+        int mainSwitchHeight = 0;
+        if (mainSwitchHost != null && mainSwitchHost.getVisibility() == View.VISIBLE) {
+            mainSwitchHeight = mainSwitchHost.getMeasuredHeight();
+            if (mainSwitchHeight <= 0) mainSwitchHeight = dp(88);
+        }
+        int maximumHeight = Math.max(baseHeight,
+                availableHeight - dp(96) - mainSwitchHeight);
+        int heightPx = Math.min(measuredHeight, maximumHeight);
+        ViewGroup.LayoutParams params = collapsingToolbar.getLayoutParams();
+        if (params.height != heightPx) {
+            params.height = heightPx;
+            collapsingToolbar.setLayoutParams(params);
+        }
     }
 
     private void addSectionLabel(LinearLayout parent, int textRes) {
@@ -1164,53 +1507,6 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         parent.addView(title, topMargin(wrapParams(), dp(topMarginDp)));
     }
 
-    private void addNavigationSearch(LinearLayout parent) {
-        int radius = getResources().getDimensionPixelSize(
-                R.dimen.ultimate_settings_home_search_radius);
-        TextInputLayout searchBox = new TextInputLayout(this);
-        searchBox.setHintEnabled(false);
-        searchBox.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_NONE);
-        GradientDrawable searchBackground = roundedRectangle(
-                settingsHomeContainerColor(), radius);
-        searchBackground.setStroke(dp(1), settingsHomeOutlineColor());
-        searchBox.setBackground(searchBackground);
-        searchBox.setClipToOutline(true);
-        searchBox.setStartIconDrawable(R.drawable.ultimate_ic_search);
-        searchBox.setStartIconTintList(ColorStateList.valueOf(onSurfaceVariantColor()));
-        searchBox.setStartIconCheckable(false);
-        searchBox.setStartIconContentDescription((CharSequence) null);
-        searchBox.setEndIconMode(TextInputLayout.END_ICON_CLEAR_TEXT);
-        searchBox.setEndIconTintList(ColorStateList.valueOf(onSurfaceVariantColor()));
-
-        TextInputEditText searchInput = new TextInputEditText(this);
-        searchInput.setSingleLine(true);
-        searchInput.setTextSize(16);
-        searchInput.setTextColor(onSurfaceColor());
-        searchInput.setHintTextColor(onSurfaceVariantColor());
-        searchInput.setHint(R.string.ultimate_settings_search_hint);
-        searchInput.setInputType(InputType.TYPE_CLASS_TEXT);
-        searchInput.setImeOptions(EditorInfo.IME_ACTION_SEARCH);
-        searchInput.setGravity(Gravity.CENTER_VERTICAL);
-        searchInput.setTypeface(Typeface.DEFAULT);
-        searchInput.setBackground(null);
-        searchInput.setPadding(0, 0, dp(4), 0);
-        searchInput.addTextChangedListener(new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence text, int start, int count,
-                    int after) {}
-            @Override public void onTextChanged(CharSequence text, int start, int before,
-                    int count) {}
-            @Override public void afterTextChanged(Editable text) {
-                applyNavigationFilter(text == null ? "" : text.toString());
-            }
-        });
-        searchBox.addView(searchInput, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        parent.addView(searchBox, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT,
-                getResources().getDimensionPixelSize(
-                        R.dimen.ultimate_settings_home_search_height)));
-    }
-
     private NavigationGroup addNavigationGroup(LinearLayout parent, int topMarginRes) {
         LinearLayout container = new LinearLayout(this);
         container.setOrientation(LinearLayout.VERTICAL);
@@ -1219,7 +1515,6 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                         R.dimen.ultimate_settings_home_group_radius)));
         container.setClipToOutline(true);
         NavigationGroup group = new NavigationGroup(container);
-        navigationGroups.add(group);
         LinearLayout.LayoutParams params = wrapParams();
         params.topMargin = getResources().getDimensionPixelSize(topMarginRes);
         parent.addView(container, params);
@@ -1229,20 +1524,20 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     private void addCategory(NavigationGroup group, Page page, int titleRes, int summaryRes,
             int iconRes, Runnable action) {
         if (!group.items.isEmpty()) {
-            NavigationItem previous = group.items.get(group.items.size() - 1);
             View separator = new View(this);
             separator.setBackgroundColor(settingsHomeCanvasColor());
             group.container.addView(separator, new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT,
                     getResources().getDimensionPixelSize(
                             R.dimen.ultimate_settings_home_divider_height)));
-            previous.separatorAfter = separator;
         }
 
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPaddingRelative(dp(16), dp(4), dp(16), dp(4));
+        row.setMinimumHeight(getResources().getDimensionPixelSize(
+                R.dimen.ultimate_settings_home_row_height));
+        row.setPaddingRelative(dp(16), dp(8), dp(16), dp(8));
         row.setFocusable(true);
         row.setClickable(true);
         ImageView leadingIcon = new ImageView(this);
@@ -1255,10 +1550,11 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         text.setOrientation(LinearLayout.VERTICAL);
         text.setGravity(Gravity.CENTER_VERTICAL);
         TextView title = label(titleRes, 16, false);
-        title.setMaxLines(1);
+        title.setMaxLines(2);
         title.setEllipsize(android.text.TextUtils.TruncateAt.END);
         TextView summary = label(summaryRes, 12, false);
-        summary.setMaxLines(1);
+        summary.setTextColor(onSurfaceVariantColor());
+        summary.setMaxLines(2);
         summary.setEllipsize(android.text.TextUtils.TruncateAt.END);
         text.addView(title, wrapParams());
         text.addView(summary, topMargin(wrapParams(), dp(1)));
@@ -1270,54 +1566,11 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         row.setOnClickListener(view -> action.run());
         group.container.addView(row, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT,
-                getResources().getDimensionPixelSize(
-                        R.dimen.ultimate_settings_home_row_height)));
-        NavigationItem item = new NavigationItem(page, group, row, title, summary, leadingIcon);
+                ViewGroup.LayoutParams.WRAP_CONTENT));
+        NavigationItem item = new NavigationItem(row, title, summary, leadingIcon);
         group.items.add(item);
         navigationItems.put(page, item);
         updateNavigationGroupPositions(group);
-    }
-
-    private void applyNavigationFilter(String query) {
-        String normalized = query == null ? ""
-                : query.trim().toLowerCase(Locale.getDefault());
-        boolean anyVisible = false;
-        boolean firstVisibleGroup = true;
-        for (NavigationGroup group : navigationGroups) {
-            List<NavigationItem> visibleItems = new ArrayList<>();
-            for (NavigationItem item : group.items) {
-                boolean visible = normalized.isEmpty()
-                        || item.title.getText().toString().toLowerCase(Locale.getDefault())
-                                .contains(normalized)
-                        || item.summary.getText().toString().toLowerCase(Locale.getDefault())
-                                .contains(normalized);
-                item.row.setVisibility(visible ? View.VISIBLE : View.GONE);
-                if (item.separatorAfter != null) item.separatorAfter.setVisibility(View.GONE);
-                if (visible) visibleItems.add(item);
-            }
-            group.container.setVisibility(visibleItems.isEmpty() ? View.GONE : View.VISIBLE);
-            if (!visibleItems.isEmpty()) {
-                LinearLayout.LayoutParams params =
-                        (LinearLayout.LayoutParams) group.container.getLayoutParams();
-                params.topMargin = getResources().getDimensionPixelSize(firstVisibleGroup
-                        ? R.dimen.ultimate_settings_home_search_group_gap
-                        : R.dimen.ultimate_settings_home_group_gap);
-                group.container.setLayoutParams(params);
-                firstVisibleGroup = false;
-            }
-            for (int index = 0; index < visibleItems.size(); index++) {
-                NavigationItem item = visibleItems.get(index);
-                item.position = rowPosition(index, visibleItems.size());
-                if (item.separatorAfter != null && index < visibleItems.size() - 1) {
-                    item.separatorAfter.setVisibility(View.VISIBLE);
-                }
-            }
-            anyVisible |= !visibleItems.isEmpty();
-        }
-        if (navigationEmptyState != null) {
-            navigationEmptyState.setVisibility(anyVisible ? View.GONE : View.VISIBLE);
-        }
-        updateNavigationSelection(navigationSelectedPage, navigationSelectionEmbedded);
     }
 
     private void updateNavigationGroupPositions(NavigationGroup group) {
@@ -1333,9 +1586,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         return RowPosition.MIDDLE;
     }
 
-    private void updateNavigationSelection(Page selectedPage, boolean embedded) {
-        navigationSelectedPage = selectedPage;
-        navigationSelectionEmbedded = embedded;
+    private void updateNavigationSelection(Page selectedPage) {
         for (Page page : navigationItems.keySet()) {
             NavigationItem item = navigationItems.get(page);
             if (item == null) continue;
@@ -1396,6 +1647,76 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         return addActionRow(parent, getString(titleRes), getString(summaryRes), iconRes, action);
     }
 
+    private void showMainSwitch(int titleRes, boolean checked, BooleanChange change) {
+        if (mainSwitchHost == null) return;
+        mainSwitchHost.removeAllViews();
+        mainSwitchHost.setVisibility(View.VISIBLE);
+        addMainSwitch(mainSwitchHost, titleRes, checked, change);
+    }
+
+    private void hideMainSwitch() {
+        if (mainSwitchHost == null) return;
+        mainSwitchHost.removeAllViews();
+        mainSwitchHost.setVisibility(View.GONE);
+    }
+
+    private MaterialSwitch addMainSwitch(LinearLayout parent, int titleRes, boolean checked,
+            BooleanChange change) {
+        LinearLayout holder = new LinearLayout(this);
+        holder.setOrientation(LinearLayout.HORIZONTAL);
+        holder.setGravity(Gravity.CENTER_VERTICAL);
+        holder.setMinimumHeight(dp(64));
+        holder.setPaddingRelative(dp(24), dp(8), dp(16), dp(8));
+        holder.setFocusable(true);
+        holder.setClickable(true);
+
+        TextView title = label(titleRes, 16, false);
+        title.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        holder.addView(title, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
+        MaterialSwitch control = new MaterialSwitch(this);
+        control.setChecked(checked);
+        control.setClickable(false);
+        control.setFocusable(false);
+        control.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        LinearLayout.LayoutParams switchParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        switchParams.setMarginStart(dp(16));
+        holder.addView(control, switchParams);
+
+        holder.setContentDescription(getString(titleRes));
+        holder.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+        holder.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+            @Override
+            public void onInitializeAccessibilityNodeInfo(View host,
+                    AccessibilityNodeInfo info) {
+                super.onInitializeAccessibilityNodeInfo(host, info);
+                info.setClassName(android.widget.Switch.class.getName());
+                info.setCheckable(true);
+                info.setChecked(control.isChecked());
+            }
+        });
+        applyMainSwitchAppearance(holder, title, checked);
+        control.setOnCheckedChangeListener((button, value) -> {
+            applyMainSwitchAppearance(holder, title, value);
+            change.apply(value);
+        });
+        holder.setOnClickListener(view -> control.setChecked(!control.isChecked()));
+        parent.addView(holder, wrapParams());
+        return control;
+    }
+
+    private void applyMainSwitchAppearance(LinearLayout holder, TextView title, boolean checked) {
+        int foreground = checked ? onPrimaryContainerColor() : onSurfaceColor();
+        int background = checked ? primaryContainerColor() : surfaceContainerColor();
+        title.setTextColor(foreground);
+        GradientDrawable content = roundedRectangle(background, dp(32));
+        GradientDrawable mask = roundedRectangle(Color.WHITE, dp(32));
+        holder.setBackground(new RippleDrawable(
+                ColorStateList.valueOf(withAlpha(foreground, 0.14f)), content, mask));
+    }
+
     private View addActionRow(LinearLayout parent, int titleRes, CharSequence summary, int iconRes,
             Runnable action) {
         return addActionRow(parent, getString(titleRes), summary, iconRes, action);
@@ -1406,56 +1727,74 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.HORIZONTAL);
         row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setMinimumHeight(dp(64));
-        row.setPadding(dp(4), dp(6), 0, dp(6));
+        row.setMinimumHeight(dp(72));
+        row.setPaddingRelative(dp(4), dp(12), dp(4), dp(12));
         row.setFocusable(true);
         row.setClickable(true);
         row.setBackgroundResource(selectableItemBackground());
         LinearLayout text = new LinearLayout(this);
         text.setOrientation(LinearLayout.VERTICAL);
-        TextView title = label(titleValue, 16, true);
-        TextView summary = label(summaryValue, 13, false);
-        summary.setMaxLines(2);
-        summary.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        TextView title = label(titleValue, 16, false);
+        TextView summary = label(summaryValue, 14, false);
+        summary.setTextColor(onSurfaceVariantColor());
         text.addView(title, wrapParams());
         text.addView(summary, topMargin(wrapParams(), dp(2)));
         row.addView(text, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
-        if (iconRes != 0) {
-            ImageView chevron = new ImageView(this);
-            chevron.setImageResource(iconRes);
-            chevron.setImageTintList(android.content.res.ColorStateList.valueOf(onSurfaceVariantColor()));
-            chevron.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-            chevron.setPadding(dp(12), dp(12), dp(12), dp(12));
-            row.addView(chevron, new LinearLayout.LayoutParams(dp(48), dp(48)));
-        }
         row.setContentDescription(titleValue + ", " + summaryValue);
         row.setOnClickListener(view -> action.run());
         parent.addView(row, wrapParams());
-        addDivider(parent);
         return row;
     }
 
     private MaterialSwitch addSwitch(LinearLayout parent, int titleRes, int summaryRes,
             boolean checked, BooleanChange change) {
         LinearLayout holder = new LinearLayout(this);
-        holder.setOrientation(LinearLayout.VERTICAL);
-        holder.setPadding(0, dp(4), 0, dp(4));
+        holder.setOrientation(LinearLayout.HORIZONTAL);
+        holder.setGravity(Gravity.CENTER_VERTICAL);
+        holder.setMinimumHeight(dp(72));
+        holder.setPaddingRelative(dp(4), dp(12), dp(4), dp(12));
+        holder.setFocusable(true);
+        holder.setClickable(true);
+        holder.setBackgroundResource(selectableItemBackground());
+
+        LinearLayout text = new LinearLayout(this);
+        text.setOrientation(LinearLayout.VERTICAL);
+        TextView title = label(titleRes, 16, false);
+        TextView summary = label(summaryRes, 14, false);
+        summary.setTextColor(onSurfaceVariantColor());
+        text.addView(title, wrapParams());
+        text.addView(summary, topMargin(wrapParams(), dp(2)));
+        holder.addView(text, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+
         MaterialSwitch control = new MaterialSwitch(this);
-        control.setText(titleRes);
-        control.setTextSize(16);
-        control.setMinHeight(dp(48));
         control.setChecked(checked);
-        control.setContentDescription(getString(titleRes));
-        holder.addView(control, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(52)));
-        TextView summary = label(summaryRes, 13, false);
-        summary.setMaxLines(3);
-        summary.setEllipsize(android.text.TextUtils.TruncateAt.END);
-        holder.addView(summary, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        control.setClickable(false);
+        control.setFocusable(false);
+        control.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        LinearLayout.LayoutParams switchParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        switchParams.setMarginStart(dp(16));
+        holder.addView(control, switchParams);
+        title.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        summary.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        holder.setContentDescription(getString(titleRes) + ", " + getString(summaryRes));
+        holder.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
+        holder.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+            @Override
+            public void onInitializeAccessibilityNodeInfo(View host,
+                    AccessibilityNodeInfo info) {
+                super.onInitializeAccessibilityNodeInfo(host, info);
+                info.setClassName(android.widget.Switch.class.getName());
+                info.setCheckable(true);
+                info.setChecked(control.isChecked());
+            }
+        });
         control.setOnCheckedChangeListener((button, value) -> change.apply(value));
+        holder.setOnClickListener(view -> {
+            if (control.isEnabled()) control.setChecked(!control.isChecked());
+        });
         parent.addView(holder, wrapParams());
-        addDivider(parent);
         return control;
     }
 
@@ -1493,19 +1832,11 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 }
             }
         });
-        parent.addView(group, topMargin(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(52)), dp(6)));
-        addDivider(parent);
+        LinearLayout.LayoutParams groupParams = topMargin(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(52)), dp(6));
+        groupParams.bottomMargin = dp(8);
+        parent.addView(group, groupParams);
         return group;
-    }
-
-    private void addDivider(LinearLayout parent) {
-        View divider = new View(this);
-        divider.setBackgroundColor(withAlpha(onSurfaceVariantColor(), 0.22f));
-        LinearLayout.LayoutParams lp = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, Math.max(1, dp(1)));
-        lp.leftMargin = dp(4);
-        parent.addView(divider, lp);
     }
 
     private TextView label(int textRes, int sizeSp, boolean strong) {
@@ -1746,6 +2077,24 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         }
     }
 
+    private static void setSwitchPreferenceEnabled(MaterialSwitch control, boolean enabled) {
+        View parent = control == null ? null : (View) control.getParent();
+        if (parent == null) {
+            if (control != null) control.setEnabled(enabled);
+            return;
+        }
+        setViewTreeEnabled(parent, enabled);
+    }
+
+    private static void updateWeatherControlsEnabled(View weatherControls, View locationRow,
+            boolean manualLocation, boolean weatherEnabled) {
+        if (weatherControls == null || locationRow == null) return;
+        // Reset the nested row before dimming the whole group so disabled alpha is not compounded.
+        setViewTreeEnabled(locationRow, true);
+        setViewTreeEnabled(weatherControls, weatherEnabled);
+        if (weatherEnabled) setViewTreeEnabled(locationRow, manualLocation);
+    }
+
     private static void setDescendantsEnabled(View view, boolean enabled) {
         view.setEnabled(enabled);
         if (view instanceof ViewGroup) {
@@ -1954,10 +2303,6 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 Color.rgb(29, 32, 36));
     }
 
-    private int settingsHomeOutlineColor() {
-        return blendColors(settingsHomeContainerColor(), onSurfaceVariantColor(), 0.10f);
-    }
-
     private int onSurfaceColor() {
         return MaterialColors.getColor(this, com.google.android.material.R.attr.colorOnSurface,
                 Color.WHITE);
@@ -1973,20 +2318,21 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 Color.rgb(120, 190, 255));
     }
 
+    private int primaryContainerColor() {
+        return MaterialColors.getColor(this,
+                com.google.android.material.R.attr.colorPrimaryContainer,
+                Color.rgb(31, 83, 124));
+    }
+
+    private int onPrimaryContainerColor() {
+        return MaterialColors.getColor(this,
+                com.google.android.material.R.attr.colorOnPrimaryContainer,
+                Color.rgb(205, 230, 255));
+    }
+
     private static int withAlpha(int color, float alpha) {
         return Color.argb(Math.round(Color.alpha(color) * alpha), Color.red(color),
                 Color.green(color), Color.blue(color));
-    }
-
-    private static int blendColors(int background, int foreground, float foregroundRatio) {
-        float ratio = Math.max(0f, Math.min(1f, foregroundRatio));
-        return Color.rgb(
-                Math.round(Color.red(background)
-                        + (Color.red(foreground) - Color.red(background)) * ratio),
-                Math.round(Color.green(background)
-                        + (Color.green(foreground) - Color.green(background)) * ratio),
-                Math.round(Color.blue(background)
-                        + (Color.blue(foreground) - Color.blue(background)) * ratio));
     }
 
     private static float luminance(int color) {
@@ -2016,19 +2362,14 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     }
 
     private static final class NavigationItem {
-        final Page page;
-        final NavigationGroup group;
         final LinearLayout row;
         final TextView title;
         final TextView summary;
         final ImageView leadingIcon;
-        View separatorAfter;
         RowPosition position = RowPosition.SINGLE;
 
-        NavigationItem(Page page, NavigationGroup group, LinearLayout row, TextView title,
-                TextView summary, ImageView leadingIcon) {
-            this.page = page;
-            this.group = group;
+        NavigationItem(LinearLayout row, TextView title, TextView summary,
+                ImageView leadingIcon) {
             this.row = row;
             this.title = title;
             this.summary = summary;
