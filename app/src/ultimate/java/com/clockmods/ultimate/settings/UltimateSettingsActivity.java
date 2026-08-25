@@ -1240,11 +1240,14 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         manualLocationRef[0] = manualLocation;
         addSegmented(weatherControls, new int[] {R.string.ultimate_weather_location_auto,
                         R.string.ultimate_weather_location_manual}, manualLocation ? 1 : 0, value -> {
-                    repository.setWeatherLocationMode(value == 1
+                    boolean manual = value == 1;
+                    repository.setWeatherLocationMode(manual
                             ? ClockPreferences.WEATHER_LOCATION_MANUAL
                             : ClockPreferences.WEATHER_LOCATION_AUTOMATIC);
+                    manualLocationRef[0] = manual;
                     markChanged("weather_location_mode");
-                    showPage(Page.WEATHER);
+                    updateWeatherControlsEnabled(weatherControlsRef[0], locationRowRef[0],
+                            manual, repository.isWeatherEnabled());
                 });
         View locationRow = addActionRow(weatherControls,
                 R.string.ultimate_weather_choose_location, weatherLocationSummary(),
