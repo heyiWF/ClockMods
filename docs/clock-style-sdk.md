@@ -42,6 +42,7 @@ import com.clockmods.sdk.clock.ClockStyle;
 import com.clockmods.sdk.clock.ClockStyleCapabilities;
 import com.clockmods.sdk.clock.ClockStyleMetadata;
 import com.clockmods.sdk.clock.ClockThemeTokens;
+import com.clockmods.ui.ClockTimeText;
 
 import java.util.Calendar;
 import java.util.Locale;
@@ -102,7 +103,8 @@ public final class MeridianStyle implements ClockStyle {
                 paint.setTypeface(Typeface.create(
                         theme.getDisplayFontFamily(), Typeface.NORMAL));
                 paint.setTextSize(Math.min(context.getWidth(), context.getHeight()) * 0.20f);
-                canvas.drawText(time, context.getCenterX(), context.getCenterY(), paint);
+                ClockTimeText.draw(canvas, time, context.getCenterX(),
+                        context.getCenterY(), paint);
 
                 paint.setColor(theme.getSecondaryTextColor());
                 paint.setTextSize(14f * context.getScaledDensity());
@@ -193,7 +195,7 @@ token 用于统一预览和实时渲染的视觉参数，但不是完整主题�
 
 ## 每帧输入
 
-`ClockRenderContext` 提供当前帧的像素边界、中心点、density、scaled density、帧时间、减少动画状态和可选 `ClockBackground`。
+`ClockRenderContext` 提供当前帧的像素边界、中心点、density、scaled density、帧时间、减少动画状态、可选 `ClockBackground` 和底部遮罩预留高度。
 
 `ClockState` 提供：
 
@@ -208,6 +210,10 @@ renderer 应以 `ClockState.getTimeMillis()` 或 `newCalendar()` 为唯一时间
 `ClockBackground` 有 `THEME`、`COLOR`、`IMAGE` 三种模式。`THEME` 表示使用样式自己的设计背景；`COLOR` 和 `IMAGE` 表示宿主提供了用户背景。bitmap 生命周期归宿主所有，renderer 不得回收或长期持有它。`isDimmed()` 为真时，renderer 应在背景层应用暗化，但不要暗化前景时钟内容。
 
 调用旧的、不带背景参数的 `ClockRenderContext` 构造函数时，`getBackground()` 为 `null`，renderer 应把它视为使用自身主题背景。
+
+### 底部遮罩预留
+
+`getBottomInset()` 返回宿主在视图底部叠加内容（如天气服务来源标注）所占的像素高度。画布边界不会因此缩小，背景层仍应铺满整个视图；只有会被遮住的前景元素——时区、日期、天气这类底部元数据——需要按这个值上移。不带 inset 参数的构造函数返回 `0f`，renderer 按无遮罩处理即可。
 
 ## 生命周期与线程
 
@@ -233,6 +239,7 @@ renderer 应以 `ClockState.getTimeMillis()` 或 `newCalendar()` 为唯一时间
 - 不要保存 `Canvas`、`ClockRenderContext`、`ClockState` 或宿主 bitmap 的跨帧引用。
 - 缓存可复用的 `Paint`、`Path` 和字体，但不要把当前时间或布局结果作为共享全局状态。
 - 对 Canvas 的 rotate、translate、clip、layer 等修改必须成对 save/restore。Ultimate 当前会隔离 renderer 的 Canvas 状态，但 renderer 自身仍应保持这个约束，便于预览和其他宿主复用。
+- 绘制含冒号的时间时用 `ClockTimeText.draw()` 代替 `Canvas.drawText()`。多数字体把 `:` 对齐到 x 高度，而数字画到数字高度，直接绘制会让冒号偏低；该工具按字形边界把冒号抬到数字的视觉中心，对任意字体和字号都成立。`ClockTimeText.colonBaselineOffset(Paint)` 供逐字符排版的 renderer 取同一偏移量。
 - registry 的公开方法已同步，但注册通常应在 View 开始渲染前完成。一个 renderer 实例可能被实时 View 和预览复用，因此不要依赖可变的帧状态。
 
 ## Android 兼容约束

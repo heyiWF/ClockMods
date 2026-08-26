@@ -43,6 +43,7 @@ import com.clockmods.ui.WeatherIconView;
 import com.clockmods.weather.DailyForecastController;
 import com.clockmods.weather.WeatherController;
 import com.clockmods.weather.WeatherModels;
+import com.clockmods.weather.WeatherTemperatureFormatter;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
@@ -84,6 +85,8 @@ public final class ProCalendarFragment extends Fragment {
     private ClockPreferences preferences;
     private WeatherController weatherController;
     private DailyForecastController forecastController;
+    private WeatherModels.WeatherState lastWeatherState;
+    private WeatherModels.DailyForecastState lastForecastState;
     private HolidayRepository holidayRepository;
     private final List<CalendarLabelCarouselView> labelCarousels = new ArrayList<>();
     private boolean resumed;
@@ -107,8 +110,14 @@ public final class ProCalendarFragment extends Fragment {
         bindViews(root);
         restoreState(savedInstanceState);
         configureViews(root);
-        weatherController = new WeatherController(requireContext(), this::bindCurrentWeather, true);
-        forecastController = new DailyForecastController(requireContext(), this::bindForecast);
+        weatherController = new WeatherController(requireContext(), state -> {
+            lastWeatherState = state;
+            bindCurrentWeather(state);
+        }, true);
+        forecastController = new DailyForecastController(requireContext(), state -> {
+            lastForecastState = state;
+            bindForecast(state);
+        });
         refreshSettings(root);
         return root;
     }
@@ -213,6 +222,8 @@ public final class ProCalendarFragment extends Fragment {
         if (forecastController != null) forecastController.shutdown();
         weatherController = null;
         forecastController = null;
+        lastWeatherState = null;
+        lastForecastState = null;
         super.onDestroyView();
     }
 
@@ -246,6 +257,8 @@ public final class ProCalendarFragment extends Fragment {
         timeView.setTypeface(typeface);
         secondsView.setTypeface(typeface);
         periodView.setTypeface(typeface);
+        if (lastWeatherState != null) bindCurrentWeather(lastWeatherState);
+        if (lastForecastState != null) bindForecast(lastForecastState);
         applyResponsiveSizing();
         if (resumed) startWeatherIfEnabled();
     }
@@ -546,10 +559,9 @@ public final class ProCalendarFragment extends Fragment {
         }
         WeatherModels.WeatherDisplayData data = state.data;
         currentWeatherIcon.setIconCode(data.icon, preferences.isWeatherIconFill());
-        currentTemperature.setText(getString(R.string.weather_temperature_format,
-                data.temperature));
+        currentTemperature.setText(temperatureLabel(data.temperature));
         String feel = data.detail == null || empty(data.detail.feelsLike) ? "--" : data.detail.feelsLike;
-        feelsLike.setText(getString(R.string.weather_temperature_format, feel));
+        feelsLike.setText(temperatureLabel(feel));
         StringBuilder summary = new StringBuilder(WeatherModels.locationText(data.city, data.district));
         append(summary, data.text);
         if (data.detail != null) {
@@ -596,8 +608,7 @@ public final class ProCalendarFragment extends Fragment {
                 iconParams.gravity = Gravity.CENTER_HORIZONTAL;
                 iconParams.setMargins(0, iconGap, 0, iconGap);
                 column.addView(icon, iconParams);
-                addForecastText(column, getString(R.string.weather_temperature_range_format,
-                                forecast.tempMin, forecast.tempMax),
+                addForecastText(column, temperatureRangeLabel(forecast.tempMin, forecast.tempMax),
                         R.dimen.calendar_forecast_text_size, false);
                 StringBuilder details = new StringBuilder();
                 if (!empty(forecast.humidity)) {
@@ -620,6 +631,21 @@ public final class ProCalendarFragment extends Fragment {
             date.add(Calendar.DAY_OF_MONTH, 1);
         }
         applyForecastSizing();
+    }
+
+    private String temperatureLabel(String celsius) {
+        String unit = preferences.getWeatherTemperatureUnit();
+        return WeatherTemperatureFormatter.replaceUnit(
+                getString(R.string.weather_temperature_format,
+                        WeatherTemperatureFormatter.numeric(celsius, unit)), unit);
+    }
+
+    private String temperatureRangeLabel(String minimumCelsius, String maximumCelsius) {
+        String unit = preferences.getWeatherTemperatureUnit();
+        return WeatherTemperatureFormatter.replaceUnit(
+                getString(R.string.weather_temperature_range_format,
+                        WeatherTemperatureFormatter.numeric(minimumCelsius, unit),
+                        WeatherTemperatureFormatter.numeric(maximumCelsius, unit)), unit);
     }
 
     private void addForecastHeading(LinearLayout parent, String dayLabel, String weather,

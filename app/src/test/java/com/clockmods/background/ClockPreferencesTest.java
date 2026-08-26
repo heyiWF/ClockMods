@@ -23,4 +23,17 @@ public class ClockPreferencesTest {
         Assert.assertEquals(ClockPreferences.MAX_STATUS_ICON_SCALE,
                 ClockPreferences.normalizeStatusIconScale(Float.POSITIVE_INFINITY), 0f);
     }
+
+    @Test
+    public void normalizesWeatherTemperatureUnitToSupportedValues() {
+        Assert.assertEquals(ClockPreferences.WEATHER_UNIT_CELSIUS,
+                ClockPreferences.normalizeWeatherTemperatureUnit(null));
+        Assert.assertEquals(ClockPreferences.WEATHER_UNIT_CELSIUS,
+                ClockPreferences.normalizeWeatherTemperatureUnit("kelvin"));
+        Assert.assertEquals(ClockPreferences.WEATHER_UNIT_FAHRENHEIT,
+                ClockPreferences.normalizeWeatherTemperatureUnit(
+                        ClockPreferences.WEATHER_UNIT_FAHRENHEIT));
+        Assert.assertEquals(ClockPreferences.WEATHER_UNIT_FAHRENHEIT,
+                ClockPreferences.normalizeWeatherTemperatureUnit(" Fahrenheit "));
+    }
 }

@@ -18,6 +18,7 @@ import androidx.fragment.app.Fragment;
 
 import com.clockmods.R;
 import com.clockmods.ui.ButtonTextSizer;
+import com.clockmods.ui.ClockTimeText;
 import com.google.android.material.button.MaterialButton;
 
 import java.util.Locale;
@@ -81,7 +82,10 @@ public final class ProStopwatchFragment extends Fragment {
     private void addLap() {
         if (!running && accumulated == 0L) return;
         TextView lap = new TextView(requireContext());
-        lap.setText(getString(R.string.stopwatch_lap_value, ++lapCount, format(elapsed())));
+        // Aligned after formatting: getString() runs the args through String.format, which
+        // would flatten a spanned time back to plain text.
+        lap.setText(ClockTimeText.align(
+                getString(R.string.stopwatch_lap_value, ++lapCount, format(elapsed()))));
         lap.setTextSize(15);
         lap.setPadding(12, 6, 12, 6);
         ProFontApplier.apply(lap);
@@ -94,7 +98,7 @@ public final class ProStopwatchFragment extends Fragment {
 
     private void render() {
         if (display == null) return;
-        display.setText(format(elapsed()));
+        display.setText(ClockTimeText.align(format(elapsed())));
         startPause.setText(running ? R.string.timer_pause : R.string.timer_start);
     }
 

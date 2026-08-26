@@ -22,6 +22,7 @@ import com.clockmods.R;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.button.MaterialButton;
 import com.clockmods.ui.ButtonTextSizer;
+import com.clockmods.ui.ClockTimeText;
 import com.clockmods.pro.timer.TimerScheduler;
 
 import java.util.Locale;
@@ -260,11 +261,11 @@ public final class ProTimerFragment extends Fragment {
         }
         long totalSeconds = (remainingMillis + 999L) / 1000L;
         if (pomodoro) {
-            display.setText(String.format(Locale.US, "%02d:%02d", totalSeconds / 60,
-                totalSeconds % 60));
+            display.setText(ClockTimeText.align(String.format(Locale.US, "%02d:%02d",
+                totalSeconds / 60, totalSeconds % 60)));
         } else {
-            display.setText(String.format(Locale.US, "%02d:%02d:%02d", totalSeconds / 3600,
-                (totalSeconds / 60) % 60, totalSeconds % 60));
+            display.setText(ClockTimeText.align(String.format(Locale.US, "%02d:%02d:%02d",
+                totalSeconds / 3600, (totalSeconds / 60) % 60, totalSeconds % 60)));
         }
         if (pomodoro) phase.setText(phaseLabel());
         startPause.setText(running ? R.string.timer_pause : R.string.timer_start);

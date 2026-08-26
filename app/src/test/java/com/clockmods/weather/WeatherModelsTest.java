@@ -8,6 +8,11 @@ import org.junit.Test;
 import java.util.List;
 
 public class WeatherModelsTest {
+    /** Mirrors the Chinese string resources the app feeds into the carousel. */
+    private static final WeatherModels.WeatherDetail.DetailLabels CHINESE_LABELS =
+            new WeatherModels.WeatherDetail.DetailLabels(
+                    "体感 %s℃", "湿度 %s%%", "%s 级", "降水 %s mm", "空气 %s", "预警");
+
     @Test
     public void combinesCityAndDistrictWithoutDuplicates() {
         Assert.assertEquals("深圳宝安", WeatherModels.locationText("深圳市", "宝安"));
@@ -54,7 +59,8 @@ public class WeatherModelsTest {
         WeatherModels.WeatherDetail detail = new WeatherModels.WeatherDetail(null, null,
                 null, null, null, "台风红色预警\n\n暴雨橙色预警", null, null);
 
-        List<String> items = detail.carouselItems();
+        List<String> items = detail.carouselItems(CHINESE_LABELS,
+                WeatherTemperatureFormatter.UNIT_CELSIUS);
 
         Assert.assertEquals(2, items.size());
         Assert.assertEquals("台风红色预警", items.get(0));
@@ -66,9 +72,26 @@ public class WeatherModelsTest {
         WeatherModels.WeatherDetail detail = new WeatherModels.WeatherDetail(
                 "27", "40", null, null, null, null, null, null);
 
-        List<String> items = detail.carouselItems();
+        List<String> items = detail.carouselItems(CHINESE_LABELS,
+                WeatherTemperatureFormatter.UNIT_CELSIUS);
 
         Assert.assertEquals("体感 27℃", items.get(0));
         Assert.assertEquals("湿度 40%", items.get(1));
+    }
+
+    @Test
+    public void convertsFeelsLikeForSelectedDisplayUnit() {
+        WeatherModels.WeatherDetail detail = new WeatherModels.WeatherDetail(
+                "25", null, null, null, null, null, null, null);
+        WeatherModels.WeatherDetail.DetailLabels labels =
+                new WeatherModels.WeatherDetail.DetailLabels(
+                        "Feels %s℃", "Humidity %s%%", "Force %s", "Precip %s mm",
+                        "AQI %s", " Warning");
+
+        List<String> items = detail.carouselItems(labels,
+                WeatherTemperatureFormatter.UNIT_FAHRENHEIT);
+
+        Assert.assertEquals(1, items.size());
+        Assert.assertEquals("Feels 77℉", items.get(0));
     }
 }

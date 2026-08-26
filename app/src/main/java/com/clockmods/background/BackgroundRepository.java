@@ -283,6 +283,14 @@ public class BackgroundRepository {
         preferences.setWeatherIconDynamicColor(dynamicColor);
     }
 
+    public String getWeatherTemperatureUnit() {
+        return preferences.getWeatherTemperatureUnit();
+    }
+
+    public void setWeatherTemperatureUnit(String unit) {
+        preferences.setWeatherTemperatureUnit(unit);
+    }
+
     public String getDatePatternCn() {
         return preferences.getDatePatternCn();
     }

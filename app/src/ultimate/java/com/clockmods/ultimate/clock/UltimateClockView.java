@@ -29,6 +29,7 @@ import com.clockmods.time.NetworkTimeProvider;
 import com.clockmods.ui.DateFormatter;
 import com.clockmods.weather.WeatherModels;
 import com.clockmods.weather.WeatherModels.WeatherState;
+import com.clockmods.weather.WeatherTemperatureFormatter;
 
 import java.io.IOException;
 import java.util.Calendar;
@@ -91,6 +92,7 @@ public class UltimateClockView extends View {
     private boolean windowFocused = true;
     private long reducedMotionCheckedAt;
     private boolean systemReducedMotion;
+    private float bottomOverlayInset;
 
     public UltimateClockView(Context context) {
         this(context, null);
@@ -251,7 +253,8 @@ public class UltimateClockView extends View {
             StringBuilder text = new StringBuilder();
             String location = WeatherModels.locationText(data.city, data.district);
             appendPart(text, location);
-            appendPart(text, data.temperature);
+            appendPart(text, WeatherTemperatureFormatter.format(data.temperature,
+                    weatherTemperatureUnit()));
             appendPart(text, data.text);
             setWeatherText(text.toString());
         } else {
@@ -261,6 +264,18 @@ public class UltimateClockView extends View {
 
     public void setWeatherMessage(String message) {
         setWeatherText(message);
+    }
+
+    private String weatherTemperatureUnit() {
+        return backgroundRepository == null
+                ? new ClockPreferences(getContext()).getWeatherTemperatureUnit()
+                : backgroundRepository.getWeatherTemperatureUnit();
+    }
+
+    /** Reserves room for a host overlay without shrinking the rendered background. */
+    public void setBottomOverlayInset(float inset) {
+        bottomOverlayInset = Math.max(0f, inset);
+        invalidate();
     }
 
     /** The background repository still supplies clock settings; style renderers own their surface. */
@@ -387,7 +402,7 @@ public class UltimateClockView extends View {
         ClockRenderContext renderContext = new ClockRenderContext(0f, 0f, getWidth(), getHeight(),
                 getResources().getDisplayMetrics().density,
                 getResources().getDisplayMetrics().scaledDensity, now, reduced,
-                createBackground(now));
+                createBackground(now), bottomOverlayInset);
         int saveCount = canvas.save();
         try {
             style.getRenderer().render(canvas, renderContext, state, style.getThemeTokens());

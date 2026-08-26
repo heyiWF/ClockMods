@@ -55,13 +55,7 @@ final class ClockTextLayout {
 
     static float alignedCharacterBaseline(String character, float baseline, Paint paint) {
         if (!":".equals(character)) return baseline;
-        Rect digitBounds = new Rect();
-        Rect colonBounds = new Rect();
-        paint.getTextBounds("0", 0, 1, digitBounds);
-        paint.getTextBounds(character, 0, 1, colonBounds);
-        float digitCenter = (digitBounds.top + digitBounds.bottom) / 2f;
-        float colonCenter = (colonBounds.top + colonBounds.bottom) / 2f;
-        return baseline + digitCenter - colonCenter;
+        return baseline + ClockTimeText.colonBaselineOffset(paint);
     }
 
     static float bottomAlignedBaseline(float mainBaseline, Paint mainPaint, Paint accessoryPaint) {

@@ -136,6 +136,9 @@
     <string name="ultimate_weather_location_manual">Manual</string>
     <string name="ultimate_weather_choose_location">Choose weather location</string>
     <string name="ultimate_weather_location_not_set">No location selected</string>
+    <string name="ultimate_weather_temperature_section">Temperature unit</string>
+    <string name="ultimate_weather_celsius">Celsius</string>
+    <string name="ultimate_weather_fahrenheit">Fahrenheit</string>
     <string name="ultimate_weather_refresh_section">Updates</string>
     <string name="ultimate_weather_refresh_interval">Refresh interval</string>
     <string name="ultimate_weather_10_minutes">10 minutes</string>

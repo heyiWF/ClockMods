@@ -13,6 +13,7 @@ import androidx.fragment.app.Fragment;
 
 import com.clockmods.R;
 import com.clockmods.ui.ButtonTextSizer;
+import com.clockmods.ui.ClockTimeText;
 import com.clockmods.pro.alarm.AlarmScheduler;
 import com.clockmods.pro.alarm.AlarmStore;
 import com.google.android.material.materialswitch.MaterialSwitch;
@@ -63,7 +64,8 @@ public final class ProAlarmFragment extends Fragment {
     }
 
     private void render() {
-        time.setText(String.format(Locale.getDefault(), "%02d:%02d", store.hour(), store.minute()));
+        time.setText(ClockTimeText.align(String.format(Locale.getDefault(), "%02d:%02d",
+                store.hour(), store.minute())));
         if (!store.enabled()) {
             next.setText(R.string.alarm_disabled);
             return;

@@ -2,30 +2,31 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:id="@+id/calendar_weather_attribution"
     android:layout_width="match_parent"
-    android:layout_height="40dp"
+    android:layout_height="18dp"
     android:contentDescription="@string/weather_attribution"
     android:gravity="center"
     android:orientation="horizontal"
-    android:paddingStart="8dp"
-    android:paddingEnd="8dp">
+    android:paddingStart="0dp"
+    android:paddingEnd="0dp">
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/weather_attribution_prefix"
-        android:textColor="#CCFFFFFF"
-        android:textSize="9sp" />
+        android:textColor="#66FFFFFF"
+        android:textSize="7sp" />
 
     <com.clockmods.ui.QWeatherLogoView
         android:layout_width="@dimen/calendar_attribution_logo_size"
         android:layout_height="@dimen/calendar_attribution_logo_size"
-        android:layout_marginStart="3dp"
-        android:layout_marginEnd="3dp" />
+        android:layout_marginStart="2dp"
+        android:layout_marginEnd="2dp"
+        android:alpha="0.45" />
 
     <TextView
         android:layout_width="wrap_content"
         android:layout_height="wrap_content"
         android:text="@string/weather_attribution_brand"
-        android:textColor="#CCFFFFFF"
-        android:textSize="9sp" />
+        android:textColor="#66FFFFFF"
+        android:textSize="7sp" />
 </LinearLayout>

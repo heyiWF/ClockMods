@@ -50,5 +50,5 @@
     <!-- Vertical offset of the 上午/下午 (AM/PM) indicator relative to the seconds below it.
          Negative pulls it down so it sits snugly above the seconds; density-independent (dp). -->
     <dimen name="calendar_period_gap">-4dp</dimen>
-    <dimen name="calendar_attribution_logo_size">14dp</dimen>
+    <dimen name="calendar_attribution_logo_size">9dp</dimen>
 </resources>

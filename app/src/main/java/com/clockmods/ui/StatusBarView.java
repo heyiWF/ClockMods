@@ -66,8 +66,12 @@ public class StatusBarView extends View {
     private final BroadcastReceiver batteryReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
+            int previousLevel = batteryLevel;
             updateBatteryFromIntent(intent);
             refreshNetworkState();
+            // The measured width includes the percentage text, so a new level has to re-measure or
+            // a host-supplied pill background would keep the width of the previous reading.
+            if (previousLevel != batteryLevel) requestLayout();
             invalidate();
         }
     };
@@ -106,6 +110,9 @@ public class StatusBarView extends View {
         registerReceivers();
         registerPhoneStateListener();
         refreshNetworkState();
+        // Registering picks up the sticky battery intent, which can be the first real level this
+        // view sees; the percentage text is part of the measured width so re-measure with it.
+        requestLayout();
         invalidate();
     }
 
@@ -291,7 +298,10 @@ public class StatusBarView extends View {
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int desiredHeight = Math.round(28f * density);
         int measuredHeight = resolveSize(desiredHeight, heightMeasureSpec);
-        float scale = ClockPreferences.MAX_STATUS_ICON_SCALE;
+        // Measure with the same scale, text and glyph set onDraw uses. Hosts that give this view
+        // a pill background rely on wrap_content hugging the drawn content, so measuring for the
+        // largest possible icon scale or a placeholder "100%" would leave dead space in the pill.
+        float scale = resolveStatusIconScale();
         float iconHeight = calculateStatusIconHeight(measuredHeight, density, scale);
         float gap = 8f * density * scale;
         textPaint.setTextSize(iconHeight * 0.9f);
@@ -299,10 +309,12 @@ public class StatusBarView extends View {
             textPaint.setTypeface(ClockTypefaceResolver.resolveTime(
                     getContext(), backgroundRepository.getFontFamily(), false));
         }
-        float contentWidth = iconHeight * 1.15f + gap * 0.4f
-                + iconHeight * 1.55f + gap * 0.6f + textPaint.measureText("100%");
-        int desiredWidth = Math.max(Math.round(104f * density),
-                Math.round(getPaddingLeft() + contentWidth + getPaddingRight()));
+        float contentWidth = iconHeight * 1.15f;
+        if (batteryLevel >= 0) {
+            contentWidth += gap * 0.4f + iconHeight * 1.55f + gap * 0.6f
+                    + textPaint.measureText(batteryLevel + "%");
+        }
+        int desiredWidth = Math.round(getPaddingLeft() + contentWidth + getPaddingRight());
         setMeasuredDimension(resolveSize(desiredWidth, widthMeasureSpec), measuredHeight);
     }
 

@@ -69,22 +69,21 @@ public final class WeatherModels {
             }
         }
 
-        /** Chinese labels, matching the app's historical default wording. */
-        public static final DetailLabels CHINESE_LABELS = new DetailLabels(
-                "体感 %s℃", "湿度 %s%%", "%s 级", "降水 %s mm", "空气 %s", "预警");
-
         /**
          * Builds the ordered list of detail strings that should be shown in the rotating
-         * detailed weather line. Optional items (precipitation, warnings, air quality) are
-         * only included when meaningful data is available.
+         * detailed weather line, using the selected display unit. Optional items (precipitation,
+         * warnings, air quality) are only included when meaningful data is available. The model's
+         * stored values are always Celsius, matching the QWeather API and both on-device caches.
          */
-        public List<String> carouselItems() {
-            return carouselItems(CHINESE_LABELS);
-        }
-
-        public List<String> carouselItems(DetailLabels labels) {
+        public List<String> carouselItems(DetailLabels labels, String temperatureUnit) {
             List<String> items = new ArrayList<>();
-            if (isPresent(feelsLike)) items.add(String.format(labels.feelsFormat, feelsLike));
+            if (isPresent(feelsLike)) {
+                String feelsFormat = WeatherTemperatureFormatter.replaceUnit(
+                        labels.feelsFormat, temperatureUnit);
+                String feelsValue = WeatherTemperatureFormatter.numeric(feelsLike,
+                        temperatureUnit);
+                items.add(String.format(feelsFormat, feelsValue));
+            }
             if (isPresent(humidity)) items.add(String.format(labels.humidityFormat, humidity));
             if (isPresent(windDir) || isPresent(windScale)) {
                 String wind = isPresent(windDir) ? windDir : "";

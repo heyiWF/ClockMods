@@ -178,9 +178,16 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
                     dp(proClassicActive ? 4 : 8), statusBarView.getPaddingBottom());
         }
         if (weatherAttribution != null) {
-            weatherAttribution.setBackgroundResource(
-                    proClassicActive ? 0 : R.drawable.ultimate_overlay_pill);
+            // Attribution is deliberately a quiet, transparent label. The status bar keeps its
+            // own pill treatment; weather attribution must never introduce a competing surface.
+            weatherAttribution.setBackgroundResource(0);
+            ViewGroup.MarginLayoutParams attributionParams =
+                    (ViewGroup.MarginLayoutParams) weatherAttribution.getLayoutParams();
+            attributionParams.height = dp(18);
+            attributionParams.bottomMargin = dp(4);
+            weatherAttribution.setLayoutParams(attributionParams);
         }
+        updateBottomOverlayInset(repository.isWeatherEnabled());
         deliverLastWeather();
         updateClockRunningState();
     }
@@ -288,10 +295,17 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
         if (weatherAttribution != null) {
             weatherAttribution.setVisibility(enabled ? View.VISIBLE : View.GONE);
         }
+        updateBottomOverlayInset(enabled);
         if (!enabled && weatherController != null) {
             weatherController.stop();
             clearWeather();
         }
+    }
+
+    private void updateBottomOverlayInset(boolean weatherEnabled) {
+        if (ultimateClockView == null) return;
+        ultimateClockView.setBottomOverlayInset(
+                !proClassicActive && weatherEnabled ? dp(28) : 0f);
     }
 
     private void startWeatherIfEnabled() {

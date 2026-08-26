@@ -136,6 +136,9 @@
     <string name="ultimate_weather_location_manual">手動</string>
     <string name="ultimate_weather_choose_location">選擇天氣位置</string>
     <string name="ultimate_weather_location_not_set">尚未選擇位置</string>
+    <string name="ultimate_weather_temperature_section">溫度單位</string>
+    <string name="ultimate_weather_celsius">攝氏</string>
+    <string name="ultimate_weather_fahrenheit">華氏</string>
     <string name="ultimate_weather_refresh_section">更新</string>
     <string name="ultimate_weather_refresh_interval">更新週期</string>
     <string name="ultimate_weather_10_minutes">10 分鐘</string>

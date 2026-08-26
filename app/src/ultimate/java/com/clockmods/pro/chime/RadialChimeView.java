@@ -10,6 +10,7 @@ import android.view.View;
 
 import com.clockmods.background.BackgroundRepository;
 import com.clockmods.ui.ClockTimeFormatter;
+import com.clockmods.ui.ClockTimeText;
 import com.clockmods.ui.ClockTypefaceResolver;
 import com.clockmods.ui.ClockView;
 
@@ -85,7 +86,7 @@ public final class RadialChimeView extends View {
             textPaint.setTextSize(resolveBaseTextSize() * textScale);
             Paint.FontMetrics metrics = textPaint.getFontMetrics();
             float baseline = getHeight() / 2f - (metrics.ascent + metrics.descent) / 2f;
-            canvas.drawText(displayedTime, getWidth() / 2f, baseline, textPaint);
+            ClockTimeText.draw(canvas, displayedTime, getWidth() / 2f, baseline, textPaint);
         }
         if (progress < 1f) postInvalidateDelayed(16L);
         else stopChime();

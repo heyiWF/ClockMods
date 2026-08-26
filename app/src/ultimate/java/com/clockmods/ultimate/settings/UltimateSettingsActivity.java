@@ -65,6 +65,7 @@ import com.clockmods.sdk.clock.ClockStyle;
 import com.clockmods.sdk.clock.ClockStyleCapabilities;
 import com.clockmods.sdk.clock.ClockStyleRegistry;
 import com.clockmods.time.RegionTimeZones;
+import com.clockmods.ui.ClockTimeText;
 import com.clockmods.ui.ColorPickerView;
 import com.clockmods.ui.DateFormatter;
 import com.clockmods.ui.WeatherLocationChooser;
@@ -848,6 +849,11 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         final ClockStyleCapabilities capabilities =
                 selectedStyle.getMetadata().getCapabilities();
         final boolean proClassic = STYLE_PRO_CLASSIC.equals(selectedId);
+        int cardWidth = dp(182);
+        int cardPadding = dp(8);
+        int previewHeight = Math.round((cardWidth - cardPadding * 2) * 9f / 16f);
+        int cardHeight = dp(188) - dp(118) + previewHeight;
+        int galleryHeight = dp(202) - dp(118) + previewHeight;
         int cardSpacing = getResources().getDimensionPixelSize(
                 R.dimen.ultimate_style_gallery_item_spacing);
         for (int styleIndex = 0; styleIndex < styleSpecs.size(); styleIndex++) {
@@ -863,11 +869,11 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     spec.name));
             LinearLayout cardContent = new LinearLayout(this);
             cardContent.setOrientation(LinearLayout.VERTICAL);
-            cardContent.setPadding(dp(8), dp(8), dp(8), dp(8));
+            cardContent.setPadding(cardPadding, cardPadding, cardPadding, cardPadding);
             UltimateThemePreviewView preview = new UltimateThemePreviewView(this, spec.style);
             preview.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
             cardContent.addView(preview, new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, dp(118)));
+                    ViewGroup.LayoutParams.MATCH_PARENT, previewHeight));
             TextView name = label(spec.name, 15, true);
             name.setMaxLines(1);
             name.setEllipsize(android.text.TextUtils.TruncateAt.END);
@@ -888,7 +894,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 showPage(Page.STYLE);
             });
             LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
-                    dp(182), dp(188));
+                    cardWidth, cardHeight);
             if (styleIndex < styleSpecs.size() - 1) {
                 cardParams.setMarginEnd(cardSpacing);
             }
@@ -898,7 +904,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         galleryScroll.addView(gallery, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         body.addView(galleryScroll, topMargin(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(202)), dp(4)));
+                ViewGroup.LayoutParams.MATCH_PARENT, galleryHeight), dp(4)));
         updateStyleCards(selectedId);
 
         if (!proClassic && capabilities.supports(
@@ -1266,6 +1272,18 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                                 showPage(Page.WEATHER);
                             }
                         }));
+
+        addSectionLabel(weatherControls, R.string.ultimate_weather_temperature_section, 22);
+        int temperatureUnitIndex = ClockPreferences.WEATHER_UNIT_FAHRENHEIT.equals(
+                repository.getWeatherTemperatureUnit()) ? 1 : 0;
+        addSegmented(weatherControls, new int[] {
+                        R.string.ultimate_weather_celsius,
+                        R.string.ultimate_weather_fahrenheit}, temperatureUnitIndex, value -> {
+                    repository.setWeatherTemperatureUnit(value == 1
+                            ? ClockPreferences.WEATHER_UNIT_FAHRENHEIT
+                            : ClockPreferences.WEATHER_UNIT_CELSIUS);
+                    markChanged("weather_temperature_unit");
+                });
 
         addSectionLabel(weatherControls, R.string.ultimate_weather_refresh_section, 22);
         int[] weatherMinutes = {10, 30, 60, 180, 360, 720};
@@ -2041,9 +2059,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         return String.format(Locale.ROOT, "#%08X", color);
     }
 
-    private static String formatMinutes(int minutes) {
+    private static CharSequence formatMinutes(int minutes) {
         int normalized = ((minutes % (24 * 60)) + 24 * 60) % (24 * 60);
-        return String.format(Locale.getDefault(), "%02d:%02d", normalized / 60, normalized % 60);
+        return ClockTimeText.align(String.format(Locale.getDefault(), "%02d:%02d",
+                normalized / 60, normalized % 60));
     }
 
     private static int indexOfValue(int[] values, int value) {

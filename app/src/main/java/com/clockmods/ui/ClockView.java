@@ -26,6 +26,7 @@ import com.clockmods.calendar.LunarCalendar;
 import com.clockmods.time.NetworkTimeProvider;
 import com.clockmods.weather.WeatherModels;
 import com.clockmods.weather.WeatherModels.WeatherState;
+import com.clockmods.weather.WeatherTemperatureFormatter;
 
 import java.io.IOException;
 import java.util.Calendar;
@@ -120,6 +121,7 @@ public class ClockView extends View {
     // User-selectable weather icon treatment.
     private boolean weatherIconFill = true;
     private int weatherIconColor = 0xFFFFFFFF;
+    private String weatherTemperatureUnit = ClockPreferences.DEFAULT_WEATHER_TEMPERATURE_UNIT;
     private final Paint weatherIconPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     public ClockView(Context context) {
@@ -161,10 +163,16 @@ public class ClockView extends View {
 
     public void setWeatherState(WeatherState state) {
         weatherState = state;
-        weatherDetailCarousel.setItems(wrapPlain(
-                (state != null && state.data != null && state.data.detail != null)
-                        ? state.data.detail.carouselItems(detailLabels()) : null));
+        refreshWeatherDetailCarousel();
         invalidate();
+    }
+
+    private void refreshWeatherDetailCarousel() {
+        weatherDetailCarousel.setItems(wrapPlain(
+                (weatherState != null && weatherState.data != null
+                        && weatherState.data.detail != null)
+                        ? weatherState.data.detail.carouselItems(detailLabels(),
+                                weatherTemperatureUnit) : null));
     }
 
     /** Wraps a list of plain strings as icon-less carousel items. */
@@ -532,7 +540,9 @@ public class ClockView extends View {
             if (weatherState.data != null) {
                 String leftText = WeatherModels.locationText(
                         weatherState.data.city, weatherState.data.district);
-                String rightText = weatherState.data.text + " " + weatherState.data.temperature + "℃";
+                String rightText = weatherState.data.text + " "
+                        + WeatherTemperatureFormatter.format(weatherState.data.temperature,
+                                weatherTemperatureUnit);
                 WeatherIcon icon = WeatherIcon.load(getContext(), weatherState.data.icon, weatherIconFill);
                 weatherItem = icon != null
                         ? WeatherLineItem.weather(leftText, rightText, icon)
@@ -1135,6 +1145,11 @@ public class ClockView extends View {
         weatherIconColor = backgroundRepository.isWeatherIconDynamicColor()
                 ? ExperienceBridge.resolveAccentColor(getContext(), 0xFFFFFFFF)
                 : 0xFFFFFFFF;
+        String selectedTemperatureUnit = backgroundRepository.getWeatherTemperatureUnit();
+        if (!selectedTemperatureUnit.equals(weatherTemperatureUnit)) {
+            weatherTemperatureUnit = selectedTemperatureUnit;
+            refreshWeatherDetailCarousel();
+        }
         datePatternCn = backgroundRepository.getDatePatternCn();
         datePatternEn = backgroundRepository.getDatePatternEn();
         portraitStacked = backgroundRepository.isPortraitStacked();

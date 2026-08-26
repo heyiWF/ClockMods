@@ -11,16 +11,29 @@ public final class ClockRenderContext {
     private final long frameTimeMillis;
     private final boolean reducedMotion;
     private final ClockBackground background;
+    private final float bottomInset;
 
     public ClockRenderContext(float left, float top, float right, float bottom, float density,
             float scaledDensity, long frameTimeMillis, boolean reducedMotion) {
         this(left, top, right, bottom, density, scaledDensity, frameTimeMillis, reducedMotion,
-                null);
+                null, 0f);
     }
 
     public ClockRenderContext(float left, float top, float right, float bottom, float density,
             float scaledDensity, long frameTimeMillis, boolean reducedMotion,
             ClockBackground background) {
+        this(left, top, right, bottom, density, scaledDensity, frameTimeMillis, reducedMotion,
+                background, 0f);
+    }
+
+    /**
+     * Creates a frame context with a host-owned bottom overlay reservation. The canvas bounds stay
+     * unchanged so backgrounds still cover the full view; renderers can use the inset for metadata
+     * that must remain above an overlaid attribution or control pill.
+     */
+    public ClockRenderContext(float left, float top, float right, float bottom, float density,
+            float scaledDensity, long frameTimeMillis, boolean reducedMotion,
+            ClockBackground background, float bottomInset) {
         if (right < left || bottom < top) {
             throw new IllegalArgumentException("Render bounds must not be inverted");
         }
@@ -33,6 +46,7 @@ public final class ClockRenderContext {
         this.frameTimeMillis = frameTimeMillis;
         this.reducedMotion = reducedMotion;
         this.background = background;
+        this.bottomInset = Math.max(0f, Math.min(bottomInset, bottom - top));
     }
 
     public float getLeft() { return left; }
@@ -48,4 +62,5 @@ public final class ClockRenderContext {
     public long getFrameTimeMillis() { return frameTimeMillis; }
     public boolean isReducedMotion() { return reducedMotion; }
     public ClockBackground getBackground() { return background; }
+    public float getBottomInset() { return bottomInset; }
 }

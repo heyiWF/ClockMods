@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 
 import com.clockmods.ui.DateFormatter;
+import com.clockmods.weather.WeatherTemperatureFormatter;
 
 import java.util.Calendar;
 
@@ -95,6 +96,7 @@ public class ClockPreferences {
     private static final String KEY_WEATHER_LONGITUDE = "weather_longitude";
     private static final String KEY_WEATHER_ICON_FILL = "weather_icon_fill";
     private static final String KEY_WEATHER_ICON_DYNAMIC_COLOR = "weather_icon_dynamic_color";
+    private static final String KEY_WEATHER_TEMPERATURE_UNIT = "weather_temperature_unit";
 
     /** Sentinel value meaning "follow the device's own time zone". */
     public static final String TIME_ZONE_FOLLOW_SYSTEM = "";
@@ -165,6 +167,10 @@ public class ClockPreferences {
     public static final boolean DEFAULT_WEATHER_ICON_FILL = true;
     /** Weather icons default to white; enable to tint them with the Material 3 accent colour. */
     public static final boolean DEFAULT_WEATHER_ICON_DYNAMIC_COLOR = false;
+    /** Weather values are fetched/cached in Celsius and converted only for display. */
+    public static final String WEATHER_UNIT_CELSIUS = WeatherTemperatureFormatter.UNIT_CELSIUS;
+    public static final String WEATHER_UNIT_FAHRENHEIT = WeatherTemperatureFormatter.UNIT_FAHRENHEIT;
+    public static final String DEFAULT_WEATHER_TEMPERATURE_UNIT = WEATHER_UNIT_CELSIUS;
     public static final String WEATHER_LOCATION_AUTOMATIC = "automatic";
     public static final String WEATHER_LOCATION_MANUAL = "manual";
     public static final String DEFAULT_WEATHER_LOCATION_MODE = WEATHER_LOCATION_AUTOMATIC;
@@ -679,6 +685,21 @@ public class ClockPreferences {
         preferences.edit().putBoolean(KEY_WEATHER_ICON_DYNAMIC_COLOR, dynamicColor).apply();
     }
 
+    public String getWeatherTemperatureUnit() {
+        return normalizeWeatherTemperatureUnit(
+                preferences.getString(KEY_WEATHER_TEMPERATURE_UNIT,
+                        DEFAULT_WEATHER_TEMPERATURE_UNIT));
+    }
+
+    public void setWeatherTemperatureUnit(String unit) {
+        preferences.edit().putString(KEY_WEATHER_TEMPERATURE_UNIT,
+                normalizeWeatherTemperatureUnit(unit)).apply();
+    }
+
+    public static String normalizeWeatherTemperatureUnit(String unit) {
+        return WeatherTemperatureFormatter.normalizeUnit(unit);
+    }
+
     public int getWeatherIntervalMinutes() {
         int value = preferences.getInt(KEY_WEATHER_INTERVAL_MINUTES, DEFAULT_WEATHER_INTERVAL_MINUTES);
         return isValidWeatherInterval(value) ? value : DEFAULT_WEATHER_INTERVAL_MINUTES;
@@ -791,6 +812,7 @@ public class ClockPreferences {
                 .putBoolean(KEY_WEATHER_DETAILED, DEFAULT_WEATHER_DETAILED)
                 .putBoolean(KEY_WEATHER_ICON_FILL, DEFAULT_WEATHER_ICON_FILL)
                 .putBoolean(KEY_WEATHER_ICON_DYNAMIC_COLOR, DEFAULT_WEATHER_ICON_DYNAMIC_COLOR)
+                .putString(KEY_WEATHER_TEMPERATURE_UNIT, DEFAULT_WEATHER_TEMPERATURE_UNIT)
                 .putInt(KEY_WEATHER_INTERVAL_MINUTES, DEFAULT_WEATHER_INTERVAL_MINUTES)
                 .putString(KEY_WEATHER_LOCATION_MODE, DEFAULT_WEATHER_LOCATION_MODE)
                 .remove(KEY_WEATHER_LOCATION_ID)
