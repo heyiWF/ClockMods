@@ -136,15 +136,13 @@ public class ColorPickerView extends View {
     public void onInitializeAccessibilityNodeInfo(AccessibilityNodeInfo info) {
         super.onInitializeAccessibilityNodeInfo(info);
         info.setClassName(android.widget.SeekBar.class.getName());
-        if (Build.VERSION.SDK_INT >= 19) {
-            info.setRangeInfo(AccessibilityNodeInfo.RangeInfo.obtain(
+        // The obtain()/int-action forms are both retired: RangeInfo has a public constructor now,
+        // and actions are passed as AccessibilityAction objects.
+        info.setRangeInfo(new AccessibilityNodeInfo.RangeInfo(
                 AccessibilityNodeInfo.RangeInfo.RANGE_TYPE_FLOAT, 0f, 360f, hsv[0]));
-        }
-        info.addAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD);
-        info.addAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD);
-        if (Build.VERSION.SDK_INT >= 24) {
-            info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS);
-        }
+        info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_BACKWARD);
+        info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SCROLL_FORWARD);
+        info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS);
     }
 
     @Override

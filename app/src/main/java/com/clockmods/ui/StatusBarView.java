@@ -7,12 +7,14 @@ import android.content.IntentFilter;
 import android.graphics.Canvas;
 import android.graphics.Paint;
 import android.net.ConnectivityManager;
-import android.net.NetworkInfo;
+import android.net.Network;
+import android.net.NetworkCapabilities;
+import android.net.TransportInfo;
+import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.BatteryManager;
-import android.os.Build;
-import android.telephony.PhoneStateListener;
 import android.telephony.SignalStrength;
+import android.telephony.TelephonyCallback;
 import android.telephony.TelephonyManager;
 import android.util.AttributeSet;
 import android.view.View;
@@ -46,20 +48,46 @@ public class StatusBarView extends View {
     private int signalStrength;
     private int mobileSignalStrength;
     private boolean contentAlignedStart;
+    private int tintOverride;
 
     private boolean receiverRegistered;
+    private boolean networkCallbackRegistered;
     private TelephonyManager telephonyManager;
+    private ConnectivityManager connectivityManager;
 
-    private final PhoneStateListener phoneStateListener = new PhoneStateListener() {
+    /**
+     * The platform retired {@code PhoneStateListener} at API 31 — the level this app already
+     * requires — in favour of a callback bound to an executor. Registering on the main executor
+     * means the view state this touches is still only written from the main thread.
+     */
+    private final TelephonyCallback telephonyCallback = new SignalStrengthCallback();
+
+    private final class SignalStrengthCallback extends TelephonyCallback
+            implements TelephonyCallback.SignalStrengthsListener {
         @Override
         public void onSignalStrengthsChanged(SignalStrength strength) {
-            super.onSignalStrengthsChanged(strength);
             mobileSignalStrength = mobileSignalLevel(strength);
             if (networkState == NetworkState.MOBILE) {
                 signalStrength = mobileSignalStrength;
                 updateAccessibilityDescription();
                 invalidate();
             }
+        }
+    }
+
+    /**
+     * Replaces the {@code CONNECTIVITY_ACTION} broadcast, which has been deprecated since API 28.
+     * These arrive on a binder thread, so the refresh is posted rather than run in place.
+     */
+    private final ConnectivityManager.NetworkCallback networkCallback =
+            new ConnectivityManager.NetworkCallback() {
+        @Override public void onAvailable(Network network) { postRefreshNetworkState(); }
+
+        @Override public void onLost(Network network) { postRefreshNetworkState(); }
+
+        @Override public void onCapabilitiesChanged(Network network,
+                NetworkCapabilities capabilities) {
+            postRefreshNetworkState();
         }
     };
 
@@ -106,9 +134,19 @@ public class StatusBarView extends View {
         invalidate();
     }
 
+    /**
+     * Forces the icon and battery-text colour. Pass {@code 0} to go back to following the user's
+     * clock colour, which is what hosts that sit on the user's own background want.
+     */
+    public void setTintOverride(int color) {
+        tintOverride = color;
+        invalidate();
+    }
+
     public void start() {
         registerReceivers();
-        registerPhoneStateListener();
+        registerNetworkCallback();
+        registerTelephonyCallback();
         refreshNetworkState();
         // Registering picks up the sticky battery intent, which can be the first real level this
         // view sees; the percentage text is part of the measured width so re-measure with it.
@@ -118,7 +156,8 @@ public class StatusBarView extends View {
 
     public void stop() {
         unregisterReceivers();
-        unregisterPhoneStateListener();
+        unregisterNetworkCallback();
+        unregisterTelephonyCallback();
     }
 
     private void registerReceivers() {
@@ -131,9 +170,10 @@ public class StatusBarView extends View {
         if (sticky != null) {
             updateBatteryFromIntent(sticky);
         }
-        IntentFilter networkFilter = new IntentFilter(ConnectivityManager.CONNECTIVITY_ACTION);
-        networkFilter.addAction(WifiManager.RSSI_CHANGED_ACTION);
-        context.registerReceiver(connectivityReceiver, networkFilter);
+        // Connectivity itself comes from the network callback now; this broadcast is kept only
+        // because RSSI changes on an already-connected wifi network do not raise one.
+        context.registerReceiver(connectivityReceiver,
+                new IntentFilter(WifiManager.RSSI_CHANGED_ACTION));
         receiverRegistered = true;
     }
 
@@ -151,22 +191,51 @@ public class StatusBarView extends View {
         receiverRegistered = false;
     }
 
-    @SuppressWarnings("deprecation")
-    private void registerPhoneStateListener() {
+    private void registerTelephonyCallback() {
         telephonyManager = (TelephonyManager) getContext().getSystemService(Context.TELEPHONY_SERVICE);
         if (telephonyManager == null) return;
         try {
-            telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_SIGNAL_STRENGTHS);
+            telephonyManager.registerTelephonyCallback(
+                    getContext().getMainExecutor(), telephonyCallback);
         } catch (SecurityException ignored) {
             telephonyManager = null;
         }
     }
 
-    @SuppressWarnings("deprecation")
-    private void unregisterPhoneStateListener() {
+    private void unregisterTelephonyCallback() {
         if (telephonyManager == null) return;
-        telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE);
+        telephonyManager.unregisterTelephonyCallback(telephonyCallback);
         telephonyManager = null;
+    }
+
+    private void registerNetworkCallback() {
+        if (networkCallbackRegistered) return;
+        connectivityManager = (ConnectivityManager)
+                getContext().getSystemService(Context.CONNECTIVITY_SERVICE);
+        if (connectivityManager == null) return;
+        try {
+            connectivityManager.registerDefaultNetworkCallback(networkCallback);
+            networkCallbackRegistered = true;
+        } catch (RuntimeException ignored) {
+            // A restricted profile can refuse it; the synchronous read below still works.
+        }
+    }
+
+    private void unregisterNetworkCallback() {
+        if (!networkCallbackRegistered || connectivityManager == null) return;
+        try {
+            connectivityManager.unregisterNetworkCallback(networkCallback);
+        } catch (IllegalArgumentException ignored) {
+            // Already unregistered.
+        }
+        networkCallbackRegistered = false;
+    }
+
+    private void postRefreshNetworkState() {
+        post(() -> {
+            refreshNetworkState();
+            invalidate();
+        });
     }
 
     private void updateBatteryFromIntent(Intent intent) {
@@ -183,27 +252,24 @@ public class StatusBarView extends View {
 
     private void refreshNetworkState() {
         Context context = getContext();
-        ConnectivityManager cm =
-                (ConnectivityManager) context.getSystemService(Context.CONNECTIVITY_SERVICE);
-        if (cm == null) {
-            networkState = NetworkState.NONE;
-            updateAccessibilityDescription();
-            return;
+        if (connectivityManager == null) {
+            connectivityManager = (ConnectivityManager)
+                    context.getSystemService(Context.CONNECTIVITY_SERVICE);
         }
-        NetworkInfo active = cm.getActiveNetworkInfo();
-        if (active == null || !active.isConnected()) {
+        // NetworkInfo and the TYPE_* constants were replaced by transports on capabilities; an
+        // absent active network is the modern spelling of "not connected".
+        NetworkCapabilities capabilities = connectivityManager == null ? null
+                : connectivityManager.getNetworkCapabilities(
+                        connectivityManager.getActiveNetwork());
+        if (capabilities == null) {
             networkState = NetworkState.NONE;
-            updateAccessibilityDescription();
-            return;
-        }
-        int type = active.getType();
-        if (type == ConnectivityManager.TYPE_WIFI) {
+        } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI)) {
             networkState = NetworkState.WIFI;
-            signalStrength = wifiSignalLevel(context);
-        } else if (type == ConnectivityManager.TYPE_MOBILE) {
+            signalStrength = wifiSignalLevel(context, capabilities);
+        } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR)) {
             networkState = NetworkState.MOBILE;
             signalStrength = mobileSignalStrength;
-        } else if (type == ConnectivityManager.TYPE_ETHERNET) {
+        } else if (capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET)) {
             networkState = NetworkState.ETHERNET;
         } else {
             networkState = NetworkState.NONE;
@@ -230,21 +296,24 @@ public class StatusBarView extends View {
                 R.string.status_network_and_battery, network, battery));
     }
 
-    private int wifiSignalLevel(Context context) {
+    /**
+     * {@code WifiManager.getConnectionInfo()} was retired at API 31 in favour of reading the
+     * {@link WifiInfo} off the network's own capabilities — which is also the only form that stays
+     * correct when more than one network is up.
+     */
+    private int wifiSignalLevel(Context context, NetworkCapabilities capabilities) {
         WifiManager wifiManager =
                 (WifiManager) context.getApplicationContext().getSystemService(Context.WIFI_SERVICE);
-        if (wifiManager == null || wifiManager.getConnectionInfo() == null) {
+        TransportInfo transportInfo = capabilities == null ? null : capabilities.getTransportInfo();
+        if (wifiManager == null || !(transportInfo instanceof WifiInfo)) {
             return 0;
         }
-        int rssi = wifiManager.getConnectionInfo().getRssi();
+        int rssi = ((WifiInfo) transportInfo).getRssi();
         if (rssi == INVALID_RSSI) {
             return 0;
         }
-        if (Build.VERSION.SDK_INT >= 30) {
-            return normalizeSignalLevel(
-                    wifiManager.calculateSignalLevel(rssi), wifiManager.getMaxSignalLevel());
-        }
-        return WifiManager.calculateSignalLevel(rssi, 5); // 0..4
+        return normalizeSignalLevel(
+                wifiManager.calculateSignalLevel(rssi), wifiManager.getMaxSignalLevel());
     }
 
     static int normalizeSignalLevel(int level, int maxLevel) {
@@ -253,29 +322,15 @@ public class StatusBarView extends View {
         return Math.round(clamped * 4f / maxLevel);
     }
 
-    @SuppressWarnings("deprecation")
     static int mobileSignalLevel(SignalStrength strength) {
         if (strength == null) return 0;
-        if (Build.VERSION.SDK_INT >= 23) {
-            return Math.max(0, Math.min(4, strength.getLevel()));
-        }
-        if (strength.isGsm()) {
-            int asu = strength.getGsmSignalStrength();
-            if (asu == 99 || asu <= 2) return 0;
-            if (asu >= 20) return 4;
-            if (asu >= 13) return 3;
-            if (asu >= 8) return 2;
-            return 1;
-        }
-        int dbm = strength.getCdmaDbm();
-        if (dbm >= -75) return 4;
-        if (dbm >= -85) return 3;
-        if (dbm >= -95) return 2;
-        if (dbm >= -100) return 1;
-        return 0;
+        return Math.max(0, Math.min(4, strength.getLevel()));
     }
 
     private int resolveTint() {
+        if (tintOverride != 0) {
+            return tintOverride;
+        }
         if (backgroundRepository != null) {
             return backgroundRepository.getTimeColor();
         }

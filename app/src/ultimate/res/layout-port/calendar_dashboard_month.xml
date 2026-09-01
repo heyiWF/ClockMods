@@ -9,6 +9,7 @@
     android:padding="5dp">
 
     <LinearLayout
+        android:id="@+id/calendar_month_toolbar"
         android:layout_width="match_parent"
         android:layout_height="44dp"
         android:gravity="center_vertical"

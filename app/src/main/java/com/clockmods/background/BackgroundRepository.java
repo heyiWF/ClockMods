@@ -5,6 +5,7 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 
+import androidx.core.content.ContextCompat;
 import androidx.exifinterface.media.ExifInterface;
 
 import com.clockmods.R;
@@ -30,7 +31,8 @@ public class BackgroundRepository {
     }
 
     public int getCurrentColor() {
-        return preferences.getBackgroundColor(appContext.getResources().getColor(R.color.clock_default_background));
+        return preferences.getBackgroundColor(
+                ContextCompat.getColor(appContext, R.color.clock_default_background));
     }
 
     public String getBackgroundMode() {
@@ -209,6 +211,14 @@ public class BackgroundRepository {
 
     public void setCalendarHighlightWeekends(boolean highlightWeekends) {
         preferences.setCalendarHighlightWeekends(highlightWeekends);
+    }
+
+    public String getCalendarTheme() {
+        return preferences.getCalendarTheme();
+    }
+
+    public void setCalendarTheme(String themeId) {
+        preferences.setCalendarTheme(themeId);
     }
 
     public boolean isSmallSeconds() {

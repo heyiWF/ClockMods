@@ -21,7 +21,22 @@ public class CalendarDashboardSizingTest {
         assertEquals(50f, CalendarDashboardSizing.clockTimeSize(200f, 1000f, true, 1f), 0f);
         assertEquals(52f, CalendarDashboardSizing.clockTimeSize(1000f, 100f, true, 1f), 0f);
         assertEquals(18f, CalendarDashboardSizing.monthLunarSize(90f, 500f, 1f), 0f);
-        assertEquals(9f, CalendarDashboardSizing.monthLunarSize(500f, 50f, 1f), 0f);
+        // Height-bound: 50 * 0.20. The lunar label rides the cell height, so this is the
+        // number that moves when the label is made more legible.
+        assertEquals(10f, CalendarDashboardSizing.monthLunarSize(500f, 50f, 1f), 0f);
+    }
+
+    @Test
+    public void agendaStripLabelsRideTheCellHeightUntilTheCap() {
+        // Height-bound: a short cell hands the label 0.22 of its height.
+        assertEquals(11f, CalendarDashboardSizing.agendaStripLunarSize(400f, 50f, 1f), 0f);
+        // Width-bound only when a cell is far narrower than it is tall.
+        assertEquals(12f, CalendarDashboardSizing.agendaStripLunarSize(40f, 400f, 1f), 0f);
+        // The 17dp cap is what stops a tall cell from turning the label into a heading — which
+        // is where both real orientations land, so it is the cap the user actually sees.
+        assertEquals(17f, CalendarDashboardSizing.agendaStripLunarSize(400f, 100f, 1f), 0f);
+        assertEquals(25.5f,
+                CalendarDashboardSizing.agendaStripLunarSize(1000f, 1000f, 1.5f), 0f);
     }
 
     @Test

@@ -1,0 +1,89 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The poster style, landscape. The same two blocks, turned: the masthead becomes a left column with
+  the year sitting under the month word, and the hairline turns vertical. A real fork rather than a
+  weight tweak, because the portrait masthead is a wide banner and this one is a tall column.
+-->
+<com.clockmods.pro.MonthGestureLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/calendar_month_panel"
+    android:layout_width="match_parent"
+    android:layout_height="match_parent"
+    android:orientation="horizontal"
+    android:paddingStart="30dp"
+    android:paddingTop="18dp"
+    android:paddingEnd="30dp"
+    android:paddingBottom="16dp">
+
+    <FrameLayout
+        android:id="@+id/calendar_poster_masthead"
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="36">
+
+        <com.clockmods.pro.CalendarWordmarkView
+            android:id="@+id/calendar_poster_wordmark"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:focusable="true"
+            android:paddingEnd="18dp" />
+
+        <TextView
+            android:id="@+id/calendar_poster_today"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_gravity="bottom|start"
+            android:background="?attr/selectableItemBackgroundBorderless"
+            android:gravity="center"
+            android:letterSpacing="0.16"
+            android:minWidth="52dp"
+            android:minHeight="40dp"
+            android:paddingStart="10dp"
+            android:paddingEnd="10dp"
+            android:text="@string/calendar_today"
+            android:textSize="11sp" />
+    </FrameLayout>
+
+    <View
+        android:id="@+id/calendar_poster_rule"
+        android:layout_width="1dp"
+        android:layout_height="match_parent"
+        android:layout_marginEnd="20dp" />
+
+    <LinearLayout
+        android:layout_width="0dp"
+        android:layout_height="match_parent"
+        android:layout_weight="64"
+        android:orientation="vertical">
+
+        <GridLayout
+            android:id="@+id/calendar_weekdays"
+            android:layout_width="match_parent"
+            android:layout_height="20dp"
+            android:columnCount="7"
+            android:rowCount="1" />
+
+        <FrameLayout
+            android:id="@+id/calendar_grid_viewport"
+            android:layout_width="match_parent"
+            android:layout_height="0dp"
+            android:layout_weight="1"
+            android:clipChildren="true">
+
+            <GridLayout
+                android:id="@+id/calendar_grid_preview"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:columnCount="7"
+                android:importantForAccessibility="noHideDescendants"
+                android:rowCount="6"
+                android:visibility="invisible" />
+
+            <GridLayout
+                android:id="@+id/calendar_grid"
+                android:layout_width="match_parent"
+                android:layout_height="match_parent"
+                android:columnCount="7"
+                android:rowCount="6" />
+        </FrameLayout>
+    </LinearLayout>
+</com.clockmods.pro.MonthGestureLayout>

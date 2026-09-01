@@ -7,6 +7,7 @@
     android:padding="@dimen/calendar_dashboard_gutter">
 
     <FrameLayout
+        android:id="@+id/calendar_left_pane"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_weight="0.46">
@@ -14,6 +15,7 @@
     </FrameLayout>
 
     <FrameLayout
+        android:id="@+id/calendar_month_pane"
         android:layout_width="match_parent"
         android:layout_height="0dp"
         android:layout_marginTop="@dimen/calendar_dashboard_gutter"

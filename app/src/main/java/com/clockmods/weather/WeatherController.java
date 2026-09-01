@@ -107,7 +107,6 @@ public final class WeatherController {
             @Override public void onLocationChanged(Location location) {
                 removeLocationListener(); fetch(location, requestGeneration);
             }
-            @Override public void onStatusChanged(String provider, int status, Bundle extras) { }
             @Override public void onProviderEnabled(String provider) { }
             @Override public void onProviderDisabled(String provider) { }
         };

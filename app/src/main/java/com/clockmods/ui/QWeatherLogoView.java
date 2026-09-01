@@ -18,6 +18,12 @@ public final class QWeatherLogoView extends View {
         paint.setStyle(Paint.Style.FILL);
     }
 
+    /** Lets light-background hosts keep the mark legible; alpha is part of the value. */
+    public void setLogoColor(int color) {
+        paint.setColor(color);
+        invalidate();
+    }
+
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);

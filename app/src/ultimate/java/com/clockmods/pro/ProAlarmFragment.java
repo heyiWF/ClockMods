@@ -1,6 +1,5 @@
 package com.clockmods.pro;
 
-import android.app.TimePickerDialog;
 import android.os.Bundle;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -17,6 +16,8 @@ import com.clockmods.ui.ClockTimeText;
 import com.clockmods.pro.alarm.AlarmScheduler;
 import com.clockmods.pro.alarm.AlarmStore;
 import com.google.android.material.materialswitch.MaterialSwitch;
+import com.google.android.material.timepicker.MaterialTimePicker;
+import com.google.android.material.timepicker.TimeFormat;
 
 import java.text.DateFormat;
 import java.util.Date;
@@ -44,18 +45,24 @@ public final class ProAlarmFragment extends Fragment {
             render();
         });
         root.findViewById(R.id.alarm_edit).setOnClickListener(view -> {
-            TimePickerDialog dialog = new TimePickerDialog(requireContext(),
-                (picker, hour, minute) -> {
-                    store.save(hour, minute, true);
-                    enabled.setChecked(true);
-                    AlarmScheduler.schedule(requireContext(), hour, minute);
-                    render();
-                }, store.hour(), store.minute(), true);
-            dialog.setOnShowListener(ignored -> {
-                ProFontApplier.apply(dialog.getWindow().getDecorView());
-                ButtonTextSizer.applyToTree(dialog.getWindow().getDecorView());
+            // MaterialTimePicker over the platform TimePickerDialog: it is a DialogFragment, so it
+            // survives a rotation, and it follows the app's own 24-hour preference rather than the
+            // system's.
+            boolean use24Hour = new com.clockmods.background.ClockPreferences(requireContext())
+                    .isUse24Hour();
+            MaterialTimePicker picker = new MaterialTimePicker.Builder()
+                .setTimeFormat(use24Hour ? TimeFormat.CLOCK_24H : TimeFormat.CLOCK_12H)
+                .setHour(store.hour())
+                .setMinute(store.minute())
+                .setTitleText(R.string.alarm_choose_time)
+                .build();
+            picker.addOnPositiveButtonClickListener(ignored -> {
+                store.save(picker.getHour(), picker.getMinute(), true);
+                enabled.setChecked(true);
+                AlarmScheduler.schedule(requireContext(), picker.getHour(), picker.getMinute());
+                render();
             });
-            dialog.show();
+            picker.show(getParentFragmentManager(), "alarm-time");
         });
         ProFontApplier.apply(root);
         ButtonTextSizer.applyToTree(root);

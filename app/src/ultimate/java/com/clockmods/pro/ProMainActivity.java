@@ -18,6 +18,7 @@ import android.view.WindowManager;
 
 import androidx.annotation.NonNull;
 import androidx.appcompat.app.AppCompatActivity;
+import androidx.core.view.WindowCompat;
 import androidx.viewpager2.widget.ViewPager2;
 
 import com.clockmods.R;
@@ -207,7 +208,7 @@ public abstract class ProMainActivity extends AppCompatActivity {
         boolean immersive = isImmersivePage();
         navigation.setVisibility(immersive ? View.GONE : View.VISIBLE);
         applyPagerNavigationSpace(immersive);
-        getWindow().setDecorFitsSystemWindows(!immersive);
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), !immersive);
         if (immersive) hideSystemBars();
         else showSystemBars();
     }
@@ -233,7 +234,9 @@ public abstract class ProMainActivity extends AppCompatActivity {
     }
 
     private void enableEdgeToEdge() {
-        getWindow().setDecorFitsSystemWindows(false);
+        // WindowCompat, not Window: the platform setter is deprecated, and the compat one also
+        // keeps the inset behaviour identical across the versions this app still runs on.
+        WindowCompat.setDecorFitsSystemWindows(getWindow(), false);
     }
 
     private void applyScreenOrientation() {

@@ -1,0 +1,138 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The 周程 detail card, shared by both orientations: portrait stacks it under the strip, landscape
+  puts it beside the rail. Every optional line collapses to GONE rather than holding empty space —
+  a day with no festival, no forecast and no 宜忌 should read as a quiet day, not a broken card.
+  The host supplies layout_width/height/weight at each include site.
+
+  Vertical rhythm: 14dp between blocks, 6dp inside a pair (宜 with 忌). Every block carries its own
+  top margin rather than relying on the one above it, because a GONE view takes its margin with it —
+  a card with no weather must still open the same distance under the date line as one with weather.
+-->
+<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
+    android:id="@+id/calendar_agenda_card"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content"
+    android:orientation="vertical"
+    android:padding="18dp">
+
+    <LinearLayout
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <TextView
+            android:id="@+id/calendar_agenda_date"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_weight="1"
+            android:includeFontPadding="false"
+            android:maxLines="2"
+            android:textSize="22sp" />
+
+        <TextView
+            android:id="@+id/calendar_agenda_chip"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="10dp"
+            android:includeFontPadding="false"
+            android:paddingStart="9dp"
+            android:paddingTop="3dp"
+            android:paddingEnd="9dp"
+            android:paddingBottom="3dp"
+            android:maxLines="1"
+            android:textSize="11sp"
+            android:visibility="gone" />
+    </LinearLayout>
+
+    <TextView
+        android:id="@+id/calendar_agenda_festivals"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="10dp"
+        android:ellipsize="end"
+        android:includeFontPadding="false"
+        android:maxLines="2"
+        android:textSize="13sp"
+        android:visibility="gone" />
+
+    <View
+        android:id="@+id/calendar_agenda_divider"
+        android:layout_width="match_parent"
+        android:layout_height="1dp"
+        android:layout_marginTop="14dp"
+        android:layout_marginBottom="14dp" />
+
+    <LinearLayout
+        android:id="@+id/calendar_agenda_weather"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:baselineAligned="false"
+        android:gravity="center_vertical"
+        android:orientation="horizontal">
+
+        <com.google.android.material.loadingindicator.LoadingIndicator
+            android:id="@+id/calendar_agenda_weather_loading"
+            android:layout_width="40dp"
+            android:layout_height="40dp"
+            android:visibility="gone" />
+
+        <com.clockmods.ui.WeatherIconView
+            android:id="@+id/calendar_agenda_weather_icon"
+            android:layout_width="40dp"
+            android:layout_height="40dp" />
+
+        <TextView
+            android:id="@+id/calendar_agenda_weather_now"
+            android:layout_width="wrap_content"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:includeFontPadding="false"
+            android:maxLines="1"
+            android:textSize="22sp" />
+
+        <TextView
+            android:id="@+id/calendar_agenda_weather_text"
+            android:layout_width="0dp"
+            android:layout_height="wrap_content"
+            android:layout_marginStart="12dp"
+            android:layout_weight="1"
+            android:includeFontPadding="false"
+            android:maxLines="2"
+            android:textSize="13sp" />
+    </LinearLayout>
+
+    <Space
+        android:id="@+id/calendar_agenda_stretch"
+        android:layout_width="match_parent"
+        android:layout_height="24dp" />
+
+    <!-- One line each, never two: 宜/忌 lead as a bold pinned glyph and the items scroll under
+         the clip beside it (AlmanacLineView), so a long day cannot push the card taller. -->
+    <com.clockmods.ui.AlmanacLineView
+        android:id="@+id/calendar_agenda_suitable"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="14dp" />
+
+    <com.clockmods.ui.AlmanacLineView
+        android:id="@+id/calendar_agenda_avoid"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:layout_marginTop="6dp" />
+
+    <com.clockmods.pro.schedule.AgendaScheduleView
+        android:id="@+id/calendar_agenda_schedule"
+        android:layout_width="match_parent"
+        android:layout_height="0dp"
+        android:layout_weight="1"
+        android:visibility="gone" />
+
+    <include
+        layout="@layout/calendar_weather_attribution"
+        android:layout_width="match_parent"
+        android:layout_height="18dp"
+        android:layout_marginTop="14dp" />
+</LinearLayout>

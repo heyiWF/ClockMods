@@ -1,7 +1,6 @@
 package com.clockmods.ultimate.settings;
 
 import android.annotation.SuppressLint;
-import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
@@ -9,7 +8,9 @@ import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Canvas;
 import android.graphics.Color;
+import android.graphics.Paint;
 import android.graphics.Rect;
+import android.graphics.RectF;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.graphics.drawable.RippleDrawable;
@@ -31,16 +32,22 @@ import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
-import android.widget.EditText;
 import android.widget.LinearLayout;
 import android.widget.SeekBar;
 import android.widget.TextView;
 import android.widget.Toast;
 
+import androidx.activity.EdgeToEdge;
+import androidx.activity.result.ActivityResult;
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import androidx.appcompat.app.AppCompatActivity;
 import androidx.appcompat.app.AlertDialog;
 import androidx.annotation.OptIn;
 import androidx.coordinatorlayout.widget.CoordinatorLayout;
+import androidx.core.view.AccessibilityDelegateCompat;
+import androidx.core.view.ViewCompat;
+import androidx.core.view.accessibility.AccessibilityNodeInfoCompat;
 import androidx.core.widget.NestedScrollView;
 import androidx.core.util.Consumer;
 import androidx.window.WindowSdkExtensions;
@@ -59,6 +66,11 @@ import com.clockmods.background.BackgroundRepository;
 import com.clockmods.background.AutoStartManager;
 import com.clockmods.background.ClockPreferences;
 import com.clockmods.background.FontCatalog;
+import com.clockmods.pro.CalendarTheme;
+import com.clockmods.pro.style.CalendarPreviewPainter;
+import com.clockmods.pro.style.CalendarStyle;
+import com.clockmods.pro.style.CalendarStyleMetadata;
+import com.clockmods.pro.style.UltimateCalendarStyles;
 import com.clockmods.sdk.clock.ClockRenderContext;
 import com.clockmods.sdk.clock.ClockState;
 import com.clockmods.sdk.clock.ClockStyle;
@@ -82,6 +94,10 @@ import com.google.android.material.color.DynamicColors;
 import com.google.android.material.color.MaterialColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.materialswitch.MaterialSwitch;
+import com.google.android.material.textfield.TextInputEditText;
+import com.google.android.material.textfield.TextInputLayout;
+import com.google.android.material.timepicker.MaterialTimePicker;
+import com.google.android.material.timepicker.TimeFormat;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -146,12 +162,27 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             "com.clockmods.ultimate.settings.extra.PAGE_ID";
     private static final String EXTRA_EXPECT_EMBEDDED =
             "com.clockmods.ultimate.settings.extra.EXPECT_EMBEDDED";
-    private static final int REQUEST_BACKGROUND_IMAGE = 4801;
-    private static final int REQUEST_SUBPAGE = 4802;
+    /**
+     * startActivityForResult and onActivityResult are both retired; each flow gets a launcher
+     * registered before the activity is STARTED, which is why these are field initialisers.
+     */
+    private final ActivityResultLauncher<Intent> subpageLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), this::onSubpageClosed);
+
+    private final ActivityResultLauncher<Intent> imagePickerLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), result -> {
+                Intent data = result.getData();
+                if (result.getResultCode() != RESULT_OK || data == null
+                        || data.getData() == null) {
+                    return;
+                }
+                importBackground(data.getData());
+            });
 
     private enum Page {
         HOME("home"),
         STYLE("style"),
+        CALENDAR_STYLE("calendar_style"),
         BACKGROUND("background"),
         TIME_DATE("time_date"),
         WEATHER("weather"),
@@ -213,6 +244,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     private SharedPreferences settingsChangePreferences;
     private final List<MaterialCardView> styleCards = new ArrayList<>();
     private final List<StyleSpec> styleSpecs = new ArrayList<>();
+    private final List<MaterialCardView> calendarThemeCards = new ArrayList<>();
     private final EnumMap<Page, NavigationItem> navigationItems = new EnumMap<>(Page.class);
     private boolean expectedEmbedded;
     private boolean embeddingStateResolved;
@@ -364,15 +396,12 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     private void configureEdgeToEdge() {
         Window window = getWindow();
         View decorView = window.getDecorView();
-        if (android.os.Build.VERSION.SDK_INT >= 30) {
-            window.setDecorFitsSystemWindows(false);
-        }
-        window.setStatusBarColor(Color.TRANSPARENT);
-        window.setNavigationBarColor(Color.TRANSPARENT);
-        if (android.os.Build.VERSION.SDK_INT >= 29) {
-            window.setNavigationBarContrastEnforced(false);
-        }
-        if (android.os.Build.VERSION.SDK_INT >= 30) {
+        // One call replaces setDecorFitsSystemWindows plus the two bar-colour setters, all of
+        // which the platform has retired: from API 35 the bars are transparent regardless and the
+        // setters do nothing, while EdgeToEdge still makes older releases match.
+        EdgeToEdge.enable(this);
+        window.setNavigationBarContrastEnforced(false);
+        {
             int surface = surfaceColor();
             boolean lightBars = luminance(surface) > 0.55f;
             WindowInsetsController controller = decorView.getWindowInsetsController();
@@ -587,6 +616,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         int previousScrollY = replacingSamePage && currentScrollView != null
                 ? currentScrollView.getScrollY() : 0;
         styleCards.clear();
+        calendarThemeCards.clear();
         hideMainSwitch();
         View incoming;
         int titleRes;
@@ -594,6 +624,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             case STYLE:
                 titleRes = R.string.ultimate_style_title;
                 incoming = stylePage();
+                break;
+            case CALENDAR_STYLE:
+                titleRes = R.string.ultimate_calendar_style_title;
+                incoming = calendarStylePage();
                 break;
             case BACKGROUND:
                 titleRes = R.string.ultimate_background_title;
@@ -654,6 +688,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         addCategory(appearanceGroup, Page.STYLE, R.string.ultimate_category_clock_style,
                 R.string.ultimate_category_clock_style_summary, R.drawable.ultimate_ic_palette,
                 () -> openPage(Page.STYLE));
+        addCategory(appearanceGroup, Page.CALENDAR_STYLE,
+                R.string.ultimate_category_calendar_style,
+                R.string.ultimate_category_calendar_style_summary, R.drawable.ic_calendar_month,
+                () -> openPage(Page.CALENDAR_STYLE));
         addCategory(appearanceGroup, Page.BACKGROUND, R.string.ultimate_category_background,
                 R.string.ultimate_category_background_summary, R.drawable.ultimate_ic_wallpaper,
                 () -> openPage(Page.BACKGROUND));
@@ -686,8 +724,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         if (embedded && page == selectedSubPage) return;
         selectedSubPage = page;
         updateNavigationSelection(embedded ? selectedSubPage : null);
-        Intent intent = createSubpageIntent(this, page.id, embedded);
-        startActivityForResult(intent, REQUEST_SUBPAGE);
+        subpageLauncher.launch(createSubpageIntent(this, page.id, embedded));
     }
 
     private boolean isActivityEmbedded() {
@@ -889,8 +926,6 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 ultimatePreferences.setStyleId(spec.id);
                 updateStyleCards(spec.id);
                 markChanged("style_id");
-                view.announceForAccessibility(getString(R.string.ultimate_style_selected,
-                        spec.name));
                 showPage(Page.STYLE);
             });
             LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
@@ -1326,6 +1361,15 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         return scrollable(body);
     }
 
+    /** The month themes, in the appearance block next to the clock styles. */
+    private View calendarStylePage() {
+        LinearLayout body = pageBody(0);
+        addSectionLabel(body, R.string.ultimate_calendar_style_section);
+        addCalendarThemes(body);
+        return scrollable(body);
+    }
+
+    /** What the calendar does, not how it looks; the themes moved to {@link #calendarStylePage()}. */
     private View calendarPage() {
         LinearLayout body = pageBody(0);
         addSectionLabel(body, R.string.ultimate_calendar_week_section);
@@ -1345,6 +1389,78 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     markChanged("calendar_highlight_weekends");
                 });
         return scrollable(body);
+    }
+
+    /**
+     * Vertical list rather than the horizontal style gallery: the preset summaries are full
+     * sentences, and a month thumbnail reads better upright than in a 16:9 slot.
+     */
+    private void addCalendarThemes(LinearLayout body) {
+        List<CalendarStyle> styles = UltimateCalendarStyles.sharedRegistry().getStyles();
+        String selectedId = UltimateCalendarStyles.sharedRegistry()
+                .resolve(repository.getCalendarTheme()).getMetadata().getId();
+        int previewWidth = dp(64);
+        int previewHeight = dp(78);
+        for (int index = 0; index < styles.size(); index++) {
+            CalendarStyle style = styles.get(index);
+            CalendarStyleMetadata metadata = style.getMetadata();
+            String styleId = metadata.getId();
+            String name = getString(metadata.getNameRes());
+            MaterialCardView card = new MaterialCardView(this);
+            card.setRadius(dp(8));
+            card.setCardElevation(0f);
+            card.setUseCompatPadding(false);
+            card.setCheckable(true);
+            card.setClickable(true);
+            card.setFocusable(true);
+            card.setContentDescription(getString(R.string.ultimate_style_choose, name));
+            // The id travels on the card so selection never has to trust list positions.
+            card.setTag(styleId);
+            LinearLayout row = new LinearLayout(this);
+            row.setOrientation(LinearLayout.HORIZONTAL);
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setPadding(dp(10), dp(10), dp(14), dp(10));
+            CalendarThemePreviewView preview = new CalendarThemePreviewView(this, style);
+            preview.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+            row.addView(preview, new LinearLayout.LayoutParams(previewWidth, previewHeight));
+            LinearLayout text = new LinearLayout(this);
+            text.setOrientation(LinearLayout.VERTICAL);
+            text.addView(label(name, 15, true), wrapParams());
+            TextView summary = label(getString(metadata.getSummaryRes()), 12, false);
+            summary.setTextColor(onSurfaceVariantColor());
+            text.addView(summary, topMargin(wrapParams(), dp(3)));
+            LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            textParams.setMarginStart(dp(14));
+            row.addView(text, textParams);
+            card.addView(row, new ViewGroup.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+            card.setOnClickListener(view -> {
+                repository.setCalendarTheme(styleId);
+                updateCalendarThemeCards(styleId);
+                markChanged("calendar_theme");
+            });
+            LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
+                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+            cardParams.topMargin = dp(index == 0 ? 4 : 8);
+            body.addView(card, cardParams);
+            calendarThemeCards.add(card);
+        }
+        updateCalendarThemeCards(selectedId);
+    }
+
+    private void updateCalendarThemeCards(String selectedId) {
+        for (int i = 0; i < calendarThemeCards.size(); i++) {
+            MaterialCardView card = calendarThemeCards.get(i);
+            boolean selected = String.valueOf(card.getTag()).equals(selectedId);
+            card.setChecked(selected);
+            card.setStrokeWidth(dp(selected ? 2 : 1));
+            card.setStrokeColor(selected ? primaryColor() : withAlpha(onSurfaceVariantColor(), 0.55f));
+            card.setCardBackgroundColor(surfaceContainerColor());
+            card.setStateDescription(selected ? getString(R.string.ultimate_style_selected,
+                    getString(UltimateCalendarStyles.sharedRegistry()
+                            .resolve(selectedId).getMetadata().getNameRes())) : null);
+        }
     }
 
     private View chimePage() {
@@ -1708,10 +1824,13 @@ public class UltimateSettingsActivity extends AppCompatActivity {
 
         holder.setContentDescription(getString(titleRes));
         holder.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
-        holder.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+        // The compat delegate, not the platform one: AccessibilityNodeInfo.setChecked(boolean)
+        // was replaced by an int-valued form that does not exist on every release this app
+        // supports, and AccessibilityNodeInfoCompat is what picks the right one per device.
+        ViewCompat.setAccessibilityDelegate(holder, new AccessibilityDelegateCompat() {
             @Override
             public void onInitializeAccessibilityNodeInfo(View host,
-                    AccessibilityNodeInfo info) {
+                    AccessibilityNodeInfoCompat info) {
                 super.onInitializeAccessibilityNodeInfo(host, info);
                 info.setClassName(android.widget.Switch.class.getName());
                 info.setCheckable(true);
@@ -1801,10 +1920,13 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         summary.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         holder.setContentDescription(getString(titleRes) + ", " + getString(summaryRes));
         holder.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_YES);
-        holder.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+        // The compat delegate, not the platform one: AccessibilityNodeInfo.setChecked(boolean)
+        // was replaced by an int-valued form that does not exist on every release this app
+        // supports, and AccessibilityNodeInfoCompat is what picks the right one per device.
+        ViewCompat.setAccessibilityDelegate(holder, new AccessibilityDelegateCompat() {
             @Override
             public void onInitializeAccessibilityNodeInfo(View host,
-                    AccessibilityNodeInfo info) {
+                    AccessibilityNodeInfoCompat info) {
                 super.onInitializeAccessibilityNodeInfo(host, info);
                 info.setClassName(android.widget.Switch.class.getName());
                 info.setCheckable(true);
@@ -1952,24 +2074,45 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     private void showTimePicker(int titleRes, int initialMinutes, IntChange change,
             String source, Page pageToRefresh) {
         int normalized = ((initialMinutes % (24 * 60)) + 24 * 60) % (24 * 60);
-        TimePickerDialog picker = new TimePickerDialog(this, (view, hour, minute) -> {
-            change.apply(hour * 60 + minute);
+        // MaterialTimePicker rather than the platform TimePickerDialog: a DialogFragment, so the
+        // choice survives a rotation, and it follows the app's own 24-hour preference.
+        MaterialTimePicker picker = new MaterialTimePicker.Builder()
+                .setTimeFormat(repository.isUse24Hour()
+                        ? TimeFormat.CLOCK_24H : TimeFormat.CLOCK_12H)
+                .setHour(normalized / 60)
+                .setMinute(normalized % 60)
+                .setTitleText(titleRes)
+                .build();
+        picker.addOnPositiveButtonClickListener(view -> {
+            change.apply(picker.getHour() * 60 + picker.getMinute());
             markChanged(source);
             showPage(pageToRefresh);
-        }, normalized / 60, normalized % 60, true);
-        picker.setTitle(titleRes);
-        picker.show();
+        });
+        picker.show(getSupportFragmentManager(), "settings-time");
     }
 
     private void showDatePatternEditor() {
         boolean english = ClockPreferences.LANGUAGE_ENGLISH.equals(repository.getClockLanguage());
         String current = english ? repository.getDatePatternEn() : repository.getDatePatternCn();
-        EditText input = dialogTextInput(current, DateFormatter.MAX_PATTERN_LENGTH);
-        input.setHint(english ? DateFormatter.DEFAULT_PATTERN_EN : DateFormatter.DEFAULT_PATTERN_CN);
+        TextInputLayout field = new TextInputLayout(this, null,
+                com.google.android.material.R.attr.textInputOutlinedStyle);
+        field.setHint(english ? DateFormatter.DEFAULT_PATTERN_EN : DateFormatter.DEFAULT_PATTERN_CN);
+        TextInputEditText input = new TextInputEditText(this);
+        input.setSingleLine(true);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        input.setFilters(new InputFilter[] {
+                new InputFilter.LengthFilter(DateFormatter.MAX_PATTERN_LENGTH)});
+        input.setText(current);
+        input.setSelection(input.length());
+        field.addView(input, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        int side = Math.round(20f * getResources().getDisplayMetrics().density);
+        field.setPadding(side, Math.round(4f * getResources().getDisplayMetrics().density),
+                side, 0);
         AlertDialog dialog = new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.ultimate_date_format)
                 .setMessage(R.string.ultimate_date_format_help)
-                .setView(input)
+                .setView(field)
                 .setNegativeButton(R.string.ultimate_cancel, null)
                 .setNeutralButton(R.string.ultimate_restore_default, (ignored, which) -> {
                     String value = english ? DateFormatter.DEFAULT_PATTERN_EN
@@ -1982,7 +2125,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 .setOnClickListener(view -> {
                     String value = input.getText().toString().trim();
                     if (!DateFormatter.isValidPattern(value)) {
-                        input.setError(getString(R.string.ultimate_date_format_invalid));
+                        field.setError(getString(R.string.ultimate_date_format_invalid));
                         return;
                     }
                     saveDatePattern(english, value);
@@ -2003,12 +2146,26 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     }
 
     private void showCustomMessageEditor() {
-        EditText input = dialogTextInput(repository.getCustomMessage(),
-                ClockPreferences.MAX_CUSTOM_MESSAGE_LENGTH);
-        input.setHint(R.string.ultimate_custom_message_hint);
+        // A filled Material text field rather than a bare EditText: the outline, hint and error
+        // affordances match every other dialog in the app.
+        TextInputLayout field = new TextInputLayout(this, null,
+                com.google.android.material.R.attr.textInputOutlinedStyle);
+        field.setHint(getString(R.string.ultimate_custom_message_hint));
+        TextInputEditText input = new TextInputEditText(this);
+        input.setSingleLine(true);
+        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
+        input.setFilters(new InputFilter[] {
+                new InputFilter.LengthFilter(ClockPreferences.MAX_CUSTOM_MESSAGE_LENGTH)});
+        input.setText(repository.getCustomMessage());
+        input.setSelection(input.length());
+        field.addView(input, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        int side = Math.round(20f * getResources().getDisplayMetrics().density);
+        field.setPadding(side, Math.round(4f * getResources().getDisplayMetrics().density),
+                side, 0);
         new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.ultimate_custom_message)
-                .setView(input)
+                .setView(field)
                 .setNegativeButton(R.string.ultimate_cancel, null)
                 .setPositiveButton(R.string.ultimate_apply, (dialog, which) -> {
                     repository.setCustomMessage(input.getText().toString());
@@ -2016,16 +2173,6 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     showPage(Page.WEATHER);
                 })
                 .show();
-    }
-
-    private EditText dialogTextInput(String value, int maxLength) {
-        EditText input = new EditText(this);
-        input.setSingleLine(true);
-        input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
-        input.setFilters(new InputFilter[] {new InputFilter.LengthFilter(maxLength)});
-        input.setText(value);
-        input.setSelection(input.length());
-        return input;
     }
 
     private String currentDatePattern() {
@@ -2192,32 +2339,25 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     .setType("image/*");
         }
         try {
-            startActivityForResult(picker, REQUEST_BACKGROUND_IMAGE);
+            imagePickerLauncher.launch(picker);
         } catch (RuntimeException ignored) {
             // A device without a document provider simply leaves the previous background intact.
         }
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_SUBPAGE) {
-            if (resultCode == RESULT_OK) {
-                settingsChanged = true;
-                if (data != null) {
-                    String source = data.getStringExtra(EXTRA_CHANGE_SOURCE);
-                    lastChangeSource = source == null ? "" : source;
-                }
+    private void onSubpageClosed(ActivityResult result) {
+        if (result.getResultCode() == RESULT_OK) {
+            settingsChanged = true;
+            Intent data = result.getData();
+            if (data != null) {
+                String source = data.getStringExtra(EXTRA_CHANGE_SOURCE);
+                lastChangeSource = source == null ? "" : source;
             }
-            syncExternalChanges();
-            if (!isActivityEmbedded()) selectedSubPage = Page.STYLE;
-            updateEmbeddingChrome();
-            if (settingsChanged) publishResult();
-            return;
         }
-        if (requestCode != REQUEST_BACKGROUND_IMAGE || resultCode != RESULT_OK || data == null
-                || data.getData() == null) return;
-        importBackground(data.getData());
+        syncExternalChanges();
+        if (!isActivityEmbedded()) selectedSubPage = Page.STYLE;
+        updateEmbeddingChrome();
+        if (settingsChanged) publishResult();
     }
 
     private void importBackground(Uri uri) {
@@ -2442,7 +2582,8 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     .build();
             ClockRenderContext context = new ClockRenderContext(0f, 0f, getWidth(), getHeight(),
                     getResources().getDisplayMetrics().density,
-                    getResources().getDisplayMetrics().scaledDensity,
+                    TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 1f,
+                            getResources().getDisplayMetrics()),
                     calendar.getTimeInMillis(), true);
             int saveCount = canvas.save();
             try {
@@ -2450,6 +2591,29 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             } finally {
                 canvas.restoreToCount(saveCount);
             }
+        }
+    }
+
+    /** Thin wrapper: the drawing itself lives with the compositions, in CalendarPreviewPainter. */
+    private static final class CalendarThemePreviewView extends View {
+        private final CalendarPreviewPainter painter;
+
+        CalendarThemePreviewView(Context context, CalendarStyle style) {
+            super(context);
+            painter = new CalendarPreviewPainter(style,
+                    context.getResources().getDisplayMetrics().density);
+        }
+
+        @Override
+        protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
+            super.onSizeChanged(width, height, oldWidth, oldHeight);
+            painter.setBounds(width, height);
+        }
+
+        @Override
+        protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            painter.draw(canvas, getWidth(), getHeight());
         }
     }
 }

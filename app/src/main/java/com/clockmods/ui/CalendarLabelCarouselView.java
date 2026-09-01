@@ -10,6 +10,7 @@ import android.os.Build;
 import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.AttributeSet;
+import android.util.TypedValue;
 import android.view.View;
 
 import java.util.ArrayList;
@@ -46,7 +47,8 @@ public final class CalendarLabelCarouselView extends View {
         super(context, attrs);
         density = getResources().getDisplayMetrics().density;
         paint.setColor(Color.WHITE);
-        preferredTextSize = 13f * getResources().getDisplayMetrics().scaledDensity;
+        preferredTextSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP,
+                13f, getResources().getDisplayMetrics());
         paint.setTextSize(preferredTextSize);
         if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN) {
             setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);

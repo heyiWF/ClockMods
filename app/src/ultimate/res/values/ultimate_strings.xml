@@ -12,6 +12,10 @@
     <string name="ultimate_category_weather_summary">位置、更新周期、留言与图标表现</string>
     <string name="ultimate_category_calendar">日历</string>
     <string name="ultimate_category_calendar_summary">每周起始日与周末突出显示</string>
+    <string name="ultimate_category_calendar_style">月历样式</string>
+    <string name="ultimate_category_calendar_style_summary">月历页的版式与配色</string>
+    <string name="ultimate_calendar_style_title">月历样式</string>
+    <string name="ultimate_calendar_style_section">版式</string>
     <string name="ultimate_category_chime">报时</string>
     <string name="ultimate_category_chime_summary">整点、半点提示与勿扰时段</string>
     <string name="ultimate_category_system">系统与语言</string>
@@ -159,6 +163,28 @@
     <string name="ultimate_calendar_monday">周一开始</string>
     <string name="ultimate_calendar_highlight_weekends">突出显示周末</string>
     <string name="ultimate_calendar_highlight_weekends_summary">在月历中区分周六与周日。</string>
+
+    <string name="ultimate_calendar_theme_graphite_name">石墨深空</string>
+    <string name="ultimate_calendar_theme_graphite_summary">默认深灰仪表盘，保留时钟与天气卡片</string>
+    <string name="ultimate_calendar_theme_paper_name">宣纸水墨</string>
+    <string name="ultimate_calendar_theme_paper_summary">宣纸暖白，整屏纯月历</string>
+    <string name="ultimate_calendar_theme_poster_name">墨白排版</string>
+    <string name="ultimate_calendar_theme_poster_summary">巨幅月份字标，裸数字网格，无卡片</string>
+    <string name="ultimate_calendar_theme_agenda_name">靛蓝周程</string>
+    <string name="ultimate_calendar_theme_agenda_summary">一周七天横条，当日详情卡带天气与宜忌</string>
+    <string name="ultimate_calendar_theme_carbon_name">纯黑碳素</string>
+    <string name="ultimate_calendar_theme_carbon_summary">初始月历的纯黑背景版本，OLED 不发光</string>
+
+    <string name="ultimate_schedule_title">日程</string>
+    <string name="ultimate_schedule_add">＋ 添加</string>
+    <string name="ultimate_schedule_empty">这一天还没有日程，点右上角添加一条</string>
+    <string name="ultimate_schedule_all_day">全天</string>
+    <string name="ultimate_schedule_dialog_add">新建日程</string>
+    <string name="ultimate_schedule_dialog_edit">编辑日程</string>
+    <string name="ultimate_schedule_dialog_title_hint">日程内容</string>
+    <string name="ultimate_schedule_dialog_time">时间（可留空）</string>
+    <string name="ultimate_schedule_dialog_delete">删除</string>
+    <string name="ultimate_schedule_save">保存</string>
 
     <string name="ultimate_chime_title">报时</string>
     <string name="ultimate_chime_cues_section">时间提示</string>

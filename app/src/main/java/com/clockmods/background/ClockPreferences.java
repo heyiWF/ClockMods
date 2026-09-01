@@ -59,6 +59,7 @@ public class ClockPreferences {
     private static final String KEY_AUTO_START = "auto_start";
     private static final String KEY_CALENDAR_WEEK_START = "calendar_week_start";
     private static final String KEY_CALENDAR_HIGHLIGHT_WEEKENDS = "calendar_highlight_weekends";
+    private static final String KEY_CALENDAR_THEME = "calendar_theme";
     private static final String KEY_SMALL_SECONDS = "small_seconds";
     private static final String KEY_PORTRAIT_STACKED = "portrait_stacked";
     private static final String KEY_DATE_LUNAR_DUAL_LINE = "date_lunar_dual_line";
@@ -132,6 +133,8 @@ public class ClockPreferences {
     public static final int CALENDAR_WEEK_START_MONDAY = Calendar.MONDAY;
     public static final int DEFAULT_CALENDAR_WEEK_START = CALENDAR_WEEK_START_SUNDAY;
     public static final boolean DEFAULT_CALENDAR_HIGHLIGHT_WEEKENDS = false;
+    /** Mirrors {@code CalendarTheme.ID_GRAPHITE}; this module cannot see the ultimate flavour. */
+    public static final String DEFAULT_CALENDAR_THEME = "calendar.graphite";
     public static final boolean DEFAULT_SMALL_SECONDS = false;
     public static final boolean DEFAULT_PORTRAIT_STACKED = false;
     /** Landscape only: whether the date and lunar lines stack on two rows (portrait always stacks). */
@@ -440,6 +443,26 @@ public class ClockPreferences {
     private static int normalizeCalendarWeekStart(int firstDayOfWeek) {
         return firstDayOfWeek == CALENDAR_WEEK_START_MONDAY
                 ? CALENDAR_WEEK_START_MONDAY : CALENDAR_WEEK_START_SUNDAY;
+    }
+
+    public String getCalendarTheme() {
+        return normalizeCalendarTheme(preferences.getString(
+                KEY_CALENDAR_THEME, DEFAULT_CALENDAR_THEME));
+    }
+
+    public void setCalendarTheme(String themeId) {
+        preferences.edit().putString(KEY_CALENDAR_THEME,
+                normalizeCalendarTheme(themeId)).apply();
+    }
+
+    /**
+     * Only rejects ids that cannot be a preset at all. The catalogue itself lives in the ultimate
+     * flavour, so an unknown-but-plausible id is stored as-is and resolved to the default there.
+     */
+    private static String normalizeCalendarTheme(String themeId) {
+        if (themeId == null) return DEFAULT_CALENDAR_THEME;
+        String trimmed = themeId.trim();
+        return trimmed.length() == 0 || trimmed.length() > 120 ? DEFAULT_CALENDAR_THEME : trimmed;
     }
 
     public boolean isSmallSeconds() {
@@ -789,6 +812,7 @@ public class ClockPreferences {
                 .putInt(KEY_CALENDAR_WEEK_START, DEFAULT_CALENDAR_WEEK_START)
                 .putBoolean(KEY_CALENDAR_HIGHLIGHT_WEEKENDS,
                         DEFAULT_CALENDAR_HIGHLIGHT_WEEKENDS)
+                .putString(KEY_CALENDAR_THEME, DEFAULT_CALENDAR_THEME)
                 .putBoolean(KEY_SMALL_SECONDS, DEFAULT_SMALL_SECONDS)
                 .putBoolean(KEY_PORTRAIT_STACKED, DEFAULT_PORTRAIT_STACKED)
                 .putBoolean(KEY_DATE_LUNAR_DUAL_LINE, DEFAULT_DATE_LUNAR_DUAL_LINE)

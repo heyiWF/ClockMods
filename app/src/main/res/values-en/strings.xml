@@ -12,6 +12,8 @@
     <string name="calendar_jump_title">Jump to</string>
     <string name="calendar_day_accessibility">Day %1$d, lunar %2$s</string>
     <string name="calendar_day_today_accessibility">Today, day %1$d, lunar %2$s</string>
+    <string name="calendar_day_number_accessibility">Day %1$d</string>
+    <string name="calendar_day_today_number_accessibility">Today, day %1$d</string>
     <string name="calendar_feels_like">Feels like</string>
     <string name="calendar_weather_disabled">Weather is off</string>
     <string name="calendar_forecast_loading">Loading forecast</string>
@@ -204,6 +206,7 @@
     <string name="calendar_day_makeup">, make-up workday</string>
     <string name="calendar_today_prefix">"Today, "</string>
     <string name="calendar_selected_suffix">, selected</string>
+    <string name="calendar_week_of_year">Week %1$d</string>
     <string name="calendar_suitable_prefix">"Good: "</string>
     <string name="calendar_avoid_prefix">"Avoid: "</string>
 

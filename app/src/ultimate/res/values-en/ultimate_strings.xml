@@ -12,6 +12,10 @@
     <string name="ultimate_category_weather_summary">Location, refresh interval, message, and icon appearance</string>
     <string name="ultimate_category_calendar">Calendar</string>
     <string name="ultimate_category_calendar_summary">First day of the week and weekend highlighting</string>
+    <string name="ultimate_category_calendar_style">Calendar style</string>
+    <string name="ultimate_category_calendar_style_summary">Layout and palette of the calendar page</string>
+    <string name="ultimate_calendar_style_title">Calendar style</string>
+    <string name="ultimate_calendar_style_section">Layouts</string>
     <string name="ultimate_category_chime">Time cues</string>
     <string name="ultimate_category_chime_summary">Hourly and half-hour cues with quiet hours</string>
     <string name="ultimate_category_system">System &amp; language</string>
@@ -159,6 +163,28 @@
     <string name="ultimate_calendar_monday">Monday first</string>
     <string name="ultimate_calendar_highlight_weekends">Highlight weekends</string>
     <string name="ultimate_calendar_highlight_weekends_summary">Distinguish Saturdays and Sundays in the month calendar.</string>
+
+    <string name="ultimate_calendar_theme_graphite_name">Graphite</string>
+    <string name="ultimate_calendar_theme_graphite_summary">Default dark dashboard, keeps clock and weather</string>
+    <string name="ultimate_calendar_theme_paper_name">Rice Paper</string>
+    <string name="ultimate_calendar_theme_paper_summary">Warm paper white, full-screen calendar only</string>
+    <string name="ultimate_calendar_theme_poster_name">Ink Poster</string>
+    <string name="ultimate_calendar_theme_poster_summary">Oversized month wordmark, bare number grid, no cards</string>
+    <string name="ultimate_calendar_theme_agenda_name">Indigo Week</string>
+    <string name="ultimate_calendar_theme_agenda_summary">A seven-day strip above a detail card with weather</string>
+    <string name="ultimate_calendar_theme_carbon_name">Carbon Black</string>
+    <string name="ultimate_calendar_theme_carbon_summary">The original dashboard on a true-black canvas, for OLED</string>
+
+    <string name="ultimate_schedule_title">Schedule</string>
+    <string name="ultimate_schedule_add">＋ Add</string>
+    <string name="ultimate_schedule_empty">No schedule yet — tap add in the corner</string>
+    <string name="ultimate_schedule_all_day">All day</string>
+    <string name="ultimate_schedule_dialog_add">New schedule</string>
+    <string name="ultimate_schedule_dialog_edit">Edit schedule</string>
+    <string name="ultimate_schedule_dialog_title_hint">What needs doing</string>
+    <string name="ultimate_schedule_dialog_time">Time (optional)</string>
+    <string name="ultimate_schedule_dialog_delete">Delete</string>
+    <string name="ultimate_schedule_save">Save</string>
 
     <string name="ultimate_chime_title">Time cues</string>
     <string name="ultimate_chime_cues_section">Time cues</string>

@@ -1,9 +1,10 @@
 package com.clockmods.ultimate;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import android.content.Intent;
 import android.os.Bundle;
 
-import androidx.annotation.Nullable;
 
 import com.clockmods.pro.ProMainActivity;
 import com.clockmods.background.ClockPreferences;
@@ -11,8 +12,15 @@ import com.clockmods.ultimate.settings.UltimateSettingsActivity;
 
 /** Ultimate shell for the clock, tool destinations, and full-screen settings. */
 public final class UltimateMainActivity extends ProMainActivity {
-    private static final int REQUEST_ULTIMATE_SETTINGS = 4817;
     private String appliedLanguage;
+
+    /**
+     * Replaces startActivityForResult / onActivityResult, which the platform retired in favour of
+     * a launcher registered up front — the registration has to happen before the activity is
+     * STARTED, which is why it is a field initialiser rather than a call inside showSettings().
+     */
+    private final ActivityResultLauncher<Intent> settingsLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), result -> onSettingsClosed());
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
@@ -32,21 +40,16 @@ public final class UltimateMainActivity extends ProMainActivity {
 
     @Override
     public void showSettings() {
-        Intent intent = UltimateSettingsActivity.createIntent(this);
-        startActivityForResult(intent, REQUEST_ULTIMATE_SETTINGS);
+        settingsLauncher.launch(UltimateSettingsActivity.createIntent(this));
     }
 
-    @Override
-    protected void onActivityResult(int requestCode, int resultCode, @Nullable Intent data) {
-        super.onActivityResult(requestCode, resultCode, data);
-        if (requestCode == REQUEST_ULTIMATE_SETTINGS) {
-            String currentLanguage = new ClockPreferences(this).getClockLanguage();
-            if (appliedLanguage != null && !appliedLanguage.equals(currentLanguage)) {
-                appliedLanguage = currentLanguage;
-                recreate();
-                return;
-            }
-            refreshSettingsPages();
+    private void onSettingsClosed() {
+        String currentLanguage = new ClockPreferences(this).getClockLanguage();
+        if (appliedLanguage != null && !appliedLanguage.equals(currentLanguage)) {
+            appliedLanguage = currentLanguage;
+            recreate();
+            return;
         }
+        refreshSettingsPages();
     }
 }

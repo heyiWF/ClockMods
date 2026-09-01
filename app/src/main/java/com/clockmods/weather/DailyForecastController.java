@@ -95,7 +95,6 @@ public final class DailyForecastController {
             @Override public void onLocationChanged(Location location) {
                 stopLocation(); fetchAutomatic(location, requestGeneration);
             }
-            @Override public void onStatusChanged(String provider, int status, Bundle extras) { }
             @Override public void onProviderEnabled(String provider) { }
             @Override public void onProviderDisabled(String provider) { }
         };

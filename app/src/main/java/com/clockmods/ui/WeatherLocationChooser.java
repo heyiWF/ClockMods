@@ -1,6 +1,5 @@
 package com.clockmods.ui;
 
-import android.app.AlertDialog;
 import android.content.Context;
 import android.view.ViewGroup;
 import android.widget.AdapterView;
@@ -12,6 +11,7 @@ import android.widget.Toast;
 import com.clockmods.R;
 import com.clockmods.background.ClockPreferences;
 import com.clockmods.weather.WeatherLocationCatalog;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -78,7 +78,7 @@ public final class WeatherLocationChooser {
             }
         });
 
-        new AlertDialog.Builder(context)
+        new MaterialAlertDialogBuilder(context)
                 .setTitle(R.string.weather_choose_location)
                 .setView(content)
                 .setNegativeButton(R.string.cancel, null)

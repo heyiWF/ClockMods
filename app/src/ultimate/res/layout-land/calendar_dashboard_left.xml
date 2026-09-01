@@ -93,6 +93,15 @@
             android:layout_weight="0.8"
             android:translationX="6dp" />
 
+        <!-- Occupies the icon's own slot while a request is in flight, so the card keeps its
+             shape instead of reflowing around an empty space. -->
+        <com.google.android.material.loadingindicator.LoadingIndicator
+            android:id="@+id/calendar_weather_loading"
+            android:layout_width="0dp"
+            android:layout_height="@dimen/calendar_dashboard_weather_icon_size_land"
+            android:layout_weight="0.8"
+            android:visibility="gone" />
+
         <LinearLayout
             android:layout_width="0dp"
             android:layout_height="wrap_content"
@@ -119,7 +128,7 @@
                     android:autoSizeTextType="uniform"
                     android:gravity="center"
                     android:includeFontPadding="false"
-                    android:singleLine="true"
+                    android:maxLines="1"
                     android:textColor="@color/calendar_dashboard_text"
                     android:textSize="@dimen/calendar_dashboard_temperature_size_land"
                     android:textStyle="bold"
@@ -141,7 +150,7 @@
                         android:autoSizeTextType="uniform"
                         android:gravity="center"
                         android:includeFontPadding="false"
-                        android:singleLine="true"
+                        android:maxLines="1"
                         android:text="@string/calendar_feels_like"
                         android:textColor="@color/calendar_dashboard_secondary"
                         android:textSize="@dimen/calendar_dashboard_feels_label_size_land" />
@@ -156,7 +165,7 @@
                         android:autoSizeTextType="uniform"
                         android:gravity="center"
                         android:includeFontPadding="false"
-                        android:singleLine="true"
+                        android:maxLines="1"
                         android:textColor="@color/calendar_dashboard_blue"
                         android:textSize="@dimen/calendar_dashboard_feels_size_land" />
                 </LinearLayout>
@@ -174,7 +183,7 @@
                 android:ellipsize="end"
                 android:gravity="center"
                 android:includeFontPadding="false"
-                android:singleLine="true"
+                android:maxLines="1"
                 android:textAlignment="center"
                 android:textColor="@color/calendar_dashboard_text"
                 android:textSize="@dimen/calendar_dashboard_weather_summary_size_land" />

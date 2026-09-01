@@ -4,11 +4,22 @@ import android.content.Context;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.VelocityTracker;
+import android.view.View;
 import android.view.ViewConfiguration;
 import android.widget.LinearLayout;
 
+/**
+ * The month canvas for a calendar style. It drives the page-portion drag: a horizontal gesture
+ * drags the page toward the adjacent one and a fling or a long pull commits the turn.
+ *
+ * <p>For layouts that only want part of the surface to drag — the 周程's date strip, not its detail
+ * card — call {@link #setDragRegion(View)}. A touch that begins outside the region is left alone
+ * entirely: the layout neither drags nor claims the parent's stream, so an outer {@code ViewPager}
+ * gets the gesture and switches pages. Without a region the whole panel drags, which is the
+ * behaviour the month-grid styles want.</p>
+ */
 public final class MonthGestureLayout extends LinearLayout {
-    interface Listener {
+    public interface Listener {
         void onMonthDrag(float offset);
         void onMonthDragFinished(int direction);
     }
@@ -22,6 +33,9 @@ public final class MonthGestureLayout extends LinearLayout {
     private boolean horizontal;
     private boolean vertical;
 
+    /** When set, only touches that start inside this view are treated as possible page drags. */
+    private View dragRegion;
+
     public MonthGestureLayout(Context context, AttributeSet attrs) {
         super(context, attrs);
         ViewConfiguration configuration = ViewConfiguration.get(context);
@@ -29,7 +43,18 @@ public final class MonthGestureLayout extends LinearLayout {
         minimumFlingVelocity = configuration.getScaledMinimumFlingVelocity();
     }
 
-    void setMonthGestureListener(Listener listener) { this.listener = listener; }
+    public void setMonthGestureListener(Listener listener) { this.listener = listener; }
+
+    /** Restricts page drags to touches that begin inside {@code region}; {@code null} removes it. */
+    public void setDragRegion(View region) { this.dragRegion = region; }
+
+    private boolean inDragRegion(float x, float y) {
+        if (dragRegion == null) return true;
+        // Both the layout and the region live in the same window, so the region's left/top measured
+        // against this layout are a direct frame for a touch delivered in the layout's coordinates.
+        return x >= dragRegion.getLeft() && x < dragRegion.getLeft() + dragRegion.getWidth()
+                && y >= dragRegion.getTop() && y < dragRegion.getTop() + dragRegion.getHeight();
+    }
 
     @Override public boolean onInterceptTouchEvent(MotionEvent event) {
         track(event);
@@ -39,6 +64,11 @@ public final class MonthGestureLayout extends LinearLayout {
                 downY = event.getY();
                 horizontal = false;
                 vertical = false;
+                if (!inDragRegion(downX, downY)) {
+                    // A touch outside the drag region is not ours: don't block the parent's pager,
+                    // and never return true so the parent can take over on a later MOVE.
+                    return false;
+                }
                 getParent().requestDisallowInterceptTouchEvent(true);
                 return false;
             case MotionEvent.ACTION_MOVE:

@@ -60,14 +60,7 @@ public final class LocaleManager {
         Locale.setDefault(locale);
 
         Configuration configuration = new Configuration(context.getResources().getConfiguration());
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            configuration.setLocale(locale);
-            return context.createConfigurationContext(configuration);
-        }
-        // API 14-16 fallback: update the shared configuration in place.
-        configuration.locale = locale;
-        context.getResources().updateConfiguration(configuration,
-                context.getResources().getDisplayMetrics());
-        return context;
+        configuration.setLocale(locale);
+        return context.createConfigurationContext(configuration);
     }
 }

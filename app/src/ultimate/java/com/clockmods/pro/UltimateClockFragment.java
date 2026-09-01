@@ -1,5 +1,7 @@
 package com.clockmods.pro;
 
+import androidx.activity.result.ActivityResultLauncher;
+import androidx.activity.result.contract.ActivityResultContracts;
 import android.Manifest;
 import android.annotation.SuppressLint;
 import android.content.Context;
@@ -31,9 +33,17 @@ import com.clockmods.weather.WeatherController;
 import com.clockmods.weather.WeatherModels.WeatherState;
 import com.clockmods.ui.StatusBarView;
 
+import java.util.Map;
+
 /** Ultimate clock destination with an SDK renderer host and the original Pro clock host. */
 public final class UltimateClockFragment extends Fragment implements SettingsRefreshable {
-    private static final int REQUEST_LOCATION = 3101;
+    /**
+     * Fragment.requestPermissions and its result callback are both retired; a launcher registered
+     * at construction is the replacement, and it survives the process death the old pair did not.
+     */
+    private final ActivityResultLauncher<String[]> locationPermissionLauncher =
+            registerForActivityResult(new ActivityResultContracts.RequestMultiplePermissions(),
+                    this::onLocationPermissionResult);
 
     private UltimateClockView ultimateClockView;
     private ClockView proClassicClockView;
@@ -319,21 +329,19 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
                         != PackageManager.PERMISSION_GRANTED
                 && requireContext().checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
                         != PackageManager.PERMISSION_GRANTED) {
-            requestPermissions(new String[] {Manifest.permission.ACCESS_COARSE_LOCATION,
-                    Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION);
+            locationPermissionLauncher.launch(new String[] {
+                    Manifest.permission.ACCESS_COARSE_LOCATION,
+                    Manifest.permission.ACCESS_FINE_LOCATION});
             showWeatherMessage(getString(R.string.weather_waiting_permission));
             return;
         }
         weatherController.start(repository.getWeatherIntervalMinutes());
     }
 
-    @Override
-    public void onRequestPermissionsResult(int requestCode, @NonNull String[] permissions,
-            @NonNull int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode != REQUEST_LOCATION || weatherController == null) return;
+    private void onLocationPermissionResult(Map<String, Boolean> grants) {
+        if (weatherController == null || !isAdded()) return;
         boolean granted = false;
-        for (int result : grantResults) if (result == PackageManager.PERMISSION_GRANTED) granted = true;
+        for (Boolean result : grants.values()) if (Boolean.TRUE.equals(result)) granted = true;
         BackgroundRepository repository = new BackgroundRepository(requireContext());
         if (!repository.isWeatherEnabled()) {
             weatherController.stop();

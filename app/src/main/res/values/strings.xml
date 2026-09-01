@@ -12,6 +12,8 @@
     <string name="calendar_jump_title">跳转到</string>
     <string name="calendar_day_accessibility">%1$d 日，农历 %2$s</string>
     <string name="calendar_day_today_accessibility">今天，%1$d 日，农历 %2$s</string>
+    <string name="calendar_day_number_accessibility">%1$d 日</string>
+    <string name="calendar_day_today_number_accessibility">今天，%1$d 日</string>
     <string name="calendar_feels_like">体感温度</string>
     <string name="calendar_weather_disabled">天气显示已关闭</string>
     <string name="calendar_forecast_loading">天气预报加载中</string>
@@ -204,6 +206,7 @@
     <string name="calendar_day_makeup">，调休上班</string>
     <string name="calendar_today_prefix">今天，</string>
     <string name="calendar_selected_suffix">，已选择</string>
+    <string name="calendar_week_of_year">第 %1$d 周</string>
     <string name="calendar_suitable_prefix">"宜 "</string>
     <string name="calendar_avoid_prefix">"忌 "</string>
 

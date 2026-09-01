@@ -11,6 +11,7 @@ import android.os.SystemClock;
 import android.provider.Settings;
 import android.text.format.DateFormat;
 import android.util.AttributeSet;
+import android.util.TypedValue;
 import android.view.View;
 
 import com.clockmods.R;
@@ -401,7 +402,8 @@ public class UltimateClockView extends View {
                 .build();
         ClockRenderContext renderContext = new ClockRenderContext(0f, 0f, getWidth(), getHeight(),
                 getResources().getDisplayMetrics().density,
-                getResources().getDisplayMetrics().scaledDensity, now, reduced,
+                TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 1f,
+                            getResources().getDisplayMetrics()), now, reduced,
                 createBackground(now), bottomOverlayInset);
         int saveCount = canvas.save();
         try {
