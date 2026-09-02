@@ -66,8 +66,9 @@ describe('LabelCarousel', () => {
     const carousel = new LabelCarousel(host);
     carousel.setItems([{ text: 'a long label' }, { text: 'next' }]);
     const line = host.querySelector<HTMLElement>('.label-carousel-item')!;
-    const inner = line.querySelector<HTMLElement>('span')!;
-    Object.defineProperty(line, 'clientWidth', { configurable: true, value: 100 });
+    const strip = line.querySelector<HTMLElement>('.label-carousel-strip')!;
+    const inner = line.querySelector<HTMLElement>('.label-carousel-text')!;
+    Object.defineProperty(strip, 'clientWidth', { configurable: true, value: 100 });
     Object.defineProperty(inner, 'scrollWidth', { configurable: true, value: 180 });
 
     carousel.setActive(true);
@@ -119,8 +120,9 @@ describe('LabelCarousel', () => {
     const carousel = new LabelCarousel(host);
     carousel.setItems([{ text: 'a long label' }, { text: 'next' }]);
     const line = host.querySelector<HTMLElement>('.label-carousel-item')!;
-    const inner = line.querySelector<HTMLElement>('span')!;
-    Object.defineProperty(line, 'clientWidth', { configurable: true, value: 100 });
+    const strip = line.querySelector<HTMLElement>('.label-carousel-strip')!;
+    const inner = line.querySelector<HTMLElement>('.label-carousel-text')!;
+    Object.defineProperty(strip, 'clientWidth', { configurable: true, value: 100 });
     Object.defineProperty(inner, 'scrollWidth', { configurable: true, value: 180 });
 
     carousel.setActive(true);
@@ -130,6 +132,60 @@ describe('LabelCarousel', () => {
     layoutCallbacks[0](0);
     expect(line.classList.contains('is-scrolling')).toBe(true);
     expect(host.classList.contains('is-measuring')).toBe(false);
+    carousel.destroy();
+  });
+
+  it('splits a pinned 宜/忌 head into a bold glyph outside the scrolling strip', () => {
+    const host = document.createElement('div');
+    const carousel = new LabelCarousel(host);
+
+    carousel.setItems([{ text: '宜 纳采 祭祀', pinnedPrefix: '宜 ' }]);
+
+    const line = host.querySelector<HTMLElement>('.label-carousel-item')!;
+    expect(line.querySelector('.label-carousel-pin')?.textContent).toBe('宜 ');
+    expect(line.querySelector('.label-carousel-text')?.textContent).toBe('纳采 祭祀');
+    // The glyph is a sibling of the strip, never inside it, so it cannot scroll away.
+    expect(line.querySelector('.label-carousel-strip')!.contains(
+      line.querySelector('.label-carousel-pin')
+    )).toBe(false);
+    expect(line.textContent).toBe('宜 纳采 祭祀');
+  });
+
+  it('leaves a line whose head is not the pinned hint as one plain run', () => {
+    const host = document.createElement('div');
+    const carousel = new LabelCarousel(host);
+
+    carousel.setItems([{ text: '2026 年 8 月 20 日', pinnedPrefix: '宜 ' }]);
+
+    const line = host.querySelector<HTMLElement>('.label-carousel-item')!;
+    expect(line.querySelector('.label-carousel-pin')).toBeNull();
+    expect(line.querySelector('.label-carousel-text')?.textContent).toBe('2026 年 8 月 20 日');
+  });
+
+  it('scrolls only the items of a pinned line, by the room left beside the glyph', () => {
+    vi.useFakeTimers();
+    vi.spyOn(window, 'requestAnimationFrame').mockImplementation((callback) => {
+      callback(0);
+      return 1;
+    });
+    const host = document.createElement('div');
+    const carousel = new LabelCarousel(host);
+    carousel.setItems([{ text: '忌 出行 嫁娶 动土 破土', pinnedPrefix: '忌 ' }]);
+    const line = host.querySelector<HTMLElement>('.label-carousel-item')!;
+    const pin = line.querySelector<HTMLElement>('.label-carousel-pin')!;
+    const strip = line.querySelector<HTMLElement>('.label-carousel-strip')!;
+    const inner = line.querySelector<HTMLElement>('.label-carousel-text')!;
+    // 100px of viewport with 20px taken by the glyph leaves the strip 80px.
+    Object.defineProperty(strip, 'clientWidth', { configurable: true, value: 80 });
+    Object.defineProperty(inner, 'scrollWidth', { configurable: true, value: 200 });
+
+    carousel.setActive(true);
+    vi.advanceTimersByTime(1000);
+
+    expect(line.classList.contains('is-scrolling')).toBe(true);
+    expect(inner.style.transform).toBe('translateX(-120px)');
+    // The glyph itself is never transformed.
+    expect(pin.style.transform).toBe('');
     carousel.destroy();
   });
 
@@ -143,13 +199,19 @@ describe('LabelCarousel', () => {
     const carousel = new LabelCarousel(host);
     carousel.setItems([{ text: 'short' }, { text: 'a very long label' }]);
     const lines = host.querySelectorAll<HTMLElement>('.label-carousel-item');
-    const longInner = lines[1].querySelector<HTMLElement>('span')!;
-    Object.defineProperty(lines[0], 'clientWidth', { configurable: true, value: 100 });
-    Object.defineProperty(lines[0].querySelector('span')!, 'scrollWidth', {
+    const longInner = lines[1].querySelector<HTMLElement>('.label-carousel-text')!;
+    Object.defineProperty(lines[0].querySelector('.label-carousel-strip')!, 'clientWidth', {
+      configurable: true,
+      value: 100,
+    });
+    Object.defineProperty(lines[0].querySelector('.label-carousel-text')!, 'scrollWidth', {
       configurable: true,
       value: 80,
     });
-    Object.defineProperty(lines[1], 'clientWidth', { configurable: true, value: 100 });
+    Object.defineProperty(lines[1].querySelector('.label-carousel-strip')!, 'clientWidth', {
+      configurable: true,
+      value: 100,
+    });
     Object.defineProperty(longInner, 'scrollWidth', { configurable: true, value: 180 });
 
     carousel.setActive(true);

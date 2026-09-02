@@ -1,11 +1,11 @@
-lunar-java (cn.6tail:lunar) — offline lunar/almanac engine used by the Pro calendar to
-compute lunar dates, solar terms, festivals and 宜/忌.
+tyme4ts — offline lunar/almanac engine used by the clock and the calendar to compute
+lunar dates, solar terms, festivals and 宜/忌.
 
-Project: https://github.com/6tail/lunar-java
+Project: https://github.com/6tail/tyme4ts
 
 MIT License
 
-Copyright (c) 2018 6tail
+Copyright (c) 2024 6tail
 
 Permission is hereby granted, free of charge, to any person obtaining a copy
 of this software and associated documentation files (the "Software"), to deal

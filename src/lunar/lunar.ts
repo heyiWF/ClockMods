@@ -1,18 +1,24 @@
 /**
- * Lunar date, solar terms, festivals and 宜/忌, computed offline by
- * lunar-javascript (6tail, MIT) — the JavaScript sibling of the cn.6tail:lunar
- * 1.7.7 artifact the Android build used, so the outputs match method for method.
+ * Lunar date, solar terms, festivals and 宜/忌, computed offline by tyme4ts
+ * (6tail, MIT) — the TypeScript sibling of the cn.6tail:tyme4j 1.5.1 artifact the
+ * Android build uses, so the outputs match method for method. The engine is
+ * astronomical rather than table bound, so it stays accurate for years 1–9999.
  *
  * This one module covers what Android split across two classes:
- *   - com.clockmods.calendar.LunarCalendar — the clock's lunar line. Android used
- *     a hand-rolled 1900–2050 bit table there; the engine is astronomical, so the
- *     same strings now render correctly well beyond 2100. The month names it
- *     returns (正 二 … 十 冬 腊, prefixed 闰) are identical to that table's, so the
- *     rendered text is unchanged for every date the old code could handle.
+ *   - com.clockmods.calendar.LunarCalendar — the clock's lunar line. The Chinese
+ *     rendering is this app's own wording (正…冬腊月, 干支[生肖]年, 初/廿 day names)
+ *     rather than the engine's, so the on-screen text is unchanged from the
+ *     releases that computed it from a 1900–2050 bit table.
  *   - com.clockmods.pro.LunarAlmanac — the calendar page's per-day almanac.
  */
-import { Solar } from 'lunar-javascript';
-import type { Lunar } from 'lunar-javascript';
+import { SolarDay } from 'tyme4ts';
+
+const TIAN_GAN = ['甲', '乙', '丙', '丁', '戊', '己', '庚', '辛', '壬', '癸'];
+const DI_ZHI = ['子', '丑', '寅', '卯', '辰', '巳', '午', '未', '申', '酉', '戌', '亥'];
+const ZODIAC = ['鼠', '牛', '虎', '兔', '龙', '蛇', '马', '羊', '猴', '鸡', '狗', '猪'];
+const MONTH_NAMES = ['正', '二', '三', '四', '五', '六', '七', '八', '九', '十', '冬', '腊'];
+const DAY_PREFIX = ['初', '十', '廿', '三'];
+const DAY_NUMBERS = ['一', '二', '三', '四', '五', '六', '七', '八', '九', '十'];
 
 export interface Almanac {
   /** e.g. 丙午[马]年六月廿五 — the main clock's lunar line. */
@@ -31,30 +37,30 @@ export interface Almanac {
 
 /**
  * Building an almanac walks the astronomical tables, and a rendered month asks
- * for 42 of them (plus the adjacent month while swiping). Cache by date and
- * festival mode; a month change touches at most a few hundred entries.
+ * for 42 of them (plus the adjacent month while swiping). Cache by date; a month
+ * change touches at most a few hundred entries.
  */
 const cache = new Map<string, Almanac>();
 const MAX_CACHE_ENTRIES = 600;
 
 /** @param month0 zero-based month, matching java.util.Calendar.MONTH. */
-export function almanacOf(year: number, month0: number, day: number, includeMinor = false): Almanac {
-  const key = `${year}-${month0}-${day}-${includeMinor ? 1 : 0}`;
+export function almanacOf(year: number, month0: number, day: number): Almanac {
+  const key = `${year}-${month0}-${day}`;
   const cached = cache.get(key);
   if (cached) return cached;
-  const solar = Solar.fromYmd(year, month0 + 1, day);
-  const lunar = solar.getLunar();
-  const monthInChinese = lunar.getMonthInChinese();
-  const dayInChinese = lunar.getDayInChinese();
-  const ganZhi = lunar.getYearInGanZhi();
-  const shengXiao = lunar.getYearShengXiao();
+  const solarDay = SolarDay.fromYmd(year, month0 + 1, day);
+  const lunarDay = solarDay.getLunarDay();
+  const lunarMonth = lunarDay.getLunarMonth();
+  const monthLabel = formatMonth(Math.abs(lunarMonth.getMonthWithLeap()), lunarMonth.isLeap());
+  const dayLabel = formatDay(lunarDay.getDay());
+  const lunarYear = lunarMonth.getLunarYear().getYear();
   const almanac: Almanac = {
-    bracketed: `${ganZhi}[${shengXiao}]年${monthInChinese}月${dayInChinese}`,
-    natural: `${ganZhi}${shengXiao}年${monthInChinese}月${dayInChinese}`,
-    shortLabel: lunar.getDay() === 1 ? `${monthInChinese}月` : dayInChinese,
-    festivals: collectFestivals(solar, lunar, includeMinor),
-    suitable: lunar.getDayYi(),
-    avoid: lunar.getDayJi(),
+    bracketed: stemZodiacYear(lunarYear, true) + monthLabel + dayLabel,
+    natural: stemZodiacYear(lunarYear, false) + monthLabel + dayLabel,
+    shortLabel: lunarDay.getDay() === 1 ? monthLabel : dayLabel,
+    festivals: collectFestivals(solarDay),
+    suitable: lunarDay.getRecommends().map((taboo) => taboo.getName()),
+    avoid: lunarDay.getAvoids().map((taboo) => taboo.getName()),
   };
   if (cache.size >= MAX_CACHE_ENTRIES) cache.clear();
   cache.set(key, almanac);
@@ -66,34 +72,46 @@ export function lunarClockLine(year: number, month0: number, day: number): strin
   return almanacOf(year, month0, day).bracketed;
 }
 
+/** 干支[生肖]年 (bracketed) or 干支生肖年 (plain), e.g. 丙午[马]年 / 丙午马年. */
+export function stemZodiacYear(lunarYear: number, bracketZodiac: boolean): string {
+  const index = ((((lunarYear - 4) % 60) + 60) % 60);
+  const stemBranch = TIAN_GAN[index % 10] + DI_ZHI[index % 12];
+  const zodiac = ZODIAC[index % 12];
+  return bracketZodiac ? `${stemBranch}[${zodiac}]年` : `${stemBranch}${zodiac}年`;
+}
+
+/** 正月 … 冬月 / 腊月, prefixed 闰 for a leap month. */
+export function formatMonth(month: number, leap: boolean): string {
+  return `${leap ? '闰' : ''}${MONTH_NAMES[month - 1]}月`;
+}
+
+/** 初一 / 十二 / 廿五 / 三十 … */
+export function formatDay(day: number): string {
+  if (day === 10) return '初十';
+  if (day === 20) return '二十';
+  if (day === 30) return '三十';
+  return DAY_PREFIX[Math.floor((day - 1) / 10)] + DAY_NUMBERS[(day - 1) % 10];
+}
+
 /**
- * Solar term, traditional/solar festivals and the first day of 数九/三伏, in
- * display order and de-duplicated. 母亲节/父亲节/感恩节 are always included
- * because the engine returns them from getFestivals().
- *
- * @param includeMinor when true, also include getOtherFestivals() (国际电影节,
- *   世界人道主义日, 龙头节, …); when false they are omitted to keep the grid
- *   uncluttered. Controlled by the "月历显示更多节日" setting.
+ * Solar term (only on its 交节 day), traditional lunar/solar festivals and the
+ * first day of each 数九/三伏, in display order and de-duplicated. tyme4ts returns
+ * a single curated festival per calendar, so — as on Android — there is no
+ * separate "minor festival" tier to switch on.
  *
  * Ported from LunarAlmanac.festivals.
  */
-function collectFestivals(
-  solar: ReturnType<typeof Solar.fromYmd>,
-  lunar: Lunar,
-  includeMinor: boolean
-): string[] {
+function collectFestivals(solarDay: SolarDay): string[] {
   const labels = new Set<string>();
-  const jieQi = lunar.getJieQi();
-  if (jieQi) labels.add(jieQi);
-  for (const festival of lunar.getFestivals()) labels.add(festival);
-  for (const festival of solar.getFestivals()) labels.add(festival);
-  if (includeMinor) {
-    for (const festival of lunar.getOtherFestivals()) labels.add(festival);
-    for (const festival of solar.getOtherFestivals()) labels.add(festival);
-  }
-  const shuJiu = lunar.getShuJiu();
-  if (shuJiu && shuJiu.getIndex() === 1) labels.add(shuJiu.getName());
-  const fu = lunar.getFu();
-  if (fu && fu.getIndex() === 1) labels.add(fu.getName());
+  const termDay = solarDay.getTermDay();
+  if (termDay && termDay.getDayIndex() === 0) labels.add(termDay.getSolarTerm().getName());
+  const lunarFestival = solarDay.getLunarDay().getFestival();
+  if (lunarFestival) labels.add(lunarFestival.getName());
+  const solarFestival = solarDay.getFestival();
+  if (solarFestival) labels.add(solarFestival.getName());
+  const nineDay = solarDay.getNineDay();
+  if (nineDay && nineDay.getDayIndex() === 0) labels.add(nineDay.getNine().getName());
+  const dogDay = solarDay.getDogDay();
+  if (dogDay && dogDay.getDayIndex() === 0) labels.add(dogDay.getDog().getName());
   return [...labels];
 }

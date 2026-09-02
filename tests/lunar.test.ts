@@ -35,9 +35,9 @@ describe('almanacOf', () => {
   it('reports the solar term, festivals and 数九/三伏 starts', () => {
     expect(almanacOf(2026, 7, 7).festivals).toContain('立秋');
     expect(almanacOf(2026, 1, 17).festivals).toContain('春节');
-    // Minor festivals only appear when explicitly requested.
-    expect(almanacOf(2026, 7, 7, false).festivals).not.toContain('五谷母节');
-    expect(almanacOf(2026, 7, 7, true).festivals).toContain('五谷母节');
+    // 数九 and 三伏 are named only on the day each period begins.
+    expect(almanacOf(2026, 6, 15).festivals).toContain('初伏');
+    expect(almanacOf(2026, 6, 16).festivals).not.toContain('初伏');
   });
 
   it('reports 宜 and 忌 for a day', () => {
@@ -60,11 +60,11 @@ describe('almanacOf', () => {
         CALENDAR_WEEK_START_MONDAY
       );
       for (const day of month.days) {
-        const almanac = almanacOf(day.year, day.month0, day.dayOfMonth, true);
+        const almanac = almanacOf(day.year, day.month0, day.dayOfMonth);
         expect(almanac.shortLabel.length, `${day.year}-${day.month0 + 1}-${day.dayOfMonth}`).toBeGreaterThan(0);
         expect(Array.isArray(almanac.festivals)).toBe(true);
       }
-      const first = almanacOf(year, month0, 1, true);
+      const first = almanacOf(year, month0, 1);
       expect(first.natural.length).toBeGreaterThan(0);
       expect(first.bracketed.length).toBeGreaterThan(0);
       expect(Array.isArray(first.suitable)).toBe(true);

@@ -8,7 +8,7 @@
  */
 import { prefs, cssColor } from '../core/prefs';
 import { dateLang, t, ta } from '../core/i18n';
-import { fontStack } from '../core/fonts';
+import { ensureFontLoaded, fontStack } from '../core/fonts';
 import { timeSource, millisUntilNextSecond } from '../core/time-source';
 import { addMonths, dateKey, daysInMonth, zonedFields } from '../core/zoned-time';
 import { format as formatDate } from '../format/date-formatter';
@@ -18,6 +18,7 @@ import { almanacOf } from '../lunar/lunar';
 import { holidayOn } from '../lunar/holidays';
 import { createCalendarMonth, isWeekend } from '../lunar/calendar-month';
 import type { CalendarDay } from '../lunar/calendar-month';
+import { measureColonShift } from '../ui/clock-face';
 import { LabelCarousel } from '../ui/label-carousel';
 import type { LabelItem } from '../ui/label-carousel';
 import { createWeatherIcon } from '../weather/icons';
@@ -202,6 +203,9 @@ export class CalendarPage implements Page {
     this.cancelMonthAnimation();
     const style = this.root.style;
     style.setProperty('--cal-font', fontStack(prefs.getFontFamily()));
+    this.applyColonShift();
+    // A family that is still loading would measure as the fallback face.
+    void ensureFontLoaded(prefs.getFontFamily(), true).then(() => this.applyColonShift());
     style.setProperty('--cal-time-color', cssColor(prefs.getTimeColor()));
     style.setProperty(
       '--cal-weather-icon-color',
@@ -241,14 +245,43 @@ export class CalendarPage implements Page {
     this.tickHandle = window.setTimeout(() => this.tick(), millisUntilNextSecond(timeSource.now()));
   }
 
+  /**
+   * The clock panel is drawn at the digits' weight, so the colon is measured
+   * against a bold face regardless of the bold-text setting.
+   */
+  private applyColonShift(): void {
+    const shift = measureColonShift(fontStack(prefs.getFontFamily()), 700);
+    this.root.style.setProperty('--cal-colon-shift', `${shift}em`);
+  }
+
+  /** Wraps each colon so --cal-colon-shift can lift it onto the digits' centre. */
+  private renderTime(target: HTMLElement, text: string): void {
+    const parts = text.split(':').flatMap((chunk, index) => {
+      const spans: HTMLElement[] = [];
+      if (index > 0) {
+        const colon = document.createElement('span');
+        colon.className = 'cal-colon';
+        colon.textContent = ':';
+        spans.push(colon);
+      }
+      if (chunk) {
+        const digits = document.createElement('span');
+        digits.textContent = chunk;
+        spans.push(digits);
+      }
+      return spans;
+    });
+    target.replaceChildren(...parts);
+  }
+
   private updateTime(): void {
     const fields = this.today();
     const use24Hour = prefs.isUse24Hour();
     let hour = use24Hour ? fields.hour : fields.hour % 12;
     if (!use24Hour && hour === 0) hour = 12;
-    this.timeView.textContent = `${twoDigits(hour)}:${twoDigits(fields.minute)}`;
+    this.renderTime(this.timeView, `${twoDigits(hour)}:${twoDigits(fields.minute)}`);
     this.secondsView.hidden = !prefs.isShowSeconds();
-    this.secondsView.textContent = `:${twoDigits(fields.second)}`;
+    this.renderTime(this.secondsView, `:${twoDigits(fields.second)}`);
     this.periodView.hidden = use24Hour;
     if (!use24Hour) {
       this.periodView.textContent = periodTextFor(fields.hour, prefs.isClockUseEnglish());
@@ -408,12 +441,7 @@ export class CalendarPage implements Page {
     }
     cell.appendChild(number);
 
-    const almanac = almanacOf(
-      day.year,
-      day.month0,
-      day.dayOfMonth,
-      prefs.isCalendarMoreFestivals()
-    );
+    const almanac = almanacOf(day.year, day.month0, day.dayOfMonth);
     const labelHost = document.createElement('div');
     labelHost.className = 'cal-day-label';
     if (almanac.festivals.length > 0) labelHost.classList.add('has-festival');
@@ -477,16 +505,20 @@ export class CalendarPage implements Page {
     const items: LabelItem[] = [
       { text: t('calendar_selected_date', formatted, almanac.natural), color: 'var(--text)' },
     ];
+    // 宜/忌 lead their lines: the glyph is drawn bold and stays pinned at the
+    // left edge while a line too long for the footer scrolls past it.
     if (almanac.suitable.length > 0) {
       items.push({
         text: t('calendar_suitable_prefix') + almanac.suitable.join(' '),
         color: 'var(--green)',
+        pinnedPrefix: t('calendar_suitable_prefix'),
       });
     }
     if (almanac.avoid.length > 0) {
       items.push({
         text: t('calendar_avoid_prefix') + almanac.avoid.join(' '),
         color: 'var(--red)',
+        pinnedPrefix: t('calendar_avoid_prefix'),
       });
     }
     this.footer.setItems(items);

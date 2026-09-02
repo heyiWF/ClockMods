@@ -6,6 +6,12 @@
  * CalendarFooterCarouselView: each item is held for 3s, then slides up while the
  * next slides in over 200ms. A label wider than its cell pauses for 1s, moves
  * left once at 40px/s, pauses for another second, then advances vertically.
+ *
+ * An item may name a `pinnedPrefix` — the 宜/忌 glyph that is the line's identity.
+ * It is drawn bold and pinned at the left edge, and only the items after it
+ * scroll: the glyph lives outside the strip that clips them, so it never slides
+ * away with them. A line that fits keeps the glyph bold but stays centred as a
+ * whole, exactly as CalendarFooterCarouselView draws it.
  */
 
 import { pangu } from '../format/text-spacing';
@@ -21,6 +27,11 @@ export interface LabelItem {
   text: string;
   /** CSS colour; the footer colours 宜 green and 忌 red. */
   color?: string;
+  /**
+   * When set and `text` starts with it, this head is split off as the bold glyph
+   * that stays pinned at the left edge while the rest scrolls past it.
+   */
+  pinnedPrefix?: string;
 }
 
 export class LabelCarousel {
@@ -104,12 +115,32 @@ export class LabelCarousel {
     const line = document.createElement('div');
     line.className = 'label-carousel-item';
     if (item.color) line.style.color = item.color;
-    const inner = document.createElement('span');
     const displayText = pangu(item.text);
-    inner.textContent = displayText;
+    const hint = item.pinnedPrefix ?? '';
+    const pinned = hint.length > 0 && displayText.startsWith(hint)
+      && displayText.length > hint.length;
+    // Split, never rewritten: the two halves still read as the original line, so
+    // the accessible text and the tests see 宜/忌 followed by its items.
+    const body = pinned ? displayText.slice(hint.length) : displayText;
+    if (pinned) {
+      const pin = document.createElement('strong');
+      pin.className = 'label-carousel-pin';
+      // The hint's own trailing space collapses away inside the flex item; the
+      // gap to the items is CSS, so it survives a hint that has no space at all.
+      pin.textContent = hint;
+      line.appendChild(pin);
+    }
+    // The strip is what clips the scrolling text; the pinned glyph sits outside
+    // it, so a body scrolled to its tail can never slide over the glyph.
+    const strip = document.createElement('span');
+    strip.className = 'label-carousel-strip';
+    const text = document.createElement('span');
+    text.className = 'label-carousel-text';
+    text.textContent = body;
     // Only labels longer than three characters need overflow measurement.
-    if (displayText.length > MAX_STATIC_CHARS) inner.classList.add('can-scroll');
-    line.appendChild(inner);
+    if (body.trim().length > MAX_STATIC_CHARS) text.classList.add('can-scroll');
+    strip.appendChild(text);
+    line.appendChild(strip);
     return line;
   }
 
@@ -117,7 +148,7 @@ export class LabelCarousel {
     this.clearCycle();
     const line = this.track.children[this.index] as HTMLElement | undefined;
     if (!line) return;
-    const inner = line.querySelector<HTMLElement>('span');
+    const inner = line.querySelector<HTMLElement>('.label-carousel-text');
     if (!inner) return;
 
     const overflow = this.measureLine(line);
@@ -161,10 +192,16 @@ export class LabelCarousel {
     });
   }
 
+  /**
+   * How far the body of a line overruns the room it has. The room is the strip
+   * rather than the whole line, so a pinned glyph's width is already taken out
+   * of it — which is what keeps the glyph on screen once the body starts moving.
+   */
   private measureLine(line: HTMLElement): number {
-    const inner = line.querySelector<HTMLElement>('span');
-    if (!inner) return 0;
-    const overflow = Math.max(0, inner.scrollWidth - line.clientWidth);
+    const strip = line.querySelector<HTMLElement>('.label-carousel-strip');
+    const inner = line.querySelector<HTMLElement>('.label-carousel-text');
+    if (!strip || !inner) return 0;
+    const overflow = Math.max(0, inner.scrollWidth - strip.clientWidth);
     line.classList.toggle('is-scrolling', overflow > 0);
     return overflow;
   }
@@ -177,12 +214,12 @@ export class LabelCarousel {
   }
 
   private resetItemTransforms(): void {
-    for (const inner of this.track.querySelectorAll<HTMLElement>('.label-carousel-item > span')) {
+    for (const inner of this.track.querySelectorAll<HTMLElement>('.label-carousel-text')) {
       inner.style.transition = 'none';
       inner.style.transform = 'translateX(0)';
     }
     void this.track.offsetHeight;
-    for (const inner of this.track.querySelectorAll<HTMLElement>('.label-carousel-item > span')) {
+    for (const inner of this.track.querySelectorAll<HTMLElement>('.label-carousel-text')) {
       inner.style.transition = '';
     }
   }

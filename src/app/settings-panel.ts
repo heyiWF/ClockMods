@@ -16,7 +16,6 @@ import {
   DEFAULT_BLINK_COLON,
   DEFAULT_BOLD_TEXT,
   DEFAULT_CALENDAR_HIGHLIGHT_WEEKENDS,
-  DEFAULT_CALENDAR_MORE_FESTIVALS,
   DEFAULT_CALENDAR_WEEK_START,
   DEFAULT_DATE_FONT_SCALE,
   DEFAULT_DATE_LUNAR_DUAL_LINE,
@@ -341,7 +340,6 @@ class SettingsPanel {
         t('calendar_highlight_weekends'),
         prefs.isCalendarHighlightWeekends()
       ),
-      moreFestivals: switchRow(t('calendar_more_festivals'), prefs.isCalendarMoreFestivals()),
     };
   }
 
@@ -514,8 +512,7 @@ class SettingsPanel {
         t('calendar_settings_group'),
         subLabel(t('calendar_week_start')),
         c.weekStart.row,
-        c.highlightWeekends.row,
-        c.moreFestivals.row
+        c.highlightWeekends.row
       )
     );
 
@@ -824,7 +821,6 @@ class SettingsPanel {
 
     prefs.setCalendarWeekStart(c.weekStart.value());
     prefs.setCalendarHighlightWeekends(c.highlightWeekends.input.checked);
-    prefs.setCalendarMoreFestivals(c.moreFestivals.input.checked);
 
     const languageChanged = this.selectedLanguage !== this.originalLanguage;
     this.dialog.close();
@@ -895,7 +891,6 @@ class SettingsPanel {
     c.iconDynamic.input.checked = DEFAULT_WEATHER_ICON_DYNAMIC_COLOR;
     c.weekStart.setValue(DEFAULT_CALENDAR_WEEK_START);
     c.highlightWeekends.input.checked = DEFAULT_CALENDAR_HIGHLIGHT_WEEKENDS;
-    c.moreFestivals.input.checked = DEFAULT_CALENDAR_MORE_FESTIVALS;
     toast(t('reset_default'));
   }
 }

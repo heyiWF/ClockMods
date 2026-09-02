@@ -56,7 +56,6 @@ export const DEFAULT_BOLD_TEXT = false;
 export const DEFAULT_FONT_FAMILY = 'system';
 export const DEFAULT_SHOW_SECONDS = true;
 export const DEFAULT_SHOW_LUNAR = true;
-export const DEFAULT_CALENDAR_MORE_FESTIVALS = false;
 /** Matching java.util.Calendar.SUNDAY / MONDAY. */
 export const CALENDAR_WEEK_START_SUNDAY = 1;
 export const CALENDAR_WEEK_START_MONDAY = 2;
@@ -112,7 +111,6 @@ const K = {
   fontFamily: 'font_family',
   showSeconds: 'show_seconds',
   showLunar: 'show_lunar',
-  calendarMoreFestivals: 'calendar_more_festivals',
   calendarWeekStart: 'calendar_week_start',
   calendarHighlightWeekends: 'calendar_highlight_weekends',
   smallSeconds: 'small_seconds',
@@ -394,11 +392,6 @@ export const prefs = {
     store.write(K.hourlyChimeQuietEnd, String(minutes)),
 
   // ---- Calendar ----
-  isCalendarMoreFestivals: (): boolean =>
-    store.bool(K.calendarMoreFestivals, DEFAULT_CALENDAR_MORE_FESTIVALS),
-  setCalendarMoreFestivals: (value: boolean): void =>
-    store.write(K.calendarMoreFestivals, String(value)),
-
   getCalendarWeekStart: (): number =>
     normalizeCalendarWeekStart(store.int(K.calendarWeekStart, DEFAULT_CALENDAR_WEEK_START)),
   setCalendarWeekStart: (firstDayOfWeek: number): void =>
@@ -604,7 +597,6 @@ export const prefs = {
     store.write(K.fontFamily, DEFAULT_FONT_FAMILY);
     store.write(K.showSeconds, String(DEFAULT_SHOW_SECONDS));
     store.write(K.showLunar, String(DEFAULT_SHOW_LUNAR));
-    store.write(K.calendarMoreFestivals, String(DEFAULT_CALENDAR_MORE_FESTIVALS));
     store.write(K.calendarWeekStart, String(DEFAULT_CALENDAR_WEEK_START));
     store.write(K.calendarHighlightWeekends, String(DEFAULT_CALENDAR_HIGHLIGHT_WEEKENDS));
     store.write(K.smallSeconds, String(DEFAULT_SMALL_SECONDS));

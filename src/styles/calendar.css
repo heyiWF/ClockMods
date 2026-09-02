@@ -25,23 +25,7 @@
 @media (orientation: portrait) {
   .cal-layout {
     grid-template-columns: 1fr;
-    grid-template-rows: minmax(72px, auto) minmax(0, 1fr);
-  }
-
-  .cal-clock-panel {
-    padding-block: 8px;
-  }
-
-  .cal-time {
-    font-size: clamp(38px, 13vw, 56px);
-  }
-
-  .cal-seconds {
-    font-size: clamp(20px, 6.5vw, 28px);
-  }
-
-  .cal-period {
-    font-size: clamp(12px, 3.5vw, 18px);
+    grid-template-rows: minmax(88px, auto) minmax(0, 1fr);
   }
 }
 
@@ -63,12 +47,16 @@
   min-height: 0;
 }
 
+/* Symmetric padding plus centre alignment puts the clock in the middle of its
+ * card; sizing it as a container makes the digits track the card rather than the
+ * viewport, so they stay as large as the panel allows without overflowing it. */
 .cal-clock-panel {
   flex: 1.12 1 0;
   display: flex;
-  align-items: flex-end;
+  align-items: center;
   justify-content: center;
-  padding: 16px 16px 14px;
+  padding: 12px 16px;
+  container-type: size;
 }
 
 .cal-clock {
@@ -78,21 +66,59 @@
   font-weight: 700;
   line-height: 1;
   color: var(--cal-time-color, var(--text));
+  /* Width sets the digits' size, capped so they never outgrow the card's
+     height. Both halves are variables because the portrait card is measured by
+     width alone and needs a fixed cap instead of a cqh one. */
+  --cal-clock-width-factor: 24;
+  --cal-clock-cap: 58cqh;
+  font-size: min(calc(var(--cal-clock-width-factor) * 1cqw), var(--cal-clock-cap));
 }
 
+/* The seconds and the AM/PM marker follow the digits, as on the clock page. */
 .cal-time {
-  font-size: clamp(48px, 11vw, 112px);
+  font-size: 1em;
 }
 
 .cal-seconds {
-  font-size: clamp(24px, 5.5vw, 56px);
+  font-size: 0.5em;
   color: var(--blue);
 }
 
 .cal-period {
-  font-size: clamp(14px, 3vw, 30px);
+  font-size: 0.28em;
   color: var(--secondary);
   align-self: flex-start;
+}
+
+/* The 12-hour marker costs another half-digit of width, so the digits give it
+ * room rather than running into the card's padding. */
+.cal-clock:has(.cal-period:not([hidden])) {
+  --cal-clock-width-factor: 21;
+}
+
+/* A colon sits low on the baseline. Lifting it by the measured gap between its
+ * optical centre and the digits' puts the two dots level with the digits'
+ * middle (the clock page's --colon-shift). */
+.cal-colon {
+  display: inline-block;
+  transform: translateY(var(--cal-colon-shift, 0));
+}
+
+/* Portrait's clock row grows with its content, so the card can only be an
+ * inline-size container and the digits size against its width alone. These
+ * overrides follow the landscape rules because a media query carries no extra
+ * specificity — placed earlier they would lose the cascade. */
+@media (orientation: portrait) {
+  .cal-clock-panel {
+    padding-block: 10px;
+    container-type: inline-size;
+  }
+
+  /* The portrait row is a fixed 88px band, so the cap is what keeps the digits
+     inside it. */
+  .cal-clock {
+    --cal-clock-cap: 64px;
+  }
 }
 
 .cal-weather-card {
@@ -163,7 +189,16 @@
 .cal-forecast-card {
   flex: 0.88 1 0;
   display: flex;
-  padding: 10px 14px;
+  flex-direction: column;
+  padding: 10px 14px 5px;
+}
+
+/* The three-day row keeps the card's original layout now that the attribution
+ * shares the card with it. */
+.cal-forecast-row {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
 }
 
 .cal-forecast-col {
@@ -202,10 +237,34 @@
   white-space: nowrap;
 }
 
+/* Inside the forecast card the badge chrome is redundant: the attribution is a
+ * small translucent line tucked into the card's bottom-right corner. */
 .cal-attribution {
   position: static;
   align-self: flex-end;
   height: auto;
+  z-index: auto;
+  min-height: 0;
+  max-width: 100%;
+  padding: 0;
+  border: 0;
+  background: none;
+  backdrop-filter: none;
+  color: var(--md-sys-color-on-surface-variant);
+  opacity: 0.5;
+  font-size: 9px;
+  gap: 3px;
+}
+
+.cal-attribution img {
+  width: 10px;
+  height: 10px;
+}
+
+/* In flow it must not slide up with the overlay nav the way the floating
+ * badges do. */
+#pages.has-visible-overlay-nav .cal-attribution {
+  translate: none;
 }
 
 /* ---- Month panel ---- */
@@ -409,9 +468,33 @@
   justify-content: flex-start;
 }
 
-/* Long labels are moved once by LabelCarousel before the next upward switch. */
-.label-carousel-item .can-scroll {
+/* The 宜/忌 glyph: bold, pinned left, and outside the strip that clips the
+   scrolling items so it never travels with them. */
+.label-carousel-pin {
+  flex: 0 0 auto;
+  font-weight: 700;
+  margin-right: 0.35em;
+}
+
+/* Clips the scrolling items. A line that fits is only as wide as its text so the
+   glyph and the items stay centred together; one that overflows takes the rest
+   of the row and scrolls inside it. */
+.label-carousel-strip {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.label-carousel-item.is-scrolling .label-carousel-strip {
+  flex: 1 1 auto;
+}
+
+.label-carousel-text {
   display: inline-block;
+}
+
+/* Long labels are moved once by LabelCarousel before the next upward switch. */
+.label-carousel-text.can-scroll {
   will-change: transform;
 }
 
