@@ -164,9 +164,21 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
         previousButton.setOnClickListener(view -> host.onPageRequested(-1));
         nextButton.setOnClickListener(view -> host.onPageRequested(1));
         todayButton.setOnClickListener(view -> host.onTodayRequested());
-        title.setOnClickListener(view -> host.onMonthPickerRequested());
-        title.setTooltipText(context.getString(R.string.calendar_jump_title));
         attribution.setOnClickListener(view -> host.onAttributionClicked());
+        boolean wallStyle = !capabilities.supports(Capability.CLOCK);
+        if (wallStyle) {
+            // 宣纸水墨 (wall): the title is a typographic header, not a picker affordance.
+            // Tapping it reveals the navigation bar; swiping on the month panel is restricted to
+            // the grid area so a swipe on the title/footer area falls through to the outer pager.
+            title.setOnClickListener(view -> host.onNavigationRequested());
+            title.setTooltipText(null);
+            if (footer != null) footer.setOnClickListener(view -> host.onNavigationRequested());
+            View gridViewport = root.findViewById(R.id.calendar_grid_viewport);
+            if (gridViewport != null) monthPanel.setDragRegion(gridViewport);
+        } else {
+            title.setOnClickListener(view -> host.onMonthPickerRequested());
+            title.setTooltipText(context.getString(R.string.calendar_jump_title));
+        }
         monthPanel.setMonthGestureListener(new MonthGestureLayout.Listener() {
             @Override
             public void onMonthDrag(float offset) {

@@ -185,7 +185,7 @@ public abstract class ProMainActivity extends AppCompatActivity {
 
     public abstract void showSettings();
 
-    private void showChromeTemporarily() {
+    protected void showChromeTemporarily() {
         navigation.setVisibility(View.VISIBLE);
         showSystemBars();
         chromeHandler.removeCallbacks(hideChromeRunnable);

@@ -104,8 +104,11 @@ public final class PosterCalendarLayout implements CalendarLayout, CalendarPager
 
     private void configureViews() {
         wordmark.setAccessibilityHeading(true);
-        wordmark.setOnClickListener(view -> host.onMonthPickerRequested());
-        wordmark.setTooltipText(context.getString(R.string.calendar_jump_title));
+        // The masthead shows the year/month for reading, not for picking — tapping it reveals the
+        // navigation bar instead of opening the month picker. Swiping on the masthead is left to the
+        // outer ViewPager (page switch) because only the grid area should turn months.
+        wordmark.setOnClickListener(view -> host.onNavigationRequested());
+        wordmark.setTooltipText(null);
         todayButton.setOnClickListener(view -> host.onTodayRequested());
         monthPanel.setMonthGestureListener(new MonthGestureLayout.Listener() {
             @Override public void onMonthDrag(float offset) {
@@ -116,6 +119,10 @@ public final class PosterCalendarLayout implements CalendarLayout, CalendarPager
                 host.onPageDragFinished(direction);
             }
         });
+        // Restrict month-swipe drags to the grid viewport; drags on the masthead fall through to
+        // the outer ViewPager so they switch pages rather than turning the month.
+        View gridViewport = root.findViewById(R.id.calendar_grid_viewport);
+        if (gridViewport != null) monthPanel.setDragRegion(gridViewport);
         monthPanel.addOnLayoutChangeListener((view, left, top, right, bottom,
                 oldLeft, oldTop, oldRight, oldBottom) -> scheduleResponsiveSizing());
         grid.addOnLayoutChangeListener((view, left, top, right, bottom,

@@ -490,6 +490,12 @@ public final class ProCalendarFragment extends Fragment implements CalendarLayou
         startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.qweather.com")));
     }
 
+    @Override public void onNavigationRequested() {
+        if (getActivity() instanceof ProMainActivity) {
+            ((ProMainActivity) getActivity()).showChromeTemporarily();
+        }
+    }
+
     @Override public void onPageDragged(float offsetPx) {
         if (monthAnimating) return;
         CalendarPager pager = pager();

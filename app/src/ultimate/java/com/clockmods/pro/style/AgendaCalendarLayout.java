@@ -37,6 +37,7 @@ import com.clockmods.pro.CalendarTheme;
 import com.clockmods.pro.MonthGestureLayout;
 import com.clockmods.pro.style.CalendarLayoutCapabilities.Capability;
 import com.clockmods.ui.AlmanacLineView;
+import com.clockmods.ui.CalendarLabelCarouselView;
 import com.clockmods.ui.ClockTypefaceResolver;
 import com.clockmods.ui.QWeatherLogoView;
 import com.clockmods.ui.StatusBarView;
@@ -201,6 +202,7 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
         // The 宜/忌 marquee runs only while the page is the one the user is looking at.
         suitableView.setActive(active);
         avoidView.setActive(active);
+        for (DayCell cell : cells) cell.setCarouselActive(active);
     }
 
     // endregion
@@ -865,12 +867,23 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
         private final boolean interactive;
         private final TextView weekdayLabel;
         private final CalendarDayNumberView number;
-        private final TextView lunarLabel;
+        /**
+         * Lunar / festival label for the strip cell.
+         *
+         * <p>In the rail (landscape) this stays a plain {@link TextView} — the rail cell is a
+         * horizontal row and a {@link CalendarLabelCarouselView} in that narrow weight column
+         * would not gain anything over the single-item static path. In the portrait strip each
+         * cell is a column and multiple festivals deserve a carousel, so the view is a
+         * {@link CalendarLabelCarouselView} there instead.  To keep one binding path the field
+         * is typed as {@link View} and helpers cast it.</p>
+         */
+        private final View lunarSlot;
         /** Today's accent: an underline in the strip, a leading bar in the rail. */
         private final View accentMark;
 
         private CalendarPageState.DayInfo day;
         private CalendarPageState state;
+        private String lastLunarText = "";
         private String baseDescription = "";
 
         DayCell(boolean interactive) {
@@ -895,14 +908,16 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
             // badge nor disc — today and the selection are marks, not fills on the glyph.
             number.setBadge("", 0);
             number.setFill(0);
-            lunarLabel = new TextView(getContext());
-            lunarLabel.setGravity(Gravity.CENTER);
-            lunarLabel.setIncludeFontPadding(false);
-            lunarLabel.setSingleLine(true);
             accentMark = new View(getContext());
             accentMark.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
 
             if (rail) {
+                // In the rail a TextView is enough: one label per cell, no carousel needed.
+                TextView tv = new TextView(getContext());
+                tv.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+                tv.setIncludeFontPadding(false);
+                tv.setSingleLine(true);
+                lunarSlot = tv;
                 // Weighted slots, not wrapped ones. A lunar label is two glyphs on most days and
                 // three when it carries a solar term or a festival (处暑, 七夕节) — and a wrapped
                 // label hands that extra width back by squeezing the number's box, which slides
@@ -910,19 +925,21 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
                 // every number on the same axis whatever the label says.
                 addView(accentMark, new LayoutParams(accentThickness, LayoutParams.MATCH_PARENT));
                 weekdayLabel.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-                lunarLabel.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
                 LayoutParams weekdayParams = new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1.1f);
                 weekdayParams.setMarginStart(Math.round(density * 6f));
                 addView(weekdayLabel, weekdayParams);
                 addView(number, new LayoutParams(0, LayoutParams.MATCH_PARENT, 2.6f));
                 LayoutParams lunarParams = new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1.1f);
                 lunarParams.setMarginEnd(Math.round(density * 6f));
-                addView(lunarLabel, lunarParams);
+                addView(lunarSlot, lunarParams);
             } else {
+                // In the portrait strip use a carousel so multiple festivals rotate automatically.
+                CalendarLabelCarouselView carousel = new CalendarLabelCarouselView(getContext());
+                lunarSlot = carousel;
                 addView(weekdayLabel, new LayoutParams(LayoutParams.MATCH_PARENT,
                         LayoutParams.WRAP_CONTENT));
                 addView(number, new LayoutParams(LayoutParams.MATCH_PARENT, 0, 1f));
-                addView(lunarLabel, new LayoutParams(LayoutParams.MATCH_PARENT,
+                addView(lunarSlot, new LayoutParams(LayoutParams.MATCH_PARENT,
                         LayoutParams.WRAP_CONTENT));
                 LayoutParams accentParams =
                         new LayoutParams(LayoutParams.MATCH_PARENT, accentThickness);
@@ -941,7 +958,7 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
             // host rotates weekdayNames the same way, so the cell index indexes both.
             weekdayLabel.setText(index < state.weekdayNames.length ? state.weekdayNames[index] : "");
             number.setDay(day.dayNumber, dayColor());
-            lunarLabel.setText(lunarText());
+            bindLunarSlot();
             baseDescription = day.contentDescription;
             applyTheme();
             applySelection(selected);
@@ -950,11 +967,41 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
             if (interactive) setOnClickListener(view -> host.onDaySelected(day));
         }
 
-        /** A festival or statutory name outranks the lunar date: it is why the day stands out. */
-        private String lunarText() {
-            if (!day.festivals.isEmpty()) return day.festivals.get(0);
-            if (day.holidayName.length() > 0) return day.holidayName;
-            return day.lunarShort;
+        /**
+         * Binds the lunar / festival slot.
+         *
+         * <p>The statutory holiday name ({@code holidayName}) is intentionally ignored here.
+         * That field is set on compensation / make-up days whose actual date does not belong to
+         * the festival — e.g. the Sunday worked in lieu of National Day shows 国庆节 as its
+         * {@code holidayName} even though that day is just a regular make-up day. Showing that
+         * name would mislead the user into thinking the festival fell on that day.</p>
+         *
+         * <p>Instead the cell shows the real {@link CalendarPageState.DayInfo#festivals} list
+         * (solar terms and festivals that genuinely fall on this date) and falls back to the
+         * plain {@link CalendarPageState.DayInfo#lunarShort} label. When there are multiple
+         * festivals the portrait-strip carousel rotates through them.</p>
+         */
+        private void bindLunarSlot() {
+            List<String> items = lunarItems();
+            if (lunarSlot instanceof CalendarLabelCarouselView) {
+                ((CalendarLabelCarouselView) lunarSlot).setItems(items);
+                lastLunarText = items.isEmpty() ? "" : items.get(0);
+            } else if (lunarSlot instanceof TextView) {
+                String text = items.isEmpty() ? "" : items.get(0);
+                ((TextView) lunarSlot).setText(text);
+                lastLunarText = text;
+            }
+        }
+
+        /**
+         * Returns the ordered list of labels to show for this cell, without {@code holidayName}.
+         * Falls back to a singleton list containing the lunar-date short label.
+         */
+        private List<String> lunarItems() {
+            if (!day.festivals.isEmpty()) return day.festivals;
+            List<String> fallback = new ArrayList<>(1);
+            fallback.add(day.lunarShort);
+            return fallback;
         }
 
         private int dayColor() {
@@ -969,8 +1016,12 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
             weekdayLabel.setTextColor(state != null && state.highlightWeekends && day.weekend
                     ? theme.weekend : theme.weekday);
             // A festival name is the accent's job; a plain lunar date is support type.
-            boolean highlighted = !day.festivals.isEmpty() || day.holidayName.length() > 0;
-            lunarLabel.setTextColor(highlighted ? theme.accent : theme.secondary);
+            int lunarColor = !day.festivals.isEmpty() ? theme.accent : theme.secondary;
+            if (lunarSlot instanceof CalendarLabelCarouselView) {
+                ((CalendarLabelCarouselView) lunarSlot).setTextColor(lunarColor);
+            } else if (lunarSlot instanceof TextView) {
+                ((TextView) lunarSlot).setTextColor(lunarColor);
+            }
             accentMark.setBackgroundColor(day.today ? theme.today : 0x00000000);
         }
 
@@ -986,13 +1037,27 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
         void setTypefaces(Typeface display, Typeface regular) {
             number.setTypefaces(display, regular);
             weekdayLabel.setTypeface(regular);
-            lunarLabel.setTypeface(regular);
+            if (lunarSlot instanceof CalendarLabelCarouselView) {
+                ((CalendarLabelCarouselView) lunarSlot).setTypeface(regular);
+            } else if (lunarSlot instanceof TextView) {
+                ((TextView) lunarSlot).setTypeface(regular);
+            }
         }
 
         void applySizing(float numberSize, float labelSize) {
             number.setDayTextSize(numberSize);
             weekdayLabel.setTextSize(TypedValue.COMPLEX_UNIT_PX, labelSize);
-            lunarLabel.setTextSize(TypedValue.COMPLEX_UNIT_PX, labelSize);
+            if (lunarSlot instanceof CalendarLabelCarouselView) {
+                ((CalendarLabelCarouselView) lunarSlot).setTextSizePx(labelSize);
+            } else if (lunarSlot instanceof TextView) {
+                ((TextView) lunarSlot).setTextSize(TypedValue.COMPLEX_UNIT_PX, labelSize);
+            }
+        }
+
+        void setCarouselActive(boolean active) {
+            if (lunarSlot instanceof CalendarLabelCarouselView) {
+                ((CalendarLabelCarouselView) lunarSlot).setActive(active);
+            }
         }
 
         /**
@@ -1005,6 +1070,11 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
          * arithmetic on paint metrics describes a box that is not on screen. {@code getBaseline()}
          * is fallback-aware, which makes it the only honest reference point.</p>
          *
+         * <p>The lunar slot is a {@link CalendarLabelCarouselView} in the portrait strip — it
+         * draws on a Canvas and has no baseline API. As a proxy we use {@code weekdayLabel}'s
+         * paint (both labels share the same typeface and size) to measure the lunar text string
+         * and estimate its ink top from the view's vertical centre.</p>
+         *
          * <p>The correction is applied as a bottom margin on the weekday label, which pushes the
          * number's box down by the full margin and its ink centre by half — so it lands half in
          * each gap. It accumulates against the current margin and stops once the two are within a
@@ -1012,20 +1082,29 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
          */
         private void balanceStackedGaps() {
             CharSequence weekdayText = weekdayLabel.getText();
-            CharSequence lunarText = lunarLabel.getText();
-            if (weekdayText.length() == 0 || lunarText.length() == 0) return;
-            if (weekdayLabel.getHeight() == 0 || lunarLabel.getHeight() == 0) return;
+            if (weekdayText.length() == 0 || lastLunarText.length() == 0) return;
+            if (weekdayLabel.getHeight() == 0 || lunarSlot.getHeight() == 0) return;
             float numberInk = number.inkHeight();
             if (numberInk <= 0f) return;
 
-            Paint paint = lunarLabel.getPaint();
+            // Use weekdayLabel's paint for both measurements — same face and size as the lunar slot.
+            Paint paint = weekdayLabel.getPaint();
             String weekday = weekdayText.toString();
             paint.getTextBounds(weekday, 0, weekday.length(), labelInk);
             float weekdayInkBottom =
                     weekdayLabel.getTop() + weekdayLabel.getBaseline() + labelInk.bottom;
-            String lunar = lunarText.toString();
-            paint.getTextBounds(lunar, 0, lunar.length(), labelInk);
-            float lunarInkTop = lunarLabel.getTop() + lunarLabel.getBaseline() + labelInk.top;
+
+            // For the carousel estimate ink top from the view centre using font ascent.
+            paint.getTextBounds(lastLunarText, 0, lastLunarText.length(), labelInk);
+            float lunarInkTop;
+            if (lunarSlot instanceof TextView) {
+                lunarInkTop = lunarSlot.getTop() + ((TextView) lunarSlot).getBaseline()
+                        + labelInk.top;
+            } else {
+                // Carousel: centre of view minus half the ink height is a close enough proxy.
+                float lunarCentre = lunarSlot.getTop() + lunarSlot.getHeight() / 2f;
+                lunarInkTop = lunarCentre + labelInk.top;
+            }
 
             float numberCenter = number.getTop() + number.getHeight() / 2f;
             float gapAbove = numberCenter - numberInk / 2f - weekdayInkBottom;

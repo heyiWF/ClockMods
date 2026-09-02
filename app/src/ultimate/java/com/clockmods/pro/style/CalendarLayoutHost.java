@@ -32,6 +32,13 @@ public interface CalendarLayoutHost {
     void onPageDragFinished(int direction);
 
     /**
+     * The user tapped a non-interactive area of the layout and expects the navigation bar to
+     * reappear. Layouts that suppress the month-picker on their year/month display (poster,
+     * paper) forward a tap there here instead.
+     */
+    void onNavigationRequested();
+
+    /**
      * The manager a layout shows its own dialogs from. Material's pickers are {@code
      * DialogFragment}s rather than plain dialogs, so they need one to survive a rotation instead of
      * dying with the view that opened them.
