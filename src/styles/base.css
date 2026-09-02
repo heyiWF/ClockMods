@@ -1,4 +1,4 @@
-/* App shell: page stack, bottom navigation and toasts. */
+/* App shell: page stack, navigation bar and snackbars. */
 
 *,
 *::before,
@@ -13,9 +13,8 @@ body {
   height: 100%;
   overflow: hidden;
   background: #000;
-  color: var(--text);
-  font-family: system-ui, -apple-system, 'Segoe UI', Roboto, 'Helvetica Neue', Arial,
-    'PingFang SC', 'Microsoft YaHei', sans-serif;
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-sys-typescale-body-medium-font);
   /* A wall clock is tapped, never selected or zoomed. */
   -webkit-user-select: none;
   user-select: none;
@@ -62,7 +61,11 @@ body {
   pointer-events: none;
 }
 
-/* ---- Bottom navigation ---- */
+/* ---- Navigation bar ----
+ * md.comp.navigation-bar: an 80px surface-container bar whose active item wears
+ * a 64x32 secondary-container pill behind its icon. No divider — M3 separates
+ * the bar from the content by surface tone alone.
+ */
 
 #nav {
   flex: 0 0 auto;
@@ -70,8 +73,7 @@ body {
   align-items: stretch;
   height: calc(var(--nav-height) + var(--safe-bottom));
   padding-bottom: var(--safe-bottom);
-  background: var(--m3-surface-container);
-  border-top: 1px solid var(--m3-outline-variant);
+  background: var(--md-sys-color-surface-container);
 }
 
 /* Clock and calendar keep their full viewport when the temporary nav appears. */
@@ -87,74 +89,136 @@ body {
   display: none;
 }
 
-#nav button {
+.m3-nav-item {
   flex: 1 1 0;
   display: flex;
   flex-direction: column;
   align-items: center;
-  justify-content: center;
-  gap: 2px;
+  gap: 4px;
   min-width: 0;
-  padding: 6px 2px;
+  padding: 12px 0 16px;
   border: 0;
   background: none;
-  color: var(--m3-on-surface-variant);
+  color: var(--md-sys-color-on-surface-variant);
   font: inherit;
-  font-size: 11px;
   cursor: pointer;
-  transition: color 150ms ease;
 }
 
-#nav button svg {
+.m3-nav-item__indicator {
+  --m3-shape: var(--md-sys-shape-corner-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 64px;
+  height: 32px;
+  max-width: 100%;
+  border-radius: var(--m3-shape);
+  transition: background-color var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
+}
+
+.m3-nav-item__indicator svg {
   width: 24px;
   height: 24px;
   fill: currentColor;
 }
 
-#nav button span {
+.m3-nav-item__label {
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
   max-width: 100%;
+  font-family: var(--md-sys-typescale-label-medium-font);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  font-weight: var(--md-sys-typescale-label-medium-weight);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
 }
 
-#nav button.is-active {
-  color: var(--m3-primary);
+.m3-nav-item.is-active {
+  color: var(--md-sys-color-on-surface);
 }
 
-#nav button.is-active svg {
-  background: color-mix(in srgb, var(--m3-primary) 22%, transparent);
-  border-radius: 999px;
-  padding: 2px 10px;
-  width: 44px;
+.m3-nav-item.is-active .m3-nav-item__indicator {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
 }
 
-/* ---- Toast ---- */
+/* md.comp.navigation-bar.active-label-text-weight is the prominent weight. */
+.m3-nav-item.is-active .m3-nav-item__label {
+  font-weight: var(--md-ref-typeface-weight-bold);
+}
+
+/*
+ * A landscape phone has no room for the full 80px bar. M3 routes that window
+ * class to a navigation rail; ClockMods keeps the bar but drops it to the
+ * pre-M3 64px so the clock stays the tallest thing on screen.
+ */
+@media (max-height: 480px) {
+  :root {
+    --nav-height: 64px;
+  }
+
+  .m3-nav-item {
+    padding: 8px 0 10px;
+  }
+
+  .m3-nav-item__indicator {
+    height: 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m3-nav-item__indicator {
+    transition: none;
+  }
+}
+
+/* ---- Snackbar ----
+ * md.comp.snackbar: an inverse-surface bar at corner-extra-small, raised to
+ * elevation level 3, with the action label in inverse-primary.
+ */
 
 #toast-root {
   position: fixed;
   left: 50%;
-  bottom: calc(var(--nav-height) + var(--safe-bottom) + 24px);
+  bottom: calc(var(--nav-height) + var(--safe-bottom) + 16px);
   transform: translateX(-50%);
   z-index: 60;
   display: flex;
   flex-direction: column;
   gap: 8px;
+  max-width: min(calc(100vw - 32px), 600px);
   pointer-events: none;
 }
 
 .toast {
-  padding: 10px 18px;
-  border-radius: 999px;
-  background: var(--m3-surface-container-high);
-  color: var(--m3-on-surface);
-  font-size: 14px;
-  box-shadow: 0 4px 16px rgba(0, 0, 0, 0.4);
-  animation: toast-in 180ms ease-out;
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 16px;
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  background: var(--md-sys-color-inverse-surface);
+  color: var(--md-sys-color-inverse-on-surface);
+  font-family: var(--md-sys-typescale-body-medium-font);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+  box-shadow: var(--md-sys-elevation-level3);
+  animation: toast-in var(--md-sys-motion-duration-medium1)
+    var(--md-sys-motion-easing-emphasized-decelerate);
+}
+
+.toast .m3-button--text {
+  margin-right: -8px;
+  color: var(--md-sys-color-inverse-primary);
 }
 
 .toast.is-leaving {
-  animation: toast-out 180ms ease-in forwards;
+  animation: toast-out var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-emphasized-accelerate) forwards;
 }
 
 @keyframes toast-in {
@@ -185,7 +249,7 @@ body {
   max-width: calc(100% - 24px);
   padding: 3px 7px;
   border: 1px solid rgba(255, 255, 255, 0.16);
-  border-radius: 6px;
+  border-radius: var(--md-sys-shape-corner-extra-small);
   background: rgba(0, 0, 0, 0.48);
   color: rgba(255, 255, 255, 0.92);
   font-size: 11px;
@@ -193,7 +257,8 @@ body {
   text-decoration: none;
   white-space: nowrap;
   backdrop-filter: blur(4px);
-  transition: translate 180ms ease;
+  transition: translate var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
 }
 
 .weather-attribution img {
@@ -220,36 +285,4 @@ body {
   .weather-attribution {
     transition: none;
   }
-}
-
-/* ---- Shared buttons ---- */
-
-.button {
-  min-height: 44px;
-  padding: 0 20px;
-  border: 0;
-  border-radius: 999px;
-  background: var(--m3-primary);
-  color: var(--m3-on-primary);
-  font: inherit;
-  font-size: 15px;
-  font-weight: 600;
-  cursor: pointer;
-}
-
-.button--outlined {
-  background: none;
-  color: var(--m3-primary);
-  border: 1px solid var(--m3-outline-variant);
-}
-
-.button--text {
-  background: none;
-  color: var(--m3-primary);
-  padding: 0 12px;
-}
-
-.button:disabled {
-  opacity: 0.4;
-  cursor: default;
 }

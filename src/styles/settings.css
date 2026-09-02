@@ -1,8 +1,16 @@
 /*
  * Settings sheet.
  *
- * A bottom sheet with two tabbed boards, each section in a rounded card — the
- * layout SettingsDialog built with MaterialCardView and MaterialButtonToggleGroup.
+ * A Material 3 modal bottom sheet holding two tabbed boards of filled cards.
+ * Component metrics are md.comp.* token values from
+ * @material/web/tokens/versions/v0_192 — the switch's 52x32 track and its
+ * 16px/24px/28px handles, the 40px segmented buttons, the 4px slider track with
+ * its 20px handle, the 56px outlined fields.
+ */
+
+/* ---- Modal bottom sheet ----
+ * md.comp.sheet-bottom docked: surface-container-low, corner-extra-large-top,
+ * elevation level 1, with a 32x4 drag handle.
  */
 
 .settings-sheet {
@@ -12,24 +20,49 @@
   max-width: 720px;
   max-height: 92dvh;
   margin: 0 auto;
-  padding: 12px 20px calc(20px + var(--safe-bottom));
+  padding: 0 24px calc(24px + var(--safe-bottom));
   border: 0;
-  border-radius: var(--card-radius) var(--card-radius) 0 0;
-  background: var(--m3-surface);
-  color: var(--m3-on-surface);
+  border-radius: var(--md-sys-shape-corner-extra-large) var(--md-sys-shape-corner-extra-large) 0 0;
+  background: var(--md-sys-color-surface-container-low);
+  color: var(--md-sys-color-on-surface);
+  box-shadow: var(--md-sys-elevation-level1);
   display: flex;
   flex-direction: column;
   overflow: hidden;
 }
 
+.settings-sheet::backdrop {
+  background: color-mix(in srgb, var(--md-sys-color-scrim) 32%, transparent);
+}
+
+/* The drag handle: 32x4, on-surface-variant, 22px of clearance above the title. */
+.settings-sheet::before {
+  content: '';
+  flex: 0 0 auto;
+  align-self: center;
+  width: 32px;
+  height: 4px;
+  margin: 16px 0 6px;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-on-surface-variant);
+  opacity: 0.4;
+}
+
 .settings-sheet[open] {
-  animation: sheet-in 220ms cubic-bezier(0.05, 0.7, 0.1, 1);
+  animation: sheet-in var(--md-sys-motion-duration-medium4)
+    var(--md-sys-motion-easing-emphasized-decelerate);
 }
 
 @keyframes sheet-in {
   from {
     transform: translateY(24px);
     opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-sheet[open] {
+    animation: none;
   }
 }
 
@@ -43,14 +76,17 @@
 
 .settings-sheet > .settings-segmented {
   flex: 0 0 auto;
-  margin-bottom: 12px;
+  margin-bottom: 16px;
 }
 
 .settings-title {
   flex: 1 1 auto;
   margin: 0;
-  font-size: 20px;
-  font-weight: 600;
+  font-family: var(--md-sys-typescale-title-large-font);
+  font-size: var(--md-sys-typescale-title-large-size);
+  line-height: var(--md-sys-typescale-title-large-line-height);
+  font-weight: var(--md-sys-typescale-title-large-weight);
+  letter-spacing: var(--md-sys-typescale-title-large-tracking);
 }
 
 .settings-body {
@@ -71,10 +107,14 @@
   display: none;
 }
 
+/* ---- Filled card ----
+ * md.comp.filled-card: surface-container-highest at corner-medium, no outline.
+ */
+
 .settings-card {
-  border: 1px solid var(--m3-outline-variant);
-  border-radius: var(--card-radius);
-  background: var(--m3-surface-container-high);
+  border: 0;
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-sys-color-surface-container-highest);
   padding: 16px;
   display: flex;
   flex-direction: column;
@@ -83,29 +123,39 @@
 
 .settings-card-title {
   margin: 0;
-  font-size: 15px;
-  font-weight: 600;
-  color: var(--m3-primary);
+  color: var(--md-sys-color-primary);
+  font-family: var(--md-sys-typescale-title-small-font);
+  font-size: var(--md-sys-typescale-title-small-size);
+  line-height: var(--md-sys-typescale-title-small-line-height);
+  font-weight: var(--md-sys-typescale-title-small-weight);
+  letter-spacing: var(--md-sys-typescale-title-small-tracking);
 }
 
 .settings-sublabel {
   margin: 6px 0 0;
-  font-size: 13px;
-  font-weight: 500;
-  color: var(--m3-on-surface);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-sys-typescale-label-large-font);
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
 }
 
 .settings-summary {
   margin: 0;
-  font-size: 12px;
-  line-height: 1.5;
-  color: var(--m3-on-surface-variant);
+  color: var(--md-sys-color-on-surface-variant);
+  font-family: var(--md-sys-typescale-body-small-font);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
 }
 
 .settings-error {
   margin: 0;
-  font-size: 12px;
-  color: var(--m3-error);
+  color: var(--md-sys-color-error);
+  font-family: var(--md-sys-typescale-body-small-font);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
 }
 
 .settings-error[hidden] {
@@ -114,8 +164,10 @@
 
 .settings-preview {
   margin: 8px 0 0;
-  font-size: 14px;
-  color: var(--m3-on-surface-variant);
+  color: var(--md-sys-color-on-surface-variant);
+  font-family: var(--md-sys-typescale-body-medium-font);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
 }
 
 .settings-group {
@@ -137,15 +189,22 @@
   flex: 1 1 0;
 }
 
-/* ---- Switch ---- */
+/* ---- Switch ----
+ * md.comp.switch, drawn entirely on the checkbox: a 52x32 track with a 2px
+ * outline, ::after as the handle (16px unselected, 24px selected, 28px while
+ * pressed) and ::before as the 40px state layer that follows it.
+ */
 
 .settings-switch {
   display: flex;
   align-items: center;
   justify-content: space-between;
   gap: 12px;
-  min-height: 44px;
-  font-size: 15px;
+  min-height: 48px;
+  font-family: var(--md-sys-typescale-body-large-font);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  letter-spacing: var(--md-sys-typescale-body-large-tracking);
   cursor: pointer;
 }
 
@@ -157,44 +216,111 @@
 
 .settings-switch input[type='checkbox'] {
   appearance: none;
+  position: relative;
   flex: 0 0 auto;
   width: 52px;
   height: 32px;
   margin: 0;
-  border-radius: 999px;
-  background: var(--m3-surface-variant);
-  border: 2px solid var(--m3-outline-variant);
-  position: relative;
+  border: 2px solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-surface-container-highest);
   cursor: pointer;
-  transition: background 150ms ease;
+  transition:
+    background-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+    border-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+
+/* State layer — 40px, centred on the handle, so it travels with it. */
+.settings-switch input[type='checkbox']::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -6px;
+  width: 40px;
+  height: 40px;
+  margin-top: -20px;
+  border-radius: 50%;
+  background: var(--md-sys-color-on-surface);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    left var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+    opacity 15ms linear;
 }
 
 .settings-switch input[type='checkbox']::after {
   content: '';
   position: absolute;
   top: 50%;
-  left: 4px;
-  width: 18px;
-  height: 18px;
+  left: 6px;
+  width: 16px;
+  height: 16px;
   border-radius: 50%;
-  background: var(--m3-on-surface-variant);
+  background: var(--md-sys-color-outline);
   transform: translateY(-50%);
   transition:
-    transform 150ms ease,
-    background 150ms ease;
+    left var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+    width var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+    height var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+    background-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
 }
 
 .settings-switch input[type='checkbox']:checked {
-  background: var(--m3-primary);
-  border-color: var(--m3-primary);
+  background: var(--md-sys-color-primary);
+  border-color: var(--md-sys-color-primary);
 }
 
 .settings-switch input[type='checkbox']:checked::after {
-  background: var(--m3-on-primary);
-  transform: translate(20px, -50%);
+  left: 22px;
+  width: 24px;
+  height: 24px;
+  background: var(--md-sys-color-on-primary);
 }
 
-/* ---- Slider ---- */
+.settings-switch input[type='checkbox']:checked::before {
+  left: 14px;
+  background: var(--md-sys-color-primary);
+}
+
+/* The handle swells to 28px under the finger without shifting its centre. */
+.settings-switch input[type='checkbox']:active::after {
+  left: 0;
+  width: 28px;
+  height: 28px;
+}
+
+.settings-switch input[type='checkbox']:checked:active::after {
+  left: 20px;
+}
+
+@media (hover: hover) {
+  .settings-switch input[type='checkbox']:hover:not(:disabled)::before {
+    opacity: var(--md-sys-state-hover-state-layer-opacity);
+  }
+}
+
+.settings-switch input[type='checkbox']:focus-visible {
+  outline: 3px solid var(--md-sys-color-secondary);
+  outline-offset: 2px;
+}
+
+.settings-switch input[type='checkbox']:focus-visible::before,
+.settings-switch input[type='checkbox']:active::before {
+  opacity: var(--md-sys-state-pressed-state-layer-opacity);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-switch input[type='checkbox'],
+  .settings-switch input[type='checkbox']::before,
+  .settings-switch input[type='checkbox']::after {
+    transition: none;
+  }
+}
+
+/* ---- Slider ----
+ * md.comp.slider: a 4px track — primary up to the value, surface-container-
+ * highest past it — under a 20px primary handle inside a 40px state layer.
+ */
 
 .settings-slider {
   display: flex;
@@ -204,90 +330,219 @@
 
 .settings-slider-label {
   flex: 0 0 64px;
-  font-size: 14px;
+  font-family: var(--md-sys-typescale-body-medium-font);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
 }
 
 .settings-slider input[type='range'] {
+  /* Where the centre of the 20px handle sits, in track coordinates. */
+  --m3-slider-fill: calc(10px + (100% - 20px) * var(--m3-slider-fraction, 0));
+  appearance: none;
   flex: 1 1 auto;
-  accent-color: var(--m3-primary);
   min-width: 0;
+  height: 40px;
+  margin: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.settings-slider input[type='range']::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: linear-gradient(
+    to right,
+    var(--md-sys-color-primary) 0 var(--m3-slider-fill),
+    var(--md-sys-color-surface-container-highest) var(--m3-slider-fill) 100%
+  );
+}
+
+.settings-slider input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  /* Centre the 20px handle on the 4px track. */
+  margin-top: -8px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--md-sys-color-primary);
+}
+
+.settings-slider input[type='range']::-moz-range-track {
+  height: 4px;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: linear-gradient(
+    to right,
+    var(--md-sys-color-primary) 0 var(--m3-slider-fill),
+    var(--md-sys-color-surface-container-highest) var(--m3-slider-fill) 100%
+  );
+}
+
+.settings-slider input[type='range']::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--md-sys-color-primary);
+}
+
+.settings-slider input[type='range']:focus-visible {
+  outline: 3px solid var(--md-sys-color-secondary);
+  outline-offset: -4px;
+  border-radius: var(--md-sys-shape-corner-full);
 }
 
 .settings-slider-value {
   flex: 0 0 auto;
   min-width: 96px;
   text-align: right;
-  font-size: 12px;
-  color: var(--m3-on-surface-variant);
+  color: var(--md-sys-color-on-surface-variant);
+  font-family: var(--md-sys-typescale-label-medium-font);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
   white-space: nowrap;
 }
 
-/* ---- Segmented ---- */
+/* ---- Outlined segmented button ----
+ * md.comp.outlined-segmented-button: 40px tall, a single 1px outline around the
+ * group with dividers between segments, and a check on the selected one.
+ */
 
 .settings-segmented {
   display: flex;
-  border: 1px solid var(--m3-outline-variant);
-  border-radius: 999px;
+  border: 1px solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-full);
   overflow: hidden;
 }
 
 .settings-segment {
+  --m3-shape: 2px;
+  --m3-focus-ring-offset: -2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
   flex: 1 1 0;
-  min-height: 42px;
-  padding: 0 8px;
+  min-width: 0;
+  height: 38px;
+  padding: 0 12px;
   border: 0;
-  border-left: 1px solid var(--m3-outline-variant);
+  border-left: 1px solid var(--md-sys-color-outline);
   background: none;
-  color: var(--m3-on-surface-variant);
-  font: inherit;
-  font-size: 14px;
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-sys-typescale-label-large-font);
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
   cursor: pointer;
-  white-space: nowrap;
-  overflow: hidden;
-  text-overflow: ellipsis;
 }
 
 .settings-segment:first-child {
   border-left: 0;
 }
 
-.settings-segment.is-active {
-  background: color-mix(in srgb, var(--m3-primary) 24%, transparent);
-  color: var(--m3-on-surface);
+.settings-segment-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
 }
 
-/* ---- Inputs ---- */
+/* The check occupies no space until the segment is selected, so labels stay put
+ * in a two-segment group and only shift when a selection actually moves. */
+.settings-segment-check {
+  flex: 0 0 auto;
+  width: 0;
+  height: 18px;
+  fill: currentColor;
+  opacity: 0;
+  transition:
+    width var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+    opacity var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard);
+}
+
+.settings-segment.is-active {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+.settings-segment.is-active .settings-segment-check {
+  width: 18px;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-segment-check {
+    transition: none;
+  }
+}
+
+/* ---- Outlined text field and select ----
+ * md.comp.outlined-text-field: 56px, corner-extra-small, a 1px outline that
+ * thickens to 2px in primary on focus. The panel labels its fields from the
+ * sub-label above them, so this is the no-label configuration.
+ */
 
 .settings-select,
 .settings-input {
   width: 100%;
-  min-height: 44px;
-  padding: 0 12px;
-  border: 1px solid var(--m3-outline-variant);
-  border-radius: 8px;
-  background: var(--m3-surface-container);
-  color: var(--m3-on-surface);
-  font: inherit;
-  font-size: 15px;
+  min-height: 56px;
+  padding: 0 16px;
+  border: 1px solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  background: transparent;
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-sys-typescale-body-large-font);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  letter-spacing: var(--md-sys-typescale-body-large-tracking);
+  transition: border-color var(--md-sys-motion-duration-short2)
+    var(--md-sys-motion-easing-standard);
+}
+
+@media (hover: hover) {
+  .settings-select:hover:not(:disabled),
+  .settings-input:hover:not(:disabled) {
+    border-color: var(--md-sys-color-on-surface);
+  }
+}
+
+.settings-select:focus,
+.settings-input:focus {
+  outline: none;
+  border-width: 2px;
+  border-color: var(--md-sys-color-primary);
+  /* Keep the text from shifting when the outline thickens. */
+  padding: 0 15px;
+}
+
+.settings-input::placeholder {
+  color: var(--md-sys-color-on-surface-variant);
 }
 
 .settings-select {
   appearance: none;
-  background-image: linear-gradient(45deg, transparent 50%, var(--m3-on-surface-variant) 50%),
-    linear-gradient(135deg, var(--m3-on-surface-variant) 50%, transparent 50%);
+  /* The trailing dropdown chevron md-outlined-select draws as an icon. */
+  background-image: linear-gradient(45deg, transparent 50%, var(--md-sys-color-on-surface-variant) 50%),
+    linear-gradient(135deg, var(--md-sys-color-on-surface-variant) 50%, transparent 50%);
   background-position:
-    calc(100% - 18px) calc(50% + 2px),
-    calc(100% - 13px) calc(50% + 2px);
+    calc(100% - 22px) calc(50% + 2px),
+    calc(100% - 17px) calc(50% + 2px);
   background-size:
     5px 5px,
     5px 5px;
   background-repeat: no-repeat;
-  padding-right: 34px;
+  padding-right: 40px;
+}
+
+.settings-select option {
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface);
 }
 
 .settings-time {
   position: relative;
-  font-weight: 400;
+  font-weight: var(--md-ref-typeface-weight-medium);
 }
 
 .settings-time-input {
@@ -298,7 +553,7 @@
 }
 
 .is-disabled {
-  opacity: 0.4;
+  opacity: 0.38;
 }
 
 .settings-reset {
@@ -315,9 +570,9 @@
 }
 
 .color-preview {
-  height: 40px;
-  border-radius: 8px;
-  border: 1px solid var(--m3-outline-variant);
+  height: 48px;
+  border-radius: var(--md-sys-shape-corner-small);
+  border: 1px solid var(--md-sys-color-outline-variant);
 }
 
 .color-swatches {
@@ -331,9 +586,14 @@
   flex: 0 0 auto;
   width: 40px;
   height: 40px;
-  border-radius: 8px;
-  border: 1px solid rgba(0, 0, 0, 0.2);
+  border-radius: var(--md-sys-shape-corner-small);
+  border: 1px solid var(--md-sys-color-outline-variant);
   cursor: pointer;
+}
+
+.color-swatch:focus-visible {
+  outline: 3px solid var(--md-sys-color-secondary);
+  outline-offset: 2px;
 }
 
 .color-advanced {
@@ -353,7 +613,7 @@
 .color-square,
 .color-hue {
   width: 100%;
-  border-radius: 8px;
+  border-radius: var(--md-sys-shape-corner-small);
   touch-action: none;
 }
 

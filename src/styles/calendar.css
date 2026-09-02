@@ -58,8 +58,8 @@
 }
 
 .cal-panel {
-  background: var(--panel);
-  border-radius: var(--radius);
+  background: var(--md-sys-color-surface-container);
+  border-radius: var(--md-sys-shape-corner-large);
   min-height: 0;
 }
 
@@ -225,37 +225,28 @@
 }
 
 .cal-title {
+  --m3-shape: var(--md-sys-shape-corner-small);
   flex: 1 1 auto;
   text-align: left;
   background: none;
   border: 0;
-  color: var(--text);
-  font: inherit;
+  border-radius: var(--m3-shape);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-sys-typescale-title-large-font);
   font-size: clamp(16px, 2.4vw, 24px);
   font-weight: 700;
   cursor: pointer;
-  padding: 4px 0;
+  padding: 4px 8px;
 }
 
-.cal-nav-button,
+/* The header is tight in landscape, so "today" keeps the M3 outlined button's
+ * shape and colours but not its 40px height and 24px padding. */
 .cal-today {
-  background: none;
-  border: 0;
-  color: var(--secondary);
-  font: inherit;
-  cursor: pointer;
-  padding: 6px 10px;
-  border-radius: 999px;
-}
-
-.cal-nav-button {
-  font-size: 24px;
-  line-height: 1;
-}
-
-.cal-today {
-  font-size: 14px;
-  border: 1px solid var(--muted);
+  height: 32px;
+  padding: 0 12px;
+  border-color: var(--md-sys-color-outline);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-large-size);
 }
 
 .cal-weekdays {
@@ -267,7 +258,8 @@
 .cal-weekday {
   text-align: center;
   font-size: 16px;
-  color: var(--text);
+  color: var(--md-sys-color-on-surface-variant);
+  font-weight: var(--md-ref-typeface-weight-medium);
   padding: 4px 0;
 }
 
@@ -302,6 +294,7 @@
 }
 
 .cal-day {
+  --m3-shape: var(--md-sys-shape-corner-small);
   width: 100%;
   height: 100%;
   display: flex;
@@ -310,7 +303,7 @@
   justify-content: center;
   gap: 1px;
   padding: 2px 1px;
-  border-radius: 8px;
+  border-radius: var(--m3-shape);
   border: 0;
   background: none;
   color: inherit;
@@ -324,9 +317,11 @@
   opacity: 0.38;
 }
 
+/* M3 marks the chosen date with a filled container. The number keeps whatever
+ * colour its own meaning gave it — today's green, a weekend's pink — because
+ * secondary-container is dark enough for all of them to stay legible. */
 .cal-day.is-selected {
-  background: rgba(255, 255, 255, 0.12);
-  outline: 1px solid var(--muted);
+  background: var(--md-sys-color-secondary-container);
 }
 
 .cal-day-number {
@@ -427,31 +422,6 @@
 
 /* ---- Month picker dialog ---- */
 
-.month-picker,
-.timer-dialog,
-.help-dialog {
-  border: 0;
-  border-radius: var(--card-radius);
-  background: var(--m3-surface-container-high);
-  color: var(--m3-on-surface);
-  padding: 20px;
-  max-width: min(420px, 92vw);
-}
-
-.month-picker::backdrop,
-.timer-dialog::backdrop,
-.help-dialog::backdrop,
-.settings-sheet::backdrop {
-  background: rgba(0, 0, 0, 0.55);
-}
-
-.month-picker h2,
-.timer-dialog h2,
-.help-dialog h2 {
-  margin: 0 0 16px;
-  font-size: 18px;
-}
-
 .month-picker-row {
   display: flex;
   gap: 12px;
@@ -474,8 +444,9 @@
   max-height: 60vh;
   overflow: auto;
   white-space: pre-wrap;
-  font: inherit;
-  font-size: 14px;
+  color: var(--md-sys-color-on-surface-variant);
+  font-family: var(--md-sys-typescale-body-medium-font);
+  font-size: var(--md-sys-typescale-body-medium-size);
   line-height: 1.6;
-  color: var(--m3-on-surface-variant);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
 }

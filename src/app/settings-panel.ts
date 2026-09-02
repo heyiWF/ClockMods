@@ -351,10 +351,10 @@ class SettingsPanel {
     // ---- Header ----
     const header = element('header', 'settings-header');
     header.appendChild(element('h2', 'settings-title', t('background_settings')));
-    const cancel = element('button', 'button button--text', t('cancel'));
+    const cancel = element('button', 'm3-button m3-button--text', t('cancel'));
     cancel.type = 'button';
     cancel.addEventListener('click', () => this.dialog.close());
-    const apply = element('button', 'button', t('apply'));
+    const apply = element('button', 'm3-button m3-button--filled', t('apply'));
     apply.type = 'button';
     apply.addEventListener('click', () => void this.applySelection());
     header.append(cancel, apply);
@@ -378,7 +378,7 @@ class SettingsPanel {
     colorControls.append(c.backgroundPicker.root);
 
     const imageControls = element('div', 'settings-group');
-    const chooseImage = element('button', 'button button--outlined', t('choose_image'));
+    const chooseImage = element('button', 'm3-button m3-button--outlined', t('choose_image'));
     chooseImage.type = 'button';
     const filePicker = element('input');
     filePicker.type = 'file';
@@ -533,7 +533,7 @@ class SettingsPanel {
     syncWeatherState();
 
     // ---- Footer ----
-    const reset = element('button', 'button button--outlined settings-reset', t('reset_default'));
+    const reset = element('button', 'm3-button m3-button--outlined settings-reset', t('reset_default'));
     reset.type = 'button';
     reset.addEventListener('click', () => this.restoreDefaults());
 
@@ -585,7 +585,7 @@ class SettingsPanel {
     comboRow.append(subLabel(t('date_format_weekday_label')), comboSelect);
 
     const customRow = element('div', 'settings-group');
-    const help = element('button', 'button button--outlined', t('date_format_help_button'));
+    const help = element('button', 'm3-button m3-button--outlined', t('date_format_help_button'));
     help.type = 'button';
     help.addEventListener('click', () => this.showDateFormatHelp(english));
     const customInput = textField(this.customText(english), t('date_format_custom_hint'));
@@ -634,7 +634,7 @@ class SettingsPanel {
     const dialog = element('dialog', 'help-dialog');
     const heading = element('h2', undefined, t('date_format_help_title'));
     const body = element('pre', 'help-body', t(english ? 'date_format_help_body_en' : 'date_format_help_body_cn'));
-    const close = element('button', 'button', t('ok'));
+    const close = element('button', 'm3-button m3-button--filled', t('ok'));
     close.type = 'button';
     close.addEventListener('click', () => dialog.close());
     dialog.append(heading, body, close);

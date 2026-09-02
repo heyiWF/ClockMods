@@ -76,8 +76,17 @@ export function sliderRow(
   input.step = '1';
   input.value = String(value);
   const readout = element('span', 'settings-slider-value', format(value));
+  // M3 draws the travelled part of the track in the primary colour. CSS cannot
+  // read an input's value, so the position is published as a unitless fraction
+  // and settings.css turns it into a length across the handle's actual travel.
+  const publishFill = () => {
+    const fraction = max > min ? (Number(input.value) - min) / (max - min) : 0;
+    input.style.setProperty('--m3-slider-fraction', String(fraction));
+  };
+  publishFill();
   input.addEventListener('input', () => {
     readout.textContent = pangu(format(Number(input.value)));
+    publishFill();
   });
   row.append(caption, input, readout);
   return {
@@ -97,22 +106,43 @@ export interface SegmentedControl<T> {
   onChange(listener: (value: T) => void): void;
 }
 
+/** md.comp.outlined-segmented-button's leading check, drawn on the selected segment. */
+function checkIcon(): SVGElement {
+  const svg = document.createElementNS('http://www.w3.org/2000/svg', 'svg');
+  svg.setAttribute('viewBox', '0 0 24 24');
+  svg.setAttribute('aria-hidden', 'true');
+  svg.setAttribute('class', 'settings-segment-check');
+  const path = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+  path.setAttribute('d', 'M9.55 17.6 4 12.05l1.4-1.4 4.15 4.15L18.6 5.4 20 6.8Z');
+  svg.appendChild(path);
+  return svg;
+}
+
 /** Single-selection button group (MaterialButtonToggleGroup). */
 export function segmented<T extends string | number>(
   options: Array<{ value: T; label: string }>,
   selected: T
 ): SegmentedControl<T> {
   const row = element('div', 'settings-segmented');
+  row.setAttribute('role', 'group');
   let current = selected;
   const listeners: Array<(value: T) => void> = [];
   const buttons = options.map((option) => {
-    const button = element('button', 'settings-segment', option.label);
+    // The label lives in its own span so the check icon can sit beside it
+    // without the icon becoming part of the button's text.
+    const button = element('button', 'm3-segment settings-segment');
+    button.append(checkIcon(), element('span', 'settings-segment-label', option.label));
     button.type = 'button';
+    button.setAttribute('aria-pressed', String(option.value === selected));
     button.classList.toggle('is-active', option.value === selected);
     button.addEventListener('click', () => {
       current = option.value;
-      for (const other of buttons) other.classList.remove('is-active');
+      for (const other of buttons) {
+        other.classList.remove('is-active');
+        other.setAttribute('aria-pressed', 'false');
+      }
       button.classList.add('is-active');
+      button.setAttribute('aria-pressed', 'true');
       for (const listener of listeners) listener(current);
     });
     return button;
@@ -124,7 +154,9 @@ export function segmented<T extends string | number>(
     setValue(value: T) {
       current = value;
       options.forEach((option, index) => {
-        buttons[index].classList.toggle('is-active', option.value === value);
+        const active = option.value === value;
+        buttons[index].classList.toggle('is-active', active);
+        buttons[index].setAttribute('aria-pressed', String(active));
       });
     },
     onChange(listener) {
@@ -169,7 +201,7 @@ export interface TimeButton {
 /** A button that opens the platform time picker, used for the dim and quiet windows. */
 export function timeButton(labelPrefix: string, initialMinutes: number): TimeButton {
   let minutes = initialMinutes;
-  const button = element('button', 'button button--outlined settings-time');
+  const button = element('button', 'm3-button m3-button--outlined settings-time');
   button.type = 'button';
   const input = element('input');
   input.type = 'time';

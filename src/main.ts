@@ -7,6 +7,7 @@
  */
 import './styles/tokens.css';
 import './styles/fonts.css';
+import './styles/material.css';
 import './styles/base.css';
 import './styles/clock.css';
 import './styles/calendar.css';
@@ -30,6 +31,7 @@ import { StopwatchPage } from './pages/stopwatch';
 import { AlarmPage } from './pages/alarm';
 import { HourlyChime } from './ui/chime';
 import { toast } from './ui/toast';
+import { installRipples } from './ui/ripple';
 
 async function boot(): Promise<void> {
   document.documentElement.lang = document.documentElement.lang || 'zh-Hans';
@@ -44,6 +46,9 @@ async function boot(): Promise<void> {
   timeSource.configure();
   void applyScreenOrientation();
   installWakeLockHandlers();
+  // One delegated listener gives every M3 surface a press ripple, including the
+  // ones the pages build later.
+  installRipples();
 
   const container = document.getElementById('pages')!;
   const nav = document.getElementById('nav')!;
@@ -110,7 +115,7 @@ function registerServiceWorker(): void {
         banner.style.pointerEvents = 'auto';
         banner.textContent = `${t('update_available')} `;
         const button = document.createElement('button');
-        button.className = 'button button--text';
+        button.className = 'm3-button m3-button--text';
         button.textContent = t('update_reload');
         button.addEventListener('click', () => void updateSW(true));
         banner.appendChild(button);

@@ -374,7 +374,8 @@ export class CalendarPage implements Page {
     const cell: HTMLElement = interactive
       ? document.createElement('button')
       : document.createElement('div');
-    cell.className = 'cal-day';
+    // Only the live grid takes a ripple; the preview layer is pointer-inert.
+    cell.className = interactive ? 'cal-day m3-interactive' : 'cal-day';
     if (interactive) cell.setAttribute('type', 'button');
     if (!day.currentMonth) cell.classList.add('is-other-month');
     if (day.today) cell.classList.add('is-today');
@@ -632,11 +633,11 @@ export class CalendarPage implements Page {
     const actions = document.createElement('div');
     actions.className = 'month-picker-actions';
     const cancel = document.createElement('button');
-    cancel.className = 'button button--text';
+    cancel.className = 'm3-button m3-button--text';
     cancel.textContent = t('cancel');
     cancel.addEventListener('click', () => dialog.close());
     const confirm = document.createElement('button');
-    confirm.className = 'button';
+    confirm.className = 'm3-button m3-button--filled';
     confirm.textContent = t('ok');
     confirm.addEventListener('click', () => {
       this.cancelMonthAnimation();

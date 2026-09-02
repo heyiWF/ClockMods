@@ -34,6 +34,18 @@ describe('application shell', () => {
     expect(buttons).toEqual(PAGE_ORDER);
   });
 
+  it('gives each navigation item the M3 indicator its active pill is drawn on', () => {
+    const items = [...document.querySelectorAll<HTMLElement>('#nav .m3-nav-item')];
+    expect(items).toHaveLength(PAGE_ORDER.length);
+    for (const item of items) {
+      const indicator = item.querySelector('.m3-nav-item__indicator');
+      expect(indicator, item.dataset.nav).not.toBeNull();
+      // The icon has to live inside the indicator; the pill is drawn on it.
+      expect(indicator!.querySelector('svg'), item.dataset.nav).not.toBeNull();
+      expect(item.querySelector('.m3-nav-item__label')?.textContent?.trim()).toBeTruthy();
+    }
+  });
+
   it('contains every element main.ts resolves', () => {
     for (const id of ['pages', 'nav', 'chime-layer', 'alarm-layer', 'settings-root', 'toast-root']) {
       expect(document.getElementById(id), id).not.toBeNull();

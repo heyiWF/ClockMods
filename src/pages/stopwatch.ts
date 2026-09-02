@@ -43,9 +43,9 @@ export class StopwatchPage implements Page {
         <h1 class="timer-title"></h1>
         <div class="timer-display stopwatch-display">00:00.00</div>
         <div class="timer-actions">
-          <button type="button" class="button button--outlined" data-act="reset"></button>
-          <button type="button" class="button" data-act="toggle"></button>
-          <button type="button" class="button button--outlined" data-act="lap"></button>
+          <button type="button" class="m3-button m3-button--outlined" data-act="reset"></button>
+          <button type="button" class="m3-button m3-button--filled" data-act="toggle"></button>
+          <button type="button" class="m3-button m3-button--outlined" data-act="lap"></button>
         </div>
         <ol class="stopwatch-laps"></ol>
       </div>`;

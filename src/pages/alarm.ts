@@ -70,7 +70,7 @@ export class AlarmPage implements Page {
           <input type="checkbox" role="switch" />
           <span></span>
         </label>
-        <button type="button" class="button button--outlined alarm-edit"></button>
+        <button type="button" class="m3-button m3-button--outlined alarm-edit"></button>
         <input type="time" class="alarm-time-input" hidden />
         <p class="alarm-note"></p>
       </div>`;
@@ -189,7 +189,7 @@ export class AlarmPage implements Page {
     label.className = 'alarm-ringing-label';
     label.textContent = t('alarm_ringing');
     const dismiss = document.createElement('button');
-    dismiss.className = 'button alarm-ringing-dismiss';
+    dismiss.className = 'm3-button m3-button--filled alarm-ringing-dismiss';
     dismiss.textContent = t('alarm_dismiss');
     dismiss.addEventListener('click', () => this.dismiss());
     panel.append(time, label, dismiss);

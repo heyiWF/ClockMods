@@ -1,8 +1,8 @@
 /* Pomodoro, countdown, stopwatch and alarm pages. */
 
 .timer-page {
-  background: var(--m3-surface);
-  color: var(--m3-on-surface);
+  background: var(--md-sys-color-surface);
+  color: var(--md-sys-color-on-surface);
   overflow-y: auto;
 }
 
@@ -18,13 +18,19 @@
 
 .timer-title {
   margin: 0;
-  font-size: 20px;
-  font-weight: 600;
+  font-family: var(--md-sys-typescale-title-large-font);
+  font-size: var(--md-sys-typescale-title-large-size);
+  line-height: var(--md-sys-typescale-title-large-line-height);
+  font-weight: var(--md-sys-typescale-title-large-weight);
+  letter-spacing: var(--md-sys-typescale-title-large-tracking);
 }
 
 .timer-phase {
-  font-size: 15px;
-  color: var(--m3-primary);
+  color: var(--md-sys-color-primary);
+  font-family: var(--md-sys-typescale-body-large-font);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  letter-spacing: var(--md-sys-typescale-body-large-tracking);
   min-height: 1lh;
 }
 
@@ -64,10 +70,9 @@
 }
 
 .timer-preset {
-  min-height: 40px;
-  padding: 0 14px;
-  font-size: 14px;
-  font-weight: 400;
+  height: 40px;
+  padding: 0 16px;
+  font-weight: var(--md-ref-typeface-weight-regular);
 }
 
 .stopwatch-laps {
@@ -79,9 +84,16 @@
 }
 
 .stopwatch-laps li {
-  padding: 8px 12px;
-  border-bottom: 1px solid var(--m3-outline-variant);
-  font-size: 15px;
+  display: flex;
+  align-items: center;
+  min-height: 56px;
+  padding: 8px 16px;
+  border-bottom: 1px solid var(--md-sys-color-outline-variant);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-sys-typescale-body-large-font);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  letter-spacing: var(--md-sys-typescale-body-large-tracking);
   text-align: left;
 }
 
@@ -95,23 +107,29 @@
 }
 
 .alarm-next {
-  font-size: 15px;
-  color: var(--m3-on-surface-variant);
+  color: var(--md-sys-color-on-surface-variant);
+  font-family: var(--md-sys-typescale-body-large-font);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
 }
 
 .alarm-toggle {
   display: flex;
   align-items: center;
   gap: 12px;
-  font-size: 16px;
+  font-family: var(--md-sys-typescale-body-large-font);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
 }
 
 .alarm-note {
   max-width: 420px;
   margin: 8px 0 0;
-  font-size: 13px;
+  color: var(--md-sys-color-on-surface-variant);
+  font-family: var(--md-sys-typescale-body-medium-font);
+  font-size: var(--md-sys-typescale-body-medium-size);
   line-height: 1.6;
-  color: var(--m3-on-surface-variant);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
 }
 
 .alarm-time-input {
@@ -152,12 +170,14 @@
 }
 
 .alarm-ringing-label {
-  font-size: 18px;
-  color: var(--m3-on-surface-variant);
+  color: var(--md-sys-color-on-surface-variant);
+  font-family: var(--md-sys-typescale-title-medium-font);
+  font-size: var(--md-sys-typescale-title-medium-size);
+  line-height: var(--md-sys-typescale-title-medium-line-height);
 }
 
 .alarm-ringing-dismiss {
-  min-height: 52px;
+  height: 56px;
   padding: 0 32px;
   font-size: 17px;
 }
@@ -180,27 +200,41 @@
   flex-direction: column;
   gap: 6px;
   flex: 1 1 0;
-  font-size: 13px;
-  color: var(--m3-on-surface-variant);
+  color: var(--md-sys-color-on-surface-variant);
+  font-family: var(--md-sys-typescale-body-small-font);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
 }
 
+/* md.comp.outlined-text-field, matching the fields in the settings sheet. */
 .timer-dialog-field input {
   width: 100%;
-  min-height: 44px;
-  padding: 0 10px;
-  border: 1px solid var(--m3-outline-variant);
-  border-radius: 8px;
-  background: var(--m3-surface-container);
-  color: var(--m3-on-surface);
+  min-height: 56px;
+  padding: 0 12px;
+  border: 1px solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  background: transparent;
+  color: var(--md-sys-color-on-surface);
   font: inherit;
   font-size: 18px;
   text-align: center;
+  transition: border-color var(--md-sys-motion-duration-short2)
+    var(--md-sys-motion-easing-standard);
+}
+
+.timer-dialog-field input:focus {
+  outline: none;
+  border-width: 2px;
+  border-color: var(--md-sys-color-primary);
+  padding: 0 11px;
 }
 
 .timer-dialog-error {
   margin: 12px 0 0;
-  color: var(--m3-error);
-  font-size: 13px;
+  color: var(--md-sys-color-error);
+  font-family: var(--md-sys-typescale-body-small-font);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
 }
 
 .timer-dialog-error[hidden] {

@@ -33,7 +33,7 @@ export function createColorPicker(
 
   const preview = element('div', 'color-preview');
   const swatchRow = element('div', 'color-swatches');
-  const advancedToggle = element('button', 'button button--text color-advanced');
+  const advancedToggle = element('button', 'm3-button m3-button--text color-advanced');
   advancedToggle.type = 'button';
   const advanced = element('div', 'color-advanced-panel');
   advanced.hidden = true;

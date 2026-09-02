@@ -84,7 +84,7 @@ describe('settings sheet', () => {
 
     expect(prefs.isBoldText()).toBe(false);
 
-    sheet.querySelector<HTMLElement>('.settings-header .button:not(.button--text)')!.click();
+    sheet.querySelector<HTMLElement>('.settings-header .m3-button:not(.m3-button--text)')!.click();
     expect(prefs.isBoldText()).toBe(true);
   });
 

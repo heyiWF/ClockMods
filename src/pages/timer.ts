@@ -72,9 +72,9 @@ export class TimerPage implements Page {
         <div class="timer-phase"></div>
         <div class="timer-display">00:00</div>
         <div class="timer-actions">
-          <button type="button" class="button button--outlined" data-act="reset"></button>
-          <button type="button" class="button" data-act="toggle"></button>
-          <button type="button" class="button button--outlined" data-act="skip"></button>
+          <button type="button" class="m3-button m3-button--outlined" data-act="reset"></button>
+          <button type="button" class="m3-button m3-button--filled" data-act="toggle"></button>
+          <button type="button" class="m3-button m3-button--outlined" data-act="skip"></button>
         </div>
         <div class="timer-presets"></div>
       </div>`;
@@ -99,7 +99,7 @@ export class TimerPage implements Page {
     const buttons = minutes.map((value) => {
       const button = document.createElement('button');
       button.type = 'button';
-      button.className = 'button button--outlined timer-preset';
+      button.className = 'm3-button m3-button--outlined timer-preset';
       button.textContent = t('timer_minutes', value);
       button.addEventListener('click', () => this.setDuration(value * 60_000));
       return button;
@@ -107,7 +107,7 @@ export class TimerPage implements Page {
     if (!this.pomodoro) {
       const custom = document.createElement('button');
       custom.type = 'button';
-      custom.className = 'button button--outlined timer-preset';
+      custom.className = 'm3-button m3-button--outlined timer-preset';
       custom.textContent = t('timer_custom');
       custom.addEventListener('click', () => this.showCustomDialog());
       buttons.push(custom);
@@ -252,11 +252,11 @@ export class TimerPage implements Page {
     const actions = document.createElement('div');
     actions.className = 'timer-dialog-actions';
     const cancel = document.createElement('button');
-    cancel.className = 'button button--text';
+    cancel.className = 'm3-button m3-button--text';
     cancel.textContent = t('cancel');
     cancel.addEventListener('click', () => dialog.close());
     const apply = document.createElement('button');
-    apply.className = 'button';
+    apply.className = 'm3-button m3-button--filled';
     apply.textContent = t('apply');
     apply.addEventListener('click', () => {
       const duration = customDurationMillis(
