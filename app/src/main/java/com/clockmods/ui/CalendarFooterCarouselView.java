@@ -10,6 +10,7 @@ import android.os.Build;
 import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.AttributeSet;
+import android.util.TypedValue;
 import android.view.View;
 
 import java.util.ArrayList;
@@ -55,7 +56,8 @@ public final class CalendarFooterCarouselView extends View {
     public CalendarFooterCarouselView(Context context, AttributeSet attrs) {
         super(context, attrs);
         density = getResources().getDisplayMetrics().density;
-        preferredTextSize = 14f * getResources().getDisplayMetrics().scaledDensity;
+        preferredTextSize = TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP,
+                14f, getResources().getDisplayMetrics());
         paint.setTextSize(preferredTextSize);
         paint.setColor(Color.WHITE);
     }
@@ -76,7 +78,10 @@ public final class CalendarFooterCarouselView extends View {
         invalidate();
     }
 
-    public void setTypeface(Typeface typeface) { paint.setTypeface(typeface); invalidate(); }
+    public void setTypeface(Typeface typeface) {
+        paint.setTypeface(typeface);
+        invalidate();
+    }
 
     public void setActive(boolean value) {
         if (value == active) return;

@@ -45,6 +45,7 @@ import com.clockmods.weather.WeatherController;
 import com.clockmods.weather.WeatherModels;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.loadingindicator.LoadingIndicator;
 
 import java.text.SimpleDateFormat;
 import java.util.ArrayList;
@@ -78,6 +79,7 @@ public final class ProCalendarFragment extends Fragment {
     private StatusBarView statusBar;
     private WeatherIconView currentWeatherIcon;
     private View clockCard, currentWeatherCard, forecastCard, attribution;
+    private LoadingIndicator weatherLoading, forecastLoading;
     private MaterialButton previousButton, todayButton, nextButton;
     private MonthGestureLayout monthPanel;
     private LinearLayout[] forecastColumns;
@@ -126,6 +128,10 @@ public final class ProCalendarFragment extends Fragment {
         clockCard = root.findViewById(R.id.calendar_clock_card);
         currentWeatherCard = root.findViewById(R.id.calendar_current_weather_card);
         forecastCard = root.findViewById(R.id.calendar_forecast_card);
+        weatherLoading = root.findViewById(R.id.calendar_weather_loading);
+        forecastLoading = root.findViewById(R.id.calendar_forecast_loading);
+        weatherLoading.setContentDescription(getString(R.string.calendar_forecast_loading));
+        forecastLoading.setContentDescription(getString(R.string.calendar_forecast_loading));
         attribution = root.findViewById(R.id.calendar_weather_attribution);
         monthPanel = root.findViewById(R.id.calendar_month_panel);
         previousButton = root.findViewById(R.id.calendar_previous);
@@ -499,9 +505,19 @@ public final class ProCalendarFragment extends Fragment {
     private void bindCurrentWeather(WeatherModels.WeatherState state) {
         if (currentTemperature == null) return;
         if (state.data == null) {
+            weatherLoading.setVisibility(View.VISIBLE);
+            currentWeatherIcon.setVisibility(View.GONE);
+            currentTemperature.setVisibility(View.GONE);
+            feelsLike.setVisibility(View.GONE);
+            feelsLikeLabel.setVisibility(View.GONE);
             weatherSummary.setText(state.message == null ? getString(R.string.calendar_forecast_loading) : state.message);
             return;
         }
+        weatherLoading.setVisibility(View.GONE);
+        currentWeatherIcon.setVisibility(View.VISIBLE);
+        currentTemperature.setVisibility(View.VISIBLE);
+        feelsLike.setVisibility(View.VISIBLE);
+        feelsLikeLabel.setVisibility(View.VISIBLE);
         WeatherModels.WeatherDisplayData data = state.data;
         currentWeatherIcon.setIconCode(data.icon, preferences.isWeatherIconFill());
         currentTemperature.setText(getString(R.string.weather_temperature_format,
@@ -524,14 +540,15 @@ public final class ProCalendarFragment extends Fragment {
     private void bindForecast(WeatherModels.DailyForecastState state) {
         if (forecastColumns == null) return;
         if (state.data == null) {
+            forecastLoading.setVisibility(View.VISIBLE);
             for (LinearLayout column : forecastColumns) {
-                column.removeAllViews();
-                addForecastText(column, state.message == null
-                    ? getString(R.string.calendar_forecast_loading) : state.message,
-                    R.dimen.calendar_forecast_text_size, false);
+                column.setVisibility(View.GONE);
             }
-            applyForecastSizing();
             return;
+        }
+        forecastLoading.setVisibility(View.GONE);
+        for (LinearLayout column : forecastColumns) {
+            column.setVisibility(View.VISIBLE);
         }
         Calendar date = Calendar.getInstance(appTimeZone());
         SimpleDateFormat format = new SimpleDateFormat("yyyy-MM-dd", Locale.US);

@@ -132,6 +132,13 @@
             android:textAlignment="center"
             android:textColor="@color/calendar_dashboard_text"
             android:textSize="21sp" />
+
+        <com.google.android.material.loadingindicator.LoadingIndicator
+            android:id="@+id/calendar_weather_loading"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center"
+            android:visibility="gone" />
     </LinearLayout>
 
     <LinearLayout
@@ -166,6 +173,13 @@
             android:layout_weight="1"
             android:gravity="center"
             android:orientation="vertical" />
+
+        <com.google.android.material.loadingindicator.LoadingIndicator
+            android:id="@+id/calendar_forecast_loading"
+            android:layout_width="48dp"
+            android:layout_height="48dp"
+            android:layout_gravity="center"
+            android:visibility="gone" />
     </LinearLayout>
 
     <include layout="@layout/calendar_weather_attribution" />
