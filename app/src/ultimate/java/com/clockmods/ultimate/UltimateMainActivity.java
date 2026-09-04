@@ -4,6 +4,8 @@ import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
 import android.content.Intent;
 import android.os.Bundle;
+import android.os.Handler;
+import android.os.Looper;
 
 
 import com.clockmods.pro.ProMainActivity;
@@ -26,6 +28,14 @@ public final class UltimateMainActivity extends ProMainActivity {
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
         appliedLanguage = new ClockPreferences(this).getClockLanguage();
+        if (!SetupWizardActivity.isCompleted(this)) {
+            // Defer until the first frame so the host is fully attached before presenting onboarding.
+            new Handler(Looper.getMainLooper()).post(() -> {
+                if (!isFinishing() && !isDestroyed() && !SetupWizardActivity.isCompleted(this)) {
+                    startActivity(new Intent(this, SetupWizardActivity.class));
+                }
+            });
+        }
     }
 
     @Override

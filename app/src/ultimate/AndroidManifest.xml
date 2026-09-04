@@ -13,6 +13,11 @@
             android:name="android.window.PROPERTY_ACTIVITY_EMBEDDING_SPLITS_ENABLED"
             android:value="true" />
         <activity
+            android:name=".ultimate.SetupWizardActivity"
+            android:exported="false"
+            android:screenOrientation="unspecified"
+            android:enableOnBackInvokedCallback="true" />
+        <activity
             android:name=".ultimate.settings.UltimateSubSettingsActivity"
             android:enableOnBackInvokedCallback="true"
             android:exported="false"

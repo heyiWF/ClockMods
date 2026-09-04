@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="setup_wizard_title">Welcome to ClockMods</string>
+    <string name="setup_wizard_intro">Take a minute to choose the essentials. You can change everything later in Settings.</string>
+    <string name="setup_wizard_step">Step %1$d of %2$d</string>
+    <string name="setup_wizard_language_title">Choose a language</string>
+    <string name="setup_wizard_language_summary">Select the language used throughout the app.</string>
+    <string name="setup_wizard_weather_title">Set up weather</string>
+    <string name="setup_wizard_weather_summary">Show weather for your current location. Location permission is requested only when needed.</string>
+    <string name="setup_wizard_weather_enabled">Show weather</string>
+    <string name="setup_wizard_temperature_title">Temperature unit</string>
+    <string name="setup_wizard_style_title">Choose a clock style</string>
+    <string name="setup_wizard_style_summary">Pick a look for your clock. More styles are available in the theme gallery.</string>
+    <string name="setup_wizard_skip">Set up later</string>
+    <string name="setup_wizard_back">Back</string>
+    <string name="setup_wizard_next">Next</string>
+    <string name="setup_wizard_done">Finish setup</string>
+</resources>
