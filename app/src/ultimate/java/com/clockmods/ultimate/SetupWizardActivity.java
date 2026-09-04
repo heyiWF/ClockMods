@@ -13,6 +13,7 @@ import android.widget.RadioGroup;
 import android.widget.ScrollView;
 import android.widget.TextView;
 
+import androidx.activity.EdgeToEdge;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.clockmods.LocaleManager;
@@ -43,6 +44,15 @@ public final class SetupWizardActivity extends AppCompatActivity {
     private RadioGroup unitGroup;
     private MaterialSwitch weatherSwitch;
     private String selectedStyle;
+    private String selectedLanguage;
+    private String selectedTemperatureUnit;
+    private boolean selectedWeatherEnabled;
+
+    private static final String STATE_STEP = "setup_wizard_step";
+    private static final String STATE_LANGUAGE = "setup_wizard_language";
+    private static final String STATE_WEATHER = "setup_wizard_weather";
+    private static final String STATE_UNIT = "setup_wizard_unit";
+    private static final String STATE_STYLE = "setup_wizard_style";
 
     private ClockPreferences preferences;
     private UltimateClockPreferences ultimatePreferences;
@@ -69,19 +79,38 @@ public final class SetupWizardActivity extends AppCompatActivity {
         super.onCreate(savedInstanceState);
         preferences = new ClockPreferences(this);
         ultimatePreferences = new UltimateClockPreferences(this);
+        selectedLanguage = preferences.getClockLanguage();
+        selectedTemperatureUnit = preferences.getWeatherTemperatureUnit();
+        selectedWeatherEnabled = preferences.isWeatherEnabled();
         selectedStyle = ultimatePreferences.getStyleId();
+        if (savedInstanceState != null) {
+            selectedLanguage = savedInstanceState.getString(STATE_LANGUAGE, selectedLanguage);
+            selectedTemperatureUnit = savedInstanceState.getString(STATE_UNIT,
+                    selectedTemperatureUnit);
+            selectedWeatherEnabled = savedInstanceState.getBoolean(STATE_WEATHER,
+                    selectedWeatherEnabled);
+            selectedStyle = savedInstanceState.getString(STATE_STYLE, selectedStyle);
+        }
         buildShell();
-        showStep(savedInstanceState == null ? 0 : savedInstanceState.getInt("step", 0));
+        showStep(savedInstanceState == null ? 0 : savedInstanceState.getInt(STATE_STEP, 0));
     }
 
     private void buildShell() {
-        getWindow().setStatusBarColor(Color.TRANSPARENT);
-        getWindow().setNavigationBarColor(Color.TRANSPARENT);
+        EdgeToEdge.enable(this);
+        getWindow().setNavigationBarContrastEnforced(false);
 
         LinearLayout root = new LinearLayout(this);
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(surfaceColor());
         root.setPadding(dp(24), dp(24), dp(24), dp(16));
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
+            int type = android.view.WindowInsets.Type.systemBars()
+                    | android.view.WindowInsets.Type.displayCutout();
+            android.graphics.Insets bars = insets.getInsets(type);
+            view.setPadding(dp(24) + bars.left, dp(24) + bars.top,
+                    dp(24) + bars.right, dp(16) + bars.bottom);
+            return insets;
+        });
 
         LinearLayout header = new LinearLayout(this);
         header.setGravity(Gravity.CENTER_VERTICAL);
@@ -146,10 +175,9 @@ public final class SetupWizardActivity extends AppCompatActivity {
         addLanguageOption(ClockPreferences.LANGUAGE_TRADITIONAL, R.string.ultimate_language_traditional);
         addLanguageOption(ClockPreferences.LANGUAGE_ENGLISH, R.string.ultimate_language_english);
         pageHost.addView(languageGroup, topMargin(wrap(), dp(20)));
-        String current = preferences.getClockLanguage();
         for (int i = 0; i < languageGroup.getChildCount(); i++) {
             RadioButton button = (RadioButton) languageGroup.getChildAt(i);
-            if (String.valueOf(button.getTag()).equals(current)) button.setChecked(true);
+            if (String.valueOf(button.getTag()).equals(selectedLanguage)) button.setChecked(true);
         }
     }
 
@@ -172,7 +200,7 @@ public final class SetupWizardActivity extends AppCompatActivity {
         weatherSwitch = new MaterialSwitch(this);
         weatherSwitch.setText(R.string.setup_wizard_weather_enabled);
         weatherSwitch.setTextSize(16);
-        weatherSwitch.setChecked(preferences.isWeatherEnabled());
+        weatherSwitch.setChecked(selectedWeatherEnabled);
         pageHost.addView(weatherSwitch, topMargin(wrap(), dp(20)));
 
         TextView unitLabel = text(R.string.setup_wizard_temperature_title, 15, true);
@@ -182,10 +210,9 @@ public final class SetupWizardActivity extends AppCompatActivity {
         addUnitOption(ClockPreferences.WEATHER_UNIT_CELSIUS, R.string.ultimate_weather_celsius);
         addUnitOption(ClockPreferences.WEATHER_UNIT_FAHRENHEIT, R.string.ultimate_weather_fahrenheit);
         pageHost.addView(unitGroup, topMargin(wrap(), dp(4)));
-        String current = preferences.getWeatherTemperatureUnit();
         for (int i = 0; i < unitGroup.getChildCount(); i++) {
             RadioButton button = (RadioButton) unitGroup.getChildAt(i);
-            if (String.valueOf(button.getTag()).equals(current)) button.setChecked(true);
+            if (String.valueOf(button.getTag()).equals(selectedTemperatureUnit)) button.setChecked(true);
         }
     }
 
@@ -254,6 +281,7 @@ public final class SetupWizardActivity extends AppCompatActivity {
 
     private void onNext() {
         if (step < 2) {
+            captureCurrentStep();
             step++;
             showStep(step);
         } else {
@@ -265,25 +293,42 @@ public final class SetupWizardActivity extends AppCompatActivity {
     }
 
     private void applyChoices() {
-        if (languageGroup != null && languageGroup.getCheckedRadioButtonId() != -1) {
-            RadioButton selected = findViewById(languageGroup.getCheckedRadioButtonId());
-            preferences.setClockLanguage(String.valueOf(selected.getTag()));
-        }
-        if (weatherSwitch != null) {
-            preferences.setWeatherEnabled(weatherSwitch.isChecked());
-            // Keep onboarding friction-free; the weather controller will request location access
-            // on the first refresh when automatic location is selected.
+        captureCurrentStep();
+        preferences.setClockLanguage(selectedLanguage);
+        preferences.setWeatherEnabled(selectedWeatherEnabled);
+        // Keep onboarding friction-free; the weather controller will request location access
+        // on the first refresh when automatic location is selected.
+        if (!ClockPreferences.WEATHER_LOCATION_MANUAL.equals(
+                preferences.getWeatherLocationMode())) {
             preferences.setWeatherLocationMode(ClockPreferences.WEATHER_LOCATION_AUTOMATIC);
         }
-        if (unitGroup != null && unitGroup.getCheckedRadioButtonId() != -1) {
-            RadioButton selected = findViewById(unitGroup.getCheckedRadioButtonId());
-            preferences.setWeatherTemperatureUnit(String.valueOf(selected.getTag()));
-        }
+        preferences.setWeatherTemperatureUnit(selectedTemperatureUnit);
         ultimatePreferences.setStyleId(selectedStyle);
+    }
+
+    /** Keeps choices when the user moves back and forth without writing partial setup to disk. */
+    private void captureCurrentStep() {
+        if (step == 0 && languageGroup != null) {
+            selectedLanguage = checkedTag(languageGroup, selectedLanguage);
+        } else if (step == 1) {
+            if (weatherSwitch != null) selectedWeatherEnabled = weatherSwitch.isChecked();
+            if (unitGroup != null) {
+                selectedTemperatureUnit = checkedTag(unitGroup, selectedTemperatureUnit);
+            }
+        }
+    }
+
+    private static String checkedTag(RadioGroup group, String fallback) {
+        int checkedId = group.getCheckedRadioButtonId();
+        if (checkedId == -1) return fallback;
+        View checked = group.findViewById(checkedId);
+        Object tag = checked == null ? null : checked.getTag();
+        return tag == null ? fallback : String.valueOf(tag);
     }
 
     private void finishWithoutChanges() {
         if (step > 0) {
+            captureCurrentStep();
             step--;
             showStep(step);
             return;
@@ -300,7 +345,12 @@ public final class SetupWizardActivity extends AppCompatActivity {
 
     @Override
     protected void onSaveInstanceState(Bundle outState) {
-        outState.putInt("step", step);
+        captureCurrentStep();
+        outState.putInt(STATE_STEP, step);
+        outState.putString(STATE_LANGUAGE, selectedLanguage);
+        outState.putBoolean(STATE_WEATHER, selectedWeatherEnabled);
+        outState.putString(STATE_UNIT, selectedTemperatureUnit);
+        outState.putString(STATE_STYLE, selectedStyle);
         super.onSaveInstanceState(outState);
     }
 

@@ -15,6 +15,7 @@ import com.clockmods.ultimate.settings.UltimateSettingsActivity;
 /** Ultimate shell for the clock, tool destinations, and full-screen settings. */
 public final class UltimateMainActivity extends ProMainActivity {
     private String appliedLanguage;
+    private boolean setupWizardLaunchPending;
 
     /**
      * Replaces startActivityForResult / onActivityResult, which the platform retired in favour of
@@ -24,6 +25,9 @@ public final class UltimateMainActivity extends ProMainActivity {
     private final ActivityResultLauncher<Intent> settingsLauncher = registerForActivityResult(
             new ActivityResultContracts.StartActivityForResult(), result -> onSettingsClosed());
 
+    private final ActivityResultLauncher<Intent> setupWizardLauncher = registerForActivityResult(
+            new ActivityResultContracts.StartActivityForResult(), result -> onSetupWizardClosed());
+
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
@@ -31,8 +35,10 @@ public final class UltimateMainActivity extends ProMainActivity {
         if (!SetupWizardActivity.isCompleted(this)) {
             // Defer until the first frame so the host is fully attached before presenting onboarding.
             new Handler(Looper.getMainLooper()).post(() -> {
-                if (!isFinishing() && !isDestroyed() && !SetupWizardActivity.isCompleted(this)) {
-                    startActivity(new Intent(this, SetupWizardActivity.class));
+                if (!isFinishing() && !isDestroyed() && !setupWizardLaunchPending
+                        && !SetupWizardActivity.isCompleted(this)) {
+                    setupWizardLaunchPending = true;
+                    setupWizardLauncher.launch(new Intent(this, SetupWizardActivity.class));
                 }
             });
         }
@@ -54,6 +60,17 @@ public final class UltimateMainActivity extends ProMainActivity {
     }
 
     private void onSettingsClosed() {
+        String currentLanguage = new ClockPreferences(this).getClockLanguage();
+        if (appliedLanguage != null && !appliedLanguage.equals(currentLanguage)) {
+            appliedLanguage = currentLanguage;
+            recreate();
+            return;
+        }
+        refreshSettingsPages();
+    }
+
+    private void onSetupWizardClosed() {
+        setupWizardLaunchPending = false;
         String currentLanguage = new ClockPreferences(this).getClockLanguage();
         if (appliedLanguage != null && !appliedLanguage.equals(currentLanguage)) {
             appliedLanguage = currentLanguage;
