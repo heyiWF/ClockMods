@@ -19,6 +19,7 @@ import com.clockmods.LocaleManager;
 import com.clockmods.background.BackgroundDimSchedule;
 import com.clockmods.background.BackgroundRepository;
 import com.clockmods.background.ClockPreferences;
+import com.clockmods.background.FontCatalog;
 import com.clockmods.calendar.LunarCalendar;
 import com.clockmods.sdk.clock.ClockBackground;
 import com.clockmods.sdk.clock.ClockRenderContext;
@@ -78,6 +79,9 @@ public class UltimateClockView extends View {
     private String statusText = "";
     private String lastContentDescription;
     private BackgroundRepository backgroundRepository;
+    private final ClockTypography typography = new ClockTypography();
+    private String fontFamily = ClockPreferences.DEFAULT_FONT_FAMILY;
+    private int fontWeight = FontCatalog.DEFAULT_WEIGHT;
     private final Object workerLock = new Object();
     private ExecutorService imageExecutor;
     private NetworkTimeProvider networkTimeProvider;
@@ -118,7 +122,21 @@ public class UltimateClockView extends View {
         secondHandMotion = preferences.getSecondHandMotion();
         followSystemReducedMotion = preferences.isFollowSystemReducedMotion();
         backgroundMode = preferences.getBackgroundMode();
+        reloadTypography();
         invalidateAndReschedule();
+    }
+
+    /**
+     * Reads the font chosen for the current style. Done here rather than in {@code onDraw} so no
+     * frame ever touches SharedPreferences; the style id is part of the key, so switching styles
+     * has to re-read it.
+     */
+    private void reloadTypography() {
+        BackgroundRepository repository = backgroundRepository != null
+                ? backgroundRepository : new BackgroundRepository(getContext());
+        fontFamily = repository.getFontFamily(styleId);
+        fontWeight = repository.getFontWeight(styleId);
+        typography.invalidate();
     }
 
     public void setPreferences(UltimateClockPreferences value) {
@@ -147,6 +165,7 @@ public class UltimateClockView extends View {
         styleId = value == null ? UltimateClockPreferences.DEFAULT_STYLE_ID : value.trim();
         if (styleId.length() == 0) styleId = UltimateClockPreferences.DEFAULT_STYLE_ID;
         if (preferences != null) preferences.setStyleId(styleId);
+        reloadTypography();
         invalidate();
     }
 
@@ -283,6 +302,7 @@ public class UltimateClockView extends View {
     public void setBackgroundRepository(BackgroundRepository repository) {
         backgroundRepository = repository;
         if (repository != null) {
+            reloadTypography();
             setShowSeconds(repository.isShowSeconds());
             setUse24Hour(repository.isUse24Hour());
             String zone = repository.getTimeZoneId();
@@ -407,7 +427,9 @@ public class UltimateClockView extends View {
                 createBackground(now), bottomOverlayInset);
         int saveCount = canvas.save();
         try {
-            style.getRenderer().render(canvas, renderContext, state, style.getThemeTokens());
+            style.getRenderer().render(canvas, renderContext, state,
+                    typography.apply(getContext(), style.getThemeTokens(), styleId,
+                            fontFamily, fontWeight));
         } finally {
             canvas.restoreToCount(saveCount);
         }

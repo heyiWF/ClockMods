@@ -17,9 +17,11 @@ import android.graphics.drawable.RippleDrawable;
 import android.net.Uri;
 import android.os.Bundle;
 import android.provider.MediaStore;
+import android.text.Editable;
 import android.text.InputFilter;
 import android.text.InputType;
 import android.text.StaticLayout;
+import android.text.TextWatcher;
 import android.text.TextPaint;
 import android.util.TypedValue;
 import android.view.Gravity;
@@ -29,6 +31,7 @@ import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.accessibility.AccessibilityNodeInfo;
+import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
@@ -83,6 +86,7 @@ import com.clockmods.ui.DateFormatter;
 import com.clockmods.ui.WeatherLocationChooser;
 import com.clockmods.ultimate.clock.UltimateClockPreferences;
 import com.clockmods.ultimate.clock.UltimateClockStyles;
+import com.clockmods.ultimate.clock.ClockTypography;
 import com.clockmods.weather.WeatherLocationCatalog;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.appbar.AppBarLayout;
@@ -94,6 +98,7 @@ import com.google.android.material.color.DynamicColors;
 import com.google.android.material.color.MaterialColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.materialswitch.MaterialSwitch;
+import com.google.android.material.slider.Slider;
 import com.google.android.material.textfield.TextInputEditText;
 import com.google.android.material.textfield.TextInputLayout;
 import com.google.android.material.timepicker.MaterialTimePicker;
@@ -984,8 +989,9 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     });
         }
 
+        addTypographySettings(body, selectedId, Page.STYLE);
+
         if (proClassic) {
-            addProClassicTypographySettings(body);
             addProClassicTimeAppearanceSettings(body);
             addProClassicDateAppearanceSettings(body);
             addProClassicWeatherAppearanceSettings(body);
@@ -993,22 +999,100 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         return scrollable(body);
     }
 
-    private void addProClassicTypographySettings(LinearLayout body) {
+    /**
+     * Font family and weight for one theme. Every clock style and calendar theme gets its own
+     * pair, keyed by {@code scopeId}, so a face chosen for the poster does not follow the user
+     * into the analog dial.
+     */
+    private void addTypographySettings(LinearLayout body, String scopeId, Page pageToRefresh) {
         addSectionLabel(body, R.string.ultimate_typography_section, 22);
         String[] fontNames = FontCatalog.displayNames(this);
-        int fontIndex = FontCatalog.indexOf(repository.getFontFamily());
         addActionRow(body, R.string.ultimate_font_family,
-                fontNames[fontIndex],
+                fontNames[FontCatalog.indexOf(repository.getFontFamily(scopeId))],
                 R.drawable.ultimate_ic_chevron_right, () -> showSingleChoiceDialog(
                         R.string.ultimate_font_family, fontNames,
-                        FontCatalog.indexOf(repository.getFontFamily()), value ->
-                                repository.setFontFamily(FontCatalog.idForIndex(value)),
+                        FontCatalog.indexOf(repository.getFontFamily(scopeId)), value -> {
+                            String chosen = FontCatalog.idForIndex(value);
+                            repository.setFontFamily(scopeId, chosen);
+                            // The new family may not offer the weight the old one did (Lora stops
+                            // at 700), so pull the stored weight onto a stop it can actually render
+                            // rather than leaving a value the slider cannot represent.
+                            repository.setFontWeight(scopeId, FontCatalog.optionFor(chosen)
+                                    .nearestWeight(repository.getFontWeight(scopeId)));
+                        },
                         "font_family", true));
-        addSwitch(body, R.string.ultimate_bold_text,
-                R.string.ultimate_bold_text_summary, repository.isBoldText(), value -> {
-                    repository.setBoldText(value);
-                    markChanged("bold_text");
+        addWeightSlider(body, scopeId, pageToRefresh);
+    }
+
+    /**
+     * Discrete Material slider over the weights the chosen family actually ships. The stops are
+     * per-family, so Roboto shows nine and Google Sans three; a slider offering nine positions for
+     * a three-weight font would be six positions that quietly do nothing.
+     */
+    private void addWeightSlider(LinearLayout body, String scopeId, Page pageToRefresh) {
+        FontCatalog.FontOption option =
+                FontCatalog.optionFor(repository.getFontFamily(scopeId));
+        int[] weights = option.availableWeights();
+        int selectedIndex = option.indexOfNearestWeight(repository.getFontWeight(scopeId));
+
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setPadding(0, dp(8), 0, dp(4));
+        TextView title = label(R.string.ultimate_font_weight, 16, false);
+        row.addView(title, wrapParams());
+        TextView value = label(weightLabel(weights[selectedIndex]), 13, false);
+        value.setTextColor(onSurfaceVariantColor());
+        row.addView(value, topMargin(wrapParams(), dp(2)));
+
+        Slider slider = new Slider(this);
+        slider.setValueFrom(0f);
+        // A Slider needs a range, and a single-weight family would give it valueFrom == valueTo.
+        // None ship that way today, but the guard keeps a future one-weight font from crashing.
+        slider.setValueTo(Math.max(1, weights.length - 1));
+        slider.setStepSize(1f);
+        slider.setValue(Math.min(selectedIndex, Math.max(1, weights.length - 1)));
+        slider.setTickVisible(weights.length <= 9);
+        slider.setContentDescription(getString(R.string.ultimate_font_weight));
+        slider.setLabelFormatter(position -> weightLabel(
+                option.weightAt(Math.round(position))));
+        slider.addOnChangeListener((control, position, fromUser) ->
+                value.setText(weightLabel(option.weightAt(Math.round(position)))));
+        slider.addOnSliderTouchListener(new Slider.OnSliderTouchListener() {
+            @Override public void onStartTrackingTouch(Slider control) { }
+
+            // Committed on release rather than on every change: dragging across nine stops would
+            // otherwise write nine times and re-render the preview for each. showPage() rebuilds
+            // this whole body, so it must run after the release — rebuilding mid-release detaches
+            // the slider while its own finish animation still references it, and the next measure
+            // touches a stale child (ViewGroup.resolvePadding on a null view).
+            @Override public void onStopTrackingTouch(Slider control) {
+                row.post(() -> {
+                    repository.setFontWeight(scopeId,
+                            option.weightAt(Math.round(control.getValue())));
+                    markChanged("font_weight");
+                    showPage(pageToRefresh);
                 });
+            }
+        });
+        row.addView(slider, topMargin(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT), dp(4)));
+        body.addView(row, wrapParams());
+    }
+
+    /** "Regular", "SemiBold" … for a numeric weight. Names are the CSS/OpenType convention. */
+    private String weightLabel(int weight) {
+        switch (weight) {
+            case 100: return "Thin";
+            case 200: return "ExtraLight";
+            case 300: return "Light";
+            case 400: return "Regular";
+            case 500: return "Medium";
+            case 600: return "SemiBold";
+            case 700: return "Bold";
+            case 800: return "ExtraBold";
+            case 900: return "Black";
+            default: return String.valueOf(weight);
+        }
     }
 
     private void addProClassicTimeAppearanceSettings(LinearLayout body) {
@@ -1365,7 +1449,9 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     private View calendarStylePage() {
         LinearLayout body = pageBody(0);
         addSectionLabel(body, R.string.ultimate_calendar_style_section);
-        addCalendarThemes(body);
+        String selectedId = addCalendarThemes(body);
+        String scopeId = ClockPreferences.calendarScope(selectedId);
+        addTypographySettings(body, scopeId, Page.CALENDAR_STYLE);
         return scrollable(body);
     }
 
@@ -1394,8 +1480,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     /**
      * Vertical list rather than the horizontal style gallery: the preset summaries are full
      * sentences, and a month thumbnail reads better upright than in a 16:9 slot.
+     *
+     * @return the id of the currently selected calendar theme.
      */
-    private void addCalendarThemes(LinearLayout body) {
+    private String addCalendarThemes(LinearLayout body) {
         List<CalendarStyle> styles = UltimateCalendarStyles.sharedRegistry().getStyles();
         String selectedId = UltimateCalendarStyles.sharedRegistry()
                 .resolve(repository.getCalendarTheme()).getMetadata().getId();
@@ -1439,6 +1527,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 repository.setCalendarTheme(styleId);
                 updateCalendarThemeCards(styleId);
                 markChanged("calendar_theme");
+                // The typography block below these cards is bound to the selected theme's scope,
+                // so the page has to be rebuilt for it to follow the new selection -- the same
+                // reason the clock style gallery rebuilds on selection.
+                showPage(Page.CALENDAR_STYLE);
             });
             LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
                     ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
@@ -1447,6 +1539,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             calendarThemeCards.add(card);
         }
         updateCalendarThemeCards(selectedId);
+        return selectedId;
     }
 
     private void updateCalendarThemeCards(String selectedId) {
@@ -2092,46 +2185,122 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     }
 
     private void showDatePatternEditor() {
-        boolean english = ClockPreferences.LANGUAGE_ENGLISH.equals(repository.getClockLanguage());
+        String clockLanguage = repository.getClockLanguage();
+        boolean english = ClockPreferences.LANGUAGE_ENGLISH.equals(clockLanguage);
+        DateFormatter.Lang lang = LocaleManager.dateLang(clockLanguage);
         String current = english ? repository.getDatePatternEn() : repository.getDatePatternCn();
         TextInputLayout field = new TextInputLayout(this, null,
                 com.google.android.material.R.attr.textInputOutlinedStyle);
         field.setHint(english ? DateFormatter.DEFAULT_PATTERN_EN : DateFormatter.DEFAULT_PATTERN_CN);
-        TextInputEditText input = new TextInputEditText(this);
+        TextInputEditText input = new TextInputEditText(field.getContext());
         input.setSingleLine(true);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         input.setFilters(new InputFilter[] {
                 new InputFilter.LengthFilter(DateFormatter.MAX_PATTERN_LENGTH)});
         input.setText(current);
         input.setSelection(input.length());
-        field.addView(input, new FrameLayout.LayoutParams(
+        // LinearLayout params, not FrameLayout's: TextInputLayout is a LinearLayout and hands
+        // these straight to its inner input frame, so anything else is a ClassCastException.
+        field.addView(input, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        int side = Math.round(20f * getResources().getDisplayMetrics().density);
-        field.setPadding(side, Math.round(4f * getResources().getDisplayMetrics().density),
-                side, 0);
+
+        // Live preview: today rendered through the pattern as it is typed, so the row the clock
+        // will actually show is visible before Apply is pressed. A half-typed draft reports itself
+        // here rather than turning the field red on every keystroke.
+        TextView preview = label("", 14, false);
+        LinearLayout content = dialogContent();
+        content.addView(field, wrapParams());
+        content.addView(preview, topMargin(wrapParams(), dp(12)));
+        content.addView(datePatternHelpButton(english),
+                topMargin(new LinearLayout.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                        ViewGroup.LayoutParams.WRAP_CONTENT), dp(4)));
+
+        // Apply is greyed out while the draft is unusable, so the preview line is the single place
+        // that explains why -- no field error saying the same thing a second time.
+        final Button[] applyButton = new Button[1];
+        Runnable refreshPreview = () -> {
+            String draft = input.getText() == null ? "" : input.getText().toString().trim();
+            boolean valid = DateFormatter.isValidPattern(draft);
+            if (valid) {
+                preview.setTextColor(primaryColor());
+                preview.setText(getString(R.string.date_format_preview,
+                        DateFormatter.format(draft, previewCalendar(), lang)));
+            } else {
+                preview.setTextColor(errorColor());
+                preview.setText(R.string.date_format_custom_invalid);
+            }
+            if (applyButton[0] != null) {
+                applyButton[0].setEnabled(valid);
+            }
+        };
+        input.addTextChangedListener(new TextWatcher() {
+            @Override
+            public void beforeTextChanged(CharSequence text, int start, int count, int after) {
+            }
+
+            @Override
+            public void onTextChanged(CharSequence text, int start, int before, int count) {
+            }
+
+            @Override
+            public void afterTextChanged(Editable editable) {
+                refreshPreview.run();
+            }
+        });
+        refreshPreview.run();
+
         AlertDialog dialog = new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.ultimate_date_format)
                 .setMessage(R.string.ultimate_date_format_help)
-                .setView(field)
+                .setView(content)
                 .setNegativeButton(R.string.ultimate_cancel, null)
                 .setNeutralButton(R.string.ultimate_restore_default, (ignored, which) -> {
                     String value = english ? DateFormatter.DEFAULT_PATTERN_EN
                             : DateFormatter.DEFAULT_PATTERN_CN;
                     saveDatePattern(english, value);
                 })
-                .setPositiveButton(R.string.ultimate_apply, null)
-                .create();
-        dialog.setOnShowListener(ignored -> dialog.getButton(AlertDialog.BUTTON_POSITIVE)
-                .setOnClickListener(view -> {
-                    String value = input.getText().toString().trim();
-                    if (!DateFormatter.isValidPattern(value)) {
-                        field.setError(getString(R.string.ultimate_date_format_invalid));
-                        return;
+                .setPositiveButton(R.string.ultimate_apply, (ignored, which) -> {
+                    String value = input.getText() == null ? ""
+                            : input.getText().toString().trim();
+                    if (DateFormatter.isValidPattern(value)) {
+                        saveDatePattern(english, value);
                     }
-                    saveDatePattern(english, value);
-                    dialog.dismiss();
-                }));
+                })
+                .create();
+        dialog.setOnShowListener(ignored -> {
+            applyButton[0] = dialog.getButton(AlertDialog.BUTTON_POSITIVE);
+            refreshPreview.run();
+        });
         dialog.show();
+    }
+
+    /**
+     * Text button opening the full token reference. The short line under the dialog title only
+     * names the common fields; the table of every token, its Chinese-numeral variants and the
+     * quoting rules lives in {@code date_format_help_body_*} and would swamp the editor inline.
+     */
+    private MaterialButton datePatternHelpButton(boolean english) {
+        MaterialButton help = new MaterialButton(this, null,
+                androidx.appcompat.R.attr.borderlessButtonStyle);
+        help.setText(R.string.date_format_help_button);
+        help.setAllCaps(false);
+        help.setInsetTop(0);
+        help.setInsetBottom(0);
+        help.setOnClickListener(view -> new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.date_format_help_title)
+                .setMessage(english ? R.string.date_format_help_body_en
+                        : R.string.date_format_help_body_cn)
+                .setPositiveButton(R.string.ultimate_got_it, null)
+                .show());
+        return help;
+    }
+
+    /** Now, in the clock's own time zone, so the preview matches the clock's date row exactly. */
+    private Calendar previewCalendar() {
+        String zoneId = repository.getTimeZoneId();
+        TimeZone zone = zoneId == null || zoneId.isEmpty()
+                ? TimeZone.getDefault() : TimeZone.getTimeZone(zoneId);
+        return Calendar.getInstance(zone, Locale.getDefault());
     }
 
     private void saveDatePattern(boolean english, String value) {
@@ -2151,28 +2320,48 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         TextInputLayout field = new TextInputLayout(this, null,
                 com.google.android.material.R.attr.textInputOutlinedStyle);
         field.setHint(getString(R.string.ultimate_custom_message_hint));
-        TextInputEditText input = new TextInputEditText(this);
+        // The two affordances a free-text field earns natively: a clear-text icon (the message is
+        // optional, so wiping it is a first-class action) and a counter, so the 200-character cap
+        // is something the user can see coming rather than a keystroke that silently stops landing.
+        field.setEndIconMode(TextInputLayout.END_ICON_CLEAR_TEXT);
+        field.setCounterEnabled(true);
+        field.setCounterMaxLength(ClockPreferences.MAX_CUSTOM_MESSAGE_LENGTH);
+        TextInputEditText input = new TextInputEditText(field.getContext());
         input.setSingleLine(true);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
         input.setFilters(new InputFilter[] {
                 new InputFilter.LengthFilter(ClockPreferences.MAX_CUSTOM_MESSAGE_LENGTH)});
         input.setText(repository.getCustomMessage());
         input.setSelection(input.length());
-        field.addView(input, new FrameLayout.LayoutParams(
+        // LinearLayout params, not FrameLayout's: TextInputLayout is a LinearLayout and hands
+        // these straight to its inner input frame, so anything else is a ClassCastException.
+        field.addView(input, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        int side = Math.round(20f * getResources().getDisplayMetrics().density);
-        field.setPadding(side, Math.round(4f * getResources().getDisplayMetrics().density),
-                side, 0);
+        LinearLayout content = dialogContent();
+        content.addView(field, wrapParams());
         new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.ultimate_custom_message)
-                .setView(field)
+                .setView(content)
                 .setNegativeButton(R.string.ultimate_cancel, null)
                 .setPositiveButton(R.string.ultimate_apply, (dialog, which) -> {
-                    repository.setCustomMessage(input.getText().toString());
+                    repository.setCustomMessage(input.getText() == null
+                            ? "" : input.getText().toString());
                     markChanged("custom_message");
                     showPage(Page.WEATHER);
                 })
                 .show();
+    }
+
+    /**
+     * Padded holder for a dialog's custom content. The inset belongs here and not on the field:
+     * padding set on a TextInputLayout eats into its own outline box instead of insetting it.
+     */
+    private LinearLayout dialogContent() {
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        int side = dp(20);
+        content.setPadding(side, dp(4), side, 0);
+        return content;
     }
 
     private String currentDatePattern() {
@@ -2480,6 +2669,11 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 Color.rgb(120, 190, 255));
     }
 
+    private int errorColor() {
+        return MaterialColors.getColor(this, androidx.appcompat.R.attr.colorError,
+                Color.rgb(255, 138, 128));
+    }
+
     private int primaryContainerColor() {
         return MaterialColors.getColor(this,
                 com.google.android.material.R.attr.colorPrimaryContainer,
@@ -2556,10 +2750,15 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     /** Fixed-time preview rendered by the same SDK renderer used on the live clock. */
     private final class UltimateThemePreviewView extends View {
         private final ClockStyle style;
+        // Each card previews its own style, so each carries the font chosen for that style rather
+        // than the one the gallery happens to have selected.
+        private final ClockTypography typography = new ClockTypography();
+        private final String scopeId;
 
         UltimateThemePreviewView(Context context, ClockStyle style) {
             super(context);
             this.style = style;
+            this.scopeId = style.getMetadata().getId();
             setLayerType(View.LAYER_TYPE_SOFTWARE, null);
         }
 
@@ -2587,7 +2786,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     calendar.getTimeInMillis(), true);
             int saveCount = canvas.save();
             try {
-                style.getRenderer().render(canvas, context, state, style.getThemeTokens());
+                style.getRenderer().render(canvas, context, state,
+                        typography.apply(getContext(), style.getThemeTokens(), scopeId,
+                                repository.getFontFamily(scopeId),
+                                repository.getFontWeight(scopeId)));
             } finally {
                 canvas.restoreToCount(saveCount);
             }

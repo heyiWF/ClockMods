@@ -173,6 +173,23 @@ public class BackgroundRepository {
         preferences.setFontFamily(fontFamily);
     }
 
+    /** Per-theme typography; {@code scopeId} is a clock style id or {@link ClockPreferences#calendarScope}. */
+    public String getFontFamily(String scopeId) {
+        return preferences.getFontFamily(scopeId);
+    }
+
+    public void setFontFamily(String scopeId, String fontFamily) {
+        preferences.setFontFamily(scopeId, fontFamily);
+    }
+
+    public int getFontWeight(String scopeId) {
+        return preferences.getFontWeight(scopeId);
+    }
+
+    public void setFontWeight(String scopeId, int weight) {
+        preferences.setFontWeight(scopeId, weight);
+    }
+
     public boolean isShowSeconds() {
         return preferences.isShowSeconds();
     }

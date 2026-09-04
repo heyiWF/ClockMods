@@ -321,11 +321,16 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
 
     @Override
     public void applyTypefaces() {
-        Typeface typeface = ClockTypefaceResolver.resolveTime(context,
-                preferences.getFontFamily(), preferences.isBoldText());
+        Typeface typeface = themeTypeface(true);
         timeView.setTypeface(typeface);
         secondsView.setTypeface(typeface);
         periodView.setTypeface(typeface);
+    }
+
+    /** The font for this theme at a hierarchy tier ({@code true} = masthead). */
+    private Typeface themeTypeface(boolean emphasized) {
+        return ClockTypefaceResolver.resolveForTheme(context, preferences,
+                ClockPreferences.calendarScope(theme.id), emphasized);
     }
 
     // endregion
@@ -745,8 +750,7 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
         view.setSingleLine(true);
         view.setEllipsize(android.text.TextUtils.TruncateAt.END);
         view.setTextColor(accent ? theme.accent : theme.text);
-        view.setTypeface(ClockTypefaceResolver.resolveTime(context,
-                preferences.getFontFamily(), false));
+        view.setTypeface(themeTypeface(false));
         int maximumTextSize = context.getResources().getDimensionPixelSize(sizeRes);
         int minimumTextSize = context.getResources().getDimensionPixelSize(
                 R.dimen.calendar_forecast_min_text_size);
@@ -773,8 +777,7 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
                     context.getResources().getDimension(R.dimen.calendar_weekday_text_size));
             label.setTextColor(state.highlightWeekends && state.weekdayWeekend[offset]
                     ? theme.weekend : theme.weekday);
-            label.setTypeface(ClockTypefaceResolver.resolveTime(context,
-                    preferences.getFontFamily(), false));
+            label.setTypeface(themeTypeface(false));
             weekdayGrid.addView(label, cellParams());
         }
         applyMonthSizing();
@@ -820,8 +823,7 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
         cell.setPadding(dp(1), dp(2), dp(1), dp(2));
         cell.setAlpha(day.currentMonth ? 1f : 0.38f);
         CalendarDayNumberView solar = new CalendarDayNumberView(context);
-        Typeface calendarTypeface = ClockTypefaceResolver.resolveTime(context,
-                preferences.getFontFamily(), false);
+        Typeface calendarTypeface = themeTypeface(false);
         solar.setTypefaces(calendarTypeface, calendarTypeface);
         int dayColor = theme.day;
         if (state.highlightWeekends && day.weekend) {
@@ -906,8 +908,7 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
         if (footer == null) return;
         CalendarPageState.Selection selection = pageState == null
                 ? CalendarPageState.Selection.NONE : pageState.selection;
-        footer.setTypeface(ClockTypefaceResolver.resolveTime(context,
-                preferences.getFontFamily(), false));
+        footer.setTypeface(themeTypeface(false));
         footer.setTextSizePx(footer.getHeight() > 0
                 ? CalendarDashboardSizing.monthFooterSize(footer.getHeight(),
                         context.getResources().getDisplayMetrics().density)

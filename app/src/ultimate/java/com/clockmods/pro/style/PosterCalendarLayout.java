@@ -160,10 +160,8 @@ public final class PosterCalendarLayout implements CalendarLayout, CalendarPager
     public void applyTypefaces() {
         // Both halves of the masthead are re-asserted here rather than set once at inflation: the
         // month follows the bold-text switch, and ProFontApplier cannot reach a Canvas view to do it.
-        Typeface regular = ClockTypefaceResolver.resolveTime(context,
-                preferences.getFontFamily(), false);
-        Typeface display = ClockTypefaceResolver.resolveTime(context,
-                preferences.getFontFamily(), preferences.isBoldText());
+        Typeface regular = themeTypeface(false);
+        Typeface display = themeTypeface(true);
         wordmark.setTypefaces(display, regular);
         todayButton.setTypeface(regular);
         for (int index = 0; index < weekdayGrid.getChildCount(); index++) {
@@ -172,6 +170,12 @@ public final class PosterCalendarLayout implements CalendarLayout, CalendarPager
         }
         applyCellTypefaces(grid, regular);
         applyCellTypefaces(previewGrid, regular);
+    }
+
+    /** The font for this theme at a hierarchy tier ({@code true} = masthead). */
+    private Typeface themeTypeface(boolean emphasized) {
+        return ClockTypefaceResolver.resolveForTheme(context, preferences,
+                ClockPreferences.calendarScope(theme.id), emphasized);
     }
 
     private void applyCellTypefaces(GridLayout target, Typeface typeface) {
@@ -247,8 +251,7 @@ public final class PosterCalendarLayout implements CalendarLayout, CalendarPager
     @Override
     public void bindWeekdays(CalendarPageState state) {
         weekdayGrid.removeAllViews();
-        Typeface typeface = ClockTypefaceResolver.resolveTime(context,
-                preferences.getFontFamily(), false);
+        Typeface typeface = themeTypeface(false);
         for (int offset = 0; offset < state.weekdayNames.length; offset++) {
             TextView label = new TextView(context);
             label.setText(state.weekdayNames[offset]);
@@ -451,8 +454,7 @@ public final class PosterCalendarLayout implements CalendarLayout, CalendarPager
             if (state.highlightWeekends && day.weekend) color = theme.weekend;
             if (day.today) color = theme.today;
             number.setDay(day.dayNumber, color);
-            setTypeface(ClockTypefaceResolver.resolveTime(context,
-                    preferences.getFontFamily(), false));
+            setTypeface(themeTypeface(false));
             baseDescription = day.contentDescription;
             applySelection(selected);
             setClickable(interactive);

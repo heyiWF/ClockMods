@@ -53,6 +53,12 @@ public class ClockPreferences {
     private static final String KEY_HOURLY_CHIME_QUIET_END = "hourly_chime_quiet_end";
     private static final String KEY_BOLD_TEXT = "bold_text";
     private static final String KEY_FONT_FAMILY = "font_family";
+    // Per-theme typography: "<prefix><clock style id>" or "<prefix>calendar:<calendar theme id>".
+    private static final String KEY_FONT_FAMILY_PREFIX = "font_family__";
+    private static final String KEY_FONT_WEIGHT_PREFIX = "font_weight__";
+    private static final String CALENDAR_SCOPE_PREFIX = "calendar:";
+    /** The weight the retired bold switch corresponds to. */
+    public static final int BOLD_WEIGHT = 700;
     private static final String LEGACY_FONT_GOOGLE_SANS = "google_sans";
     private static final String KEY_SHOW_SECONDS = "show_seconds";
     private static final String KEY_SHOW_LUNAR = "show_lunar";
@@ -384,6 +390,70 @@ public class ClockPreferences {
 
     public void setFontFamily(String fontFamily) {
         preferences.edit().putString(KEY_FONT_FAMILY, normalizeFontFamily(fontFamily)).apply();
+    }
+
+    /** Scope key for a calendar theme, keeping it from colliding with a clock style of the same id. */
+    public static String calendarScope(String themeId) {
+        return CALENDAR_SCOPE_PREFIX + (themeId == null ? "" : themeId.trim());
+    }
+
+    /**
+     * The font family chosen for one clock style or calendar theme.
+     *
+     * <p>A scope that has never been set falls back to the app-wide {@code font_family} the
+     * settings used before typography became per-theme. That fallback is the whole migration:
+     * every theme starts out looking exactly as it did, and only diverges once the user actually
+     * changes it. Nothing has to enumerate the theme ids, which live in the ultimate flavour and
+     * are not visible from here.
+     */
+    public String getFontFamily(String scopeId) {
+        String scoped = preferences.getString(KEY_FONT_FAMILY_PREFIX + normalizeScope(scopeId), null);
+        return scoped != null ? normalizeFontFamily(scoped) : getFontFamily();
+    }
+
+    public void setFontFamily(String scopeId, String fontFamily) {
+        preferences.edit()
+                .putString(KEY_FONT_FAMILY_PREFIX + normalizeScope(scopeId),
+                        normalizeFontFamily(fontFamily))
+                .apply();
+    }
+
+    /**
+     * The font weight chosen for one clock style or calendar theme, on the 100-900 scale. Falls
+     * back to the legacy bold switch the same way {@link #getFontFamily(String)} does.
+     */
+    public int getFontWeight(String scopeId) {
+        int scoped = preferences.getInt(KEY_FONT_WEIGHT_PREFIX + normalizeScope(scopeId), 0);
+        if (scoped > 0) {
+            return clampWeight(scoped);
+        }
+        return isBoldText() ? BOLD_WEIGHT : FontCatalog.DEFAULT_WEIGHT;
+    }
+
+    public void setFontWeight(String scopeId, int weight) {
+        preferences.edit()
+                .putInt(KEY_FONT_WEIGHT_PREFIX + normalizeScope(scopeId), clampWeight(weight))
+                .apply();
+    }
+
+    private static String normalizeScope(String scopeId) {
+        if (scopeId == null) return "";
+        String trimmed = scopeId.trim();
+        return trimmed.length() > 160 ? trimmed.substring(0, 160) : trimmed;
+    }
+
+    private static int clampWeight(int weight) {
+        int[] stops = FontCatalog.WEIGHT_STOPS;
+        return Math.max(stops[0], Math.min(stops[stops.length - 1], weight));
+    }
+
+    /** Drops every per-theme typography override, returning all themes to the shared fallback. */
+    private void clearPerThemeTypography(SharedPreferences.Editor editor) {
+        for (String key : preferences.getAll().keySet()) {
+            if (key.startsWith(KEY_FONT_FAMILY_PREFIX) || key.startsWith(KEY_FONT_WEIGHT_PREFIX)) {
+                editor.remove(key);
+            }
+        }
     }
 
     public static String normalizeFontFamily(String fontFamily) {
@@ -783,7 +853,9 @@ public class ClockPreferences {
 
     /** Restores all user-configurable settings to their defaults. */
     public void restoreDefaults() {
-        preferences.edit()
+        SharedPreferences.Editor editor = preferences.edit();
+        clearPerThemeTypography(editor);
+        editor
                 .putString(KEY_BACKGROUND_MODE, MODE_COLOR)
                 .putInt(KEY_BACKGROUND_COLOR, DEFAULT_BACKGROUND_COLOR)
                 .putBoolean(KEY_DIM_BACKGROUND, DEFAULT_DIM_BACKGROUND)

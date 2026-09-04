@@ -73,7 +73,8 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
         statusOverlayRepository = new UltimateStatusOverlayRepository(requireContext());
         applyClockStyle(repository);
         statusBarView.setVisibility(repository.isShowStatusIcons() ? View.VISIBLE : View.GONE);
-        ProFontApplier.apply(root);
+        ProFontApplier.apply(root,
+                new UltimateClockPreferences(requireContext()).getStyleId());
 
         ensureWeatherController();
         applyWeatherEnabled(repository);
@@ -159,7 +160,8 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
     @Override
     public void refreshSettings() {
         if (ultimateClockView == null || proClassicClockView == null) return;
-        ProFontApplier.apply(getView());
+        ProFontApplier.apply(getView(),
+                new UltimateClockPreferences(requireContext()).getStyleId());
         BackgroundRepository repository = new BackgroundRepository(requireContext());
         applyClockStyle(repository);
         ensureWeatherController();

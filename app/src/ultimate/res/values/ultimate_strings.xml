@@ -53,6 +53,7 @@
     <string name="ultimate_font_family">字体</string>
     <string name="ultimate_bold_text">使用粗体</string>
     <string name="ultimate_bold_text_summary">应用到 Pro 经典的时间与日期文字。</string>
+    <string name="ultimate_font_weight">字重</string>
     <string name="ultimate_time_appearance_section">时间外观</string>
     <string name="ultimate_time_size">时间字号</string>
     <string name="ultimate_time_color">时间颜色</string>
@@ -212,6 +213,7 @@
 
     <string name="ultimate_apply">应用</string>
     <string name="ultimate_cancel">取消</string>
+    <string name="ultimate_got_it">知道了</string>
     <string name="ultimate_restore_default">恢复默认</string>
     <string name="ultimate_percent_value">%1$d%%</string>
     <string name="ultimate_page_accessibility">设置页面</string>

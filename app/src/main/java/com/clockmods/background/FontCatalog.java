@@ -13,27 +13,137 @@ import java.util.List;
  *
  * <p>All bundled Ultimate families are registered here so settings and rendering share the same
  * stable IDs and asset paths.
+ *
+ * <p>Each family also declares which weights it can actually render, because that differs per
+ * family and the settings slider shows exactly those stops rather than a uniform nine. A family
+ * backed by a variable font covers its {@code wght} axis in steps of 100; a family shipped as
+ * separate static files covers only the weights those files exist for.
  */
 public final class FontCatalog {
+    /** Every weight stop the app knows about, ascending. */
+    public static final int[] WEIGHT_STOPS = {100, 200, 300, 400, 500, 600, 700, 800, 900};
+    /** Regular — the weight a family renders at when the user has not chosen one. */
+    public static final int DEFAULT_WEIGHT = 400;
 
     /** A single selectable font family. */
     public static final class FontOption {
         public final String id;
         public final String displayName;
-        /** Asset path for the regular weight, or {@code null} for the system font. */
-        public final String regularAsset;
-        /** Asset path for the bold weight, or {@code null} to synthesize bold. */
-        public final String boldAsset;
+        /**
+         * Asset path of a variable font carrying a {@code wght} axis, or {@code null} when this
+         * family is either the system font or a set of static files.
+         */
+        public final String variableAsset;
+        /**
+         * Non-weight axis settings pinned alongside {@code wght} for {@link #variableAsset}, in
+         * {@code android.graphics.Paint#setFontVariationSettings} syntax, or {@code null}.
+         */
+        public final String variableAxes;
+        /** The weights this family can render, ascending. Never empty. */
+        private final int[] weights;
+        /** Asset per entry of {@link #weights} for a static family; {@code null} otherwise. */
+        private final String[] staticAssets;
 
-        FontOption(String id, String displayName, String regularAsset, String boldAsset) {
+        private FontOption(String id, String displayName, String variableAsset, String variableAxes,
+                int[] weights, String[] staticAssets) {
             this.id = id;
             this.displayName = displayName;
-            this.regularAsset = regularAsset;
-            this.boldAsset = boldAsset;
+            this.variableAsset = variableAsset;
+            this.variableAxes = variableAxes;
+            this.weights = weights;
+            this.staticAssets = staticAssets;
+        }
+
+        /** The system font: no asset at all, rendered through the {@code sans-serif-*} families. */
+        static FontOption system(String id, String displayName) {
+            return new FontOption(id, displayName, null, null,
+                    new int[] {100, 300, 400, 500, 900}, null);
+        }
+
+        /**
+         * A family backed by one variable font. {@code minWeight}/{@code maxWeight} clamp the
+         * declared stops to the file's real {@code wght} axis, so a family whose axis stops at 700
+         * (Lora) never offers a stop the file cannot render.
+         */
+        static FontOption variable(String id, String displayName, String asset, String axes,
+                int minWeight, int maxWeight) {
+            List<Integer> stops = new ArrayList<>();
+            for (int stop : WEIGHT_STOPS) {
+                if (stop >= minWeight && stop <= maxWeight) stops.add(stop);
+            }
+            int[] weights = new int[stops.size()];
+            for (int i = 0; i < weights.length; i++) weights[i] = stops.get(i);
+            return new FontOption(id, displayName, asset, axes, weights, null);
+        }
+
+        /** A family shipped as one file per weight. Arrays are parallel and must be ascending. */
+        static FontOption statics(String id, String displayName, int[] weights, String[] assets) {
+            return new FontOption(id, displayName, null, null, weights, assets);
         }
 
         public boolean isSystem() {
-            return regularAsset == null;
+            return variableAsset == null && staticAssets == null;
+        }
+
+        /** {@code true} when this family renders weights from a {@code wght} axis. */
+        public boolean isVariable() {
+            return variableAsset != null;
+        }
+
+        /** The weights this family can render, ascending. The array is a copy. */
+        public int[] availableWeights() {
+            return weights.clone();
+        }
+
+        /** How many stops the weight slider should offer for this family. */
+        public int weightCount() {
+            return weights.length;
+        }
+
+        /** The weight at {@code index}, clamped to the available range. */
+        public int weightAt(int index) {
+            if (index <= 0) return weights[0];
+            if (index >= weights.length) return weights[weights.length - 1];
+            return weights[index];
+        }
+
+        /**
+         * The "next heavier" stop for a hierarchy tier, given the base the user picked. Two tiers
+         * (masthead vs. body, say) need contrast, so the emphasised tier takes the nearest stop at
+         * least 200 above the base that this family can render. A base already at the top of the
+         * axis stays there.
+         */
+        public int emphasizedWeight(int baseWeight) {
+            int baseAt = weightAt(indexOfNearestWeight(baseWeight));
+            for (int stop : weights) {
+                if (stop >= baseAt + 200) return stop;
+            }
+            return weights[weights.length - 1];
+        }
+
+        /** Index of the stop nearest {@code weight}, for positioning the slider. */
+        public int indexOfNearestWeight(int weight) {
+            int best = 0;
+            int bestDistance = Integer.MAX_VALUE;
+            for (int i = 0; i < weights.length; i++) {
+                int distance = Math.abs(weights[i] - weight);
+                if (distance < bestDistance) {
+                    bestDistance = distance;
+                    best = i;
+                }
+            }
+            return best;
+        }
+
+        /** The nearest weight this family can actually render. */
+        public int nearestWeight(int weight) {
+            return weights[indexOfNearestWeight(weight)];
+        }
+
+        /** Asset for the static file nearest {@code weight}, or {@code null} when not static. */
+        public String staticAssetFor(int weight) {
+            if (staticAssets == null) return null;
+            return staticAssets[indexOfNearestWeight(weight)];
         }
     }
 
@@ -44,27 +154,46 @@ public final class FontCatalog {
 
     private static List<FontOption> buildOptions() {
         List<FontOption> options = new ArrayList<>();
-        options.add(new FontOption(ClockPreferences.FONT_SYSTEM, "系统字体", null, null));
-        options.add(new FontOption(ClockPreferences.FONT_ROBOTO, "Roboto",
-                "fonts/Roboto-Regular.ttf", "fonts/Roboto-Bold.ttf"));
-        options.add(new FontOption(ClockPreferences.FONT_GOOGLE_SANS_DISPLAY, "Google Sans Display",
-            "fonts/GoogleSansDisplay-Regular.ttf", "fonts/GoogleSansDisplay-Bold.ttf"));
-        options.add(new FontOption(ClockPreferences.FONT_GOOGLE_SANS_TEXT, "Google Sans Text",
-                "fonts/GoogleSansText-Regular.ttf", "fonts/GoogleSansText-Bold.ttf"));
-        options.add(new FontOption(ClockPreferences.FONT_SF_PRO_DISPLAY, "SF Pro Display",
-                    "fonts/SFProDisplay-Regular.otf", "fonts/SFProDisplay-Bold.otf"));
-        options.add(new FontOption(ClockPreferences.FONT_SF_PRO_ROUNDED, "SF Pro Rounded",
-                    "fonts/SFProRounded-Regular.otf", "fonts/SFProRounded-Bold.otf"));
-        options.add(new FontOption(ClockPreferences.FONT_INTER, "Inter",
-                    "fonts/Inter-Regular.ttf", "fonts/Inter-Bold.ttf"));
-        options.add(new FontOption(ClockPreferences.FONT_LATO, "Lato",
-                    "fonts/Lato-Regular.ttf", "fonts/Lato-Bold.ttf"));
-        options.add(new FontOption(ClockPreferences.FONT_LORA, "Lora",
-                    "fonts/Lora-Regular.ttf", "fonts/Lora-Bold.ttf"));
-        options.add(new FontOption(ClockPreferences.FONT_NOTO_SANS, "Noto Sans",
-                    "fonts/NotoSans-Regular.ttf", "fonts/NotoSans-Bold.ttf"));
-        options.add(new FontOption(ClockPreferences.FONT_BITCOUNT, "Bitcount Grid Double",
-                    "fonts/BitcountGridDouble-Regular.ttf", "fonts/BitcountGridDouble-Bold.ttf"));
+        options.add(FontOption.system(ClockPreferences.FONT_SYSTEM, "系统字体"));
+        options.add(FontOption.variable(ClockPreferences.FONT_ROBOTO, "Roboto",
+                "fonts/Roboto-Variable.ttf", null, 100, 900));
+        options.add(FontOption.statics(ClockPreferences.FONT_GOOGLE_SANS_DISPLAY,
+                "Google Sans Display", new int[] {400, 500, 700}, new String[] {
+                        "fonts/GoogleSansDisplay-Regular.ttf",
+                        "fonts/GoogleSansDisplay-Medium.ttf",
+                        "fonts/GoogleSansDisplay-Bold.ttf"}));
+        options.add(FontOption.statics(ClockPreferences.FONT_GOOGLE_SANS_TEXT, "Google Sans Text",
+                new int[] {400, 500, 700}, new String[] {
+                        "fonts/GoogleSansText-Regular.ttf",
+                        "fonts/GoogleSansText-Medium.ttf",
+                        "fonts/GoogleSansText-Bold.ttf"}));
+        // SF Pro ships one variable file spanning Text and Display; pinning the optical-size axis
+        // to its maximum is what makes it the Display cut rather than the tighter Text one.
+        options.add(FontOption.variable(ClockPreferences.FONT_SF_PRO_DISPLAY, "SF Pro Display",
+                "fonts/SFPro-Variable.ttf", "'opsz' 28", 100, 900));
+        options.add(FontOption.statics(ClockPreferences.FONT_SF_PRO_ROUNDED, "SF Pro Rounded",
+                new int[] {300, 400, 500, 600, 700}, new String[] {
+                        "fonts/SFProRounded-Light.otf",
+                        "fonts/SFProRounded-Regular.otf",
+                        "fonts/SFProRounded-Medium.otf",
+                        "fonts/SFProRounded-Semibold.otf",
+                        "fonts/SFProRounded-Bold.otf"}));
+        options.add(FontOption.variable(ClockPreferences.FONT_INTER, "Inter",
+                "fonts/Inter-Variable.ttf", null, 100, 900));
+        options.add(FontOption.statics(ClockPreferences.FONT_LATO, "Lato",
+                new int[] {100, 300, 400, 700, 900}, new String[] {
+                        "fonts/Lato-Thin.ttf",
+                        "fonts/Lato-Light.ttf",
+                        "fonts/Lato-Regular.ttf",
+                        "fonts/Lato-Bold.ttf",
+                        "fonts/Lato-Black.ttf"}));
+        // Lora's axis genuinely stops at 700, so it offers four stops where Roboto offers nine.
+        options.add(FontOption.variable(ClockPreferences.FONT_LORA, "Lora",
+                "fonts/Lora-Variable.ttf", null, 400, 700));
+        options.add(FontOption.variable(ClockPreferences.FONT_NOTO_SANS, "Noto Sans",
+                "fonts/NotoSans-Variable.ttf", null, 100, 900));
+        options.add(FontOption.variable(ClockPreferences.FONT_BITCOUNT, "Bitcount Grid Double",
+                "fonts/BitcountGridDouble-Variable.ttf", null, 100, 900));
         return Collections.unmodifiableList(options);
     }
 

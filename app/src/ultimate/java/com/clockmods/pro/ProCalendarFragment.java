@@ -180,7 +180,7 @@ public final class ProCalendarFragment extends Fragment implements CalendarLayou
         layout.bindWeekdays(pageState);
         updateTime();
         layout.bind(pageState);
-        ProFontApplier.apply(root);
+        ProFontApplier.apply(root, ClockPreferences.calendarScope(style.getTheme().id));
         // Re-assert the bold-aware typefaces after the global font pass: ProFontApplier caches each
         // view's first-seen weight and would otherwise revert the bold-text toggle.
         layout.applyTypefaces();

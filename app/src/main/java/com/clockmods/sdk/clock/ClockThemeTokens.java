@@ -1,5 +1,7 @@
 package com.clockmods.sdk.clock;
 
+import android.graphics.Typeface;
+
 /**
  * Portable visual tokens shared by previews and renderers.
  *
@@ -16,6 +18,8 @@ public final class ClockThemeTokens {
     private final int lineColor;
     private final String displayFontFamily;
     private final String supportingFontFamily;
+    private final Typeface displayTypeface;
+    private final Typeface supportingTypeface;
     private final float strokeScale;
 
     private ClockThemeTokens(Builder builder) {
@@ -28,11 +32,27 @@ public final class ClockThemeTokens {
         lineColor = builder.lineColor;
         displayFontFamily = builder.displayFontFamily;
         supportingFontFamily = builder.supportingFontFamily;
+        displayTypeface = builder.displayTypeface;
+        supportingTypeface = builder.supportingTypeface;
         strokeScale = builder.strokeScale;
     }
 
     public static Builder builder() {
         return new Builder();
+    }
+
+    /** A builder pre-loaded with these tokens, for deriving a variant of an existing theme. */
+    public Builder toBuilder() {
+        return new Builder()
+                .background(backgroundStartColor, backgroundEndColor)
+                .surfaceColor(surfaceColor)
+                .primaryTextColor(primaryTextColor)
+                .secondaryTextColor(secondaryTextColor)
+                .accentColor(accentColor)
+                .lineColor(lineColor)
+                .fonts(displayFontFamily, supportingFontFamily)
+                .typefaces(displayTypeface, supportingTypeface)
+                .strokeScale(strokeScale);
     }
 
     public int getBackgroundStartColor() { return backgroundStartColor; }
@@ -44,6 +64,14 @@ public final class ClockThemeTokens {
     public int getLineColor() { return lineColor; }
     public String getDisplayFontFamily() { return displayFontFamily; }
     public String getSupportingFontFamily() { return supportingFontFamily; }
+    /**
+     * A resolved typeface overriding {@link #getDisplayFontFamily()}, or {@code null} when the
+     * theme's own family stands. The host sets this from the user's per-theme font and weight;
+     * a style's own tokens never carry one, so previews and tests keep the theme's design intact.
+     */
+    public Typeface getDisplayTypeface() { return displayTypeface; }
+    /** As {@link #getDisplayTypeface()}, for the supporting family. */
+    public Typeface getSupportingTypeface() { return supportingTypeface; }
     public float getStrokeScale() { return strokeScale; }
 
     public static final class Builder {
@@ -56,6 +84,8 @@ public final class ClockThemeTokens {
         private int lineColor = 0xFF6B747E;
         private String displayFontFamily = "sans-serif";
         private String supportingFontFamily = "sans-serif";
+        private Typeface displayTypeface;
+        private Typeface supportingTypeface;
         private float strokeScale = 1f;
 
         public Builder background(int startColor, int endColor) {
@@ -73,6 +103,16 @@ public final class ClockThemeTokens {
         public Builder fonts(String displayFamily, String supportingFamily) {
             displayFontFamily = requireFamily(displayFamily);
             supportingFontFamily = requireFamily(supportingFamily);
+            return this;
+        }
+
+        /**
+         * Overrides both families with already-resolved typefaces. Either may be {@code null},
+         * which leaves that slot on the theme's own family.
+         */
+        public Builder typefaces(Typeface display, Typeface supporting) {
+            displayTypeface = display;
+            supportingTypeface = supporting;
             return this;
         }
 

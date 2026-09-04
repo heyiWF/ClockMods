@@ -275,10 +275,8 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
 
     @Override
     public void applyTypefaces() {
-        Typeface regular = ClockTypefaceResolver.resolveTime(context,
-                preferences.getFontFamily(), false);
-        Typeface display = ClockTypefaceResolver.resolveTime(context,
-                preferences.getFontFamily(), preferences.isBoldText());
+        Typeface regular = themeTypeface(false);
+        Typeface display = themeTypeface(true);
         titleView.setTypeface(display);
         weekView.setTypeface(regular);
         todayButton.setTypeface(regular);
@@ -293,6 +291,12 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
         scheduleView.setTypefaces(display, regular);
         for (DayCell cell : cells) cell.setTypefaces(display, regular);
         applyStripTypefaces(stripPreview, display, regular);
+    }
+
+    /** The font for this theme at a hierarchy tier ({@code true} = masthead). */
+    private Typeface themeTypeface(boolean emphasized) {
+        return ClockTypefaceResolver.resolveForTheme(context, preferences,
+                ClockPreferences.calendarScope(theme.id), emphasized);
     }
 
     private void applyStripTypefaces(LinearLayout target, Typeface display, Typeface regular) {

@@ -337,6 +337,26 @@ public final class UltimateClockStyles {
             return Typeface.create(family == null ? "sans-serif" : family, style);
         }
 
+        /**
+         * The display face for {@code theme}: the user's per-theme font when the host supplied
+         * one, otherwise the theme's own family.
+         *
+         * <p>{@code style} is dropped once an override is in play. It exists to ask the platform
+         * for a synthesized bold, and the override already carries a weight the user picked from
+         * the stops the font really has — layering a fake bold on top of Medium would render
+         * something the family cannot actually produce.
+         */
+        protected static Typeface displayTypeface(ClockThemeTokens theme, int style) {
+            Typeface override = theme.getDisplayTypeface();
+            return override != null ? override : typeface(theme.getDisplayFontFamily(), style);
+        }
+
+        /** As {@link #displayTypeface(ClockThemeTokens, int)}, for the supporting family. */
+        protected static Typeface supportingTypeface(ClockThemeTokens theme, int style) {
+            Typeface override = theme.getSupportingTypeface();
+            return override != null ? override : typeface(theme.getSupportingFontFamily(), style);
+        }
+
         protected static void background(Canvas canvas, ClockRenderContext context,
                 ClockThemeTokens theme) {
             ClockBackground hostBackground = context.getBackground();
@@ -569,8 +589,8 @@ public final class UltimateClockStyles {
             float unit = Math.min(width, height);
             float centerX = context.getCenterX();
             float centerY = context.getCenterY();
-            Typeface display = typeface(theme.getDisplayFontFamily(), Typeface.NORMAL);
-            Typeface supporting = typeface(theme.getSupportingFontFamily(), Typeface.NORMAL);
+            Typeface display = displayTypeface(theme, Typeface.NORMAL);
+            Typeface supporting = supportingTypeface(theme, Typeface.NORMAL);
             String time = timeText(state.newCalendar(), state, state.isShowSeconds());
             float timeSize = fitText(time, width * .94f, unit * .42f, display);
             Paint timePaint = fill(theme.getPrimaryTextColor());
@@ -607,8 +627,8 @@ public final class UltimateClockStyles {
             float h = context.getHeight();
             float unit = Math.min(w, h);
             boolean landscape = w >= h * 1.12f;
-            Typeface sans = typeface(theme.getSupportingFontFamily(), Typeface.NORMAL);
-            Typeface bold = typeface(theme.getDisplayFontFamily(), Typeface.BOLD);
+            Typeface sans = supportingTypeface(theme, Typeface.NORMAL);
+            Typeface bold = displayTypeface(theme, Typeface.BOLD);
             float infoLeft = context.getLeft() + w * (landscape ? .075f : .10f);
             float infoRight = context.getLeft() + w * (landscape ? .405f : .90f);
             float titleY = context.getTop() + h * (landscape ? .15f : .075f);
@@ -754,8 +774,8 @@ public final class UltimateClockStyles {
                 tick(canvas, cx, cy, radius * .86f,
                         radius * (major ? .76f : .81f), i * 6f - 90f, tickPaint);
             }
-            Typeface mono = typeface(theme.getSupportingFontFamily(), Typeface.NORMAL);
-            Typeface condensed = typeface(theme.getDisplayFontFamily(), Typeface.BOLD);
+            Typeface mono = supportingTypeface(theme, Typeface.NORMAL);
+            Typeface condensed = displayTypeface(theme, Typeface.BOLD);
             int[] numerals = {12, 3, 6, 9};
             float numeralSize = radius * .115f;
             for (int value : numerals) {
@@ -883,9 +903,9 @@ public final class UltimateClockStyles {
                 tick(canvas, cx, cy, radius * .85f,
                         radius * (major ? .77f : .82f), i * 6f - 90f, tickPaint);
             }
-            Typeface serif = typeface(theme.getDisplayFontFamily(), Typeface.NORMAL);
-            Typeface sans = typeface(theme.getSupportingFontFamily(), Typeface.NORMAL);
-            Typeface sansBold = typeface(theme.getSupportingFontFamily(), Typeface.BOLD);
+            Typeface serif = displayTypeface(theme, Typeface.NORMAL);
+            Typeface sans = supportingTypeface(theme, Typeface.NORMAL);
+            Typeface sansBold = supportingTypeface(theme, Typeface.BOLD);
             int[] numerals = {12, 3, 6, 9};
             float numeralSize = radius * .105f;
             for (int value : numerals) {
@@ -1005,8 +1025,8 @@ public final class UltimateClockStyles {
                                 : alpha(theme.getLineColor(), 170)));
             }
             String time = timeText(c, state, false);
-            Typeface display = typeface(theme.getDisplayFontFamily(), Typeface.NORMAL);
-            Typeface mono = typeface(theme.getSupportingFontFamily(), Typeface.NORMAL);
+            Typeface display = displayTypeface(theme, Typeface.NORMAL);
+            Typeface mono = supportingTypeface(theme, Typeface.NORMAL);
             float timeSize = fitText(time, inner * 1.62f, unit * .105f, display);
             drawTime(canvas, time, cx, centeredBaseline(cy, timeSize, display), timeSize,
                     theme.getPrimaryTextColor(), Paint.Align.CENTER, display);
@@ -1104,7 +1124,7 @@ public final class UltimateClockStyles {
             for (float y = context.getTop(); y <= context.getBottom(); y += grid) {
                 canvas.drawLine(context.getLeft(), y, context.getRight(), y, gridPaint);
             }
-            Typeface mono = typeface(theme.getDisplayFontFamily(), Typeface.NORMAL);
+            Typeface mono = displayTypeface(theme, Typeface.NORMAL);
             text(canvas, "DIGITAL GRID", context.getLeft() + w * .07f,
                     context.getTop() + h * .10f,
                     Math.max(context.getDensity() * 7f, unit * .028f),
@@ -1268,9 +1288,9 @@ public final class UltimateClockStyles {
             float w = context.getWidth();
             float h = context.getHeight();
             float unit = Math.min(w, h);
-            Typeface display = typeface(theme.getDisplayFontFamily(), Typeface.BOLD);
-            Typeface bold = typeface(theme.getSupportingFontFamily(), Typeface.BOLD);
-            Typeface regular = typeface(theme.getSupportingFontFamily(), Typeface.NORMAL);
+            Typeface display = displayTypeface(theme, Typeface.BOLD);
+            Typeface bold = supportingTypeface(theme, Typeface.BOLD);
+            Typeface regular = supportingTypeface(theme, Typeface.NORMAL);
             Calendar c = state.newCalendar();
             int hour = c.get(Calendar.HOUR_OF_DAY);
             if (!state.isUse24Hour()) { hour %= 12; if (hour == 0) hour = 12; }

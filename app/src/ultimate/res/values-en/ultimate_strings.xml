@@ -53,6 +53,7 @@
     <string name="ultimate_font_family">Font family</string>
     <string name="ultimate_bold_text">Use bold text</string>
     <string name="ultimate_bold_text_summary">Applies to the time and date in Pro Classic.</string>
+    <string name="ultimate_font_weight">Font weight</string>
     <string name="ultimate_time_appearance_section">Time appearance</string>
     <string name="ultimate_time_size">Time size</string>
     <string name="ultimate_time_color">Time color</string>
@@ -212,6 +213,7 @@
 
     <string name="ultimate_apply">Apply</string>
     <string name="ultimate_cancel">Cancel</string>
+    <string name="ultimate_got_it">Got it</string>
     <string name="ultimate_restore_default">Restore default</string>
     <string name="ultimate_percent_value">%1$d%%</string>
     <string name="ultimate_page_accessibility">Settings page</string>
