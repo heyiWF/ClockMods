@@ -904,7 +904,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             card.setRadius(dp(8));
             card.setCardElevation(0f);
             card.setUseCompatPadding(false);
-            card.setCheckable(true);
+            // Selection is communicated by the card stroke. Disable MaterialCardView's
+            // built-in checked icon so the gallery does not add a redundant corner checkmark.
+            card.setCheckable(false);
+            card.setCheckedIcon(null);
             card.setClickable(true);
             card.setFocusable(true);
             card.setContentDescription(getString(R.string.ultimate_style_choose,
@@ -1498,7 +1501,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             card.setRadius(dp(8));
             card.setCardElevation(0f);
             card.setUseCompatPadding(false);
-            card.setCheckable(true);
+            // Selection is communicated by the card stroke. Disable MaterialCardView's
+            // built-in checked icon so the list does not add a redundant corner checkmark.
+            card.setCheckable(false);
+            card.setCheckedIcon(null);
             card.setClickable(true);
             card.setFocusable(true);
             card.setContentDescription(getString(R.string.ultimate_style_choose, name));
@@ -1546,7 +1552,6 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         for (int i = 0; i < calendarThemeCards.size(); i++) {
             MaterialCardView card = calendarThemeCards.get(i);
             boolean selected = String.valueOf(card.getTag()).equals(selectedId);
-            card.setChecked(selected);
             card.setStrokeWidth(dp(selected ? 2 : 1));
             card.setStrokeColor(selected ? primaryColor() : withAlpha(onSurfaceVariantColor(), 0.55f));
             card.setCardBackgroundColor(surfaceContainerColor());
@@ -2488,7 +2493,6 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         for (int i = 0; i < styleCards.size() && i < styleSpecs.size(); i++) {
             MaterialCardView card = styleCards.get(i);
             boolean selected = styleSpecs.get(i).id.equals(selectedId);
-            card.setChecked(selected);
             card.setStrokeWidth(dp(selected ? 2 : 1));
             card.setStrokeColor(selected ? primaryColor() : withAlpha(onSurfaceVariantColor(), 0.55f));
             card.setCardBackgroundColor(surfaceContainerColor());

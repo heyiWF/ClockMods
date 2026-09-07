@@ -112,7 +112,11 @@ public abstract class ProMainActivity extends AppCompatActivity {
                         return false;
                     }
                 });
-        requestNotificationPermissionIfNeeded();
+        // The Ultimate experience presents its first-launch setup wizard before asking for
+        // notifications. Other hosts can keep the existing prompt timing.
+        if (!shouldDeferNotificationPermission()) {
+            requestNotificationPermissionIfNeeded();
+        }
     }
 
     /** Creates the adapter for the Ultimate clock and its integrated tool destinations. */
@@ -260,13 +264,18 @@ public abstract class ProMainActivity extends AppCompatActivity {
         }
     }
 
-    private void requestNotificationPermissionIfNeeded() {
+    /** Allows a first-launch host to defer the prompt until its onboarding flow is complete. */
+    protected final void requestNotificationPermissionIfNeeded() {
         if (Build.VERSION.SDK_INT >= 33
                 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
             requestPermissions(new String[] {Manifest.permission.POST_NOTIFICATIONS},
                     REQUEST_NOTIFICATIONS);
         }
+    }
+
+    protected boolean shouldDeferNotificationPermission() {
+        return false;
     }
 
     @Override protected void onDestroy() {

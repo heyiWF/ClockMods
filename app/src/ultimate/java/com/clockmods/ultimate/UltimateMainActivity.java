@@ -14,6 +14,8 @@ import com.clockmods.ultimate.settings.UltimateSettingsActivity;
 
 /** Ultimate shell for the clock, tool destinations, and full-screen settings. */
 public final class UltimateMainActivity extends ProMainActivity {
+    private static final String STATE_SETUP_WIZARD_PENDING =
+            "ultimate_setup_wizard_launch_pending";
     private String appliedLanguage;
     private boolean setupWizardLaunchPending;
 
@@ -29,10 +31,19 @@ public final class UltimateMainActivity extends ProMainActivity {
             new ActivityResultContracts.StartActivityForResult(), result -> onSetupWizardClosed());
 
     @Override
+    protected boolean shouldDeferNotificationPermission() {
+        return !SetupWizardActivity.isCompleted(this);
+    }
+
+    @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        if (savedInstanceState != null) {
+            setupWizardLaunchPending = savedInstanceState.getBoolean(
+                    STATE_SETUP_WIZARD_PENDING, false);
+        }
         appliedLanguage = new ClockPreferences(this).getClockLanguage();
-        if (!SetupWizardActivity.isCompleted(this)) {
+        if (!SetupWizardActivity.isCompleted(this) && !setupWizardLaunchPending) {
             // Defer until the first frame so the host is fully attached before presenting onboarding.
             new Handler(Looper.getMainLooper()).post(() -> {
                 if (!isFinishing() && !isDestroyed() && !setupWizardLaunchPending
@@ -42,6 +53,12 @@ public final class UltimateMainActivity extends ProMainActivity {
                 }
             });
         }
+    }
+
+    @Override
+    protected void onSaveInstanceState(Bundle outState) {
+        outState.putBoolean(STATE_SETUP_WIZARD_PENDING, setupWizardLaunchPending);
+        super.onSaveInstanceState(outState);
     }
 
     @Override
@@ -71,6 +88,11 @@ public final class UltimateMainActivity extends ProMainActivity {
 
     private void onSetupWizardClosed() {
         setupWizardLaunchPending = false;
+        // Ask only after the user has seen the essentials and left onboarding, so the system
+        // permission sheet never covers the first-launch wizard.
+        if (SetupWizardActivity.isCompleted(this)) {
+            requestNotificationPermissionIfNeeded();
+        }
         String currentLanguage = new ClockPreferences(this).getClockLanguage();
         if (appliedLanguage != null && !appliedLanguage.equals(currentLanguage)) {
             appliedLanguage = currentLanguage;

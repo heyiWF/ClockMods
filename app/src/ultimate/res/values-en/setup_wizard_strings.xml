@@ -8,6 +8,7 @@
     <string name="setup_wizard_weather_title">Set up weather</string>
     <string name="setup_wizard_weather_summary">Show weather for your current location. Location permission is requested only when needed.</string>
     <string name="setup_wizard_weather_enabled">Show weather</string>
+    <string name="setup_wizard_weather_enabled_summary">Show live weather for your location</string>
     <string name="setup_wizard_temperature_title">Temperature unit</string>
     <string name="setup_wizard_style_title">Choose a clock style</string>
     <string name="setup_wizard_style_summary">Pick a look for your clock. More styles are available in the theme gallery.</string>

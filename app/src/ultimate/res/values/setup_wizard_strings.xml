@@ -8,6 +8,7 @@
     <string name="setup_wizard_weather_title">设置天气</string>
     <string name="setup_wizard_weather_summary">在时钟上显示当前位置的天气。开启后会在需要时请求定位权限。</string>
     <string name="setup_wizard_weather_enabled">显示天气</string>
+    <string name="setup_wizard_weather_enabled_summary">显示当前位置的实时天气</string>
     <string name="setup_wizard_temperature_title">温度单位</string>
     <string name="setup_wizard_style_title">选择主题样式</string>
     <string name="setup_wizard_style_summary">挑一个喜欢的时钟外观，稍后可在主题库中查看更多。</string>
