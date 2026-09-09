@@ -418,6 +418,12 @@ public final class SetupWizardActivity extends AppCompatActivity {
         if (compactLandscape) summary.setVisibility(View.GONE);
         pageContent.addView(summary, topMargin(wrap(), dp(compactHeight ? 3 : 6)));
 
+        TextView settingsHint = text(R.string.setup_wizard_settings_hint,
+                compactHeight ? 12 : 14, false);
+        settingsHint.setTextColor(primaryColor());
+        settingsHint.setLineSpacing(0f, 1.15f);
+        pageContent.addView(settingsHint, topMargin(wrap(), dp(compactHeight ? 6 : 10)));
+
         addStyleCard(UltimateClockStyles.STYLE_GLASS_ATELIER,
                 R.string.ultimate_style_glass_name, R.string.ultimate_style_glass_summary);
         addStyleCard(UltimateClockStyles.STYLE_NOIR_INSTRUMENT,

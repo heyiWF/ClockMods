@@ -12,6 +12,7 @@
     <string name="setup_wizard_temperature_title">Temperature unit</string>
     <string name="setup_wizard_style_title">Choose a clock style</string>
     <string name="setup_wizard_style_summary">Pick a look for your clock. More styles are available in the theme gallery.</string>
+    <string name="setup_wizard_settings_hint">After setup, double-tap the clock screen to open the settings panel.</string>
     <string name="setup_wizard_skip">Set up later</string>
     <string name="setup_wizard_back">Back</string>
     <string name="setup_wizard_next">Next</string>

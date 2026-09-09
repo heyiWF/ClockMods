@@ -12,6 +12,7 @@
     <string name="setup_wizard_temperature_title">溫度單位</string>
     <string name="setup_wizard_style_title">選擇主題樣式</string>
     <string name="setup_wizard_style_summary">挑選喜愛的時鐘外觀，稍後可在主題庫查看更多。</string>
+    <string name="setup_wizard_settings_hint">完成設定後，在時鐘畫面輕觸兩下即可開啟設定面板。</string>
     <string name="setup_wizard_skip">稍後設定</string>
     <string name="setup_wizard_back">返回</string>
     <string name="setup_wizard_next">下一步</string>
