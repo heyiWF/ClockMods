@@ -36,7 +36,7 @@ import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
-import android.widget.SeekBar;
+import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
 
@@ -79,6 +79,7 @@ import com.clockmods.sdk.clock.ClockState;
 import com.clockmods.sdk.clock.ClockStyle;
 import com.clockmods.sdk.clock.ClockStyleCapabilities;
 import com.clockmods.sdk.clock.ClockStyleRegistry;
+import com.clockmods.sdk.clock.WorldClockEntry;
 import com.clockmods.time.RegionTimeZones;
 import com.clockmods.ui.ClockTimeText;
 import com.clockmods.ui.ColorPickerView;
@@ -87,6 +88,9 @@ import com.clockmods.ui.WeatherLocationChooser;
 import com.clockmods.ultimate.clock.UltimateClockPreferences;
 import com.clockmods.ultimate.clock.UltimateClockStyles;
 import com.clockmods.ultimate.clock.ClockTypography;
+import com.clockmods.ultimate.clock.WorldClockCatalog;
+import com.clockmods.ultimate.clock.WorldClockRepository;
+import com.clockmods.ultimate.AntiBurnPreferences;
 import com.clockmods.weather.WeatherLocationCatalog;
 import com.google.android.material.appbar.MaterialToolbar;
 import com.google.android.material.appbar.AppBarLayout;
@@ -993,6 +997,9 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         }
 
         addTypographySettings(body, selectedId, Page.STYLE);
+        if (capabilities.supports(ClockStyleCapabilities.Capability.WORLD_CLOCK)) {
+            addWorldClockSettings(body);
+        }
 
         if (proClassic) {
             addProClassicTimeAppearanceSettings(body);
@@ -1000,6 +1007,314 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             addProClassicWeatherAppearanceSettings(body);
         }
         return scrollable(body);
+    }
+
+    private void addWorldClockSettings(LinearLayout body) {
+        addSectionLabel(body, R.string.ultimate_world_clock_section, 22);
+        WorldClockRepository worldRepository = new WorldClockRepository(this);
+        List<WorldClockEntry> selected = worldRepository.getSelected();
+        addSwitch(body, R.string.ultimate_world_clock_enabled,
+                R.string.ultimate_world_clock_summary, worldRepository.isEnabled(), enabled -> {
+                    worldRepository.setEnabled(enabled);
+                    if (enabled && worldRepository.getSelected().isEmpty()) {
+                        worldRepository.save(WorldClockCatalog.defaults());
+                    }
+                    markChanged("world_clock_enabled");
+                    showPage(Page.STYLE);
+                });
+        addActionRow(body, R.string.ultimate_world_clock_manage,
+                getString(R.string.ultimate_world_clock_count, selected.size()),
+                R.drawable.ultimate_ic_chevron_right, this::showWorldClockDialog);
+    }
+
+    private void showWorldClockDialog() {
+        WorldClockRepository worldRepository = new WorldClockRepository(this);
+        final List<WorldClockEntry> draft = new ArrayList<>(worldRepository.getSelected());
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(18), dp(14), dp(18), dp(12));
+
+        LinearLayout header = new LinearLayout(this);
+        header.setOrientation(LinearLayout.HORIZONTAL);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        MaterialButton globe = worldClockIconButton(R.drawable.ultimate_ic_public,
+                R.string.ultimate_world_clock_title);
+        globe.setClickable(false);
+        globe.setFocusable(false);
+        globe.setBackgroundTintList(ColorStateList.valueOf(primaryContainerColor()));
+        globe.setIconTint(ColorStateList.valueOf(onPrimaryContainerColor()));
+        header.addView(globe, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        LinearLayout heading = new LinearLayout(this);
+        heading.setOrientation(LinearLayout.VERTICAL);
+        heading.setPadding(dp(12), 0, dp(8), 0);
+        TextView title = label(R.string.ultimate_world_clock_title, 22, true);
+        TextView summary = label(R.string.ultimate_world_clock_dialog_summary, 13, false);
+        summary.setTextColor(onSurfaceVariantColor());
+        heading.addView(title, wrapParams());
+        heading.addView(summary, wrapParams());
+        header.addView(heading, new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        TextView counter = label(getString(R.string.ultimate_world_clock_counter, draft.size()),
+                14, true);
+        counter.setGravity(Gravity.CENTER);
+        counter.setTextColor(onPrimaryContainerColor());
+        counter.setPadding(dp(14), 0, dp(14), 0);
+        GradientDrawable counterBackground = new GradientDrawable();
+        counterBackground.setColor(primaryContainerColor());
+        counterBackground.setCornerRadius(dp(24));
+        counter.setBackground(counterBackground);
+        header.addView(counter, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(44)));
+        final AlertDialog[] dialogRef = new AlertDialog[1];
+        MaterialButton close = worldClockIconButton(R.drawable.ultimate_ic_remove,
+                R.string.ultimate_world_clock_close);
+        close.setOnClickListener(view -> {
+            if (dialogRef[0] != null) dialogRef[0].dismiss();
+        });
+        header.addView(close, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        content.addView(header, wrapParams());
+
+        TextInputLayout searchLayout = new TextInputLayout(this, null,
+                com.google.android.material.R.attr.textInputOutlinedStyle);
+        searchLayout.setHint(R.string.ultimate_world_clock_search_hint);
+        searchLayout.setBoxBackgroundMode(TextInputLayout.BOX_BACKGROUND_OUTLINE);
+        searchLayout.setStartIconDrawable(R.drawable.ultimate_ic_search);
+        searchLayout.setStartIconTintList(ColorStateList.valueOf(onSurfaceVariantColor()));
+        searchLayout.setEndIconMode(TextInputLayout.END_ICON_CLEAR_TEXT);
+        searchLayout.setBoxCornerRadii(dp(28), dp(28), dp(28), dp(28));
+        TextInputEditText search = new TextInputEditText(searchLayout.getContext());
+        search.setSingleLine(true);
+        search.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
+        searchLayout.addView(search, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        content.addView(searchLayout, topMargin(wrapParams(), dp(12)));
+
+        ScrollView listScroll = new ScrollView(this);
+        listScroll.setFillViewport(true);
+        listScroll.setClipToPadding(false);
+        listScroll.setPadding(0, dp(4), 0, dp(4));
+        LinearLayout list = new LinearLayout(this);
+        list.setOrientation(LinearLayout.VERTICAL);
+        listScroll.addView(list, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        Configuration configuration = getResources().getConfiguration();
+        int screenHeightDp = configuration.screenHeightDp;
+        int cityListHeightDp = configuration.screenWidthDp >= screenHeightDp
+                ? 175 : Math.max(175, Math.min(290, screenHeightDp - 310));
+        content.addView(listScroll, topMargin(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(cityListHeightDp)), dp(6)));
+
+        final Runnable[] rebuild = new Runnable[1];
+        rebuild[0] = () -> {
+            list.removeAllViews();
+            counter.setText(getString(R.string.ultimate_world_clock_counter, draft.size()));
+            String query = search.getText() == null ? "" : search.getText().toString().trim();
+            List<WorldClockEntry> visible = query.length() == 0
+                    ? new ArrayList<>(draft) : WorldClockCatalog.search(query);
+            if (visible.isEmpty()) {
+                TextView empty = label(R.string.ultimate_world_clock_empty, 14, false);
+                empty.setTextColor(onSurfaceVariantColor());
+                empty.setGravity(Gravity.CENTER);
+                empty.setPadding(0, dp(24), 0, dp(24));
+                list.addView(empty, wrapParams());
+                return;
+            }
+            int shown = 0;
+            for (WorldClockEntry entry : visible) {
+                if (shown++ >= 30) break;
+                final int selectedIndex = draft.indexOf(entry);
+                boolean selected = selectedIndex >= 0;
+                Runnable primary;
+                Runnable up = null;
+                Runnable down = null;
+                if (selected) {
+                    primary = () -> {
+                        draft.remove(entry);
+                        rebuild[0].run();
+                    };
+                    up = selectedIndex > 0 ? () -> {
+                        WorldClockEntry value = draft.remove(selectedIndex);
+                        draft.add(selectedIndex - 1, value);
+                        rebuild[0].run();
+                    } : null;
+                    down = selectedIndex + 1 < draft.size() ? () -> {
+                        WorldClockEntry value = draft.remove(selectedIndex);
+                        draft.add(selectedIndex + 1, value);
+                        rebuild[0].run();
+                    } : null;
+                } else {
+                    primary = draft.size() < WorldClockRepository.MAX_SELECTED ? () -> {
+                        draft.add(entry);
+                        rebuild[0].run();
+                    } : null;
+                }
+                list.addView(worldClockRow(entry, selected, primary, up, down),
+                        bottomMargin(wrapParams(), dp(7)));
+            }
+        };
+        search.addTextChangedListener(new TextWatcher() {
+            @Override public void beforeTextChanged(CharSequence s, int start, int count, int after) { }
+            @Override public void onTextChanged(CharSequence s, int start, int before, int count) { rebuild[0].run(); }
+            @Override public void afterTextChanged(Editable s) { }
+        });
+        rebuild[0].run();
+
+        LinearLayout actions = new LinearLayout(this);
+        actions.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
+        MaterialButton cancel = new MaterialButton(this);
+        cancel.setText(R.string.ultimate_cancel);
+        cancel.setBackgroundTintList(ColorStateList.valueOf(Color.TRANSPARENT));
+        cancel.setTextColor(primaryColor());
+        MaterialButton save = new MaterialButton(this);
+        save.setText(R.string.ultimate_save);
+        LinearLayout.LayoutParams actionParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(48));
+        actions.addView(cancel, actionParams);
+        actions.addView(save, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(48)));
+        content.addView(actions, topMargin(wrapParams(), dp(6)));
+
+        AlertDialog dialog = new MaterialAlertDialogBuilder(this).setView(content).create();
+        dialogRef[0] = dialog;
+        cancel.setOnClickListener(view -> dialog.dismiss());
+        save.setOnClickListener(view -> {
+            worldRepository.save(draft);
+            markChanged("world_clock");
+            dialog.dismiss();
+            showPage(Page.STYLE);
+        });
+        dialog.setOnShowListener(unused -> {
+            Window window = dialog.getWindow();
+            if (window == null) return;
+            int width = Math.min(getResources().getDisplayMetrics().widthPixels - dp(48), dp(440));
+            int height = Math.min(getResources().getDisplayMetrics().heightPixels - dp(48),
+                    dp(560));
+            window.setLayout(Math.max(dp(320), width), Math.max(dp(360), height));
+        });
+        dialog.show();
+    }
+
+    private View worldClockRow(WorldClockEntry entry, boolean selected, Runnable primary,
+            Runnable up, Runnable down) {
+        MaterialCardView card = new MaterialCardView(this);
+        card.setCardElevation(0f);
+        card.setUseCompatPadding(false);
+        card.setRadius(dp(24));
+        card.setCardBackgroundColor(selected
+                ? MaterialColors.layer(surfaceContainerColor(), primaryColor(), 0.16f)
+                : surfaceContainerColor());
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setPadding(dp(12), dp(8), dp(8), dp(8));
+        TextView flag = label(entry.getFlagEmoji(), 18, true);
+        flag.setGravity(Gravity.CENTER_VERTICAL);
+        row.addView(flag, new LinearLayout.LayoutParams(dp(38), dp(52)));
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
+        TextView name = label(entry.getCity(), 15, true);
+        TextView detail = label(entry.getCountry() + "\n" + entry.getZoneId(), 12, false);
+        detail.setTextColor(onSurfaceVariantColor());
+        labels.addView(name, wrapParams());
+        labels.addView(detail, wrapParams());
+        row.addView(labels, new LinearLayout.LayoutParams(0, dp(56), 1f));
+        TextView time = label(ClockTimeText.align(currentWorldTime(entry)), 15, true);
+        time.setGravity(Gravity.CENTER_VERTICAL | Gravity.RIGHT);
+        row.addView(time, new LinearLayout.LayoutParams(dp(74), dp(56)));
+        if (selected) {
+            addSmallButton(row, R.drawable.ultimate_ic_move_up,
+                    R.string.ultimate_world_clock_move_up, up, up == null);
+            addSmallButton(row, R.drawable.ultimate_ic_move_down,
+                    R.string.ultimate_world_clock_move_down, down, down == null);
+            addSmallButton(row, R.drawable.ultimate_ic_remove,
+                    R.string.ultimate_world_clock_remove, primary, false);
+        } else {
+            addSmallButton(row, R.drawable.ultimate_ic_add,
+                    R.string.ultimate_world_clock_add, primary, primary == null);
+        }
+        card.addView(row, new ViewGroup.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        return card;
+    }
+
+    private void addSmallButton(LinearLayout parent, int iconRes, int descriptionRes,
+            Runnable action, boolean disabled) {
+        MaterialButton button = new MaterialButton(this, null,
+                com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        button.setText(null);
+        button.setIconResource(iconRes);
+        button.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
+        button.setIconPadding(0);
+        button.setContentDescription(getString(descriptionRes));
+        button.setMinWidth(dp(42));
+        button.setMinHeight(dp(44));
+        button.setPadding(0, 0, 0, 0);
+        button.setEnabled(!disabled);
+        button.setOnClickListener(view -> { if (action != null) action.run(); });
+        parent.addView(button, new LinearLayout.LayoutParams(dp(44), dp(48)));
+    }
+
+    private MaterialButton worldClockIconButton(int iconRes, int descriptionRes) {
+        MaterialButton button = new MaterialButton(this, null,
+                com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        button.setText(null);
+        button.setIconResource(iconRes);
+        button.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
+        button.setIconPadding(0);
+        button.setIconTint(ColorStateList.valueOf(onSurfaceVariantColor()));
+        button.setStrokeWidth(0);
+        button.setCornerRadius(dp(24));
+        button.setContentDescription(getString(descriptionRes));
+        button.setMinWidth(dp(48));
+        button.setMinHeight(dp(48));
+        button.setPadding(0, 0, 0, 0);
+        return button;
+    }
+
+    private View addScaleDialogRow(LinearLayout body, int titleRes, float current,
+            float minimum, float maximum, FloatChange change, String source) {
+        return addActionRow(body, titleRes,
+                getString(R.string.ultimate_dp_value, Math.round(current)),
+                R.drawable.ultimate_ic_chevron_right,
+                () -> showDpScaleDialog(titleRes, current, minimum, maximum, change, source));
+    }
+
+    private void showDpScaleDialog(int titleRes, float current, float minimum, float maximum,
+            FloatChange change, String source) {
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(24), dp(8), dp(24), 0);
+        TextView value = label(getString(R.string.ultimate_dp_value, Math.round(current)), 16, true);
+        Slider slider = new Slider(this);
+        int min = Math.round(minimum);
+        int max = Math.round(maximum);
+        slider.setValueFrom(min);
+        slider.setValueTo(max);
+        slider.setStepSize(1f);
+        slider.setValue(Math.max(min, Math.min(max, Math.round(current))));
+        slider.setContentDescription(getString(titleRes));
+        slider.addOnChangeListener((control, selected, fromUser) ->
+                value.setText(getString(R.string.ultimate_dp_value, Math.round(selected))));
+        content.addView(value, wrapParams());
+        content.addView(slider, topMargin(wrapParams(), dp(8)));
+        new MaterialAlertDialogBuilder(this).setTitle(titleRes).setView(content)
+                .setNegativeButton(R.string.ultimate_cancel, null)
+                .setPositiveButton(R.string.ultimate_apply, (dialog, which) -> {
+                    change.apply(slider.getValue());
+                    markChanged(source);
+                }).show();
+    }
+
+    private String currentWorldTime(WorldClockEntry entry) {
+        Calendar calendar = Calendar.getInstance(TimeZone.getTimeZone(entry.getZoneId()));
+        int hour = calendar.get(Calendar.HOUR_OF_DAY);
+        if (!repository.isUse24Hour()) {
+            hour %= 12;
+            if (hour == 0) hour = 12;
+        }
+        String value = String.format(Locale.US, "%02d:%02d", hour,
+                calendar.get(Calendar.MINUTE));
+        return value;
     }
 
     /**
@@ -1025,6 +1340,39 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                         },
                         "font_family", true));
         addWeightSlider(body, scopeId, pageToRefresh);
+        if (isMigratedClockStyle(scopeId)) {
+            addActionRow(body, R.string.ultimate_time_size,
+                    percentSummary(repository.getTimeFontScale(scopeId)),
+                    R.drawable.ultimate_ic_chevron_right, () -> showScaleDialog(
+                            R.string.ultimate_time_size, repository.getTimeFontScale(scopeId),
+                            ClockPreferences.MIN_FONT_SCALE, ClockPreferences.MAX_FONT_SCALE,
+                            value -> repository.setTimeFontScale(scopeId, value),
+                            "time_font_scale:" + scopeId));
+            addActionRow(body, R.string.ultimate_date_size,
+                    percentSummary(repository.getDateFontScale(scopeId)),
+                    R.drawable.ultimate_ic_chevron_right, () -> showScaleDialog(
+                            R.string.ultimate_date_size, repository.getDateFontScale(scopeId),
+                            ClockPreferences.MIN_FONT_SCALE, ClockPreferences.MAX_FONT_SCALE,
+                            value -> repository.setDateFontScale(scopeId, value),
+                            "date_font_scale:" + scopeId));
+            addActionRow(body, R.string.ultimate_supporting_text_size,
+                    percentSummary(repository.getSupportingFontScale(scopeId)),
+                    R.drawable.ultimate_ic_chevron_right, () -> showScaleDialog(
+                            R.string.ultimate_supporting_text_size,
+                            repository.getSupportingFontScale(scopeId),
+                            ClockPreferences.MIN_SUPPORTING_FONT_SCALE,
+                            ClockPreferences.MAX_SUPPORTING_FONT_SCALE,
+                            value -> repository.setSupportingFontScale(scopeId, value),
+                            "supporting_font_scale:" + scopeId));
+        }
+    }
+
+    private static boolean isMigratedClockStyle(String styleId) {
+        return UltimateClockStyles.STYLE_DUAL_BLOCKS.equals(styleId)
+                || UltimateClockStyles.STYLE_ORBIT.equals(styleId)
+                || UltimateClockStyles.STYLE_BUBBLES.equals(styleId)
+                || UltimateClockStyles.STYLE_BLEND.equals(styleId)
+                || UltimateClockStyles.STYLE_RIBBON.equals(styleId);
     }
 
     /**
@@ -1605,6 +1953,40 @@ public class UltimateSettingsActivity extends AppCompatActivity {
 
     private View systemPage() {
         LinearLayout body = pageBody(0);
+        addSectionLabel(body, R.string.ultimate_anti_burn_section, 0);
+        AntiBurnPreferences antiBurn = new AntiBurnPreferences(this);
+        MaterialSwitch enabledSwitch = addSwitch(body, R.string.ultimate_anti_burn_enabled,
+                R.string.ultimate_anti_burn_summary, antiBurn.isEnabled(), value -> {
+                    antiBurn.setEnabled(value);
+                    markChanged("anti_burn_enabled");
+                    showPage(Page.SYSTEM);
+                });
+        View periodRow = addActionRow(body, R.string.ultimate_anti_burn_period,
+                getString(R.string.ultimate_minutes_value, antiBurn.getPeriodMinutes()),
+                R.drawable.ultimate_ic_chevron_right, () -> showSingleChoiceDialog(
+                        R.string.ultimate_anti_burn_period,
+                        new String[] {getString(R.string.ultimate_minutes_value, 1),
+                                getString(R.string.ultimate_minutes_value, 10),
+                                getString(R.string.ultimate_minutes_value, 30),
+                                getString(R.string.ultimate_minutes_value, 60)},
+                        antiBurn.getPeriodMinutes() == 1 ? 0 : antiBurn.getPeriodMinutes() == 30 ? 2
+                                : antiBurn.getPeriodMinutes() == 60 ? 3 : 1,
+                        value -> {
+                            antiBurn.setPeriodMinutes(new int[] {1, 10, 30, 60}[value]);
+                            markChanged("anti_burn_period");
+                            showPage(Page.SYSTEM);
+                        }, "anti_burn_period", false));
+        View amplitudeRow = addScaleDialogRow(body, R.string.ultimate_anti_burn_amplitude,
+                antiBurn.getAmplitudeDp(), 0f, 12f, antiBurn::setAmplitudeDp,
+                "anti_burn_amplitude");
+        MaterialSwitch autoDimSwitch = addSwitch(body, R.string.ultimate_anti_burn_auto_dim,
+                R.string.ultimate_anti_burn_auto_dim_summary, antiBurn.isAutoDim(), value -> {
+                    antiBurn.setAutoDim(value);
+                    markChanged("anti_burn_auto_dim");
+                });
+        setViewTreeEnabled(periodRow, enabledSwitch.isChecked());
+        setViewTreeEnabled(amplitudeRow, enabledSwitch.isChecked());
+        setSwitchPreferenceEnabled(autoDimSwitch, enabledSwitch.isChecked());
         addSectionLabel(body, R.string.ultimate_orientation_section);
         int orientation = repository.getScreenOrientation();
         int orientationPosition = orientation == ClockPreferences.ORIENTATION_PORTRAIT ? 1
@@ -2118,20 +2500,15 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(dp(24), dp(8), dp(24), 0);
         TextView value = label(percentSummary(current), 16, true);
-        SeekBar slider = new SeekBar(this);
-        slider.setMax(maxPercent - minPercent);
-        slider.setProgress(Math.max(0, Math.min(maxPercent - minPercent,
-                Math.round(current * 100f) - minPercent)));
+        Slider slider = new Slider(this);
+        slider.setValueFrom(minPercent);
+        slider.setValueTo(maxPercent);
+        slider.setStepSize(1f);
+        slider.setValue(Math.max(minPercent, Math.min(maxPercent,
+                Math.round(current * 100f))));
         slider.setContentDescription(getString(titleRes));
-        slider.setOnSeekBarChangeListener(new SeekBar.OnSeekBarChangeListener() {
-            @Override
-            public void onProgressChanged(SeekBar seekBar, int progress, boolean fromUser) {
-                value.setText(getString(R.string.ultimate_percent_value, progress + minPercent));
-            }
-
-            @Override public void onStartTrackingTouch(SeekBar seekBar) { }
-            @Override public void onStopTrackingTouch(SeekBar seekBar) { }
-        });
+        slider.addOnChangeListener((control, selected, fromUser) -> value.setText(
+                getString(R.string.ultimate_percent_value, Math.round(selected))));
         content.addView(value, wrapParams());
         content.addView(slider, topMargin(wrapParams(), dp(8)));
         Page pageToRefresh = currentPage;
@@ -2140,7 +2517,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 .setView(content)
                 .setNegativeButton(R.string.ultimate_cancel, null)
                 .setPositiveButton(R.string.ultimate_apply, (dialog, which) -> {
-                    change.apply((slider.getProgress() + minPercent) / 100f);
+                    change.apply(slider.getValue() / 100f);
                     markChanged(source);
                     showPage(pageToRefresh);
                 })
@@ -2509,6 +2886,11 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         if (STYLE_ORBIT_NEON.equals(id)) return R.string.ultimate_style_orbit_name;
         if (STYLE_DIGITAL_GRID.equals(id)) return R.string.ultimate_style_grid_name;
         if (STYLE_TYPOGRAPHIC.equals(id)) return R.string.ultimate_style_typographic_name;
+        if (UltimateClockStyles.STYLE_DUAL_BLOCKS.equals(id)) return R.string.ultimate_style_dual_blocks_name;
+        if (UltimateClockStyles.STYLE_ORBIT.equals(id)) return R.string.ultimate_style_orbit_migrated_name;
+        if (UltimateClockStyles.STYLE_BUBBLES.equals(id)) return R.string.ultimate_style_bubbles_name;
+        if (UltimateClockStyles.STYLE_BLEND.equals(id)) return R.string.ultimate_style_blend_name;
+        if (UltimateClockStyles.STYLE_RIBBON.equals(id)) return R.string.ultimate_style_ribbon_name;
         return 0;
     }
 
@@ -2520,6 +2902,11 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         if (STYLE_ORBIT_NEON.equals(id)) return R.string.ultimate_style_orbit_summary;
         if (STYLE_DIGITAL_GRID.equals(id)) return R.string.ultimate_style_grid_summary;
         if (STYLE_TYPOGRAPHIC.equals(id)) return R.string.ultimate_style_typographic_summary;
+        if (UltimateClockStyles.STYLE_DUAL_BLOCKS.equals(id)) return R.string.ultimate_style_dual_blocks_summary;
+        if (UltimateClockStyles.STYLE_ORBIT.equals(id)) return R.string.ultimate_style_orbit_migrated_summary;
+        if (UltimateClockStyles.STYLE_BUBBLES.equals(id)) return R.string.ultimate_style_bubbles_summary;
+        if (UltimateClockStyles.STYLE_BLEND.equals(id)) return R.string.ultimate_style_blend_summary;
+        if (UltimateClockStyles.STYLE_RIBBON.equals(id)) return R.string.ultimate_style_ribbon_summary;
         return 0;
     }
 
@@ -2628,6 +3015,11 @@ public class UltimateSettingsActivity extends AppCompatActivity {
 
     private LinearLayout.LayoutParams topMargin(LinearLayout.LayoutParams params, int margin) {
         params.topMargin = margin;
+        return params;
+    }
+
+    private LinearLayout.LayoutParams bottomMargin(LinearLayout.LayoutParams params, int margin) {
+        params.bottomMargin = margin;
         return params;
     }
 
@@ -2780,8 +3172,13 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     .showSeconds(true)
                     .secondHandMotion(ClockState.SecondHandMotion.TICK)
                     .dateText("2026 / 06 / 18  WED")
-                    .timeZoneText("LOCAL")
+                    .timeZoneText("")
                     .weatherText("24 C  CLEAR")
+                    .timeScale(repository.getTimeFontScale(scopeId)
+                            / ClockPreferences.DEFAULT_TIME_FONT_SCALE)
+                    .dateScale(repository.getDateFontScale(scopeId)
+                            / ClockPreferences.DEFAULT_DATE_FONT_SCALE)
+                    .supportingScale(repository.getSupportingFontScale(scopeId))
                     .build();
             ClockRenderContext context = new ClockRenderContext(0f, 0f, getWidth(), getHeight(),
                     getResources().getDisplayMetrics().density,

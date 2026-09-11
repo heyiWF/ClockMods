@@ -28,6 +28,7 @@ import com.google.android.material.timepicker.MaterialTimePicker;
 import com.google.android.material.timepicker.TimeFormat;
 
 import com.clockmods.R;
+import com.clockmods.ui.ClockTimeText;
 import com.clockmods.background.BackgroundRepository;
 import com.clockmods.background.ClockPreferences;
 import com.clockmods.platform.ExperienceBridge;
@@ -524,7 +525,8 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
         timeInput.setFocusable(false);
         timeInput.setCursorVisible(false);
         timeInput.setInputType(InputType.TYPE_NULL);
-        timeInput.setText(existing != null && existing.hasTime() ? existing.timeLabel() : "");
+        timeInput.setText(existing != null && existing.hasTime()
+                ? ClockTimeText.align(existing.timeLabel()) : "");
         timeField.addView(timeInput);
         View.OnClickListener openPicker = view -> showTimePicker(timeInput);
         timeInput.setOnClickListener(openPicker);
@@ -587,8 +589,8 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
                 .setTitleText(R.string.ultimate_schedule_dialog_time)
                 .build();
         // Only the positive button commits: dismissing or cancelling must leave the field alone.
-        picker.addOnPositiveButtonClickListener(view -> timeInput.setText(
-                String.format(Locale.US, "%02d:%02d", picker.getHour(), picker.getMinute())));
+        picker.addOnPositiveButtonClickListener(view -> timeInput.setText(ClockTimeText.align(
+                String.format(Locale.US, "%02d:%02d", picker.getHour(), picker.getMinute()))));
         picker.show(host.fragmentManager(), "agenda-schedule-time");
     }
 

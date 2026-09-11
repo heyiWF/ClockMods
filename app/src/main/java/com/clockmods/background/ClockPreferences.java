@@ -56,6 +56,9 @@ public class ClockPreferences {
     // Per-theme typography: "<prefix><clock style id>" or "<prefix>calendar:<calendar theme id>".
     private static final String KEY_FONT_FAMILY_PREFIX = "font_family__";
     private static final String KEY_FONT_WEIGHT_PREFIX = "font_weight__";
+    private static final String KEY_TIME_FONT_SCALE_PREFIX = "time_font_scale__";
+    private static final String KEY_DATE_FONT_SCALE_PREFIX = "date_font_scale__";
+    private static final String KEY_SUPPORTING_FONT_SCALE_PREFIX = "supporting_font_scale__";
     private static final String CALENDAR_SCOPE_PREFIX = "calendar:";
     /** The weight the retired bold switch corresponds to. */
     public static final int BOLD_WEIGHT = 700;
@@ -112,6 +115,10 @@ public class ClockPreferences {
     public static final float DEFAULT_TIME_FONT_SCALE = 0.88f;
     /** Fraction of the screen width occupied by the date text by default. */
     public static final float DEFAULT_DATE_FONT_SCALE = 0.55f;
+    /** Multiplier used by labels, weather, status, and world-clock metadata. */
+    public static final float DEFAULT_SUPPORTING_FONT_SCALE = 1.0f;
+    public static final float MIN_SUPPORTING_FONT_SCALE = 0.75f;
+    public static final float MAX_SUPPORTING_FONT_SCALE = 1.50f;
     public static final int DEFAULT_TEXT_COLOR = 0xFFFFFFFF;
     public static final boolean DEFAULT_DIM_BACKGROUND = false;
     public static final boolean DEFAULT_SCHEDULE_DIM_BACKGROUND = false;
@@ -427,13 +434,47 @@ public class ClockPreferences {
         if (scoped > 0) {
             return clampWeight(scoped);
         }
-        return isBoldText() ? BOLD_WEIGHT : FontCatalog.DEFAULT_WEIGHT;
+        return isBoldText() || usesBoldReferenceWeight(scopeId)
+                ? BOLD_WEIGHT : FontCatalog.DEFAULT_WEIGHT;
     }
 
     public void setFontWeight(String scopeId, int weight) {
         preferences.edit()
                 .putInt(KEY_FONT_WEIGHT_PREFIX + normalizeScope(scopeId), clampWeight(weight))
                 .apply();
+    }
+
+    /** Per-style main time size, falling back to the pre-theme global preference. */
+    public float getTimeFontScale(String scopeId) {
+        return clampScale(preferences.getFloat(
+                KEY_TIME_FONT_SCALE_PREFIX + normalizeScope(scopeId), getTimeFontScale()));
+    }
+
+    public void setTimeFontScale(String scopeId, float scale) {
+        preferences.edit().putFloat(KEY_TIME_FONT_SCALE_PREFIX + normalizeScope(scopeId),
+                clampScale(scale)).apply();
+    }
+
+    /** Per-style date size, falling back to the pre-theme global preference. */
+    public float getDateFontScale(String scopeId) {
+        return clampScale(preferences.getFloat(
+                KEY_DATE_FONT_SCALE_PREFIX + normalizeScope(scopeId), getDateFontScale()));
+    }
+
+    public void setDateFontScale(String scopeId, float scale) {
+        preferences.edit().putFloat(KEY_DATE_FONT_SCALE_PREFIX + normalizeScope(scopeId),
+                clampScale(scale)).apply();
+    }
+
+    public float getSupportingFontScale(String scopeId) {
+        return normalizeSupportingScale(preferences.getFloat(
+                KEY_SUPPORTING_FONT_SCALE_PREFIX + normalizeScope(scopeId),
+                DEFAULT_SUPPORTING_FONT_SCALE));
+    }
+
+    public void setSupportingFontScale(String scopeId, float scale) {
+        preferences.edit().putFloat(KEY_SUPPORTING_FONT_SCALE_PREFIX + normalizeScope(scopeId),
+                normalizeSupportingScale(scale)).apply();
     }
 
     private static String normalizeScope(String scopeId) {
@@ -450,7 +491,10 @@ public class ClockPreferences {
     /** Drops every per-theme typography override, returning all themes to the shared fallback. */
     private void clearPerThemeTypography(SharedPreferences.Editor editor) {
         for (String key : preferences.getAll().keySet()) {
-            if (key.startsWith(KEY_FONT_FAMILY_PREFIX) || key.startsWith(KEY_FONT_WEIGHT_PREFIX)) {
+            if (key.startsWith(KEY_FONT_FAMILY_PREFIX) || key.startsWith(KEY_FONT_WEIGHT_PREFIX)
+                    || key.startsWith(KEY_TIME_FONT_SCALE_PREFIX)
+                    || key.startsWith(KEY_DATE_FONT_SCALE_PREFIX)
+                    || key.startsWith(KEY_SUPPORTING_FONT_SCALE_PREFIX)) {
                 editor.remove(key);
             }
         }
@@ -921,6 +965,24 @@ public class ClockPreferences {
     }
 
     private static float clampScale(float scale) {
+        if (Float.isNaN(scale) || Float.isInfinite(scale)) return DEFAULT_TIME_FONT_SCALE;
         return Math.max(MIN_FONT_SCALE, Math.min(MAX_FONT_SCALE, scale));
+    }
+
+    /** These reference faces are designed around a strong display weight, not body Regular. */
+    private static boolean usesBoldReferenceWeight(String scopeId) {
+        return "ultimate.dual_blocks".equals(scopeId)
+                || "ultimate.orbit".equals(scopeId)
+                || "ultimate.bubbles".equals(scopeId)
+                || "ultimate.blend".equals(scopeId)
+                || "ultimate.ribbon".equals(scopeId);
+    }
+
+    public static float normalizeSupportingScale(float scale) {
+        if (Float.isNaN(scale) || Float.isInfinite(scale)) {
+            return DEFAULT_SUPPORTING_FONT_SCALE;
+        }
+        return Math.max(MIN_SUPPORTING_FONT_SCALE,
+                Math.min(MAX_SUPPORTING_FONT_SCALE, scale));
     }
 }

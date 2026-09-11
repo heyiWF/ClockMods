@@ -1,6 +1,9 @@
 package com.clockmods.sdk.clock;
 
 import java.util.Calendar;
+import java.util.ArrayList;
+import java.util.Collections;
+import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 
@@ -18,6 +21,10 @@ public final class ClockState {
     private final String timeZoneText;
     private final String weatherText;
     private final String statusText;
+    private final List<WorldClockEntry> worldClocks;
+    private final float timeScale;
+    private final float dateScale;
+    private final float supportingScale;
 
     private ClockState(Builder builder) {
         timeMillis = builder.timeMillis;
@@ -30,6 +37,11 @@ public final class ClockState {
         timeZoneText = clean(builder.timeZoneText);
         weatherText = clean(builder.weatherText);
         statusText = clean(builder.statusText);
+        worldClocks = Collections.unmodifiableList(new ArrayList<WorldClockEntry>(
+                builder.worldClocks));
+        timeScale = positiveScale(builder.timeScale);
+        dateScale = positiveScale(builder.dateScale);
+        supportingScale = positiveScale(builder.supportingScale);
     }
 
     public static Builder builder(long timeMillis) {
@@ -46,6 +58,10 @@ public final class ClockState {
     public String getTimeZoneText() { return timeZoneText; }
     public String getWeatherText() { return weatherText; }
     public String getStatusText() { return statusText; }
+    public List<WorldClockEntry> getWorldClocks() { return worldClocks; }
+    public float getTimeScale() { return timeScale; }
+    public float getDateScale() { return dateScale; }
+    public float getSupportingScale() { return supportingScale; }
 
     public Calendar newCalendar() {
         Calendar calendar = Calendar.getInstance(timeZone, locale);
@@ -68,6 +84,10 @@ public final class ClockState {
         private String timeZoneText = "";
         private String weatherText = "";
         private String statusText = "";
+        private List<WorldClockEntry> worldClocks = Collections.emptyList();
+        private float timeScale = 1f;
+        private float dateScale = 1f;
+        private float supportingScale = 1f;
 
         private Builder(long timeMillis) {
             this.timeMillis = timeMillis;
@@ -101,8 +121,22 @@ public final class ClockState {
         public Builder weatherText(String value) { weatherText = value; return this; }
         public Builder statusText(String value) { statusText = value; return this; }
 
+        public Builder worldClocks(List<WorldClockEntry> value) {
+            worldClocks = value == null ? Collections.<WorldClockEntry>emptyList()
+                    : new ArrayList<WorldClockEntry>(value);
+            return this;
+        }
+
+        public Builder timeScale(float value) { timeScale = value; return this; }
+        public Builder dateScale(float value) { dateScale = value; return this; }
+        public Builder supportingScale(float value) { supportingScale = value; return this; }
+
         public ClockState build() {
             return new ClockState(this);
         }
+    }
+
+    private static float positiveScale(float value) {
+        return Float.isNaN(value) || Float.isInfinite(value) || value <= 0f ? 1f : value;
     }
 }

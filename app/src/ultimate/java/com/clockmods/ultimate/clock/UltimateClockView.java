@@ -27,6 +27,7 @@ import com.clockmods.sdk.clock.ClockState;
 import com.clockmods.sdk.clock.ClockStyle;
 import com.clockmods.sdk.clock.ClockStyleCapabilities;
 import com.clockmods.sdk.clock.ClockStyleRegistry;
+import com.clockmods.sdk.clock.WorldClockEntry;
 import com.clockmods.time.NetworkTimeProvider;
 import com.clockmods.ui.DateFormatter;
 import com.clockmods.weather.WeatherModels;
@@ -36,6 +37,8 @@ import com.clockmods.weather.WeatherTemperatureFormatter;
 import java.io.IOException;
 import java.util.Calendar;
 import java.util.Date;
+import java.util.ArrayList;
+import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
@@ -80,8 +83,17 @@ public class UltimateClockView extends View {
     private String lastContentDescription;
     private BackgroundRepository backgroundRepository;
     private final ClockTypography typography = new ClockTypography();
+    private WorldClockRepository worldClockRepository;
+    private List<WorldClockEntry> worldClocks = new ArrayList<WorldClockEntry>();
+    private float worldClockScroll;
+    private float worldClockTouchStartX;
+    private float worldClockTouchStartScroll;
+    private boolean worldClockDragging;
     private String fontFamily = ClockPreferences.DEFAULT_FONT_FAMILY;
     private int fontWeight = FontCatalog.DEFAULT_WEIGHT;
+    private float timeScale = 1f;
+    private float dateScale = 1f;
+    private float supportingScale = 1f;
     private final Object workerLock = new Object();
     private ExecutorService imageExecutor;
     private NetworkTimeProvider networkTimeProvider;
@@ -122,6 +134,15 @@ public class UltimateClockView extends View {
         secondHandMotion = preferences.getSecondHandMotion();
         followSystemReducedMotion = preferences.isFollowSystemReducedMotion();
         backgroundMode = preferences.getBackgroundMode();
+        if (worldClockRepository == null) {
+            worldClockRepository = new WorldClockRepository(getContext());
+        }
+        ClockStyle resolved = styleRegistry.resolveForApi(styleId, Build.VERSION.SDK_INT);
+        worldClocks = worldClockRepository.isEnabled()
+                && resolved.getMetadata().getCapabilities().supports(
+                ClockStyleCapabilities.Capability.WORLD_CLOCK)
+                ? worldClockRepository.getSelected() : new ArrayList<WorldClockEntry>();
+        worldClockScroll = 0f;
         reloadTypography();
         invalidateAndReschedule();
     }
@@ -136,6 +157,11 @@ public class UltimateClockView extends View {
                 ? backgroundRepository : new BackgroundRepository(getContext());
         fontFamily = repository.getFontFamily(styleId);
         fontWeight = repository.getFontWeight(styleId);
+        timeScale = repository.getTimeFontScale(styleId)
+                / ClockPreferences.DEFAULT_TIME_FONT_SCALE;
+        dateScale = repository.getDateFontScale(styleId)
+                / ClockPreferences.DEFAULT_DATE_FONT_SCALE;
+        supportingScale = repository.getSupportingFontScale(styleId);
         typography.invalidate();
     }
 
@@ -362,6 +388,7 @@ public class UltimateClockView extends View {
 
     @Override protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
         super.onSizeChanged(width, height, oldWidth, oldHeight);
+        worldClockScroll = Math.min(worldClockScroll, maxWorldClockScroll());
         if (width != loadedWidth || height != loadedHeight) requestBackgroundReload();
     }
 
@@ -416,15 +443,21 @@ public class UltimateClockView extends View {
                 .showSeconds(showSeconds)
                 .secondHandMotion(motion)
                 .dateText(dateText(now))
-                .timeZoneText(timeZoneText())
+                // The main face no longer exposes a GMT/zone badge. The actual zone remains in
+                // the accessibility description and in the world-clock editor.
+                .timeZoneText("")
                 .weatherText(combinedWeatherText())
                 .statusText(statusText)
+                .worldClocks(worldClocks)
+                .timeScale(timeScale)
+                .dateScale(dateScale)
+                .supportingScale(supportingScale)
                 .build();
         ClockRenderContext renderContext = new ClockRenderContext(0f, 0f, getWidth(), getHeight(),
                 getResources().getDisplayMetrics().density,
                 TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 1f,
                             getResources().getDisplayMetrics()), now, reduced,
-                createBackground(now), bottomOverlayInset);
+                createBackground(now), bottomOverlayInset, worldClockScroll);
         int saveCount = canvas.save();
         try {
             style.getRenderer().render(canvas, renderContext, state,
@@ -434,6 +467,61 @@ public class UltimateClockView extends View {
             canvas.restoreToCount(saveCount);
         }
         updateContentDescription(state, style);
+    }
+
+    @Override public boolean onTouchEvent(android.view.MotionEvent event) {
+        if (worldClocks.isEmpty()) return super.onTouchEvent(event);
+        switch (event.getActionMasked()) {
+            case android.view.MotionEvent.ACTION_DOWN:
+                float stripTop = getHeight() * .735f;
+                float stripBottom = getHeight() * .930f;
+                if (event.getY() < stripTop || event.getY() > stripBottom) {
+                    return super.onTouchEvent(event);
+                }
+                worldClockTouchStartX = event.getX();
+                worldClockTouchStartScroll = worldClockScroll;
+                worldClockDragging = false;
+                if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(true);
+                return true;
+            case android.view.MotionEvent.ACTION_MOVE:
+                float delta = worldClockTouchStartX - event.getX();
+                if (Math.abs(delta) > getResources().getDisplayMetrics().density * 4f) {
+                    worldClockDragging = true;
+                }
+                if (worldClockDragging) {
+                    worldClockScroll = Math.max(0f, Math.min(maxWorldClockScroll(),
+                            worldClockTouchStartScroll + delta));
+                    invalidate();
+                }
+                return true;
+            case android.view.MotionEvent.ACTION_UP:
+            case android.view.MotionEvent.ACTION_CANCEL:
+                boolean dragged = worldClockDragging;
+                worldClockDragging = false;
+                if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
+                if (dragged) {
+                    return true;
+                }
+                return super.onTouchEvent(event);
+            default:
+                return true;
+        }
+    }
+
+    @Override public boolean performClick() {
+        super.performClick();
+        return true;
+    }
+
+    private float maxWorldClockScroll() {
+        if (worldClocks.isEmpty() || getWidth() <= 0 || getHeight() <= 0) return 0f;
+        float density = getResources().getDisplayMetrics().density;
+        float unit = Math.min(getWidth(), getHeight());
+        float cardWidth = Math.max(unit * .30f, density * 145f);
+        float gap = Math.max(density * 10f, unit * .018f);
+        float contentWidth = worldClocks.size() * cardWidth
+                + Math.max(0, worldClocks.size() - 1) * gap;
+        return Math.max(0f, contentWidth - getWidth() * .88f);
     }
 
     private void invalidateAndReschedule() {
@@ -634,7 +722,7 @@ public class UltimateClockView extends View {
         StringBuilder description = new StringBuilder(style.getMetadata().getName())
                 .append(", ").append(time)
                 .append(", ").append(state.getDateText())
-                .append(", ").append(state.getTimeZoneText());
+                .append(", ").append(timeZoneText());
         appendDescription(description, state.getWeatherText());
         appendDescription(description, state.getStatusText());
         appendDescription(description,

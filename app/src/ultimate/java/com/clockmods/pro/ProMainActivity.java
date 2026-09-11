@@ -29,6 +29,8 @@ import com.clockmods.platform.ExperienceBridge;
 import com.clockmods.ui.ButtonTextSizer;
 import com.clockmods.pro.chime.HourlyChimeController;
 import com.clockmods.pro.chime.RadialChimeView;
+import com.clockmods.ultimate.AntiBurnController;
+import com.clockmods.ultimate.AntiBurnPreferences;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
 
 public abstract class ProMainActivity extends AppCompatActivity {
@@ -47,6 +49,7 @@ public abstract class ProMainActivity extends AppCompatActivity {
     private boolean navigationTouchSequence;
     private RadialChimeView radialChimeView;
     private HourlyChimeController hourlyChimeController;
+    private AntiBurnController antiBurnController;
     private int selectedPage = ProPage.CLOCK.ordinal();
 
     @Override
@@ -73,6 +76,10 @@ public abstract class ProMainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_pro);
 
         pager = findViewById(R.id.pro_pager);
+        View contentHost = pager;
+        View antiBurnOverlay = findViewById(R.id.pro_anti_burn_overlay);
+        antiBurnController = new AntiBurnController(contentHost, antiBurnOverlay,
+                new AntiBurnPreferences(this));
         radialChimeView = findViewById(R.id.radial_chime);
         hourlyChimeController = new HourlyChimeController(radialChimeView,
             new BackgroundRepository(this));
@@ -179,11 +186,13 @@ public abstract class ProMainActivity extends AppCompatActivity {
     @Override protected void onResume() {
         super.onResume();
         hourlyChimeController.start();
+        if (antiBurnController != null) antiBurnController.start();
         updateChromeForPage();
     }
 
     @Override protected void onPause() {
         hourlyChimeController.stop();
+        if (antiBurnController != null) antiBurnController.stop();
         super.onPause();
     }
 
@@ -304,6 +313,7 @@ public abstract class ProMainActivity extends AppCompatActivity {
             }
         }
         applyScreenOrientation();
+        if (antiBurnController != null) antiBurnController.refresh();
     }
 
     private void dispatchCalendarDestinationChange(int previous, int current) {

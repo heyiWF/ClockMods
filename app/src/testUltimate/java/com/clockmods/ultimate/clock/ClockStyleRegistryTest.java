@@ -23,7 +23,7 @@ public class ClockStyleRegistryTest {
     @Test
     public void builtInsHaveUniqueCompleteMetadata() {
         List<ClockStyle> styles = UltimateClockStyles.builtIns();
-        Assert.assertEquals(7, styles.size());
+        Assert.assertEquals(12, styles.size());
         Assert.assertEquals(Arrays.asList(
                 UltimateClockStyles.STYLE_PRO_CLASSIC,
                 UltimateClockStyles.STYLE_GLASS_ATELIER,
@@ -31,7 +31,12 @@ public class ClockStyleRegistryTest {
                 UltimateClockStyles.STYLE_PAPER_STATION,
                 UltimateClockStyles.STYLE_ORBIT_NEON,
                 UltimateClockStyles.STYLE_DIGITAL_GRID,
-                UltimateClockStyles.STYLE_TYPOGRAPHIC), styleIds(styles));
+                UltimateClockStyles.STYLE_TYPOGRAPHIC,
+                UltimateClockStyles.STYLE_DUAL_BLOCKS,
+                UltimateClockStyles.STYLE_ORBIT,
+                UltimateClockStyles.STYLE_BUBBLES,
+                UltimateClockStyles.STYLE_BLEND,
+                UltimateClockStyles.STYLE_RIBBON), styleIds(styles));
         Set<String> ids = new HashSet<String>();
         for (ClockStyle style : styles) {
             ClockStyleMetadata metadata = style.getMetadata();
@@ -47,6 +52,26 @@ public class ClockStyleRegistryTest {
             Assert.assertNotNull(style.getThemeTokens());
             Assert.assertNotNull(style.getRenderer());
         }
+    }
+
+    @Test
+    public void migratedStylesExposeWorldClockAndExpectedSecondMotion() {
+        ClockStyleRegistry registry = UltimateClockStyles.createRegistry();
+        for (String id : Arrays.asList(UltimateClockStyles.STYLE_DUAL_BLOCKS,
+                UltimateClockStyles.STYLE_ORBIT, UltimateClockStyles.STYLE_BUBBLES,
+                UltimateClockStyles.STYLE_BLEND, UltimateClockStyles.STYLE_RIBBON)) {
+            ClockStyleCapabilities capabilities = registry.find(id).getMetadata().getCapabilities();
+            Assert.assertTrue(id, capabilities.supports(
+                    ClockStyleCapabilities.Capability.WORLD_CLOCK));
+            Assert.assertTrue(id, capabilities.supports(
+                    ClockStyleCapabilities.Capability.SECONDS));
+            Assert.assertEquals(id, UltimateClockStyles.STYLE_ORBIT.equals(id)
+                            || UltimateClockStyles.STYLE_BLEND.equals(id),
+                    capabilities.supports(ClockStyleCapabilities.Capability.SMOOTH_SECONDS));
+        }
+        Assert.assertFalse(registry.find(UltimateClockStyles.STYLE_GLASS_ATELIER)
+                .getMetadata().getCapabilities().supports(
+                        ClockStyleCapabilities.Capability.WORLD_CLOCK));
     }
 
     @Test

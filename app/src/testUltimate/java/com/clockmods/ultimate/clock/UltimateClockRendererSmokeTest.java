@@ -8,12 +8,14 @@ import com.clockmods.sdk.clock.ClockRenderContext;
 import com.clockmods.sdk.clock.ClockState;
 import com.clockmods.sdk.clock.ClockStyle;
 import com.clockmods.sdk.clock.ClockStyleRegistry;
+import com.clockmods.sdk.clock.WorldClockEntry;
 
 import org.junit.Assert;
 import org.junit.Test;
 
 import java.lang.reflect.Field;
 import java.util.ArrayList;
+import java.util.Arrays;
 import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
@@ -25,7 +27,12 @@ public class UltimateClockRendererSmokeTest {
             UltimateClockStyles.STYLE_PAPER_STATION,
             UltimateClockStyles.STYLE_ORBIT_NEON,
             UltimateClockStyles.STYLE_DIGITAL_GRID,
-            UltimateClockStyles.STYLE_TYPOGRAPHIC
+            UltimateClockStyles.STYLE_TYPOGRAPHIC,
+            UltimateClockStyles.STYLE_DUAL_BLOCKS,
+            UltimateClockStyles.STYLE_ORBIT,
+            UltimateClockStyles.STYLE_BUBBLES,
+            UltimateClockStyles.STYLE_BLEND,
+            UltimateClockStyles.STYLE_RIBBON
     };
     private static final int[][] VIEWPORTS = {
             {1600, 900},
@@ -90,6 +97,16 @@ public class UltimateClockRendererSmokeTest {
                 .weatherText("\u6df1\u5733\u5b9d\u5b89 30 \u9634 / "
                         + "\u4f53\u611f\u6e29\u5ea6 34 \u6444\u6c0f\u5ea6")
                 .statusText("Wi-Fi / 82%")
+                .worldClocks(Arrays.asList(
+                        new WorldClockEntry("beijing", "北京", "中国", "Asia/Shanghai", "CN"),
+                        new WorldClockEntry("tokyo", "东京", "日本", "Asia/Tokyo", "JP"),
+                        new WorldClockEntry("london", "伦敦", "英国", "Europe/London", "GB"),
+                        new WorldClockEntry("new_york", "纽约", "美国", "America/New_York", "US"),
+                        new WorldClockEntry("sydney", "悉尼", "澳大利亚", "Australia/Sydney", "AU"),
+                        new WorldClockEntry("paris", "巴黎", "法国", "Europe/Paris", "FR")))
+                .timeScale(1.5f)
+                .dateScale(1.5f)
+                .supportingScale(1.5f)
                 .build();
     }
 

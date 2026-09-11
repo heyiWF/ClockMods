@@ -79,8 +79,8 @@ public final class ProAlarmFragment extends Fragment {
         }
         long trigger = AlarmScheduler.nextTrigger(store.hour(), store.minute(),
                 System.currentTimeMillis());
-        next.setText(getString(R.string.alarm_next_trigger,
+        next.setText(ClockTimeText.align(getString(R.string.alarm_next_trigger,
                 DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
-                        .format(new Date(trigger))));
+                        .format(new Date(trigger)))));
     }
 }

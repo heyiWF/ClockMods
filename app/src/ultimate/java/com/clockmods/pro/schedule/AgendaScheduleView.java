@@ -15,6 +15,7 @@ import androidx.core.content.ContextCompat;
 
 import com.clockmods.R;
 import com.clockmods.pro.CalendarTheme;
+import com.clockmods.ui.ClockTimeText;
 
 import java.util.ArrayList;
 import java.util.List;
@@ -217,7 +218,7 @@ public final class AgendaScheduleView extends LinearLayout {
             time.setIncludeFontPadding(false);
             time.setSingleLine(true);
             time.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
-            time.setText(item.hasTime() ? item.timeLabel()
+            time.setText(item.hasTime() ? ClockTimeText.align(item.timeLabel())
                     : context.getString(R.string.ultimate_schedule_all_day));
             time.setMinWidth(Math.round(density * 46f));
             LayoutParams timeParams = new LayoutParams(LayoutParams.WRAP_CONTENT,

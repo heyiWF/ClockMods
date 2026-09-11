@@ -96,6 +96,30 @@ public class BackgroundRepository {
         preferences.setDateFontScale(scale);
     }
 
+    public float getTimeFontScale(String scopeId) {
+        return preferences.getTimeFontScale(scopeId);
+    }
+
+    public void setTimeFontScale(String scopeId, float scale) {
+        preferences.setTimeFontScale(scopeId, scale);
+    }
+
+    public float getDateFontScale(String scopeId) {
+        return preferences.getDateFontScale(scopeId);
+    }
+
+    public void setDateFontScale(String scopeId, float scale) {
+        preferences.setDateFontScale(scopeId, scale);
+    }
+
+    public float getSupportingFontScale(String scopeId) {
+        return preferences.getSupportingFontScale(scopeId);
+    }
+
+    public void setSupportingFontScale(String scopeId, float scale) {
+        preferences.setSupportingFontScale(scopeId, scale);
+    }
+
     public int getTimeColor() {
         return preferences.getTimeColor();
     }

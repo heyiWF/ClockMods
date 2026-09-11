@@ -12,6 +12,7 @@ public final class ClockRenderContext {
     private final boolean reducedMotion;
     private final ClockBackground background;
     private final float bottomInset;
+    private final float worldClockScroll;
 
     public ClockRenderContext(float left, float top, float right, float bottom, float density,
             float scaledDensity, long frameTimeMillis, boolean reducedMotion) {
@@ -34,6 +35,14 @@ public final class ClockRenderContext {
     public ClockRenderContext(float left, float top, float right, float bottom, float density,
             float scaledDensity, long frameTimeMillis, boolean reducedMotion,
             ClockBackground background, float bottomInset) {
+        this(left, top, right, bottom, density, scaledDensity, frameTimeMillis, reducedMotion,
+                background, bottomInset, 0f);
+    }
+
+    /** Creates a frame with host-owned world-clock horizontal scroll offset. */
+    public ClockRenderContext(float left, float top, float right, float bottom, float density,
+            float scaledDensity, long frameTimeMillis, boolean reducedMotion,
+            ClockBackground background, float bottomInset, float worldClockScroll) {
         if (right < left || bottom < top) {
             throw new IllegalArgumentException("Render bounds must not be inverted");
         }
@@ -47,6 +56,7 @@ public final class ClockRenderContext {
         this.reducedMotion = reducedMotion;
         this.background = background;
         this.bottomInset = Math.max(0f, Math.min(bottomInset, bottom - top));
+        this.worldClockScroll = Math.max(0f, worldClockScroll);
     }
 
     public float getLeft() { return left; }
@@ -63,4 +73,5 @@ public final class ClockRenderContext {
     public boolean isReducedMotion() { return reducedMotion; }
     public ClockBackground getBackground() { return background; }
     public float getBottomInset() { return bottomInset; }
+    public float getWorldClockScroll() { return worldClockScroll; }
 }

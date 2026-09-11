@@ -14,6 +14,16 @@
             android:layout_width="match_parent"
             android:layout_height="match_parent" />
 
+        <View
+            android:id="@+id/pro_anti_burn_overlay"
+            android:layout_width="match_parent"
+            android:layout_height="match_parent"
+            android:background="#24000000"
+            android:clickable="false"
+            android:importantForAccessibility="no"
+            android:visibility="visible"
+            android:alpha="0" />
+
         <com.google.android.material.bottomnavigation.BottomNavigationView
             android:id="@+id/pro_navigation"
             style="@style/Widget.Material3Expressive.BottomNavigationView"

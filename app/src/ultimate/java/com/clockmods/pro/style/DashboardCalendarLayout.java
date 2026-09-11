@@ -23,6 +23,7 @@ import androidx.core.view.ViewCompat;
 import androidx.core.widget.TextViewCompat;
 
 import com.clockmods.R;
+import com.clockmods.ui.ClockTimeText;
 import com.clockmods.background.BackgroundRepository;
 import com.clockmods.background.ClockPreferences;
 import com.clockmods.platform.ExperienceBridge;
@@ -593,9 +594,9 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
     @Override
     public void bindClock(CalendarClockState clock) {
         if (timeView == null) return;
-        timeView.setText(clock.time);
+        timeView.setText(ClockTimeText.align(clock.time));
         secondsView.setVisibility(clock.showSeconds ? View.VISIBLE : View.GONE);
-        secondsView.setText(clock.seconds);
+        secondsView.setText(ClockTimeText.align(clock.seconds));
         if (periodView != null) {
             periodView.setVisibility(clock.showPeriod ? View.VISIBLE : View.GONE);
             if (clock.showPeriod) periodView.setText(clock.period);

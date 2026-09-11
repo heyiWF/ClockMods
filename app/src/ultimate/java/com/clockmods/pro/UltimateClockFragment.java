@@ -98,7 +98,15 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
 
     @SuppressLint("ClickableViewAccessibility")
     private void configureClockInteraction(View clock, GestureDetector detector) {
-        clock.setOnTouchListener((view, event) -> detector.onTouchEvent(event));
+        // Observe taps without consuming the stream: UltimateClockView needs the same DOWN/MOVE
+        // events for its horizontally scrollable world-clock strip. Making the view clickable
+        // keeps events outside that strip flowing long enough for GestureDetector to recognize a
+        // double tap as well.
+        clock.setClickable(true);
+        clock.setOnTouchListener((view, event) -> {
+            detector.onTouchEvent(event);
+            return false;
+        });
         clock.setContentDescription(getString(R.string.open_settings_accessibility));
         clock.setAccessibilityDelegate(new View.AccessibilityDelegate() {
             @Override
