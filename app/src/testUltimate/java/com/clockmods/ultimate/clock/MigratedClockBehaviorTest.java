@@ -1,5 +1,7 @@
 package com.clockmods.ultimate.clock;
 
+import android.graphics.RectF;
+
 import com.clockmods.sdk.clock.ClockState;
 import com.clockmods.sdk.clock.WorldClockEntry;
 
@@ -20,6 +22,63 @@ public class MigratedClockBehaviorTest {
                 ClockState.SecondHandMotion.TICK, false), 0f);
         Assert.assertEquals(12f, UltimateClockStyles.secondProgress(12, 625,
                 ClockState.SecondHandMotion.SWEEP, true), 0f);
+    }
+
+    @Test
+    public void blendDateSplitsOnlyTheAppendedLunarValue() {
+        String[] split = UltimateClockStyles.splitDateAndLunar(
+                "2026 / 09 / 11 周五 / 丙午[马]年八月初一");
+        Assert.assertArrayEquals(new String[] {
+                "2026 / 09 / 11 周五", "丙午[马]年八月初一"
+        }, split);
+
+        Assert.assertArrayEquals(new String[] {"09 / 11 / 2026", ""},
+                UltimateClockStyles.splitDateAndLunar("09 / 11 / 2026"));
+    }
+
+    @Test
+    public void ribbonSecondsAreHalfTheHourMinuteTextSize() {
+        Assert.assertEquals(48f, UltimateClockStyles.ribbonSecondsTextSize(96f), 0f);
+        Assert.assertEquals(0f, UltimateClockStyles.ribbonSecondsTextSize(-1f), 0f);
+    }
+
+    @Test
+    public void portraitBubblesStackHourAndMinuteAndUseAvailableHeight() {
+        float[] geometry = UltimateClockStyles.bubblesPortraitGeometry(900f, 1276f, 2.5f);
+        float hourBottom = geometry[1];
+        float minuteTop = geometry[2] - geometry[3];
+        float minuteBottom = geometry[2] + geometry[3];
+
+        Assert.assertTrue(hourBottom + geometry[4] <= minuteTop + .01f);
+        Assert.assertTrue(minuteBottom <= 1276f * .91f + .01f);
+        Assert.assertTrue(minuteBottom >= 1276f * .85f);
+    }
+
+    @Test
+    public void portraitRibbonKeepsAWideCapsuleProfile() {
+        float[] geometry = UltimateClockStyles.ribbonPortraitGeometry(900f, 1276f);
+        float outerWidth = 900f * .91f;
+        float ribbonWidth = 900f * .853f;
+
+        Assert.assertTrue(outerWidth / geometry[1] > 2f);
+        Assert.assertTrue(ribbonWidth / geometry[2] > 3f);
+        Assert.assertTrue(geometry[2] <= 900f * .27f);
+    }
+
+    @Test
+    public void worldClockStripStaysInsidePortraitAndLandscapeSafeBounds() {
+        RectF portrait = UltimateClockStyles.worldClockStripBounds(
+                0f, 0f, 1080f, 2400f, 3f, 84f);
+        Assert.assertEquals(64.8f, portrait.left, .01f);
+        Assert.assertEquals(1015.2f, portrait.right, .01f);
+        Assert.assertTrue(portrait.top > 0f);
+        Assert.assertTrue(portrait.bottom <= 2400f - 84f);
+
+        RectF landscape = UltimateClockStyles.worldClockStripBounds(
+                0f, 0f, 2400f, 1080f, 3f, 84f);
+        Assert.assertTrue(landscape.top > 1080f * .60f);
+        Assert.assertTrue(landscape.bottom <= 1080f - 84f);
+        Assert.assertTrue(landscape.bottom - landscape.top >= 3f * 64f);
     }
 
     @Test

@@ -78,6 +78,7 @@ import com.clockmods.sdk.clock.ClockRenderContext;
 import com.clockmods.sdk.clock.ClockState;
 import com.clockmods.sdk.clock.ClockStyle;
 import com.clockmods.sdk.clock.ClockStyleCapabilities;
+import com.clockmods.sdk.clock.ClockStyleMetadata;
 import com.clockmods.sdk.clock.ClockStyleRegistry;
 import com.clockmods.sdk.clock.WorldClockEntry;
 import com.clockmods.time.RegionTimeZones;
@@ -237,6 +238,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     private LinearLayout mainSwitchHost;
     private LinearLayout currentPageBody;
     private NestedScrollView currentScrollView;
+    private HorizontalScrollView currentStyleGalleryScroll;
     private SplitControllerCallbackAdapter splitCallbackAdapter;
     private ActivityEmbeddingControllerCallbackAdapter embeddingWindowInfoCallbackAdapter;
     private Consumer<List<SplitInfo>> splitInfoListener;
@@ -624,6 +626,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 && pageHost.getChildCount() > 0;
         int previousScrollY = replacingSamePage && currentScrollView != null
                 ? currentScrollView.getScrollY() : 0;
+        int previousStyleGalleryScrollX = replacingSamePage
+                && targetPage == Page.STYLE && currentStyleGalleryScroll != null
+                ? currentStyleGalleryScroll.getScrollX() : -1;
+        currentStyleGalleryScroll = null;
         styleCards.clear();
         calendarThemeCards.clear();
         hideMainSwitch();
@@ -632,7 +638,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         switch (targetPage) {
             case STYLE:
                 titleRes = R.string.ultimate_style_title;
-                incoming = stylePage();
+                incoming = stylePage(previousStyleGalleryScrollX);
                 break;
             case CALENDAR_STYLE:
                 titleRes = R.string.ultimate_calendar_style_title;
@@ -879,10 +885,11 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         }
     }
 
-    private View stylePage() {
+    private View stylePage(int previousGalleryScrollX) {
         LinearLayout body = pageBody(0);
         addSectionLabel(body, R.string.ultimate_style_gallery);
         HorizontalScrollView galleryScroll = new HorizontalScrollView(this);
+        currentStyleGalleryScroll = galleryScroll;
         galleryScroll.setHorizontalScrollBarEnabled(false);
         galleryScroll.setClipToPadding(false);
         LinearLayout gallery = new LinearLayout(this);
@@ -902,6 +909,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         int galleryHeight = dp(202) - dp(118) + previewHeight;
         int cardSpacing = getResources().getDimensionPixelSize(
                 R.dimen.ultimate_style_gallery_item_spacing);
+        View selectedCard = null;
         for (int styleIndex = 0; styleIndex < styleSpecs.size(); styleIndex++) {
             StyleSpec spec = styleSpecs.get(styleIndex);
             MaterialCardView card = new MaterialCardView(this);
@@ -947,15 +955,24 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             }
             gallery.addView(card, cardParams);
             styleCards.add(card);
+            if (spec.id.equals(selectedId)) selectedCard = card;
         }
         galleryScroll.addView(gallery, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         body.addView(galleryScroll, topMargin(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, galleryHeight), dp(4)));
         updateStyleCards(selectedId);
+        View cardToReveal = selectedCard;
+        galleryScroll.post(() -> {
+            if (galleryScroll != currentStyleGalleryScroll) return;
+            if (previousGalleryScrollX < 0 && cardToReveal == null) return;
+            int cardLeft = cardToReveal == null ? 0 : cardToReveal.getLeft();
+            int selectedCardWidth = cardToReveal == null ? 0 : cardToReveal.getWidth();
+            galleryScroll.scrollTo(styleGalleryTargetScrollX(previousGalleryScrollX,
+                    cardLeft, selectedCardWidth, galleryScroll.getWidth()), 0);
+        });
 
-        if (!proClassic && capabilities.supports(
-                ClockStyleCapabilities.Capability.SECONDS)) {
+        if (shouldShowSecondMotionControls(selectedStyle)) {
             addSectionLabel(body, R.string.ultimate_style_second_motion, 22);
             TextView motionSummary = label(
                     R.string.ultimate_style_second_motion_summary, 13, false);
@@ -1032,46 +1049,57 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         final List<WorldClockEntry> draft = new ArrayList<>(worldRepository.getSelected());
         LinearLayout content = new LinearLayout(this);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(18), dp(14), dp(18), dp(12));
+        content.setPadding(dp(16), dp(18), dp(16), dp(12));
 
         LinearLayout header = new LinearLayout(this);
-        header.setOrientation(LinearLayout.HORIZONTAL);
-        header.setGravity(Gravity.CENTER_VERTICAL);
-        MaterialButton globe = worldClockIconButton(R.drawable.ultimate_ic_public,
-                R.string.ultimate_world_clock_title);
-        globe.setClickable(false);
-        globe.setFocusable(false);
-        globe.setBackgroundTintList(ColorStateList.valueOf(primaryContainerColor()));
-        globe.setIconTint(ColorStateList.valueOf(onPrimaryContainerColor()));
-        header.addView(globe, new LinearLayout.LayoutParams(dp(48), dp(48)));
-        LinearLayout heading = new LinearLayout(this);
-        heading.setOrientation(LinearLayout.VERTICAL);
-        heading.setPadding(dp(12), 0, dp(8), 0);
+        header.setOrientation(LinearLayout.VERTICAL);
+
+        LinearLayout titleRow = new LinearLayout(this);
+        titleRow.setOrientation(LinearLayout.HORIZONTAL);
+        titleRow.setGravity(Gravity.CENTER_VERTICAL);
+        ImageView globe = new ImageView(this);
+        globe.setImageResource(R.drawable.globe_clock_24);
+        globe.setImageTintList(ColorStateList.valueOf(onPrimaryContainerColor()));
+        globe.setPadding(dp(8), dp(8), dp(8), dp(8));
+        globe.setBackground(roundedRectangle(primaryContainerColor(), dp(20)));
+        globe.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        titleRow.addView(globe, new LinearLayout.LayoutParams(dp(40), dp(40)));
+
         TextView title = label(R.string.ultimate_world_clock_title, 22, true);
-        TextView summary = label(R.string.ultimate_world_clock_dialog_summary, 13, false);
-        summary.setTextColor(onSurfaceVariantColor());
-        heading.addView(title, wrapParams());
-        heading.addView(summary, wrapParams());
-        header.addView(heading, new LinearLayout.LayoutParams(0,
-                ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        title.setSingleLine(true);
+        title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        LinearLayout.LayoutParams titleParams = new LinearLayout.LayoutParams(0,
+                ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+        titleParams.setMarginStart(dp(12));
+        titleRow.addView(title, titleParams);
+
         TextView counter = label(getString(R.string.ultimate_world_clock_counter, draft.size()),
                 14, true);
         counter.setGravity(Gravity.CENTER);
         counter.setTextColor(onPrimaryContainerColor());
-        counter.setPadding(dp(14), 0, dp(14), 0);
-        GradientDrawable counterBackground = new GradientDrawable();
-        counterBackground.setColor(primaryContainerColor());
-        counterBackground.setCornerRadius(dp(24));
-        counter.setBackground(counterBackground);
-        header.addView(counter, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, dp(44)));
+        counter.setPadding(dp(12), 0, dp(12), 0);
+        counter.setBackground(roundedRectangle(primaryContainerColor(), dp(20)));
+        LinearLayout.LayoutParams counterParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(40));
+        counterParams.setMarginStart(dp(8));
+        titleRow.addView(counter, counterParams);
+
         final AlertDialog[] dialogRef = new AlertDialog[1];
         MaterialButton close = worldClockIconButton(R.drawable.ultimate_ic_remove,
                 R.string.ultimate_world_clock_close);
         close.setOnClickListener(view -> {
             if (dialogRef[0] != null) dialogRef[0].dismiss();
         });
-        header.addView(close, new LinearLayout.LayoutParams(dp(48), dp(48)));
+        LinearLayout.LayoutParams closeParams = new LinearLayout.LayoutParams(dp(48), dp(48));
+        closeParams.setMarginStart(dp(4));
+        titleRow.addView(close, closeParams);
+        header.addView(titleRow, wrapParams());
+
+        TextView summary = label(R.string.ultimate_world_clock_dialog_summary, 14, false);
+        summary.setTextColor(onSurfaceVariantColor());
+        summary.setMaxLines(2);
+        summary.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        header.addView(summary, topMargin(wrapParams(), dp(4)));
         content.addView(header, wrapParams());
 
         TextInputLayout searchLayout = new TextInputLayout(this, null,
@@ -1087,7 +1115,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         search.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_CAP_SENTENCES);
         searchLayout.addView(search, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        content.addView(searchLayout, topMargin(wrapParams(), dp(12)));
+        content.addView(searchLayout, topMargin(wrapParams(), dp(16)));
 
         ScrollView listScroll = new ScrollView(this);
         listScroll.setFillViewport(true);
@@ -1097,12 +1125,8 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         list.setOrientation(LinearLayout.VERTICAL);
         listScroll.addView(list, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-        Configuration configuration = getResources().getConfiguration();
-        int screenHeightDp = configuration.screenHeightDp;
-        int cityListHeightDp = configuration.screenWidthDp >= screenHeightDp
-                ? 175 : Math.max(175, Math.min(290, screenHeightDp - 310));
         content.addView(listScroll, topMargin(new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(cityListHeightDp)), dp(6)));
+                ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f), dp(8)));
 
         final Runnable[] rebuild = new Runnable[1];
         rebuild[0] = () -> {
@@ -1149,7 +1173,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     } : null;
                 }
                 list.addView(worldClockRow(entry, selected, primary, up, down),
-                        bottomMargin(wrapParams(), dp(7)));
+                        bottomMargin(wrapParams(), dp(8)));
             }
         };
         search.addTextChangedListener(new TextWatcher() {
@@ -1172,7 +1196,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         actions.addView(cancel, actionParams);
         actions.addView(save, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, dp(48)));
-        content.addView(actions, topMargin(wrapParams(), dp(6)));
+        content.addView(actions, topMargin(wrapParams(), dp(8)));
 
         AlertDialog dialog = new MaterialAlertDialogBuilder(this).setView(content).create();
         dialogRef[0] = dialog;
@@ -1186,10 +1210,44 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         dialog.setOnShowListener(unused -> {
             Window window = dialog.getWindow();
             if (window == null) return;
-            int width = Math.min(getResources().getDisplayMetrics().widthPixels - dp(48), dp(440));
-            int height = Math.min(getResources().getDisplayMetrics().heightPixels - dp(48),
-                    dp(560));
-            window.setLayout(Math.max(dp(320), width), Math.max(dp(360), height));
+            Rect bounds = WindowMetricsCalculator.getOrCreate()
+                    .computeCurrentWindowMetrics(this).getBounds();
+            int width = Math.min(dp(560), Math.max(1, bounds.width() - dp(48)));
+            int height = Math.min(dp(720), Math.max(1, bounds.height() - dp(32)));
+            window.setLayout(width, height);
+
+            // MaterialAlertDialog draws a 24dp vertical inset around its panel. Giving the custom
+            // content the remaining exact height lets the weighted city list absorb all
+            // compression while the header, search field, and action row stay reachable.
+            int contentHeight = Math.max(1, Math.min(dp(560), height - dp(48)));
+            ViewGroup.LayoutParams contentParams = content.getLayoutParams();
+            if (contentParams != null) {
+                contentParams.height = contentHeight;
+                content.setLayoutParams(contentParams);
+            }
+            content.setMinimumHeight(contentHeight);
+
+            // AlertDialogLayout itself is wrap_content. On a short landscape window it may
+            // constrain the custom panel below the requested content height after the first
+            // measure pass. Clamp to the smallest measured ancestor so the weighted city list,
+            // rather than the pinned Cancel/Save row, absorbs that final bit of compression.
+            content.post(() -> {
+                int measuredLimit = contentHeight;
+                View ancestor = content;
+                while (ancestor.getParent() instanceof View) {
+                    ancestor = (View) ancestor.getParent();
+                    if (ancestor == window.getDecorView()) break;
+                    if (ancestor.getHeight() > 0) {
+                        measuredLimit = Math.min(measuredLimit, ancestor.getHeight());
+                    }
+                }
+                if (measuredLimit >= content.getHeight()) return;
+                ViewGroup.LayoutParams fittedParams = content.getLayoutParams();
+                if (fittedParams == null) return;
+                content.setMinimumHeight(0);
+                fittedParams.height = measuredLimit;
+                content.setLayoutParams(fittedParams);
+            });
         });
         dialog.show();
     }
@@ -1199,40 +1257,61 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         MaterialCardView card = new MaterialCardView(this);
         card.setCardElevation(0f);
         card.setUseCompatPadding(false);
-        card.setRadius(dp(24));
+        card.setRadius(dp(20));
         card.setCardBackgroundColor(selected
                 ? MaterialColors.layer(surfaceContainerColor(), primaryColor(), 0.16f)
                 : surfaceContainerColor());
-        LinearLayout row = new LinearLayout(this);
-        row.setOrientation(LinearLayout.HORIZONTAL);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        row.setPadding(dp(12), dp(8), dp(8), dp(8));
+
+        LinearLayout item = new LinearLayout(this);
+        item.setOrientation(LinearLayout.VERTICAL);
+        item.setPadding(dp(12), dp(8), dp(8), dp(8));
+
+        LinearLayout information = new LinearLayout(this);
+        information.setOrientation(LinearLayout.HORIZONTAL);
+        information.setGravity(Gravity.CENTER_VERTICAL);
         TextView flag = label(entry.getFlagEmoji(), 18, true);
-        flag.setGravity(Gravity.CENTER_VERTICAL);
-        row.addView(flag, new LinearLayout.LayoutParams(dp(38), dp(52)));
+        flag.setGravity(Gravity.CENTER);
+        information.addView(flag, new LinearLayout.LayoutParams(dp(38), dp(56)));
+
         LinearLayout labels = new LinearLayout(this);
         labels.setOrientation(LinearLayout.VERTICAL);
+        labels.setGravity(Gravity.CENTER_VERTICAL);
         TextView name = label(entry.getCity(), 15, true);
+        name.setSingleLine(true);
+        name.setEllipsize(android.text.TextUtils.TruncateAt.END);
         TextView detail = label(entry.getCountry() + "\n" + entry.getZoneId(), 12, false);
         detail.setTextColor(onSurfaceVariantColor());
+        detail.setMaxLines(2);
+        detail.setEllipsize(android.text.TextUtils.TruncateAt.END);
         labels.addView(name, wrapParams());
         labels.addView(detail, wrapParams());
-        row.addView(labels, new LinearLayout.LayoutParams(0, dp(56), 1f));
+        information.addView(labels, new LinearLayout.LayoutParams(0, dp(56), 1f));
+
         TextView time = label(ClockTimeText.align(currentWorldTime(entry)), 15, true);
         time.setGravity(Gravity.CENTER_VERTICAL | Gravity.RIGHT);
-        row.addView(time, new LinearLayout.LayoutParams(dp(74), dp(56)));
+        time.setSingleLine(true);
+        LinearLayout.LayoutParams timeParams = new LinearLayout.LayoutParams(dp(76), dp(56));
+        timeParams.setMarginStart(dp(8));
+        information.addView(time, timeParams);
+        item.addView(information, wrapParams());
+
+        LinearLayout controls = new LinearLayout(this);
+        controls.setOrientation(LinearLayout.HORIZONTAL);
+        controls.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
         if (selected) {
-            addSmallButton(row, R.drawable.ultimate_ic_move_up,
+            addSmallButton(controls, R.drawable.ultimate_ic_move_up,
                     R.string.ultimate_world_clock_move_up, up, up == null);
-            addSmallButton(row, R.drawable.ultimate_ic_move_down,
+            addSmallButton(controls, R.drawable.ultimate_ic_move_down,
                     R.string.ultimate_world_clock_move_down, down, down == null);
-            addSmallButton(row, R.drawable.ultimate_ic_remove,
+            addSmallButton(controls, R.drawable.ultimate_ic_delete,
                     R.string.ultimate_world_clock_remove, primary, false);
         } else {
-            addSmallButton(row, R.drawable.ultimate_ic_add,
+            addSmallButton(controls, R.drawable.ultimate_ic_add,
                     R.string.ultimate_world_clock_add, primary, primary == null);
         }
-        card.addView(row, new ViewGroup.LayoutParams(
+        item.addView(controls, topMargin(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(48)), dp(2)));
+        card.addView(item, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         return card;
     }
@@ -1240,34 +1319,53 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     private void addSmallButton(LinearLayout parent, int iconRes, int descriptionRes,
             Runnable action, boolean disabled) {
         MaterialButton button = new MaterialButton(this, null,
-                com.google.android.material.R.attr.materialButtonOutlinedStyle);
+                com.google.android.material.R.attr.materialIconButtonStyle);
         button.setText(null);
         button.setIconResource(iconRes);
         button.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
         button.setIconPadding(0);
+        button.setIconSize(dp(24));
+        button.setIconTint(ColorStateList.valueOf(onSurfaceVariantColor()));
         button.setContentDescription(getString(descriptionRes));
-        button.setMinWidth(dp(42));
-        button.setMinHeight(dp(44));
+        button.setTooltipText(getString(descriptionRes));
+        button.setBackgroundTintList(ColorStateList.valueOf(Color.TRANSPARENT));
+        button.setStrokeColor(ColorStateList.valueOf(Color.TRANSPARENT));
+        button.setStrokeWidth(0);
+        button.setCornerRadius(dp(24));
+        button.setInsetTop(0);
+        button.setInsetBottom(0);
+        button.setMinWidth(dp(48));
+        button.setMinHeight(dp(48));
         button.setPadding(0, 0, 0, 0);
+        button.setElevation(0f);
         button.setEnabled(!disabled);
+        button.setAlpha(disabled ? 0.38f : 1f);
         button.setOnClickListener(view -> { if (action != null) action.run(); });
-        parent.addView(button, new LinearLayout.LayoutParams(dp(44), dp(48)));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(48), dp(48));
+        if (parent.getChildCount() > 0) params.setMarginStart(dp(4));
+        parent.addView(button, params);
     }
 
     private MaterialButton worldClockIconButton(int iconRes, int descriptionRes) {
         MaterialButton button = new MaterialButton(this, null,
-                com.google.android.material.R.attr.materialButtonOutlinedStyle);
+                com.google.android.material.R.attr.materialIconButtonStyle);
         button.setText(null);
         button.setIconResource(iconRes);
         button.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
         button.setIconPadding(0);
+        button.setIconSize(dp(24));
         button.setIconTint(ColorStateList.valueOf(onSurfaceVariantColor()));
+        button.setBackgroundTintList(ColorStateList.valueOf(Color.TRANSPARENT));
         button.setStrokeWidth(0);
         button.setCornerRadius(dp(24));
         button.setContentDescription(getString(descriptionRes));
+        button.setTooltipText(getString(descriptionRes));
+        button.setInsetTop(0);
+        button.setInsetBottom(0);
         button.setMinWidth(dp(48));
         button.setMinHeight(dp(48));
         button.setPadding(0, 0, 0, 0);
+        button.setElevation(0f);
         return button;
     }
 
@@ -3016,6 +3114,20 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     private LinearLayout.LayoutParams topMargin(LinearLayout.LayoutParams params, int margin) {
         params.topMargin = margin;
         return params;
+    }
+
+    static int styleGalleryTargetScrollX(int previousScrollX, int cardLeft, int cardWidth,
+            int viewportWidth) {
+        if (previousScrollX >= 0) return previousScrollX;
+        return Math.max(0, cardLeft - Math.max(0, viewportWidth - cardWidth) / 2);
+    }
+
+    static boolean shouldShowSecondMotionControls(ClockStyle style) {
+        if (style == null) return false;
+        return style.getMetadata().getKind()
+                != ClockStyleMetadata.Kind.DIGITAL
+                && style.getMetadata().getCapabilities().supports(
+                        ClockStyleCapabilities.Capability.SECONDS);
     }
 
     private LinearLayout.LayoutParams bottomMargin(LinearLayout.LayoutParams params, int margin) {

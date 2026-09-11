@@ -56,6 +56,95 @@ public final class UltimateClockStyles {
         return normalizedSecond;
     }
 
+    /**
+     * Bounds reserved for the horizontally scrollable world-clock cards.
+     *
+     * <p>The old implementation placed the strip at fixed percentages and then compressed the
+     * complete clock face to 72% of its height.  Besides turning circles into ovals, that made the
+     * problem especially visible on short landscape displays.  Keeping this calculation shared
+     * with {@link UltimateClockView} also means the touch target always follows the cards when a
+     * bottom overlay is present.
+     */
+    static RectF worldClockStripBounds(float left, float top, float right, float bottom,
+            float density, float bottomInset) {
+        float width = Math.max(0f, right - left);
+        float height = Math.max(0f, bottom - top);
+        float safeInset = Math.min(Math.max(0f, bottomInset), height * .08f);
+        float usableBottom = bottom - safeInset;
+        float preferredHeight = height * .19f;
+        float minimumHeight = Math.max(1f, density) * 64f;
+        float maximumHeight = height * .25f;
+        float stripHeight = Math.min(maximumHeight,
+                Math.max(preferredHeight, Math.min(minimumHeight, maximumHeight)));
+        float horizontalInset = width * .06f;
+        // Assign fields explicitly so the pure-JVM renderer smoke tests can inspect the geometry;
+        // the mockable android.jar intentionally leaves RectF constructors as no-ops.
+        RectF bounds = new RectF();
+        bounds.left = left + horizontalInset;
+        bounds.top = usableBottom - stripHeight;
+        bounds.right = right - horizontalInset;
+        bounds.bottom = usableBottom;
+        return bounds;
+    }
+
+    static float worldClockCardWidth(float viewportWidth, float viewportHeight, float density) {
+        float unit = Math.min(Math.max(0f, viewportWidth), Math.max(0f, viewportHeight));
+        return Math.max(unit * .30f, Math.max(1f, density) * 145f);
+    }
+
+    static float worldClockCardGap(float viewportWidth, float viewportHeight, float density) {
+        float unit = Math.min(Math.max(0f, viewportWidth), Math.max(0f, viewportHeight));
+        return Math.max(Math.max(1f, density) * 10f, unit * .018f);
+    }
+
+    static float ribbonSecondsTextSize(float timeTextSize) {
+        return Math.max(0f, timeTextSize) * .5f;
+    }
+
+    /** Hour panel and minute bubble geometry for the vertically stacked Bubbles composition. */
+    static float[] bubblesPortraitGeometry(float width, float height, float density) {
+        float top = height * .13f;
+        float bottom = height * .91f;
+        float gap = Math.max(Math.max(1f, density) * 14f, width * .05f);
+        float span = Math.max(1f, bottom - top);
+        float shapeSpace = Math.max(1f, span - gap);
+        float hourHeight = Math.min(width * .50f, shapeSpace * .42f);
+        float minuteDiameter = Math.min(width * .74f,
+                Math.max(1f, shapeSpace - hourHeight));
+        float occupied = hourHeight + gap + minuteDiameter;
+        // Put only a quarter of surplus space above the shapes. This keeps the composition close
+        // to its header while still using the extra height on very tall screens.
+        float hourTop = top + Math.max(0f, span - occupied) * .25f;
+        float hourBottom = hourTop + hourHeight;
+        float minuteRadius = minuteDiameter * .5f;
+        float minuteCenterY = hourBottom + gap + minuteRadius;
+        return new float[] {hourTop, hourBottom, minuteCenterY, minuteRadius, gap};
+    }
+
+    /** Center line and heights for a portrait ribbon that remains wider than it is tall. */
+    static float[] ribbonPortraitGeometry(float width, float height) {
+        float centerY = height * .53f;
+        float outerHeight = Math.min(height * .36f, width * .42f);
+        float ribbonHeight = Math.min(outerHeight * .64f, width * .27f);
+        return new float[] {centerY, outerHeight, ribbonHeight};
+    }
+
+    /** Splits the host's "solar / lunar" value without mistaking slashes in the date format. */
+    static String[] splitDateAndLunar(String value) {
+        String clean = value == null ? "" : value.trim();
+        int divider = clean.lastIndexOf(" / ");
+        if (divider <= 0 || divider + 3 >= clean.length()) {
+            return new String[] {clean, ""};
+        }
+        String lunar = clean.substring(divider + 3).trim();
+        // LunarCalendar always contains both markers.  This guard leaves custom dates such as
+        // "09 / 11 / 2026" alone instead of inventing a second line for their final component.
+        if (lunar.indexOf('年') < 0 || lunar.indexOf('月') < 0) {
+            return new String[] {clean, ""};
+        }
+        return new String[] {clean.substring(0, divider).trim(), lunar};
+    }
+
     /** Returns a fresh registry so an app or plugin may add styles without global mutable state. */
     public static ClockStyleRegistry createRegistry() {
         ClockStyleRegistry registry = new ClockStyleRegistry();
@@ -510,6 +599,75 @@ public final class UltimateClockStyles {
         }
 
         /**
+         * A viewport-aware floor for functional text.  Twelve sp is retained on normal phone
+         * canvases, while tiny gallery thumbnails may scale below it instead of overflowing.
+         */
+        protected static float readableSize(ClockRenderContext context, float preferredSize,
+                float minimumSp) {
+            float unit = Math.min(context.getWidth(), context.getHeight());
+            float compactFloor = unit * (minimumSp >= 12f ? .045f : .038f);
+            float scaledFloor = context.getScaledDensity() * minimumSp;
+            return Math.max(preferredSize, Math.min(scaledFloor, compactFloor));
+        }
+
+        /** Keeps metadata readable and ellipsizes overflow instead of shrinking it indefinitely. */
+        protected static void readableText(Canvas canvas, ClockRenderContext context,
+                String value, float x, float baseline, float maxWidth, float preferredSize,
+                float minimumSp, int color, Paint.Align align, Typeface face) {
+            if (maxWidth <= 0f) return;
+            float floor = readableSize(context, 0f, minimumSp);
+            float size = Math.max(floor,
+                    fitText(value, maxWidth, Math.max(floor, preferredSize), face));
+            text(canvas, ellipsize(value, maxWidth, size, face), x, baseline, size,
+                    color, align, face);
+        }
+
+        /**
+         * Draws a solar/lunar date as two rows when requested.  The host joins the values with the
+         * final " / "; {@link #splitDateAndLunar(String)} deliberately preserves slashes that are
+         * part of the user's Gregorian date format.
+         */
+        protected static void readableDate(Canvas canvas, ClockRenderContext context,
+                ClockState state, float x, float lowerBaseline, float maxWidth,
+                float preferredSize, int color, Paint.Align align, Typeface face,
+                boolean stackLunar) {
+            String[] lines = splitDateAndLunar(state.getDateText());
+            float floor = readableSize(context, 0f, 12f);
+            float requested = Math.max(floor, preferredSize * state.getDateScale());
+            if (!stackLunar || lines[1].length() == 0) {
+                float size = Math.max(floor,
+                        fitText(state.getDateText(), maxWidth, requested, face));
+                Paint metricsPaint = fill(Color.WHITE);
+                metricsPaint.setTypeface(face);
+                metricsPaint.setTextSize(size);
+                Paint.FontMetrics metrics = metricsPaint.getFontMetrics();
+                float safeBaseline = Math.max(lowerBaseline,
+                        context.getTop() - metrics.ascent);
+                safeBaseline = Math.min(safeBaseline,
+                        context.getBottom() - metrics.descent);
+                text(canvas, ellipsize(state.getDateText(), maxWidth, size, face), x,
+                        safeBaseline, size, color, align, face);
+                return;
+            }
+            float size = Math.max(floor, Math.min(
+                    fitText(lines[0], maxWidth, requested, face),
+                    fitText(lines[1], maxWidth, requested, face)));
+            float lineGap = size * 1.24f;
+            Paint metricsPaint = fill(Color.WHITE);
+            metricsPaint.setTypeface(face);
+            metricsPaint.setTextSize(size);
+            Paint.FontMetrics metrics = metricsPaint.getFontMetrics();
+            float safeLowerBaseline = Math.max(lowerBaseline,
+                    context.getTop() + lineGap - metrics.ascent);
+            safeLowerBaseline = Math.min(safeLowerBaseline,
+                    context.getBottom() - metrics.descent);
+            text(canvas, ellipsize(lines[0], maxWidth, size, face), x,
+                    safeLowerBaseline - lineGap, size, color, align, face);
+            text(canvas, ellipsize(lines[1], maxWidth, size, face), x, safeLowerBaseline,
+                    size, color, align, face);
+        }
+
+        /**
          * Same as {@link #text} but for strings that contain a time, whose ':' separators
          * are lifted onto the optical centre of the digits instead of sitting on the
          * x-height. Plain prose keeps the typeface's own colon position, so this is only
@@ -689,16 +847,19 @@ public final class UltimateClockStyles {
             float baseline = centerY - (metrics.ascent + metrics.descent) * .5f;
             ClockTimeText.draw(canvas, time, centerX, baseline, timePaint);
 
-            float supportingSize = Math.max(8f, unit * .095f);
-            float supportingGap = Math.max(7f, supportingSize * .55f);
-            text(canvas, state.getDateText(), centerX,
-                    baseline + metrics.ascent - supportingGap,
-                    fitText(state.getDateText(), width * .88f, supportingSize, supporting),
-                    theme.getSecondaryTextColor(), Paint.Align.CENTER, supporting);
+            float dateSize = readableSize(context, unit * .045f * state.getDateScale(), 12f);
+            float supportingSize = readableSize(context,
+                    unit * .040f * state.getSupportingScale(), 12f);
+            float supportingGap = Math.max(context.getDensity() * 7f,
+                    Math.max(dateSize, supportingSize) * .55f);
+            readableDate(canvas, context, state, centerX,
+                    baseline + metrics.ascent - supportingGap, width * .88f,
+                    unit * .045f, theme.getSecondaryTextColor(), Paint.Align.CENTER,
+                    supporting, height > width);
             String contextText = contextText(state);
-            text(canvas, contextText, centerX,
+            readableText(canvas, context, contextText, centerX,
                     baseline + metrics.descent + supportingGap + supportingSize,
-                    fitText(contextText, width * .88f, supportingSize, supporting),
+                    width * .88f, unit * .040f * state.getSupportingScale(), 12f,
                     theme.getSecondaryTextColor(), Paint.Align.CENTER, supporting);
         }
     }
@@ -721,7 +882,7 @@ public final class UltimateClockStyles {
             float timeY = context.getTop() + h * (landscape ? .47f : .76f);
             float contextY = context.getTop() + h * (landscape ? .60f : .84f);
             float zoneY = context.getTop() + h * (landscape ? .69f : .895f);
-            float small = Math.max(context.getDensity() * 6f, unit * .021f);
+            float small = readableSize(context, unit * .021f, 10f);
             float metadataShift = bottomOverlayShift(context, zoneY);
             dateY += metadataShift;
             timeY += metadataShift;
@@ -735,16 +896,16 @@ public final class UltimateClockStyles {
                     titleY + unit * .035f,
                     stroke(alpha(theme.getAccentColor(), 190),
                             lineWidth(context, theme, 1.2f)));
-            fittedText(canvas, state.getDateText(), infoLeft, dateY, infoRight - infoLeft,
-                    Math.max(context.getDensity() * 7f, unit * .034f),
-                    theme.getSecondaryTextColor(), Paint.Align.LEFT, sans);
+            readableDate(canvas, context, state, infoLeft, dateY, infoRight - infoLeft,
+                    unit * .034f, theme.getSecondaryTextColor(), Paint.Align.LEFT, sans,
+                    !landscape);
             String time = timeText(state.newCalendar(), state, false);
             fittedTime(canvas, time, infoLeft, timeY, infoRight - infoLeft,
                     unit * (landscape ? .145f : .12f), theme.getPrimaryTextColor(),
                     Paint.Align.LEFT, bold);
             String contextLine = contextText(state);
-            fittedContext(canvas, state, contextLine, infoLeft, contextY, infoRight - infoLeft,
-                    Math.max(context.getDensity() * 7f, unit * .030f),
+            readableText(canvas, context, contextLine, infoLeft, contextY,
+                    infoRight - infoLeft, unit * .030f * state.getSupportingScale(), 12f,
                     theme.getPrimaryTextColor(), Paint.Align.LEFT, sans);
 
             float cx = landscape ? context.getLeft() + w * .69f : context.getCenterX();
@@ -889,7 +1050,7 @@ public final class UltimateClockStyles {
             float dateY = context.getTop() + h * (landscape ? .49f : .78f);
             float contextY = context.getTop() + h * (landscape ? .62f : .85f);
             float zoneY = context.getTop() + h * (landscape ? .70f : .90f);
-            float small = Math.max(context.getDensity() * 6f, unit * .020f);
+            float small = readableSize(context, unit * .020f, 10f);
             float metadataShift = bottomOverlayShift(context, zoneY);
             timeY += metadataShift;
             dateY += metadataShift;
@@ -900,12 +1061,12 @@ public final class UltimateClockStyles {
             fittedTime(canvas, timeText(c, state, false), infoLeft, timeY,
                     infoRight - infoLeft, unit * (landscape ? .14f : .12f),
                     theme.getPrimaryTextColor(), Paint.Align.LEFT, condensed);
-            fittedText(canvas, state.getDateText(), infoLeft, dateY,
-                    infoRight - infoLeft, Math.max(context.getDensity() * 7f, unit * .030f),
-                    theme.getSecondaryTextColor(), Paint.Align.LEFT, mono);
+            readableDate(canvas, context, state, infoLeft, dateY, infoRight - infoLeft,
+                    unit * .030f, theme.getSecondaryTextColor(), Paint.Align.LEFT, mono,
+                    !landscape);
             String contextLine = contextText(state);
-            fittedContext(canvas, state, contextLine, infoLeft, contextY,
-                    infoRight - infoLeft, Math.max(context.getDensity() * 7f, unit * .027f),
+            readableText(canvas, context, contextLine, infoLeft, contextY,
+                    infoRight - infoLeft, unit * .027f * state.getSupportingScale(), 12f,
                     theme.getPrimaryTextColor(), Paint.Align.LEFT, mono);
 
             if (landscape) {
@@ -931,7 +1092,7 @@ public final class UltimateClockStyles {
                         && state.getSecondHandMotion() != ClockState.SecondHandMotion.OFF
                         ? String.format(Locale.US, "%02d", c.get(Calendar.SECOND)) : "--";
                 float subSecondsSize = Math.min(subR * .55f,
-                        Math.max(context.getDensity() * 6f, subR * .31f));
+                        readableSize(context, subR * .31f, 10f));
                 text(canvas, seconds, subX, centeredBaseline(subY, subSecondsSize, mono),
                         subSecondsSize, theme.getPrimaryTextColor(), Paint.Align.CENTER, mono);
             }
@@ -1017,7 +1178,7 @@ public final class UltimateClockStyles {
             float zoneY = context.getTop() + h * (landscape ? .72f : .905f);
             String index = String.format(Locale.US, "PAPER / %02d.%02d",
                     calendar.get(Calendar.MONTH) + 1, calendar.get(Calendar.DAY_OF_MONTH));
-            float small = Math.max(context.getDensity() * 6f, unit * .020f);
+            float small = readableSize(context, unit * .020f, 10f);
             float metadataShift = bottomOverlayShift(context, zoneY);
             dateY += metadataShift;
             dividerY += metadataShift;
@@ -1026,17 +1187,17 @@ public final class UltimateClockStyles {
             zoneY += metadataShift;
             fittedText(canvas, index, infoLeft, titleY, infoRight - infoLeft, small,
                     theme.getAccentColor(), Paint.Align.LEFT, sansBold);
-            fittedText(canvas, state.getDateText(), infoLeft, dateY, infoRight - infoLeft,
-                    Math.max(context.getDensity() * 7f, unit * .032f),
-                    theme.getSecondaryTextColor(), Paint.Align.LEFT, serif);
+            readableDate(canvas, context, state, infoLeft, dateY, infoRight - infoLeft,
+                    unit * .032f, theme.getSecondaryTextColor(), Paint.Align.LEFT, serif,
+                    !landscape);
             canvas.drawLine(infoLeft, dividerY, infoRight, dividerY,
                     stroke(theme.getAccentColor(), lineWidth(context, theme, 1f)));
             fittedTime(canvas, timeText(calendar, state, false), infoLeft, timeY,
                     infoRight - infoLeft, unit * (landscape ? .14f : .12f),
                     theme.getPrimaryTextColor(), Paint.Align.LEFT, sansBold);
             String contextLine = contextText(state);
-            fittedContext(canvas, state, contextLine, infoLeft, contextY, infoRight - infoLeft,
-                    Math.max(context.getDensity() * 7f, unit * .027f),
+            readableText(canvas, context, contextLine, infoLeft, contextY,
+                    infoRight - infoLeft, unit * .027f * state.getSupportingScale(), 12f,
                     theme.getPrimaryTextColor(), Paint.Align.LEFT, sans);
         }
     }
@@ -1104,7 +1265,7 @@ public final class UltimateClockStyles {
                     && state.getSecondHandMotion() != ClockState.SecondHandMotion.OFF
                     ? String.format(Locale.US, "%02d", c.get(Calendar.SECOND)) : "--";
             text(canvas, seconds, cx, cy + inner * .46f,
-                    Math.max(context.getDensity() * 6f, unit * .023f),
+                    readableSize(context, unit * .023f, 12f),
                     0xFFFF725E, Paint.Align.CENTER, mono);
 
             float infoLeft = context.getLeft() + w * (landscape ? .65f : .10f);
@@ -1113,7 +1274,7 @@ public final class UltimateClockStyles {
             float dateY = context.getTop() + h * (landscape ? .30f : .67f);
             float contextY = context.getTop() + h * (landscape ? .40f : .745f);
             float zoneY = context.getTop() + h * (landscape ? .48f : .80f);
-            float small = Math.max(context.getDensity() * 6f, unit * .020f);
+            float small = readableSize(context, unit * .020f, 10f);
             float valuesBottomY = context.getTop() + h * (landscape ? .81f : .89f);
             float metadataShift = bottomOverlayShift(context, valuesBottomY);
             dateY += metadataShift;
@@ -1121,12 +1282,12 @@ public final class UltimateClockStyles {
             zoneY += metadataShift;
             fittedText(canvas, "ORBIT / LIVE", infoLeft, titleY, infoRight - infoLeft,
                     small, theme.getAccentColor(), Paint.Align.LEFT, mono);
-            fittedText(canvas, state.getDateText(), infoLeft, dateY, infoRight - infoLeft,
-                    Math.max(context.getDensity() * 7f, unit * .031f),
-                    theme.getPrimaryTextColor(), Paint.Align.LEFT, display);
+            readableDate(canvas, context, state, infoLeft, dateY, infoRight - infoLeft,
+                    unit * .031f, theme.getPrimaryTextColor(), Paint.Align.LEFT, display,
+                    !landscape);
             String contextLine = contextText(state);
-            fittedContext(canvas, state, contextLine, infoLeft, contextY, infoRight - infoLeft,
-                    Math.max(context.getDensity() * 7f, unit * .026f),
+            readableText(canvas, context, contextLine, infoLeft, contextY,
+                    infoRight - infoLeft, unit * .026f * state.getSupportingScale(), 12f,
                     theme.getSecondaryTextColor(), Paint.Align.LEFT, mono);
 
             int hourValue = c.get(Calendar.HOUR);
@@ -1192,7 +1353,7 @@ public final class UltimateClockStyles {
             Typeface mono = displayTypeface(theme, Typeface.NORMAL);
             text(canvas, "DIGITAL GRID", context.getLeft() + w * .07f,
                     context.getTop() + h * .10f,
-                    Math.max(context.getDensity() * 7f, unit * .028f),
+                    readableSize(context, unit * .028f, 10f),
                     theme.getAccentColor(), Paint.Align.LEFT, mono);
             Calendar c = state.newCalendar();
             int hour = c.get(Calendar.HOUR_OF_DAY);
@@ -1274,7 +1435,7 @@ public final class UltimateClockStyles {
                         secPanel.height() * .31f, theme.getAccentColor(), Paint.Align.CENTER, mono);
             }
             text(canvas, "SEC", secPanel.centerX(), secPanel.top + secPanel.height() * .88f,
-                    Math.max(context.getDensity() * 6f, unit * .018f),
+                    readableSize(context, unit * .018f, 10f),
                     theme.getSecondaryTextColor(), Paint.Align.CENTER, mono);
 
             float dateY = context.getTop() + h * (landscape ? .75f : .71f);
@@ -1282,7 +1443,7 @@ public final class UltimateClockStyles {
             float zoneY = context.getTop() + h * (landscape ? .89f : .845f);
             float textLeft = context.getLeft() + w * .075f;
             float textRight = context.getRight() - w * .075f;
-            float small = Math.max(context.getDensity() * 6f, unit * .018f);
+            float small = readableSize(context, unit * .018f, 10f);
             float metadataShift = bottomOverlayShift(context, zoneY);
             float minimumDateY = secPanel.bottom + Math.max(small, unit * .012f);
             metadataShift = Math.max(metadataShift,
@@ -1290,14 +1451,12 @@ public final class UltimateClockStyles {
             dateY += metadataShift;
             contextY += metadataShift;
             zoneY += metadataShift;
-            fittedText(canvas, state.getDateText(), textLeft, dateY,
-                    textRight - textLeft,
-                    Math.max(context.getDensity() * 7f, unit * .030f),
-                    theme.getPrimaryTextColor(), Paint.Align.LEFT, mono);
+            readableDate(canvas, context, state, textLeft, dateY,
+                    textRight - textLeft, unit * .030f, theme.getPrimaryTextColor(),
+                    Paint.Align.LEFT, mono, !landscape);
             String contextLine = contextText(state);
-            fittedContext(canvas, state, contextLine, textLeft, contextY,
-                    textRight - textLeft,
-                    Math.max(context.getDensity() * 7f, unit * .025f),
+            readableText(canvas, context, contextLine, textLeft, contextY,
+                    textRight - textLeft, unit * .025f * state.getSupportingScale(), 12f,
                     theme.getAccentColor(), Paint.Align.LEFT, mono);
         }
 
@@ -1355,7 +1514,7 @@ public final class UltimateClockStyles {
             String hours = String.format(Locale.US, "%02d", hour);
             String minutes = String.format(Locale.US, "%02d", c.get(Calendar.MINUTE));
             boolean landscape = w >= h * 1.12f;
-            float small = Math.max(context.getDensity() * 6f, unit * .020f);
+            float small = readableSize(context, unit * .020f, 10f);
             float divider;
             if (landscape) {
                 divider = context.getLeft() + w * .36f;
@@ -1438,12 +1597,12 @@ public final class UltimateClockStyles {
             float metadataShift = bottomOverlayShift(context, contextY);
             dateY += metadataShift;
             contextY += metadataShift;
-            fittedText(canvas, state.getDateText(), infoLeft, dateY, infoRight - infoLeft,
-                    Math.max(context.getDensity() * 7f, unit * .031f),
-                    theme.getPrimaryTextColor(), Paint.Align.LEFT, bold);
+            readableDate(canvas, context, state, infoLeft, dateY, infoRight - infoLeft,
+                    unit * .031f, theme.getPrimaryTextColor(), Paint.Align.LEFT, bold,
+                    !landscape);
             String contextLine = contextText(state);
-            fittedContext(canvas, state, contextLine, infoLeft, contextY, infoRight - infoLeft,
-                    Math.max(context.getDensity() * 7f, unit * .024f),
+            readableText(canvas, context, contextLine, infoLeft, contextY,
+                    infoRight - infoLeft, unit * .024f * state.getSupportingScale(), 12f,
                     theme.getSecondaryTextColor(), Paint.Align.LEFT, regular);
         }
     }
@@ -1468,17 +1627,25 @@ public final class UltimateClockStyles {
             String time = timeText(c, state, false);
             int style = mode();
             boolean withWorldClocks = !state.getWorldClocks().isEmpty();
-            int save = canvas.save();
+            ClockRenderContext faceContext = context;
             if (withWorldClocks) {
-                // Preserve the reference composition while making a dedicated lower band for
-                // world clocks. Scaling around the top keeps date alignment stable.
-                canvas.scale(1f, .72f, context.getLeft(), context.getTop());
+                RectF strip = worldClockStripBounds(context.getLeft(), context.getTop(),
+                        context.getRight(), context.getBottom(), context.getDensity(),
+                        context.getBottomInset());
+                float gap = Math.min(context.getDensity() * 8f, context.getHeight() * .025f);
+                float contentBottom = Math.max(context.getTop(), strip.top - gap);
+                faceContext = new ClockRenderContext(context.getLeft(), context.getTop(),
+                        context.getRight(), contentBottom, context.getDensity(),
+                        context.getScaledDensity(), context.getFrameTimeMillis(),
+                        context.isReducedMotion(), context.getBackground(), 0f,
+                        context.getWorldClockScroll());
             }
-            if (style == 0) drawDual(canvas, context, state, c, display, supporting);
-            else if (style == 1) drawOrbit(canvas, context, state, c, time, display, supporting);
-            else if (style == 2) drawBubbles(canvas, context, state, c, display, supporting);
-            else if (style == 3) drawBlend(canvas, context, state, c, time, display, supporting);
-            else drawRibbon(canvas, context, state, c, time, display, supporting);
+            int save = canvas.save();
+            if (style == 0) drawDual(canvas, faceContext, state, c, display, supporting);
+            else if (style == 1) drawOrbit(canvas, faceContext, state, c, time, display, supporting);
+            else if (style == 2) drawBubbles(canvas, faceContext, state, c, display, supporting);
+            else if (style == 3) drawBlend(canvas, faceContext, state, c, time, display, supporting);
+            else drawRibbon(canvas, faceContext, state, c, time, display, supporting);
             canvas.restoreToCount(save);
             drawWorldStrip(canvas, context, theme, state, supporting);
         }
@@ -1523,12 +1690,13 @@ public final class UltimateClockStyles {
             drawTime(canvas, hours, first.centerX(), centeredBaseline(timeY, size, face), size,
                     LIGHT_TEXT, Paint.Align.CENTER, face);
             size = fitText(minutes, second.width() * .76f, size, face);
-            drawTime(canvas, minutes, second.centerX(), centeredBaseline(timeY, size, face), size,
+            drawTime(canvas, minutes, second.centerX(),
+                    centeredBaseline(second.centerY(), size, face), size,
                     DARK_TEXT, Paint.Align.CENTER, face);
 
             float supportScale = state.getSupportingScale();
-            float labelSize = Math.max(context.getDensity() * 10f,
-                    Math.min(w, h) * .027f * supportScale);
+            float labelSize = readableSize(context,
+                    Math.min(w, h) * .027f * supportScale, 10f);
             String hourLabel = isChinese(state) ? "小时" : "HOUR";
             String minuteLabel = isChinese(state) ? "分钟" : "MINUTE";
             text(canvas, hourLabel, first.left + first.width() * .05f,
@@ -1537,21 +1705,23 @@ public final class UltimateClockStyles {
             text(canvas, minuteLabel, second.right - second.width() * .05f,
                     second.bottom - second.height() * .052f, labelSize, DARK_TEXT,
                     Paint.Align.RIGHT, supporting);
-            drawDate(canvas, state, first.left + first.width() * .05f,
+            drawDate(canvas, context, state, first.left + first.width() * .05f,
                     first.top + first.height() * .078f, first.width() * .74f,
-                    Paint.Align.LEFT, LIGHT_TEXT, supporting, h * .028f);
-            drawContext(canvas, state, second.right - second.width() * .05f,
+                    Paint.Align.LEFT, LIGHT_TEXT, supporting, Math.min(w, h) * .034f);
+            drawContext(canvas, context, state, second.right - second.width() * .05f,
                     second.top + second.height() * .078f, second.width() * .62f,
-                    Paint.Align.RIGHT, DARK_TEXT, supporting, h * .024f);
+                    Paint.Align.RIGHT, DARK_TEXT, supporting, Math.min(w, h) * .028f);
             if (secondsVisible(state)) {
-                float markerRadius = Math.min(w, h) * .030f;
+                float markerSize = readableSize(context,
+                        Math.min(w, h) * .024f * supportScale, 12f);
+                float markerRadius = Math.max(Math.min(w, h) * .030f, markerSize * .72f);
                 float markerX = second.left + second.width() * .10f;
                 float markerY = second.bottom - second.height() * .079f;
                 drawScallopedCircle(canvas, markerX, markerY, markerRadius,
                         alpha(MUTED_TEXT, 190));
                 text(canvas, String.format(Locale.US, "%02d", c.get(Calendar.SECOND)), markerX,
-                        centeredBaseline(markerY, markerRadius * .80f, supporting),
-                        markerRadius * .80f, DARK_TEXT, Paint.Align.CENTER, supporting);
+                        centeredBaseline(markerY, markerSize, supporting), markerSize,
+                        DARK_TEXT, Paint.Align.CENTER, supporting);
             }
         }
 
@@ -1577,18 +1747,20 @@ public final class UltimateClockStyles {
                     h * .278f * state.getTimeScale(), face);
             drawTime(canvas, time, cx, centeredBaseline(cy, dialSize, face), dialSize,
                     LIGHT_TEXT, Paint.Align.CENTER, face);
-            drawDate(canvas, state, context.getRight() - w * .029f,
+            drawDate(canvas, context, state, context.getRight() - w * .029f,
                     context.getTop() + h * .072f, w * .46f, Paint.Align.RIGHT, LIGHT_TEXT,
-                    supporting, h * .027f);
-            drawContext(canvas, state, context.getLeft() + w * .029f,
+                    supporting, Math.min(w, h) * .032f);
+            drawContext(canvas, context, state, context.getLeft() + w * .029f,
                     context.getTop() + h * .072f, w * .40f, Paint.Align.LEFT, MUTED_TEXT,
-                    supporting, h * .024f);
+                    supporting, Math.min(w, h) * .027f);
             if (secondsVisible(state)) {
                 float bubbleRadius = h * .031f;
                 float y = cy + outer + bubbleRadius * .42f;
                 drawScallopedCircle(canvas, cx, y, bubbleRadius, LIGHT_PANEL);
+                float bubbleSize = Math.min(bubbleRadius * 1.10f,
+                        readableSize(context, bubbleRadius * .82f, 12f));
                 text(canvas, String.format(Locale.US, "%02d", c.get(Calendar.SECOND)), cx,
-                        centeredBaseline(y, bubbleRadius * .82f, supporting), bubbleRadius * .82f,
+                        centeredBaseline(y, bubbleSize, supporting), bubbleSize,
                         DARK_TEXT, Paint.Align.CENTER, supporting);
             }
         }
@@ -1637,8 +1809,8 @@ public final class UltimateClockStyles {
                         centeredBaseline(secondY, secondSize, supporting), secondSize,
                         LIGHT_TEXT, Paint.Align.CENTER, supporting);
             }
-            float labelSize = Math.max(context.getDensity() * 10f,
-                    h * .027f * state.getSupportingScale());
+            float labelSize = readableSize(context,
+                    Math.min(w, h) * .027f * state.getSupportingScale(), 10f);
             text(canvas, isChinese(state) ? "小时" : "HOUR",
                     hourPanel.left + hourPanel.width() * .045f,
                     hourPanel.bottom - hourPanel.height() * .06f,
@@ -1646,43 +1818,71 @@ public final class UltimateClockStyles {
             text(canvas, isChinese(state) ? "分钟" : "MINUTE", minuteX,
                     minuteY + minuteRadius * .82f, labelSize, DARK_TEXT,
                     Paint.Align.CENTER, supporting);
-            drawDate(canvas, state, context.getLeft() + w * .029f,
+            drawDate(canvas, context, state, context.getLeft() + w * .029f,
                     context.getTop() + h * .072f, w * .55f, Paint.Align.LEFT, MUTED_TEXT,
-                    supporting, h * .027f);
-            drawContext(canvas, state, context.getRight() - w * .029f,
+                    supporting, Math.min(w, h) * .032f);
+            drawContext(canvas, context, state, context.getRight() - w * .029f,
                     context.getTop() + h * .072f, w * .35f, Paint.Align.RIGHT, MUTED_TEXT,
-                    supporting, h * .024f);
+                    supporting, Math.min(w, h) * .027f);
         }
 
         private void drawBubblesPortrait(Canvas canvas, ClockRenderContext context, ClockState state,
                 Calendar c, Typeface face, Typeface supporting, String hours, String minutes) {
             float w = context.getWidth();
             float h = context.getHeight();
-            drawDate(canvas, state, context.getLeft() + w * .06f,
+            drawDate(canvas, context, state, context.getLeft() + w * .06f,
                     context.getTop() + h * .055f, w * .76f, Paint.Align.LEFT, MUTED_TEXT,
                     supporting, w * .040f);
-            RectF hour = new RectF(context.getLeft() + w * .06f, context.getTop() + h * .12f,
-                    context.getLeft() + w * .54f, context.getTop() + h * .57f);
-            canvas.drawRoundRect(hour, w * .07f, w * .07f, fill(DARK_PANEL));
-            float minuteX = context.getLeft() + w * .61f;
-            float minuteY = context.getTop() + h * .35f;
-            float minuteRadius = w * .34f;
+            float[] geometry = bubblesPortraitGeometry(w, h, context.getDensity());
+            RectF hour = new RectF(context.getLeft() + w * .09f,
+                    context.getTop() + geometry[0], context.getRight() - w * .09f,
+                    context.getTop() + geometry[1]);
+            float hourCorner = Math.min(hour.width(), hour.height()) * .11f;
+            canvas.drawRoundRect(hour, hourCorner, hourCorner, fill(DARK_PANEL));
+
+            float minuteX = context.getLeft() + w * .42f;
+            float minuteY = context.getTop() + geometry[2];
+            float minuteRadius = geometry[3];
             drawScallopedCircle(canvas, minuteX, minuteY, minuteRadius, LIGHT_PANEL);
-            float size = w * .25f * state.getTimeScale();
-            drawTime(canvas, hours, hour.centerX(), centeredBaseline(hour.centerY(), size, face),
-                    size, LIGHT_TEXT, Paint.Align.CENTER, face);
-            drawTime(canvas, minutes, minuteX, centeredBaseline(minuteY, size, face), size,
+
+            float hourPreferred = Math.min(hour.height() * .44f, w * .24f)
+                    * state.getTimeScale();
+            float hourSize = fitText(hours, hour.width() * .72f, hourPreferred, face);
+            float minutePreferred = Math.min(minuteRadius * .72f, w * .24f)
+                    * state.getTimeScale();
+            float minuteSize = fitText(minutes, minuteRadius * 1.30f,
+                    minutePreferred, face);
+            drawTime(canvas, hours, hour.centerX(),
+                    centeredBaseline(hour.centerY(), hourSize, face), hourSize,
+                    LIGHT_TEXT, Paint.Align.CENTER, face);
+            drawTime(canvas, minutes, minuteX,
+                    centeredBaseline(minuteY, minuteSize, face), minuteSize,
                     DARK_TEXT, Paint.Align.CENTER, face);
+
+            float labelSize = readableSize(context,
+                    Math.min(w, h) * .027f * state.getSupportingScale(), 10f);
+            text(canvas, isChinese(state) ? "小时" : "HOUR",
+                    hour.left + hour.width() * .06f,
+                    hour.bottom - hour.height() * .055f, labelSize, MUTED_TEXT,
+                    Paint.Align.LEFT, supporting);
+            text(canvas, isChinese(state) ? "分钟" : "MINUTE", minuteX,
+                    minuteY + minuteRadius * .79f, labelSize, DARK_TEXT,
+                    Paint.Align.CENTER, supporting);
+
             if (secondsVisible(state)) {
-                float sr = w * .12f;
-                float sx = context.getLeft() + w * .77f;
-                float sy = context.getTop() + h * .63f;
+                float sr = Math.min(w * .09f, minuteRadius * .27f);
+                float desiredX = minuteX + minuteRadius + sr + geometry[4] * .40f;
+                float sx = Math.min(context.getRight() - w * .03f - sr, desiredX);
+                float sy = minuteY + minuteRadius * .32f;
                 canvas.drawCircle(sx, sy, sr, fill(DARK_PANEL_ALT));
-                float ss = sr * .64f;
+                float ss = fitText("00", sr * 1.28f, sr * .76f, supporting);
                 text(canvas, String.format(Locale.US, "%02d", c.get(Calendar.SECOND)), sx,
                         centeredBaseline(sy, ss, supporting), ss, LIGHT_TEXT,
                         Paint.Align.CENTER, supporting);
             }
+            drawContext(canvas, context, state, context.getLeft() + w * .06f,
+                    context.getTop() + h * .965f, w * .88f, Paint.Align.LEFT, MUTED_TEXT,
+                    supporting, w * .034f);
         }
 
         private void drawBlend(Canvas canvas, ClockRenderContext context, ClockState state,
@@ -1713,19 +1913,24 @@ public final class UltimateClockStyles {
             drawTime(canvas, time, digital.centerX(),
                     centeredBaseline(digital.centerY() - digital.height() * .03f,
                             timeSize, face), timeSize, DARK_TEXT, Paint.Align.CENTER, face);
-            drawDate(canvas, state, digital.left + digital.width() * .045f,
-                    digital.bottom - digital.height() * .057f, digital.width() * .72f,
-                    Paint.Align.LEFT, 0xFF265B84, supporting, h * .027f);
-            drawContext(canvas, state, digital.right - digital.width() * .045f,
+            drawDateAndLunar(canvas, context, state,
+                    digital.left + digital.width() * .045f,
+                    digital.bottom - digital.height() * .050f, digital.width() * .72f,
+                    Paint.Align.LEFT, 0xFF265B84, supporting,
+                    Math.min(w, h) * .032f);
+            drawContext(canvas, context, state, digital.right - digital.width() * .045f,
                     digital.top + digital.height() * .067f, digital.width() * .48f,
-                    Paint.Align.RIGHT, 0xFF265B84, supporting, h * .023f);
+                    Paint.Align.RIGHT, 0xFF265B84, supporting,
+                    Math.min(w, h) * .027f);
             if (secondsVisible(state)) {
-                float sr = Math.min(w, h) * .030f;
+                float secondSize = readableSize(context,
+                        Math.min(w, h) * .024f * state.getSupportingScale(), 12f);
+                float sr = Math.max(Math.min(w, h) * .030f, secondSize * .72f);
                 float sx = digital.right - digital.width() * .09f;
                 float sy = digital.bottom - digital.height() * .067f;
                 drawScallopedCircle(canvas, sx, sy, sr, MUTED_TEXT);
                 text(canvas, String.format(Locale.US, "%02d", c.get(Calendar.SECOND)), sx,
-                        centeredBaseline(sy, sr * .78f, supporting), sr * .78f,
+                        centeredBaseline(sy, secondSize, supporting), secondSize,
                         DARK_TEXT, Paint.Align.CENTER, supporting);
             }
         }
@@ -1766,55 +1971,87 @@ public final class UltimateClockStyles {
                 Calendar c, String time, Typeface face, Typeface supporting) {
             float w = context.getWidth();
             float h = context.getHeight();
-            RectF outer = new RectF(context.getLeft() + w * .050f,
-                    context.getTop() + h * .205f, context.getRight() - w * .040f,
-                    context.getTop() + h * .850f);
+            boolean portrait = h > w;
+            RectF outer;
+            RectF ribbon;
+            if (portrait) {
+                float[] geometry = ribbonPortraitGeometry(w, h);
+                float centerY = context.getTop() + geometry[0];
+                outer = new RectF(context.getLeft() + w * .050f,
+                        centerY - geometry[1] * .5f, context.getRight() - w * .040f,
+                        centerY + geometry[1] * .5f);
+                ribbon = new RectF(context.getLeft() + w * .078f,
+                        centerY - geometry[2] * .5f, context.getRight() - w * .069f,
+                        centerY + geometry[2] * .5f);
+            } else {
+                outer = new RectF(context.getLeft() + w * .050f,
+                        context.getTop() + h * .205f, context.getRight() - w * .040f,
+                        context.getTop() + h * .850f);
+                ribbon = new RectF(context.getLeft() + w * .078f,
+                        context.getTop() + h * .265f, context.getRight() - w * .069f,
+                        context.getTop() + h * .800f);
+            }
             int save = canvas.save();
             canvas.rotate(-2f, outer.centerX(), outer.centerY());
             canvas.drawRoundRect(outer, outer.height() * .085f, outer.height() * .085f,
                     fill(DARK_PANEL));
             canvas.restoreToCount(save);
-            RectF ribbon = new RectF(context.getLeft() + w * .078f,
-                    context.getTop() + h * .265f, context.getRight() - w * .069f,
-                    context.getTop() + h * .800f);
             canvas.drawRoundRect(ribbon, ribbon.height() * .5f, ribbon.height() * .5f,
                     fill(LIGHT_PANEL));
-            float timeSize = fitText(time, ribbon.width() * .55f,
-                    h * .300f * state.getTimeScale(), face);
-            drawTime(canvas, time, ribbon.left + ribbon.width() * .055f,
+            float timeX = ribbon.left + ribbon.width() * .055f;
+            float timeSize = fitText(time, ribbon.width() * (secondsVisible(state) ? .58f : .86f),
+                    Math.min(ribbon.height() * .56f, w * .30f) * state.getTimeScale(), face);
+            float secondsSize = ribbonSecondsTextSize(timeSize);
+            float secondsRadius = Math.max(secondsSize * .76f, Math.min(w, h) * .042f);
+            float secondsX = ribbon.right - ribbon.width() * .055f - secondsRadius;
+            if (secondsVisible(state)) {
+                float timeMaxWidth = Math.max(1f, secondsX - secondsRadius
+                        - ribbon.width() * .035f - timeX);
+                timeSize = fitText(time, timeMaxWidth, timeSize, face);
+                secondsSize = ribbonSecondsTextSize(timeSize);
+                secondsRadius = Math.max(secondsSize * .76f, Math.min(w, h) * .042f);
+                secondsX = ribbon.right - ribbon.width() * .055f - secondsRadius;
+            }
+            drawTime(canvas, time, timeX,
                     centeredBaseline(ribbon.centerY(), timeSize, face), timeSize,
                     DARK_TEXT, Paint.Align.LEFT, face);
             if (secondsVisible(state)) {
-                float sr = Math.min(w, h) * .030f;
-                float sx = ribbon.right - ribbon.width() * .062f;
                 float sy = ribbon.centerY();
-                drawScallopedCircle(canvas, sx, sy, sr, MUTED_TEXT);
-                text(canvas, String.format(Locale.US, "%02d", c.get(Calendar.SECOND)), sx,
-                        centeredBaseline(sy, sr * .78f, supporting), sr * .78f,
+                drawScallopedCircle(canvas, secondsX, sy, secondsRadius, MUTED_TEXT);
+                text(canvas, String.format(Locale.US, "%02d", c.get(Calendar.SECOND)), secondsX,
+                        centeredBaseline(sy, secondsSize, supporting), secondsSize,
                         DARK_TEXT, Paint.Align.CENTER, supporting);
             }
-            drawDate(canvas, state, context.getLeft() + w * .038f,
+            drawDate(canvas, context, state, context.getLeft() + w * .038f,
                     context.getTop() + h * .079f, w * .55f, Paint.Align.LEFT, LIGHT_TEXT,
-                    supporting, h * .027f);
-            drawContext(canvas, state, context.getRight() - w * .029f,
+                    supporting, Math.min(w, h) * .032f);
+            drawContext(canvas, context, state, context.getRight() - w * .029f,
                     context.getTop() + h * .079f, w * .35f, Paint.Align.RIGHT, MUTED_TEXT,
-                    supporting, h * .024f);
+                    supporting, Math.min(w, h) * .027f);
         }
 
-        private void drawDate(Canvas canvas, ClockState state, float x, float baseline,
+        private void drawDate(Canvas canvas, ClockRenderContext context, ClockState state,
+                float x, float baseline,
                 float maxWidth, Paint.Align align, int color, Typeface face, float size) {
-            float scaled = Math.max(10f, size * state.getDateScale());
-            text(canvas, ellipsize(state.getDateText(), maxWidth, scaled, face), x, baseline,
-                    scaled, color, align, face);
+            readableDate(canvas, context, state, x, baseline, maxWidth, size, color, align,
+                    face, context.getHeight() > context.getWidth());
         }
 
-        private void drawContext(Canvas canvas, ClockState state, float x, float baseline,
-                float maxWidth, Paint.Align align, int color, Typeface face, float size) {
+        /** Draws the Gregorian date above its lunar counterpart, both at one readable size. */
+        private void drawDateAndLunar(Canvas canvas, ClockRenderContext context,
+                ClockState state, float x, float lowerBaseline, float maxWidth, Paint.Align align,
+                int color, Typeface face, float size) {
+            readableDate(canvas, context, state, x, lowerBaseline, maxWidth, size, color,
+                    align, face, true);
+        }
+
+        private void drawContext(Canvas canvas, ClockRenderContext context, ClockState state,
+                float x, float baseline, float maxWidth, Paint.Align align, int color,
+                Typeface face, float size) {
             String value = contextText(state);
             if (value.length() == 0) return;
-            float scaled = Math.max(10f, size * state.getSupportingScale());
-            text(canvas, ellipsize(value, maxWidth, scaled, face), x, baseline, scaled,
-                    color, align, face);
+            readableText(canvas, context, value, x, baseline, maxWidth,
+                    size * state.getSupportingScale(), 12f, color, align, face);
         }
 
         private static boolean secondsVisible(ClockState state) {
@@ -1849,27 +2086,30 @@ public final class UltimateClockStyles {
             float w = context.getWidth();
             float h = context.getHeight();
             float unit = Math.min(w, h);
-            float cardWidth = Math.max(unit * .30f, context.getDensity() * 145f);
-            float gap = Math.max(context.getDensity() * 10f, unit * .018f);
-            float top = context.getTop() + h * .735f;
-            float bottom = context.getTop() + h * .930f;
+            float cardWidth = worldClockCardWidth(w, h, context.getDensity());
+            float gap = worldClockCardGap(w, h, context.getDensity());
+            RectF strip = worldClockStripBounds(context.getLeft(), context.getTop(),
+                    context.getRight(), context.getBottom(), context.getDensity(),
+                    context.getBottomInset());
+            float top = strip.top;
+            float bottom = strip.bottom;
             float total = entries.size() * (cardWidth + gap) - gap;
-            float scroll = Math.min(context.getWorldClockScroll(), Math.max(0f, total - w * .88f));
+            float scroll = Math.min(context.getWorldClockScroll(),
+                    Math.max(0f, total - strip.width()));
             int save = canvas.save();
-            canvas.clipRect(context.getLeft() + w * .06f, top,
-                    context.getRight() - w * .06f, bottom);
-            canvas.translate(context.getLeft() + w * .06f - scroll, 0f);
+            canvas.clipRect(strip.left, top, strip.right, bottom);
+            canvas.translate(strip.left - scroll, 0f);
             for (WorldClockEntry entry : entries) {
                 RectF card = new RectF(0f, top, cardWidth, bottom);
                 canvas.drawRoundRect(card, card.height() * .22f, card.height() * .22f,
                         fill(alpha(DARK_PANEL, 238)));
                 float supportScale = state.getSupportingScale();
+                float citySize = readableSize(context,
+                        unit * .030f * supportScale, 12f);
                 text(canvas, entry.getFlagEmoji(), card.left + cardWidth * .08f,
                         card.top + card.height() * .36f,
-                        Math.max(context.getDensity() * 10f, unit * .035f * supportScale),
+                        readableSize(context, unit * .035f * supportScale, 12f),
                         LIGHT_PANEL, Paint.Align.LEFT, supporting);
-                float citySize = Math.max(context.getDensity() * 10f,
-                        unit * .030f * supportScale);
                 String city = ellipsize(entry.getCity(), cardWidth * .62f, citySize, supporting);
                 text(canvas, city, card.left + cardWidth * .30f,
                         card.top + card.height() * .34f,
@@ -1881,13 +2121,13 @@ public final class UltimateClockStyles {
                 String localTime = timeText(local, state, false);
                 Paint timePaint = fill(theme.getPrimaryTextColor());
                 timePaint.setTypeface(displayTypeface(theme, Typeface.BOLD));
-                timePaint.setTextSize(Math.max(context.getDensity() * 12f,
-                        unit * .042f * supportScale));
+                timePaint.setTextSize(readableSize(context,
+                        unit * .042f * supportScale, 16f));
                 timePaint.setTextAlign(Paint.Align.LEFT);
                 ClockTimeText.draw(canvas, localTime, card.left + cardWidth * .30f,
                         card.top + card.height() * .70f, timePaint);
-                float zoneSize = Math.max(context.getDensity() * 8f,
-                        unit * .020f * supportScale);
+                float zoneSize = readableSize(context,
+                        unit * .020f * supportScale, 10f);
                 String zone = ellipsize(entry.getZoneId(), cardWidth * .62f, zoneSize, supporting);
                 text(canvas, zone, card.left + cardWidth * .30f,
                         card.top + card.height() * .88f,

@@ -4,6 +4,7 @@ import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
+import android.graphics.RectF;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
@@ -26,6 +27,7 @@ import com.clockmods.sdk.clock.ClockRenderContext;
 import com.clockmods.sdk.clock.ClockState;
 import com.clockmods.sdk.clock.ClockStyle;
 import com.clockmods.sdk.clock.ClockStyleCapabilities;
+import com.clockmods.sdk.clock.ClockStyleMetadata;
 import com.clockmods.sdk.clock.ClockStyleRegistry;
 import com.clockmods.sdk.clock.WorldClockEntry;
 import com.clockmods.time.NetworkTimeProvider;
@@ -89,6 +91,7 @@ public class UltimateClockView extends View {
     private float worldClockTouchStartX;
     private float worldClockTouchStartScroll;
     private boolean worldClockDragging;
+    private boolean worldClockGestureActive;
     private String fontFamily = ClockPreferences.DEFAULT_FONT_FAMILY;
     private int fontWeight = FontCatalog.DEFAULT_WEIGHT;
     private float timeScale = 1f;
@@ -473,17 +476,20 @@ public class UltimateClockView extends View {
         if (worldClocks.isEmpty()) return super.onTouchEvent(event);
         switch (event.getActionMasked()) {
             case android.view.MotionEvent.ACTION_DOWN:
-                float stripTop = getHeight() * .735f;
-                float stripBottom = getHeight() * .930f;
-                if (event.getY() < stripTop || event.getY() > stripBottom) {
+                RectF strip = worldClockStripBounds();
+                if (event.getX() < strip.left || event.getX() > strip.right
+                        || event.getY() < strip.top || event.getY() > strip.bottom) {
+                    worldClockGestureActive = false;
                     return super.onTouchEvent(event);
                 }
+                worldClockGestureActive = true;
                 worldClockTouchStartX = event.getX();
                 worldClockTouchStartScroll = worldClockScroll;
                 worldClockDragging = false;
                 if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(true);
                 return true;
             case android.view.MotionEvent.ACTION_MOVE:
+                if (!worldClockGestureActive) return super.onTouchEvent(event);
                 float delta = worldClockTouchStartX - event.getX();
                 if (Math.abs(delta) > getResources().getDisplayMetrics().density * 4f) {
                     worldClockDragging = true;
@@ -495,14 +501,22 @@ public class UltimateClockView extends View {
                 }
                 return true;
             case android.view.MotionEvent.ACTION_UP:
-            case android.view.MotionEvent.ACTION_CANCEL:
+                if (!worldClockGestureActive) return super.onTouchEvent(event);
                 boolean dragged = worldClockDragging;
+                worldClockGestureActive = false;
                 worldClockDragging = false;
                 if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
                 if (dragged) {
                     return true;
                 }
-                return super.onTouchEvent(event);
+                performClick();
+                return true;
+            case android.view.MotionEvent.ACTION_CANCEL:
+                if (!worldClockGestureActive) return super.onTouchEvent(event);
+                worldClockGestureActive = false;
+                worldClockDragging = false;
+                if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
+                return true;
             default:
                 return true;
         }
@@ -516,12 +530,17 @@ public class UltimateClockView extends View {
     private float maxWorldClockScroll() {
         if (worldClocks.isEmpty() || getWidth() <= 0 || getHeight() <= 0) return 0f;
         float density = getResources().getDisplayMetrics().density;
-        float unit = Math.min(getWidth(), getHeight());
-        float cardWidth = Math.max(unit * .30f, density * 145f);
-        float gap = Math.max(density * 10f, unit * .018f);
+        float cardWidth = UltimateClockStyles.worldClockCardWidth(
+                getWidth(), getHeight(), density);
+        float gap = UltimateClockStyles.worldClockCardGap(getWidth(), getHeight(), density);
         float contentWidth = worldClocks.size() * cardWidth
                 + Math.max(0, worldClocks.size() - 1) * gap;
-        return Math.max(0f, contentWidth - getWidth() * .88f);
+        return Math.max(0f, contentWidth - worldClockStripBounds().width());
+    }
+
+    private RectF worldClockStripBounds() {
+        return UltimateClockStyles.worldClockStripBounds(0f, 0f, getWidth(), getHeight(),
+                getResources().getDisplayMetrics().density, bottomOverlayInset);
     }
 
     private void invalidateAndReschedule() {
@@ -547,17 +566,11 @@ public class UltimateClockView extends View {
         boolean reduced = manualReducedMotion
                 || (followSystemReducedMotion && isSystemReducedMotion());
         ClockStyle style = styleRegistry.resolveForApi(styleId, Build.VERSION.SDK_INT);
-        ClockStyleCapabilities capabilities = style.getMetadata().getCapabilities();
-        boolean supportsSeconds = capabilities.supports(
-                ClockStyleCapabilities.Capability.SECONDS);
-        boolean supportsSweep = capabilities.supports(
-                ClockStyleCapabilities.Capability.SMOOTH_SECONDS);
-        if (secondHandMotion == ClockState.SecondHandMotion.OFF || !showSeconds
-                || !supportsSeconds) {
+        ClockState.SecondHandMotion motion = effectiveSecondHandMotion(style, reduced);
+        if (motion == ClockState.SecondHandMotion.OFF) {
             long now = currentTimeMillis();
             delay = MINUTE_REFRESH_MILLIS - (now % MINUTE_REFRESH_MILLIS);
-        } else if (secondHandMotion == ClockState.SecondHandMotion.SWEEP
-                && supportsSweep && !reduced) {
+        } else if (motion == ClockState.SecondHandMotion.SWEEP) {
             postOnAnimation(ticker);
             return;
         } else {
@@ -591,17 +604,34 @@ public class UltimateClockView extends View {
 
     private ClockState.SecondHandMotion effectiveSecondHandMotion(ClockStyle style,
             boolean reducedMotion) {
+        return resolveSecondHandMotion(style, showSeconds, secondHandMotion, reducedMotion);
+    }
+
+    static ClockState.SecondHandMotion resolveSecondHandMotion(ClockStyle style,
+            boolean showSeconds, ClockState.SecondHandMotion requestedMotion,
+            boolean reducedMotion) {
         ClockStyleCapabilities capabilities = style.getMetadata().getCapabilities();
-        if (!showSeconds || secondHandMotion == ClockState.SecondHandMotion.OFF
+        if (!showSeconds
                 || !capabilities.supports(ClockStyleCapabilities.Capability.SECONDS)) {
             return ClockState.SecondHandMotion.OFF;
         }
-        if (secondHandMotion == ClockState.SecondHandMotion.SWEEP
+        // Motion choices describe a physical second hand. Digital-only faces intentionally hide
+        // that setting, so an OFF value saved by a previous analog face must not silently remove
+        // their numeric seconds. The separate "show seconds" preference remains authoritative.
+        if (style.getMetadata().getKind() == ClockStyleMetadata.Kind.DIGITAL) {
+            return ClockState.SecondHandMotion.TICK;
+        }
+        ClockState.SecondHandMotion safeMotion = requestedMotion == null
+                ? ClockState.SecondHandMotion.TICK : requestedMotion;
+        if (safeMotion == ClockState.SecondHandMotion.OFF) {
+            return ClockState.SecondHandMotion.OFF;
+        }
+        if (safeMotion == ClockState.SecondHandMotion.SWEEP
                 && (reducedMotion || !capabilities.supports(
                         ClockStyleCapabilities.Capability.SMOOTH_SECONDS))) {
             return ClockState.SecondHandMotion.TICK;
         }
-        return secondHandMotion;
+        return safeMotion;
     }
 
     private void cancelTicker() {

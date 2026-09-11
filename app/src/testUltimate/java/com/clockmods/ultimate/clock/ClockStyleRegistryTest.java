@@ -75,6 +75,32 @@ public class ClockStyleRegistryTest {
     }
 
     @Test
+    public void digitalFacesIgnoreAnAnalogFacesStoredMotionMode() {
+        ClockStyleRegistry registry = UltimateClockStyles.createRegistry();
+        ClockStyle ribbon = registry.find(UltimateClockStyles.STYLE_RIBBON);
+
+        Assert.assertEquals(ClockState.SecondHandMotion.TICK,
+                UltimateClockView.resolveSecondHandMotion(ribbon, true,
+                        ClockState.SecondHandMotion.OFF, false));
+        Assert.assertEquals(ClockState.SecondHandMotion.OFF,
+                UltimateClockView.resolveSecondHandMotion(ribbon, false,
+                        ClockState.SecondHandMotion.SWEEP, false));
+    }
+
+    @Test
+    public void analogFacesKeepTheirConfiguredMotionMode() {
+        ClockStyleRegistry registry = UltimateClockStyles.createRegistry();
+        ClockStyle glass = registry.find(UltimateClockStyles.STYLE_GLASS_ATELIER);
+
+        Assert.assertEquals(ClockState.SecondHandMotion.OFF,
+                UltimateClockView.resolveSecondHandMotion(glass, true,
+                        ClockState.SecondHandMotion.OFF, false));
+        Assert.assertEquals(ClockState.SecondHandMotion.TICK,
+                UltimateClockView.resolveSecondHandMotion(glass, true,
+                        ClockState.SecondHandMotion.SWEEP, true));
+    }
+
+    @Test
     public void registryRejectsDuplicateIdentifiers() {
         ClockStyleRegistry registry = new ClockStyleRegistry();
         registry.register(fakeStyle("sample.clock", 14));

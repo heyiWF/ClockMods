@@ -40,6 +40,16 @@ public class UltimateClockRendererSmokeTest {
             {166, 94}
     };
 
+    private static final String[] CORE_STYLE_IDS = {
+            UltimateClockStyles.STYLE_PRO_CLASSIC,
+            UltimateClockStyles.STYLE_GLASS_ATELIER,
+            UltimateClockStyles.STYLE_NOIR_INSTRUMENT,
+            UltimateClockStyles.STYLE_PAPER_STATION,
+            UltimateClockStyles.STYLE_ORBIT_NEON,
+            UltimateClockStyles.STYLE_DIGITAL_GRID,
+            UltimateClockStyles.STYLE_TYPOGRAPHIC
+    };
+
     @Test
     public void nonProRenderersHandleLongChineseDateAtSupportedViewportSizes()
             throws Exception {
@@ -54,6 +64,26 @@ public class UltimateClockRendererSmokeTest {
                     assertRendersWithoutLeakingCanvasState(style, state,
                             viewport[0], viewport[1]);
                 }
+            }
+        } finally {
+            paints.restore();
+        }
+    }
+
+    @Test
+    public void coreBuiltInsKeepTextInsideANarrowPortraitViewport() throws Exception {
+        ClockStyleRegistry registry = UltimateClockStyles.createRegistry();
+        ClockState state = longChineseState(false);
+        PaintPoolFixture paints = PaintPoolFixture.install();
+        try {
+            for (String styleId : CORE_STYLE_IDS) {
+                ClockStyle style = registry.find(styleId);
+                RecordingCanvas canvas = new RecordingCanvas(720f, 1600f);
+                ClockRenderContext context = new ClockRenderContext(
+                        0f, 0f, 720f, 1600f, 2f, 2f, state.getTimeMillis(), false,
+                        ClockBackground.theme(false), 2f * 28f);
+                style.getRenderer().render(canvas, context, state, style.getThemeTokens());
+                canvas.assertTextInside(styleId);
             }
         } finally {
             paints.restore();
@@ -81,10 +111,16 @@ public class UltimateClockRendererSmokeTest {
                 canvas.saveCalls, canvas.restoreCalls);
         Assert.assertTrue(label + " did not isolate its Canvas state",
                 canvas.saveCalls > 0);
+        Assert.assertEquals(label + " distorted the face with a non-uniform scale",
+                0, canvas.nonUniformScaleCalls);
     }
 
     private static ClockState longChineseState() {
-        return ClockState.builder(1787633430123L)
+        return longChineseState(true);
+    }
+
+    private static ClockState longChineseState(boolean withWorldClocks) {
+        ClockState.Builder builder = ClockState.builder(1787633430123L)
                 .timeZone(TimeZone.getTimeZone("Asia/Shanghai"))
                 .locale(Locale.SIMPLIFIED_CHINESE)
                 .use24Hour(true)
@@ -97,24 +133,27 @@ public class UltimateClockRendererSmokeTest {
                 .weatherText("\u6df1\u5733\u5b9d\u5b89 30 \u9634 / "
                         + "\u4f53\u611f\u6e29\u5ea6 34 \u6444\u6c0f\u5ea6")
                 .statusText("Wi-Fi / 82%")
-                .worldClocks(Arrays.asList(
-                        new WorldClockEntry("beijing", "北京", "中国", "Asia/Shanghai", "CN"),
-                        new WorldClockEntry("tokyo", "东京", "日本", "Asia/Tokyo", "JP"),
-                        new WorldClockEntry("london", "伦敦", "英国", "Europe/London", "GB"),
-                        new WorldClockEntry("new_york", "纽约", "美国", "America/New_York", "US"),
-                        new WorldClockEntry("sydney", "悉尼", "澳大利亚", "Australia/Sydney", "AU"),
-                        new WorldClockEntry("paris", "巴黎", "法国", "Europe/Paris", "FR")))
                 .timeScale(1.5f)
                 .dateScale(1.5f)
-                .supportingScale(1.5f)
-                .build();
+                .supportingScale(1.5f);
+        if (withWorldClocks) {
+            builder.worldClocks(Arrays.asList(
+                    new WorldClockEntry("beijing", "北京", "中国", "Asia/Shanghai", "CN"),
+                    new WorldClockEntry("tokyo", "东京", "日本", "Asia/Tokyo", "JP"),
+                    new WorldClockEntry("london", "伦敦", "英国", "Europe/London", "GB"),
+                    new WorldClockEntry("new_york", "纽约", "美国", "America/New_York", "US"),
+                    new WorldClockEntry("sydney", "悉尼", "澳大利亚", "Australia/Sydney", "AU"),
+                    new WorldClockEntry("paris", "巴黎", "法国", "Europe/Paris", "FR")));
+        }
+        return builder.build();
     }
 
     /** Tracks the save stack that the mockable Android Canvas does not implement. */
-    private static final class TrackingCanvas extends Canvas {
+    private static class TrackingCanvas extends Canvas {
         private int saveCount = 1;
         private int saveCalls;
         private int restoreCalls;
+        private int nonUniformScaleCalls;
 
         @Override public int save() {
             int checkpoint = saveCount;
@@ -140,14 +179,94 @@ public class UltimateClockRendererSmokeTest {
         @Override public int getSaveCount() {
             return saveCount;
         }
+
+        @Override public void scale(float sx, float sy) {
+            if (Math.abs(sx - sy) > .0001f) nonUniformScaleCalls++;
+        }
+
+    }
+
+    /** Captures text geometry using the same deterministic metrics as {@link JvmPaint}. */
+    private static final class RecordingCanvas extends TrackingCanvas {
+        private final float width;
+        private final float height;
+        private final List<TextBounds> textBounds = new ArrayList<TextBounds>();
+
+        RecordingCanvas(float width, float height) {
+            this.width = width;
+            this.height = height;
+        }
+
+        @Override public void drawText(String text, float x, float y, Paint paint) {
+            record(text, x, y, paint);
+        }
+
+        @Override public void drawText(String text, int start, int end, float x, float y,
+                Paint paint) {
+            record(text == null ? "" : text.substring(start, end), x, y, paint);
+        }
+
+        private void record(String text, float x, float baseline, Paint paint) {
+            // RectF geometry methods are stubs in mockable android.jar. Ignore the zero anchor
+            // produced by those methods (for example Digital Grid's SEC panel); all core metadata
+            // and titles use direct viewport coordinates and remain fully checked below.
+            if (x == 0f) return;
+            float measured = paint.measureText(text);
+            float left = x;
+            if (paint.getTextAlign() == Paint.Align.CENTER) left -= measured * .5f;
+            else if (paint.getTextAlign() == Paint.Align.RIGHT) left -= measured;
+            Paint.FontMetrics metrics = paint.getFontMetrics();
+            textBounds.add(new TextBounds(text, left, baseline + metrics.ascent,
+                    left + measured, baseline + metrics.descent, paint.getTextSize()));
+        }
+
+        void assertTextInside(String styleId) {
+            Assert.assertFalse(styleId + " drew no text", textBounds.isEmpty());
+            for (TextBounds bounds : textBounds) {
+                String label = styleId + " text '" + bounds.text + "'";
+                Assert.assertTrue(label + " overflowed left: " + bounds.left,
+                        bounds.left >= -1f);
+                Assert.assertTrue(label + " overflowed right: " + bounds.right,
+                        bounds.right <= width + 1f);
+                Assert.assertTrue(label + " overflowed top: " + bounds.top,
+                        bounds.top >= -1f);
+                Assert.assertTrue(label + " overflowed bottom: " + bounds.bottom,
+                        bounds.bottom <= height + 1f);
+                if (bounds.text.contains("年") || bounds.text.startsWith("深圳")) {
+                    Assert.assertTrue(label + " became smaller than 12sp: " + bounds.textSize,
+                            bounds.textSize >= 24f - .1f);
+                }
+            }
+        }
+    }
+
+    private static final class TextBounds {
+        final String text;
+        final float left;
+        final float top;
+        final float right;
+        final float bottom;
+        final float textSize;
+
+        TextBounds(String text, float left, float top, float right, float bottom,
+                float textSize) {
+            this.text = text;
+            this.left = left;
+            this.top = top;
+            this.right = right;
+            this.bottom = bottom;
+            this.textSize = textSize;
+        }
     }
 
     /** Supplies deterministic text metrics missing from Gradle's mockable android.jar. */
     private static final class JvmPaint extends Paint {
         private float textSize;
+        private Align textAlign = Align.LEFT;
 
         @Override public void reset() {
             textSize = 0f;
+            textAlign = Align.LEFT;
         }
 
         @Override public void setTextSize(float size) {
@@ -160,6 +279,18 @@ public class UltimateClockRendererSmokeTest {
 
         @Override public float measureText(String text) {
             return text == null ? 0f : text.length() * textSize * 0.55f;
+        }
+
+        @Override public float measureText(String text, int start, int end) {
+            return text == null ? 0f : Math.max(0, end - start) * textSize * 0.55f;
+        }
+
+        @Override public void setTextAlign(Align align) {
+            textAlign = align == null ? Align.LEFT : align;
+        }
+
+        @Override public Align getTextAlign() {
+            return textAlign;
         }
 
         @Override public FontMetrics getFontMetrics() {

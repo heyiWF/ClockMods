@@ -27,7 +27,7 @@
     <string name="ultimate_style_title">时钟样式</string>
     <string name="ultimate_style_gallery">主题库</string>
     <string name="ultimate_style_pro_classic_name">Pro 经典</string>
-    <string name="ultimate_style_pro_classic_summary">原版 ClockMods Pro 表盘，完整保留字体、颜色、日期、天气与数字动效设置。</string>
+    <string name="ultimate_style_pro_classic_summary">默认表盘</string>
     <string name="ultimate_style_glass_name">光影工坊</string>
     <string name="ultimate_style_glass_summary">玻璃质感 · 模拟表盘</string>
     <string name="ultimate_style_noir_name">黑曜仪表</string>
@@ -43,7 +43,7 @@
     <string name="ultimate_style_selected">已选择 %1$s</string>
     <string name="ultimate_style_choose">选择主题 %1$s</string>
     <string name="ultimate_style_second_motion">秒针模式</string>
-    <string name="ultimate_style_second_motion_summary">模拟表盘与支持秒动画的数字主题都会遵循这个节奏。</string>
+    <string name="ultimate_style_second_motion_summary">控制模拟表盘秒针的运动方式。</string>
     <string name="ultimate_motion_smooth">平滑</string>
     <string name="ultimate_motion_tick">跳秒</string>
     <string name="ultimate_motion_off">关闭</string>
