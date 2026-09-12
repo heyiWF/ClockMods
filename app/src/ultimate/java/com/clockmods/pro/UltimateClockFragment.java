@@ -28,6 +28,7 @@ import com.clockmods.ultimate.UltimateMainActivity;
 import com.clockmods.ultimate.clock.UltimateClockPreferences;
 import com.clockmods.ultimate.clock.UltimateClockStyles;
 import com.clockmods.ultimate.clock.UltimateClockView;
+import com.clockmods.ultimate.clock.ClockPalette;
 import com.clockmods.ui.ClockView;
 import com.clockmods.weather.WeatherController;
 import com.clockmods.weather.WeatherModels.WeatherState;
@@ -98,15 +99,16 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
 
     @SuppressLint("ClickableViewAccessibility")
     private void configureClockInteraction(View clock, GestureDetector detector) {
-        // Observe taps without consuming the stream: UltimateClockView needs the same DOWN/MOVE
-        // events for its horizontally scrollable world-clock strip. Making the view clickable
-        // keeps events outside that strip flowing long enough for GestureDetector to recognize a
-        // double tap as well.
+        // The Ultimate host observes double taps before its native city scroller receives events.
         clock.setClickable(true);
-        clock.setOnTouchListener((view, event) -> {
-            detector.onTouchEvent(event);
-            return false;
-        });
+        if (clock instanceof UltimateClockView) {
+            ((UltimateClockView) clock).setGestureDetector(detector);
+        } else {
+            clock.setOnTouchListener((view, event) -> {
+                detector.onTouchEvent(event);
+                return false;
+            });
+        }
         clock.setContentDescription(getString(R.string.open_settings_accessibility));
         clock.setAccessibilityDelegate(new View.AccessibilityDelegate() {
             @Override
@@ -206,6 +208,25 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
             attributionParams.height = dp(18);
             attributionParams.bottomMargin = dp(4);
             weatherAttribution.setLayoutParams(attributionParams);
+            UltimateClockPreferences appearance = new UltimateClockPreferences(requireContext());
+            boolean adaptive = ClockPalette.supports(appearance.getStyleId())
+                    && !UltimateClockPreferences.BACKGROUND_MODE_IMAGE.equals(appearance.getBackgroundMode());
+            ClockPalette palette = appearance.getPalette(appearance.getStyleId());
+            if (UltimateClockPreferences.BACKGROUND_MODE_COLOR.equals(appearance.getBackgroundMode())) {
+                palette = palette.withColor(0, repository.getCurrentColor());
+            }
+            int attributionColor = adaptive ? palette.mutedBackground : 0x66FFFFFF;
+            ViewGroup attribution = (ViewGroup) weatherAttribution;
+            for (int index = 0; index < attribution.getChildCount(); index++) {
+                View child = attribution.getChildAt(index);
+                if (child instanceof android.widget.TextView) {
+                    ((android.widget.TextView) child).setTextColor(attributionColor);
+                } else if (child instanceof com.clockmods.ui.QWeatherLogoView) {
+                    child.setAlpha(adaptive ? 1f : .45f);
+                    ((com.clockmods.ui.QWeatherLogoView) child).setLogoColor(
+                            adaptive ? attributionColor : 0xCCFFFFFF);
+                }
+            }
         }
         updateBottomOverlayInset(repository.isWeatherEnabled());
         deliverLastWeather();

@@ -13,6 +13,7 @@ public final class ClockRenderContext {
     private final ClockBackground background;
     private final float bottomInset;
     private final float worldClockScroll;
+    private final boolean worldClockStripHosted;
 
     public ClockRenderContext(float left, float top, float right, float bottom, float density,
             float scaledDensity, long frameTimeMillis, boolean reducedMotion) {
@@ -43,6 +44,15 @@ public final class ClockRenderContext {
     public ClockRenderContext(float left, float top, float right, float bottom, float density,
             float scaledDensity, long frameTimeMillis, boolean reducedMotion,
             ClockBackground background, float bottomInset, float worldClockScroll) {
+        this(left, top, right, bottom, density, scaledDensity, frameTimeMillis, reducedMotion,
+                background, bottomInset, worldClockScroll, false);
+    }
+
+    /** A native host may draw the city strip itself; styles still reserve its space. */
+    public ClockRenderContext(float left, float top, float right, float bottom, float density,
+            float scaledDensity, long frameTimeMillis, boolean reducedMotion,
+            ClockBackground background, float bottomInset, float worldClockScroll,
+            boolean worldClockStripHosted) {
         if (right < left || bottom < top) {
             throw new IllegalArgumentException("Render bounds must not be inverted");
         }
@@ -57,6 +67,7 @@ public final class ClockRenderContext {
         this.background = background;
         this.bottomInset = Math.max(0f, Math.min(bottomInset, bottom - top));
         this.worldClockScroll = Math.max(0f, worldClockScroll);
+        this.worldClockStripHosted = worldClockStripHosted;
     }
 
     public float getLeft() { return left; }
@@ -74,4 +85,5 @@ public final class ClockRenderContext {
     public ClockBackground getBackground() { return background; }
     public float getBottomInset() { return bottomInset; }
     public float getWorldClockScroll() { return worldClockScroll; }
+    public boolean isWorldClockStripHosted() { return worldClockStripHosted; }
 }

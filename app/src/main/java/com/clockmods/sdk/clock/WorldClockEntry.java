@@ -28,8 +28,9 @@ public final class WorldClockEntry {
     public String getZoneId() { return zoneId; }
     public String getFlag() { return flag; }
 
-    /** Converts an ISO 3166-1 alpha-2 code to its Unicode regional-indicator flag. */
+    /** Converts a country code to its flag, using a neutral globe when no flag is supplied. */
     public String getFlagEmoji() {
+        if (flag.isEmpty()) return "\uD83C\uDF10";
         if (flag.length() != 2) return flag;
         String upper = flag.toUpperCase(java.util.Locale.ROOT);
         char first = upper.charAt(0);

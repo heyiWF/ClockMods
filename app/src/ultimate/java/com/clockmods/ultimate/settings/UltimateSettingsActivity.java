@@ -89,6 +89,8 @@ import com.clockmods.ui.WeatherLocationChooser;
 import com.clockmods.ultimate.clock.UltimateClockPreferences;
 import com.clockmods.ultimate.clock.UltimateClockStyles;
 import com.clockmods.ultimate.clock.ClockTypography;
+import com.clockmods.ultimate.clock.ClockPalette;
+import com.clockmods.sdk.clock.ClockThemeTokens;
 import com.clockmods.ultimate.clock.WorldClockCatalog;
 import com.clockmods.ultimate.clock.WorldClockRepository;
 import com.clockmods.ultimate.AntiBurnPreferences;
@@ -1013,6 +1015,11 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     });
         }
 
+        if (ClockPalette.supports(selectedId)) {
+            addActionRow(body, R.string.ultimate_style_palette,
+                    R.string.ultimate_style_palette_summary, R.drawable.ultimate_ic_palette,
+                    () -> showStylePaletteDialog(selectedStyle));
+        }
         addTypographySettings(body, selectedId, Page.STYLE);
         if (capabilities.supports(ClockStyleCapabilities.Capability.WORLD_CLOCK)) {
             addWorldClockSettings(body);
@@ -1264,7 +1271,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
 
         LinearLayout item = new LinearLayout(this);
         item.setOrientation(LinearLayout.VERTICAL);
-        item.setPadding(dp(12), dp(8), dp(8), dp(8));
+        item.setPadding(dp(16), dp(12), dp(20), dp(10));
 
         LinearLayout information = new LinearLayout(this);
         information.setOrientation(LinearLayout.HORIZONTAL);
@@ -2622,6 +2629,61 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 .show();
     }
 
+    private void showStylePaletteDialog(ClockStyle style) {
+        String id = style.getMetadata().getId();
+        ClockPalette[] draft = {ultimatePreferences.getPalette(id)};
+        int[] role = {0};
+        int[] labels = {R.string.ultimate_palette_background, R.string.ultimate_palette_panel,
+                R.string.ultimate_palette_accent};
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(24), dp(8), dp(24), dp(12));
+        UltimateThemePreviewView preview = new UltimateThemePreviewView(this, style);
+        content.addView(preview, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(130)));
+        ColorPickerView picker = new ColorPickerView(this);
+        picker.setColor(draft[0].background);
+        picker.setAccessibilityLabel(getString(labels[0]));
+        addSegmented(content, labels, 0, selected -> {
+            role[0] = selected;
+            picker.setColor(draft[0].color(selected));
+            picker.setAccessibilityLabel(getString(labels[selected]));
+        });
+        content.addView(picker, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(180)));
+        TextView hint = label(R.string.ultimate_palette_adaptive, 12, false);
+        hint.setPadding(0, dp(12), 0, 0);
+        content.addView(hint);
+        picker.setOnColorChangedListener(color -> {
+            draft[0] = draft[0].withColor(role[0], color);
+            preview.setPalette(draft[0]);
+        });
+        ScrollView scroll = new ScrollView(this);
+        scroll.setFillViewport(false);
+        scroll.addView(content);
+        FrameLayout holder = new FrameLayout(this);
+        int height = Math.min(dp(440), (int) (getResources().getDisplayMetrics().heightPixels * .60f));
+        holder.addView(scroll, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, height));
+        AlertDialog dialog = new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.ultimate_style_palette)
+                .setView(holder)
+                .setNegativeButton(R.string.ultimate_cancel, null)
+                .setNeutralButton(R.string.ultimate_restore_default, null)
+                .setPositiveButton(R.string.ultimate_apply, (d, which) -> {
+                    ultimatePreferences.setPalette(id, draft[0]);
+                    markChanged("style_palette");
+                    showPage(Page.STYLE);
+                }).create();
+        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEUTRAL)
+                .setOnClickListener(view -> {
+                    draft[0] = ClockPalette.DEFAULT;
+                    picker.setColor(draft[0].color(role[0]));
+                    preview.setPalette(draft[0]);
+                }));
+        dialog.show();
+    }
+
     private void showColorDialog(int titleRes, int accessibilityRes, int current,
             IntChange change, String source) {
         ColorPickerView picker = new ColorPickerView(this);
@@ -3262,12 +3324,22 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         // than the one the gallery happens to have selected.
         private final ClockTypography typography = new ClockTypography();
         private final String scopeId;
+        private ClockThemeTokens previewTokens;
 
         UltimateThemePreviewView(Context context, ClockStyle style) {
             super(context);
             this.style = style;
             this.scopeId = style.getMetadata().getId();
+            previewTokens = ClockPalette.supports(scopeId)
+                    ? ultimatePreferences.getPalette(scopeId).applyTo(style.getThemeTokens())
+                    : style.getThemeTokens();
             setLayerType(View.LAYER_TYPE_SOFTWARE, null);
+        }
+
+        void setPalette(ClockPalette palette) {
+            previewTokens = palette.applyTo(style.getThemeTokens());
+            typography.invalidate();
+            invalidate();
         }
 
         @Override
@@ -3300,7 +3372,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             int saveCount = canvas.save();
             try {
                 style.getRenderer().render(canvas, context, state,
-                        typography.apply(getContext(), style.getThemeTokens(), scopeId,
+                        typography.apply(getContext(), previewTokens, scopeId,
                                 repository.getFontFamily(scopeId),
                                 repository.getFontWeight(scopeId)));
             } finally {

@@ -256,4 +256,10 @@
     <string name="ultimate_anti_burn_auto_dim_summary">啟用保護時降低頁面亮度</string>
     <string name="ultimate_minutes_value">%1$d 分鐘</string>
     <string name="ultimate_dp_value">%1$d dp</string>
+    <string name="ultimate_style_palette">主題配色</string>
+    <string name="ultimate_style_palette_summary">獨立調整目前主題，文字顏色自動適應</string>
+    <string name="ultimate_palette_background">背景</string>
+    <string name="ultimate_palette_panel">卡片</string>
+    <string name="ultimate_palette_accent">強調</string>
+    <string name="ultimate_palette_adaptive">文字自動適應底色。背景色在使用主題背景時生效。</string>
 </resources>

@@ -105,8 +105,27 @@ public final class UltimateClockPreferences {
         preferences.edit().putString(KEY_BACKGROUND_MODE, normalizeBackgroundMode(mode)).apply();
     }
 
+    public ClockPalette getPalette(String styleId) {
+        ClockPalette defaults = ClockPalette.DEFAULT;
+        if (!ClockPalette.supports(styleId)) return defaults;
+        return new ClockPalette(preferences.getInt("palette_background__" + styleId, defaults.background),
+                preferences.getInt("palette_panel__" + styleId, defaults.panel),
+                preferences.getInt("palette_accent__" + styleId, defaults.accent));
+    }
+
+    public void setPalette(String styleId, ClockPalette palette) {
+        if (!ClockPalette.supports(styleId) || palette == null) return;
+        preferences.edit().putInt("palette_background__" + styleId, palette.background)
+                .putInt("palette_panel__" + styleId, palette.panel)
+                .putInt("palette_accent__" + styleId, palette.accent).apply();
+    }
+
     public void restoreDefaults() {
-        preferences.edit()
+        SharedPreferences.Editor editor = preferences.edit();
+        for (String key : preferences.getAll().keySet()) {
+            if (key.startsWith("palette_")) editor.remove(key);
+        }
+        editor
                 .putString(KEY_STYLE_ID, DEFAULT_STYLE_ID)
                 .putString(KEY_SECOND_HAND_MOTION, "smooth")
                 .putBoolean(KEY_FOLLOW_SYSTEM_REDUCED_MOTION,

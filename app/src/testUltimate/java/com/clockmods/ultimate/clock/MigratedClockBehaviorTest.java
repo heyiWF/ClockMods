@@ -69,14 +69,16 @@ public class MigratedClockBehaviorTest {
     public void worldClockStripStaysInsidePortraitAndLandscapeSafeBounds() {
         RectF portrait = UltimateClockStyles.worldClockStripBounds(
                 0f, 0f, 1080f, 2400f, 3f, 84f);
-        Assert.assertEquals(64.8f, portrait.left, .01f);
-        Assert.assertEquals(1015.2f, portrait.right, .01f);
+        Assert.assertEquals(0f, portrait.left, .01f);
+        Assert.assertEquals(1080f, portrait.right, .01f);
         Assert.assertTrue(portrait.top > 0f);
-        Assert.assertTrue(portrait.bottom <= 2400f - 84f);
+        Assert.assertEquals(2400f - 84f - 36f, portrait.bottom, .01f);
 
         RectF landscape = UltimateClockStyles.worldClockStripBounds(
                 0f, 0f, 2400f, 1080f, 3f, 84f);
         Assert.assertTrue(landscape.top > 1080f * .60f);
+        Assert.assertEquals(0f, landscape.left, .01f);
+        Assert.assertEquals(2400f, landscape.right, .01f);
         Assert.assertTrue(landscape.bottom <= 1080f - 84f);
         Assert.assertTrue(landscape.bottom - landscape.top >= 3f * 64f);
     }
@@ -89,6 +91,34 @@ public class MigratedClockBehaviorTest {
         for (WorldClockEntry entry : all) Assert.assertTrue(ids.add(entry.getId()));
         Assert.assertTrue(WorldClockCatalog.search("墨西哥").size() >= 4);
         Assert.assertFalse(WorldClockCatalog.search("America/New_York").isEmpty());
+    }
+
+    @Test
+    public void worldClockContentFitsLandscapeButOverflowsPortraitWithEndPadding() {
+        float landscapeInset = UltimateClockStyles.worldClockContentInset(
+                UltimateClockStyles.STYLE_DUAL_BLOCKS, 2560f, 1000f, 2.25f);
+        Assert.assertEquals(2560f * .029f, landscapeInset, .01f);
+        Assert.assertTrue(UltimateClockStyles.worldClockContentWidth(4, 2560f, 1440f, 2.25f)
+                + landscapeInset * 2f < 2560f);
+        float portraitInset = UltimateClockStyles.worldClockContentInset(
+                UltimateClockStyles.STYLE_DUAL_BLOCKS, 1440f, 1950f, 2.25f);
+        Assert.assertEquals(1440f * .055f, portraitInset, .01f);
+        Assert.assertTrue(UltimateClockStyles.worldClockContentWidth(4, 1440f, 2560f, 2.25f)
+                + portraitInset * 2f > 1440f);
+        Assert.assertEquals(0f, UltimateClockStyles.worldClockContentWidth(
+                0, 1440f, 2560f, 2.25f), 0f);
+    }
+
+    @Test
+    public void missingCountryFlagsUseANeutralGlobeWithoutChangingCityOrZone() {
+        WorldClockEntry unknown = new WorldClockEntry("test", "Test city", "", "GMT", null);
+        Assert.assertEquals("\uD83C\uDF10", unknown.getFlagEmoji());
+        Assert.assertEquals("Test city", unknown.getCity());
+        Assert.assertEquals("GMT", unknown.getZoneId());
+        Assert.assertEquals("\uD83C\uDDE8\uD83C\uDDF3", WorldClockCatalog.find("beijing").getFlagEmoji());
+        Assert.assertTrue(WorldClockCatalog.all().stream()
+                .filter(entry -> entry.getFlag().isEmpty())
+                .allMatch(entry -> "\uD83C\uDF10".equals(entry.getFlagEmoji())));
     }
 
     @Test

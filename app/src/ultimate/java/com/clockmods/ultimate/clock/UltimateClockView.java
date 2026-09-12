@@ -14,6 +14,10 @@ import android.text.format.DateFormat;
 import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.View;
+import android.view.MotionEvent;
+import android.view.GestureDetector;
+import android.widget.FrameLayout;
+import android.widget.HorizontalScrollView;
 
 import com.clockmods.R;
 import com.clockmods.LocaleManager;
@@ -29,6 +33,7 @@ import com.clockmods.sdk.clock.ClockStyle;
 import com.clockmods.sdk.clock.ClockStyleCapabilities;
 import com.clockmods.sdk.clock.ClockStyleMetadata;
 import com.clockmods.sdk.clock.ClockStyleRegistry;
+import com.clockmods.sdk.clock.ClockThemeTokens;
 import com.clockmods.sdk.clock.WorldClockEntry;
 import com.clockmods.time.NetworkTimeProvider;
 import com.clockmods.ui.DateFormatter;
@@ -50,7 +55,7 @@ import java.util.concurrent.Executors;
  * Lifecycle-aware host for SDK clock styles. Styles draw only through the Canvas contract; this
  * class owns time, preferences, accessibility, and foreground/background frame scheduling.
  */
-public class UltimateClockView extends View {
+public class UltimateClockView extends FrameLayout {
     private static final long MILLIS_PER_SECOND = 1000L;
     private static final long MINUTE_REFRESH_MILLIS = 60_000L;
     private static final long REDUCED_MOTION_CACHE_MILLIS = 1000L;
@@ -85,13 +90,15 @@ public class UltimateClockView extends View {
     private String lastContentDescription;
     private BackgroundRepository backgroundRepository;
     private final ClockTypography typography = new ClockTypography();
+    private ClockThemeTokens paletteTokens;
     private WorldClockRepository worldClockRepository;
     private List<WorldClockEntry> worldClocks = new ArrayList<WorldClockEntry>();
-    private float worldClockScroll;
-    private float worldClockTouchStartX;
-    private float worldClockTouchStartScroll;
-    private boolean worldClockDragging;
-    private boolean worldClockGestureActive;
+    private final HorizontalScrollView worldClockScroller;
+    private final View worldClockCards;
+    private ClockState worldClockState;
+    private ClockRenderContext worldClockContext;
+    private ClockThemeTokens worldClockTheme;
+    private GestureDetector gestureDetector;
     private String fontFamily = ClockPreferences.DEFAULT_FONT_FAMILY;
     private int fontWeight = FontCatalog.DEFAULT_WEIGHT;
     private float timeScale = 1f;
@@ -120,6 +127,44 @@ public class UltimateClockView extends View {
 
     public UltimateClockView(Context context, AttributeSet attrs) {
         super(context, attrs);
+        setWillNotDraw(false);
+        worldClockScroller = new HorizontalScrollView(context) {
+            @Override public boolean onInterceptTouchEvent(MotionEvent event) {
+                return hasScrollableCities() && super.onInterceptTouchEvent(event);
+            }
+
+            @Override public boolean onTouchEvent(MotionEvent event) {
+                return hasScrollableCities() && super.onTouchEvent(event);
+            }
+
+            private boolean hasScrollableCities() {
+                return canScrollHorizontally(-1) || canScrollHorizontally(1);
+            }
+        };
+        worldClockScroller.setHorizontalScrollBarEnabled(false);
+        worldClockScroller.setHorizontalFadingEdgeEnabled(false);
+        worldClockScroller.setClipToPadding(false);
+        worldClockScroller.setOverScrollMode(View.OVER_SCROLL_IF_CONTENT_SCROLLS);
+        worldClockCards = new View(context) {
+            @Override protected void onMeasure(int widthSpec, int heightSpec) {
+                int width = (int) Math.ceil(UltimateClockStyles.worldClockContentWidth(
+                        worldClocks.size(), UltimateClockView.this.getMeasuredWidth(),
+                        UltimateClockView.this.getMeasuredHeight(),
+                        getResources().getDisplayMetrics().density));
+                setMeasuredDimension(width, MeasureSpec.getSize(heightSpec));
+            }
+
+            @Override protected void onDraw(Canvas canvas) {
+                if (worldClockState != null && worldClockContext != null) {
+                    UltimateClockStyles.drawWorldClockCards(canvas, worldClockContext,
+                            worldClockState, worldClockTheme, getHeight());
+                }
+            }
+        };
+        worldClockScroller.addView(worldClockCards, new FrameLayout.LayoutParams(
+                LayoutParams.WRAP_CONTENT, LayoutParams.MATCH_PARENT));
+        addView(worldClockScroller, new LayoutParams(
+                LayoutParams.MATCH_PARENT, LayoutParams.MATCH_PARENT));
         styleRegistry = UltimateClockStyles.sharedRegistry();
         preferences = new UltimateClockPreferences(context);
         locale = Locale.getDefault();
@@ -145,7 +190,9 @@ public class UltimateClockView extends View {
                 && resolved.getMetadata().getCapabilities().supports(
                 ClockStyleCapabilities.Capability.WORLD_CLOCK)
                 ? worldClockRepository.getSelected() : new ArrayList<WorldClockEntry>();
-        worldClockScroll = 0f;
+        worldClockScroller.scrollTo(0, 0);
+        worldClockScroller.setVisibility(worldClocks.isEmpty() ? GONE : VISIBLE);
+        requestLayout();
         reloadTypography();
         invalidateAndReschedule();
     }
@@ -165,6 +212,9 @@ public class UltimateClockView extends View {
         dateScale = repository.getDateFontScale(styleId)
                 / ClockPreferences.DEFAULT_DATE_FONT_SCALE;
         supportingScale = repository.getSupportingFontScale(styleId);
+        ClockThemeTokens base = styleRegistry.resolveForApi(styleId, Build.VERSION.SDK_INT).getThemeTokens();
+        paletteTokens = ClockPalette.supports(styleId)
+                ? preferences.getPalette(styleId).applyTo(base) : base;
         typography.invalidate();
     }
 
@@ -183,6 +233,7 @@ public class UltimateClockView extends View {
             throw new IllegalArgumentException("A non-empty style registry is required");
         }
         styleRegistry = registry;
+        reloadTypography();
         invalidate();
     }
 
@@ -195,6 +246,7 @@ public class UltimateClockView extends View {
         if (styleId.length() == 0) styleId = UltimateClockPreferences.DEFAULT_STYLE_ID;
         if (preferences != null) preferences.setStyleId(styleId);
         reloadTypography();
+        requestLayout();
         invalidate();
     }
 
@@ -324,6 +376,7 @@ public class UltimateClockView extends View {
     /** Reserves room for a host overlay without shrinking the rendered background. */
     public void setBottomOverlayInset(float inset) {
         bottomOverlayInset = Math.max(0f, inset);
+        requestLayout();
         invalidate();
     }
 
@@ -391,7 +444,6 @@ public class UltimateClockView extends View {
 
     @Override protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
         super.onSizeChanged(width, height, oldWidth, oldHeight);
-        worldClockScroll = Math.min(worldClockScroll, maxWorldClockScroll());
         if (width != loadedWidth || height != loadedHeight) requestBackgroundReload();
     }
 
@@ -460,86 +512,67 @@ public class UltimateClockView extends View {
                 getResources().getDisplayMetrics().density,
                 TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 1f,
                             getResources().getDisplayMetrics()), now, reduced,
-                createBackground(now), bottomOverlayInset, worldClockScroll);
+                createBackground(now), bottomOverlayInset, 0f, true);
+        ClockThemeTokens theme = typography.apply(getContext(), paletteTokens, styleId,
+                fontFamily, fontWeight);
+        worldClockState = state;
+        worldClockContext = renderContext;
+        worldClockTheme = theme;
+        worldClockCards.invalidate();
         int saveCount = canvas.save();
         try {
-            style.getRenderer().render(canvas, renderContext, state,
-                    typography.apply(getContext(), style.getThemeTokens(), styleId,
-                            fontFamily, fontWeight));
+            style.getRenderer().render(canvas, renderContext, state, theme);
         } finally {
             canvas.restoreToCount(saveCount);
         }
         updateContentDescription(state, style);
     }
 
-    @Override public boolean onTouchEvent(android.view.MotionEvent event) {
-        if (worldClocks.isEmpty()) return super.onTouchEvent(event);
-        switch (event.getActionMasked()) {
-            case android.view.MotionEvent.ACTION_DOWN:
-                RectF strip = worldClockStripBounds();
-                if (event.getX() < strip.left || event.getX() > strip.right
-                        || event.getY() < strip.top || event.getY() > strip.bottom) {
-                    worldClockGestureActive = false;
-                    return super.onTouchEvent(event);
-                }
-                worldClockGestureActive = true;
-                worldClockTouchStartX = event.getX();
-                worldClockTouchStartScroll = worldClockScroll;
-                worldClockDragging = false;
-                if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(true);
-                return true;
-            case android.view.MotionEvent.ACTION_MOVE:
-                if (!worldClockGestureActive) return super.onTouchEvent(event);
-                float delta = worldClockTouchStartX - event.getX();
-                if (Math.abs(delta) > getResources().getDisplayMetrics().density * 4f) {
-                    worldClockDragging = true;
-                }
-                if (worldClockDragging) {
-                    worldClockScroll = Math.max(0f, Math.min(maxWorldClockScroll(),
-                            worldClockTouchStartScroll + delta));
-                    invalidate();
-                }
-                return true;
-            case android.view.MotionEvent.ACTION_UP:
-                if (!worldClockGestureActive) return super.onTouchEvent(event);
-                boolean dragged = worldClockDragging;
-                worldClockGestureActive = false;
-                worldClockDragging = false;
-                if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
-                if (dragged) {
-                    return true;
-                }
-                performClick();
-                return true;
-            case android.view.MotionEvent.ACTION_CANCEL:
-                if (!worldClockGestureActive) return super.onTouchEvent(event);
-                worldClockGestureActive = false;
-                worldClockDragging = false;
-                if (getParent() != null) getParent().requestDisallowInterceptTouchEvent(false);
-                return true;
-            default:
-                return true;
+    /** Observe double taps before dispatching the stream to the native city scroller. */
+    public void setGestureDetector(GestureDetector detector) {
+        gestureDetector = detector;
+    }
+
+    @Override public boolean dispatchTouchEvent(MotionEvent event) {
+        if (gestureDetector != null) gestureDetector.onTouchEvent(event);
+        if (event.getActionMasked() == MotionEvent.ACTION_DOWN
+                && worldClockScroller.getVisibility() == VISIBLE
+                && worldClockStripBounds().contains(event.getX(), event.getY())
+                && getParent() != null) {
+            // Keep the outer destination pager from stealing city gestures, even when they fit.
+            getParent().requestDisallowInterceptTouchEvent(true);
         }
+        boolean handled = super.dispatchTouchEvent(event);
+        if ((event.getActionMasked() == MotionEvent.ACTION_UP
+                || event.getActionMasked() == MotionEvent.ACTION_CANCEL) && getParent() != null) {
+            getParent().requestDisallowInterceptTouchEvent(false);
+        }
+        return handled;
     }
 
-    @Override public boolean performClick() {
-        super.performClick();
-        return true;
-    }
-
-    private float maxWorldClockScroll() {
-        if (worldClocks.isEmpty() || getWidth() <= 0 || getHeight() <= 0) return 0f;
+    @Override protected void onMeasure(int widthSpec, int heightSpec) {
+        super.onMeasure(widthSpec, heightSpec);
+        if (worldClockScroller.getVisibility() == GONE) return;
+        RectF strip = worldClockStripBounds();
         float density = getResources().getDisplayMetrics().density;
-        float cardWidth = UltimateClockStyles.worldClockCardWidth(
-                getWidth(), getHeight(), density);
-        float gap = UltimateClockStyles.worldClockCardGap(getWidth(), getHeight(), density);
-        float contentWidth = worldClocks.size() * cardWidth
-                + Math.max(0, worldClocks.size() - 1) * gap;
-        return Math.max(0f, contentWidth - worldClockStripBounds().width());
+        float faceHeight = strip.top - Math.min(density * 8f, getMeasuredHeight() * .025f);
+        int inset = Math.round(UltimateClockStyles.worldClockContentInset(styleId,
+                getMeasuredWidth(), faceHeight, density));
+        worldClockScroller.setPadding(inset, 0, inset, 0);
+        worldClockScroller.measure(MeasureSpec.makeMeasureSpec(getMeasuredWidth(), MeasureSpec.EXACTLY),
+                MeasureSpec.makeMeasureSpec(Math.round(strip.height()), MeasureSpec.EXACTLY));
+    }
+
+    @Override protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+        super.onLayout(changed, left, top, right, bottom);
+        if (worldClockScroller.getVisibility() == GONE) return;
+        RectF strip = worldClockStripBounds();
+        worldClockScroller.layout(0, Math.round(strip.top), getMeasuredWidth(),
+                Math.round(strip.top) + worldClockScroller.getMeasuredHeight());
     }
 
     private RectF worldClockStripBounds() {
-        return UltimateClockStyles.worldClockStripBounds(0f, 0f, getWidth(), getHeight(),
+        return UltimateClockStyles.worldClockStripBounds(0f, 0f, getMeasuredWidth(), getMeasuredHeight(),
                 getResources().getDisplayMetrics().density, bottomOverlayInset);
     }
 

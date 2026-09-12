@@ -256,4 +256,10 @@
     <string name="ultimate_anti_burn_auto_dim_summary">Reduces page brightness while protection is active</string>
     <string name="ultimate_minutes_value">%1$d min</string>
     <string name="ultimate_dp_value">%1$d dp</string>
+    <string name="ultimate_style_palette">Theme palette</string>
+    <string name="ultimate_style_palette_summary">Customize this theme independently; text adapts automatically</string>
+    <string name="ultimate_palette_background">Background</string>
+    <string name="ultimate_palette_panel">Panels</string>
+    <string name="ultimate_palette_accent">Accent</string>
+    <string name="ultimate_palette_adaptive">Text adapts to each surface. Background color applies when using the theme background.</string>
 </resources>

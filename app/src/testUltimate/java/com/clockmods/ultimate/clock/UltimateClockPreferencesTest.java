@@ -121,6 +121,22 @@ public class UltimateClockPreferencesTest {
                 preferences.getBackgroundMode());
     }
 
+    @Test public void palettesPersistIndependentlyAndResetWithDefaults() {
+        String orbit = UltimateClockStyles.STYLE_ORBIT;
+        String dual = UltimateClockStyles.STYLE_DUAL_BLOCKS;
+        preferences.setPalette(orbit, new ClockPalette(0xFFFFFFFF, 0xFF123456, 0xFF000000));
+        preferences.setPalette(dual, new ClockPalette(0xFF345678, 0xFFEEEEEE, 0xFFFF0000));
+        UltimateClockPreferences reopened = new UltimateClockPreferences(stored);
+        Assert.assertEquals(0xFFFFFFFF, reopened.getPalette(orbit).background);
+        Assert.assertEquals(0xFF000000, reopened.getPalette(orbit).accent);
+        Assert.assertEquals(0xFFEEEEEE, reopened.getPalette(dual).panel);
+        Assert.assertEquals(ClockPalette.DEFAULT.background,
+                reopened.getPalette(UltimateClockStyles.STYLE_BLEND).background);
+        reopened.restoreDefaults();
+        Assert.assertEquals(ClockPalette.DEFAULT.background, reopened.getPalette(orbit).background);
+        Assert.assertEquals(ClockPalette.DEFAULT.panel, reopened.getPalette(dual).panel);
+    }
+
     private void assertStoredMotion(String storedValue, ClockState.SecondHandMotion expected) {
         stored.edit().putString(UltimateClockPreferences.KEY_SECOND_MOTION, storedValue).commit();
         Assert.assertEquals(expected, preferences.getSecondHandMotion());
