@@ -1,8 +1,14 @@
 .qweather.properties
 qweather.properties
-# Gradle
+# Gradle local caches and generated build output
+# Includes .gradle/user-home, .gradle/android-user-home and .gradle/api-check.
 .gradle/
+.gradle-user-home/
+.gradle-cache/
+.kotlin/
+gradle-app.setting
 **/build/
+# Keep Gradle build scripts, gradle.properties and gradle/wrapper/ tracked.
 
 # Local Android SDK configuration
 local.properties

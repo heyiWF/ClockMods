@@ -105,7 +105,7 @@ ClockMods 不含账号、广告、云同步或用户行为统计，所有数据�
 
 ## QWeather 配置
 
-复制 `qweather.properties.example` 为 `qweather.properties`，填写 API Host、凭据 ID、项目 ID 及 PKCS#8 Ed25519 私钥的 Base64 内容。天气图标来自 [QWeather Icons](https://icons.qweather.com)（CC BY 4.0），已随项目打包 fill 与 line 两种风格。
+复制 `qweather.properties.example` 为 `qweather.properties`，填写 API Host、凭据 ID、开发者 ID、项目 ID 及 PKCS#8 Ed25519 私钥的 Base64 内容。天气图标来自 [QWeather Icons](https://icons.qweather.com)（CC BY 4.0），已随项目打包 fill 与 line 两种风格。
 
 ## 日历数据
 

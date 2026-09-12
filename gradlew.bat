@@ -10,6 +10,10 @@ SET APP_HOME=%DIRNAME%
 
 FOR %%i IN ("%APP_HOME%") DO SET APP_HOME=%%~fi
 
+@REM Keep build caches local to this project unless explicitly overridden.
+IF NOT DEFINED GRADLE_USER_HOME SET "GRADLE_USER_HOME=%APP_HOME%\.gradle\user-home"
+IF NOT DEFINED ANDROID_USER_HOME SET "ANDROID_USER_HOME=%APP_HOME%\.gradle\android-user-home"
+
 SET DEFAULT_JVM_OPTS="-Xmx64m" "-Xms64m"
 
 IF DEFINED JAVA_HOME GOTO findJavaFromJavaHome
