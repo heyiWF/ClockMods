@@ -5,6 +5,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.content.res.Configuration;
+import android.graphics.drawable.ColorDrawable;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -33,6 +34,7 @@ import com.clockmods.ui.SettingsDialog;
 import com.clockmods.pro.chime.HourlyChimeController;
 import com.clockmods.pro.chime.RadialChimeView;
 import com.google.android.material.bottomnavigation.BottomNavigationView;
+import com.google.android.material.color.MaterialColors;
 
 import java.io.IOException;
 import java.io.InputStream;
@@ -77,6 +79,7 @@ public final class ProMainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         ExperienceBridge.applyThemeFeatures(this);
         super.onCreate(savedInstanceState);
+        getWindow().setBackgroundDrawable(new ColorDrawable(surfaceColor()));
         applyScreenOrientation();
         enableEdgeToEdge();
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
@@ -231,8 +234,21 @@ public final class ProMainActivity extends AppCompatActivity {
         navigation.setVisibility(immersive ? View.GONE : View.VISIBLE);
         applyPagerNavigationSpace(immersive);
         getWindow().setDecorFitsSystemWindows(!immersive);
+        WindowInsetsController controller = getWindow().getInsetsController();
+        if (controller != null) {
+            int lightBars = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
+                    | WindowInsetsController.APPEARANCE_LIGHT_NAVIGATION_BARS;
+            controller.setSystemBarsAppearance(
+                    !immersive && MaterialColors.isColorLight(surfaceColor()) ? lightBars : 0,
+                    lightBars);
+        }
         if (immersive) hideSystemBars();
         else showSystemBars();
+    }
+
+    private int surfaceColor() {
+        return MaterialColors.getColor(this, com.google.android.material.R.attr.colorSurface,
+                "ProMainActivity");
     }
 
     private void applyPagerNavigationSpace(boolean immersive) {

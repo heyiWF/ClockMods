@@ -2,6 +2,7 @@
 <LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
     android:layout_width="match_parent"
     android:layout_height="match_parent"
+    android:background="?attr/colorSurface"
     android:gravity="center_horizontal"
     android:orientation="vertical"
     android:padding="24dp">
@@ -21,6 +22,7 @@
         android:fontFamily="sans-serif-light"
         android:gravity="center"
         android:text="07:30"
+        android:textColor="?attr/colorOnSurface"
         android:textSize="72sp" />
 
     <com.google.android.material.materialswitch.MaterialSwitch
@@ -35,6 +37,7 @@
         android:layout_height="wrap_content"
         android:gravity="center"
         android:padding="12dp"
+        android:textColor="?attr/colorOnSurfaceVariant"
         android:textAppearance="?attr/textAppearanceBodyLarge" />
 
     <com.google.android.material.button.MaterialButton
