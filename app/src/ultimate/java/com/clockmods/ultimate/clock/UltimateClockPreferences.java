@@ -110,14 +110,20 @@ public final class UltimateClockPreferences {
         if (!ClockPalette.supports(styleId)) return defaults;
         return new ClockPalette(preferences.getInt("palette_background__" + styleId, defaults.background),
                 preferences.getInt("palette_panel__" + styleId, defaults.panel),
-                preferences.getInt("palette_accent__" + styleId, defaults.accent));
+                preferences.getInt("palette_accent__" + styleId, defaults.accent),
+                preferences.getBoolean("palette_blur__" + styleId, false),
+                preferences.getInt("palette_blur_strength__" + styleId, defaults.blurStrength),
+                preferences.getInt("palette_blur_brightness__" + styleId, defaults.blurBrightness));
     }
 
     public void setPalette(String styleId, ClockPalette palette) {
         if (!ClockPalette.supports(styleId) || palette == null) return;
         preferences.edit().putInt("palette_background__" + styleId, palette.background)
                 .putInt("palette_panel__" + styleId, palette.panel)
-                .putInt("palette_accent__" + styleId, palette.accent).apply();
+                .putInt("palette_accent__" + styleId, palette.accent)
+                .putBoolean("palette_blur__" + styleId, palette.gaussianBlur)
+                .putInt("palette_blur_strength__" + styleId, palette.blurStrength)
+                .putInt("palette_blur_brightness__" + styleId, palette.blurBrightness).apply();
     }
 
     public void restoreDefaults() {

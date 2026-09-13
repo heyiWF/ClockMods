@@ -124,15 +124,27 @@ public class UltimateClockPreferencesTest {
     @Test public void palettesPersistIndependentlyAndResetWithDefaults() {
         String orbit = UltimateClockStyles.STYLE_ORBIT;
         String dual = UltimateClockStyles.STYLE_DUAL_BLOCKS;
-        preferences.setPalette(orbit, new ClockPalette(0xFFFFFFFF, 0xFF123456, 0xFF000000));
+        preferences.setPalette(orbit, new ClockPalette(0xFFFFFFFF, 0xFF123456, 0xFF000000)
+                .withGaussianBlur(true).withBlurStrength(75).withBlurBrightness(68));
         preferences.setPalette(dual, new ClockPalette(0xFF345678, 0xFFEEEEEE, 0xFFFF0000));
         UltimateClockPreferences reopened = new UltimateClockPreferences(stored);
+        Assert.assertTrue(reopened.getPalette(orbit).gaussianBlur);
+        Assert.assertEquals(75, reopened.getPalette(orbit).blurStrength);
+        Assert.assertEquals(68, reopened.getPalette(orbit).blurBrightness);
+        Assert.assertEquals(ClockPalette.DEFAULT.blurStrength, reopened.getPalette(dual).blurStrength);
+        Assert.assertEquals(ClockPalette.DEFAULT.blurBrightness, reopened.getPalette(dual).blurBrightness);
+        Assert.assertFalse(reopened.getPalette(dual).gaussianBlur);
+        reopened.setBackgroundMode(UltimateClockPreferences.BACKGROUND_MODE_COLOR);
+        Assert.assertTrue(reopened.getPalette(orbit).gaussianBlur);
         Assert.assertEquals(0xFFFFFFFF, reopened.getPalette(orbit).background);
         Assert.assertEquals(0xFF000000, reopened.getPalette(orbit).accent);
         Assert.assertEquals(0xFFEEEEEE, reopened.getPalette(dual).panel);
         Assert.assertEquals(ClockPalette.DEFAULT.background,
                 reopened.getPalette(UltimateClockStyles.STYLE_BLEND).background);
         reopened.restoreDefaults();
+        Assert.assertFalse(reopened.getPalette(orbit).gaussianBlur);
+        Assert.assertEquals(ClockPalette.DEFAULT.blurStrength, reopened.getPalette(orbit).blurStrength);
+        Assert.assertEquals(ClockPalette.DEFAULT.blurBrightness, reopened.getPalette(orbit).blurBrightness);
         Assert.assertEquals(ClockPalette.DEFAULT.background, reopened.getPalette(orbit).background);
         Assert.assertEquals(ClockPalette.DEFAULT.panel, reopened.getPalette(dual).panel);
     }

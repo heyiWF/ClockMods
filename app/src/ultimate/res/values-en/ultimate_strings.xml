@@ -257,6 +257,10 @@
     <string name="ultimate_minutes_value">%1$d min</string>
     <string name="ultimate_dp_value">%1$d dp</string>
     <string name="ultimate_style_palette">Theme palette</string>
+    <string name="ultimate_palette_gaussian_blur">Gaussian blur</string>
+    <string name="ultimate_palette_blur_strength">Blur strength</string>
+    <string name="ultimate_palette_blur_brightness">Blur brightness</string>
+    <string name="ultimate_palette_gaussian_blur_summary">Live card blur</string>
     <string name="ultimate_style_palette_summary">Customize this theme independently; text adapts automatically</string>
     <string name="ultimate_palette_background">Background</string>
     <string name="ultimate_palette_panel">Panels</string>

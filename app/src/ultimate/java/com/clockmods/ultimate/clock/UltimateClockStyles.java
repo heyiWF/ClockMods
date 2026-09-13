@@ -114,11 +114,11 @@ public final class UltimateClockStyles {
 
     /** Shared card artwork for the native scrolling host and standalone theme previews. */
     static void drawWorldClockCards(Canvas canvas, ClockRenderContext context, ClockState state,
-            ClockThemeTokens theme, float height) {
+            ClockThemeTokens theme, float height, float originX, float originY) {
         int marker = RendererBase.beginPaintFrame();
         try {
             MigratedRenderer.drawWorldCards(canvas, context, theme, state,
-                    RendererBase.supportingTypeface(theme, Typeface.BOLD), height);
+                    RendererBase.supportingTypeface(theme, Typeface.BOLD), height, originX, originY);
         } finally {
             RendererBase.endPaintFrame(marker);
         }
@@ -486,12 +486,15 @@ public final class UltimateClockStyles {
         @Override public void render(Canvas canvas, ClockRenderContext context, ClockState state,
                 ClockThemeTokens theme) {
             int paintMarker = RendererBase.beginPaintFrame();
+            boolean previousPhotoText = RendererBase.PAINT_POOL.get().photoText;
+            RendererBase.PAINT_POOL.get().photoText = false;
             int saveCount = canvas.save();
             try {
                 delegate.render(canvas, context, state, theme);
             } finally {
                 canvas.restoreToCount(saveCount);
                 RendererBase.endPaintFrame(paintMarker);
+                RendererBase.PAINT_POOL.get().photoText = previousPhotoText;
             }
         }
     }
@@ -532,6 +535,7 @@ public final class UltimateClockStyles {
         }
 
         private static final class PaintPool {
+            boolean photoText;
             private final List<Paint> paints = new ArrayList<Paint>();
             private int nextIndex;
             private int frameDepth;
@@ -585,6 +589,11 @@ public final class UltimateClockStyles {
 
         protected static void background(Canvas canvas, ClockRenderContext context,
                 ClockThemeTokens theme) {
+            background(canvas, context, theme, true);
+        }
+
+        protected static void background(Canvas canvas, ClockRenderContext context,
+                ClockThemeTokens theme, boolean respectDimming) {
             ClockBackground hostBackground = context.getBackground();
             if (hostBackground != null && !hostBackground.usesThemeSurface()) {
                 float left = context.getLeft();
@@ -610,7 +619,7 @@ public final class UltimateClockStyles {
                 } else {
                     canvas.drawRect(left, top, right, bottom, fill(hostBackground.getColor()));
                 }
-                if (hostBackground.isDimmed()) {
+                if (hostBackground.isDimmed() && respectDimming) {
                     canvas.drawRect(left, top, right, bottom, fill(0x66000000));
                 }
                 return;
@@ -634,7 +643,24 @@ public final class UltimateClockStyles {
             p.setTextSize(size);
             p.setTextAlign(align);
             p.setTypeface(face);
+            if (PAINT_POOL.get().photoText) {
+                photoTextOutline(p, size);
+                canvas.drawText(value, x, baseline, p);
+                photoTextFill(p, color, size);
+            }
             canvas.drawText(value, x, baseline, p);
+        }
+
+        private static void photoTextOutline(Paint paint, float size) {
+            paint.setStyle(Paint.Style.STROKE);
+            paint.setStrokeWidth(Math.max(1f, Math.min(2f, size * .012f)));
+            paint.setColor(0xE6000000);
+        }
+
+        private static void photoTextFill(Paint paint, int color, float size) {
+            paint.setStyle(Paint.Style.FILL);
+            paint.setColor(color);
+            paint.setShadowLayer(Math.max(2f, size * .035f), 0f, 1f, 0x99000000);
         }
 
         protected static float fitText(String value, float maxWidth, float size, Typeface face) {
@@ -757,6 +783,11 @@ public final class UltimateClockStyles {
             p.setTextSize(size);
             p.setTextAlign(align);
             p.setTypeface(face);
+            if (PAINT_POOL.get().photoText) {
+                photoTextOutline(p, size);
+                ClockTimeText.draw(canvas, value, x, baseline, p);
+                photoTextFill(p, color, size);
+            }
             ClockTimeText.draw(canvas, value, x, baseline, p);
         }
 
@@ -1686,12 +1717,24 @@ public final class UltimateClockStyles {
 
     /** The five migrated compositions, measured from the supplied 16:9 reference captures. */
     private abstract static class MigratedRenderer extends RendererBase {
+        private GaussianGlass glass;
         protected abstract int mode();
+
+        private void panel(Canvas canvas, RectF bounds, float rx, float ry, int color) {
+            if (glass == null) canvas.drawRoundRect(bounds, rx, ry, fill(color));
+            else glass.roundRect(canvas, bounds, rx, ry, color, 0f, 0f, 0f);
+        }
+
+        private void bubble(Canvas canvas, float x, float y, float radius, int color) {
+            if (glass == null) canvas.drawCircle(x, y, radius, fill(color));
+            else glass.circle(canvas, x, y, radius, color);
+        }
 
         @Override public final void render(Canvas canvas, ClockRenderContext context,
                 ClockState state, ClockThemeTokens theme) {
-            background(canvas, context, theme);
-            ClockPalette colors = ClockPalette.fromTokens(theme);
+            glass = GaussianGlass.create(context, theme);
+            background(canvas, context, theme, glass == null);
+            ClockPalette colors = glass == null ? ClockPalette.fromTokens(theme) : glass.palette();
             if (context.getBackground() != null
                     && context.getBackground().getMode() == ClockBackground.Mode.COLOR) {
                 colors = colors.withColor(0, context.getBackground().getColor());
@@ -1754,8 +1797,8 @@ public final class UltimateClockStyles {
                         context.getRight() - marginX, context.getBottom() - marginY);
             }
             float radius = Math.min(first.width(), first.height()) * .075f;
-            canvas.drawRoundRect(first, radius, radius, fill(colors.panel));
-            canvas.drawRoundRect(second, radius, radius, fill(colors.accent));
+            panel(canvas, first, radius, radius, colors.panel);
+            panel(canvas, second, radius, radius, colors.accent);
 
             int hourValue = c.get(Calendar.HOUR_OF_DAY);
             if (!state.isUse24Hour()) {
@@ -1839,13 +1882,18 @@ public final class UltimateClockStyles {
                 double rad = Math.toRadians(angle);
                 float dotX = cx + (float) Math.cos(rad) * outer;
                 float dotY = cy + (float) Math.sin(rad) * outer;
-                canvas.drawCircle(dotX, dotY, Math.max(context.getDensity() * 4f, h * .0105f),
-                        fill(colors.accent));
+                bubble(canvas, dotX, dotY, Math.max(context.getDensity() * 4f, h * .0105f), colors.accent);
             }
             float dialSize = fitText(time, outer * 1.90f,
                     h * .278f * state.getTimeScale(), face);
-            drawTime(canvas, time, cx, centeredBaseline(cy, dialSize, face), dialSize,
-                    colors.onBackground, Paint.Align.CENTER, face);
+            boolean previousPhotoText = RendererBase.PAINT_POOL.get().photoText;
+            RendererBase.PAINT_POOL.get().photoText = glass != null;
+            try {
+                drawTime(canvas, time, cx, centeredBaseline(cy, dialSize, face), dialSize,
+                        colors.onBackground, Paint.Align.CENTER, face);
+            } finally {
+                RendererBase.PAINT_POOL.get().photoText = previousPhotoText;
+            }
             drawDate(canvas, context, state, context.getRight() - w * .029f,
                     context.getTop() + h * .072f, w * .46f, Paint.Align.RIGHT, colors.onBackground,
                     supporting, Math.min(w, h) * .032f);
@@ -1888,7 +1936,7 @@ public final class UltimateClockStyles {
                     context.getTop() + h * .218f, context.getLeft() + w * .374f,
                     context.getTop() + h * .829f);
             float hourRadius = h * .050f;
-            canvas.drawRoundRect(hourPanel, hourRadius, hourRadius, fill(colors.panel));
+            panel(canvas, hourPanel, hourRadius, hourRadius, colors.panel);
             float minuteX = context.getLeft() + w * .585f;
             float minuteY = context.getTop() + h * .516f;
             float minuteRadius = h * .315f;
@@ -1896,7 +1944,7 @@ public final class UltimateClockStyles {
             float secondX = context.getLeft() + w * .884f;
             float secondY = context.getTop() + h * .522f;
             float secondRadius = h * .143f;
-            canvas.drawCircle(secondX, secondY, secondRadius, fill(colors.panelAlt));
+            bubble(canvas, secondX, secondY, secondRadius, colors.panelAlt);
 
             float numberSize = h * .235f * state.getTimeScale();
             float hourSize = fitText(hours, hourPanel.width() * .68f, numberSize, face);
@@ -1944,7 +1992,7 @@ public final class UltimateClockStyles {
                     context.getTop() + geometry[0], context.getRight() - w * .09f,
                     context.getTop() + geometry[1]);
             float hourCorner = Math.min(hour.width(), hour.height()) * .11f;
-            canvas.drawRoundRect(hour, hourCorner, hourCorner, fill(colors.panel));
+            panel(canvas, hour, hourCorner, hourCorner, colors.panel);
 
             float minuteX = context.getLeft() + w * .42f;
             float minuteY = context.getTop() + geometry[2];
@@ -1980,7 +2028,7 @@ public final class UltimateClockStyles {
                 float desiredX = minuteX + minuteRadius + sr + geometry[4] * .40f;
                 float sx = Math.min(context.getRight() - w * .03f - sr, desiredX);
                 float sy = minuteY + minuteRadius * .32f;
-                canvas.drawCircle(sx, sy, sr, fill(colors.panelAlt));
+                bubble(canvas, sx, sy, sr, colors.panelAlt);
                 float ss = fitText("00", sr * 1.28f, sr * .76f, supporting);
                 text(canvas, String.format(Locale.US, "%02d", c.get(Calendar.SECOND)), sx,
                         centeredBaseline(sy, ss, supporting), ss, colors.onPanelAlt,
@@ -2010,8 +2058,8 @@ public final class UltimateClockStyles {
                         context.getRight() - w * .05f, context.getBottom() - h * .035f);
             }
             float radius = Math.min(analog.width(), analog.height()) * .06f;
-            canvas.drawRoundRect(analog, radius, radius, fill(colors.panel));
-            canvas.drawRoundRect(digital, radius, radius, fill(colors.accent));
+            panel(canvas, analog, radius, radius, colors.panel);
+            panel(canvas, digital, radius, radius, colors.accent);
             drawAnalog(canvas, context, state, c, analog, colors);
             float timeSize = fitText(time, digital.width() * .88f,
                     Math.min(digital.height() * .30f, digital.width() * .29f)
@@ -2046,7 +2094,7 @@ public final class UltimateClockStyles {
             float radius = Math.min(panel.width() * .46f, panel.height() * .44f);
             float cx = panel.centerX();
             float cy = panel.centerY();
-            canvas.drawCircle(cx, cy, radius, fill(colors.panelAlt));
+            bubble(canvas, cx, cy, radius, colors.panelAlt);
             for (int index = 0; index < 60; index++) {
                 boolean major = index % 5 == 0;
                 double angle = Math.toRadians(index * 6f - 90f);
@@ -2099,11 +2147,14 @@ public final class UltimateClockStyles {
             }
             int save = canvas.save();
             canvas.rotate(-2f, outer.centerX(), outer.centerY());
-            canvas.drawRoundRect(outer, outer.height() * .085f, outer.height() * .085f,
-                    fill(colors.panel));
+            if (glass == null) {
+                panel(canvas, outer, outer.height() * .085f, outer.height() * .085f, colors.panel);
+            } else {
+                glass.roundRect(canvas, outer, outer.height() * .085f, outer.height() * .085f,
+                        colors.panel, 0f, 0f, -2f);
+            }
             canvas.restoreToCount(save);
-            canvas.drawRoundRect(ribbon, ribbon.height() * .5f, ribbon.height() * .5f,
-                    fill(colors.accent));
+            panel(canvas, ribbon, ribbon.height() * .5f, ribbon.height() * .5f, colors.accent);
             float timeX = ribbon.left + ribbon.width() * .055f;
             float timeSize = fitText(time, ribbon.width() * (secondsVisible(state) ? .58f : .86f),
                     Math.min(ribbon.height() * .56f, w * .30f) * state.getTimeScale(), face);
@@ -2139,8 +2190,14 @@ public final class UltimateClockStyles {
         private void drawDate(Canvas canvas, ClockRenderContext context, ClockState state,
                 float x, float baseline,
                 float maxWidth, Paint.Align align, int color, Typeface face, float size) {
-            readableDate(canvas, context, state, x, baseline, maxWidth, size, color, align,
-                    face, context.getHeight() > context.getWidth());
+            boolean previous = RendererBase.PAINT_POOL.get().photoText;
+            RendererBase.PAINT_POOL.get().photoText = glass != null && (mode() == 1 || mode() == 2 || mode() == 4);
+            try {
+                readableDate(canvas, context, state, x, baseline, maxWidth, size, color, align,
+                        face, context.getHeight() > context.getWidth());
+            } finally {
+                RendererBase.PAINT_POOL.get().photoText = previous;
+            }
         }
 
         /** Draws the Gregorian date above its lunar counterpart, both at one readable size. */
@@ -2156,8 +2213,14 @@ public final class UltimateClockStyles {
                 Typeface face, float size) {
             String value = contextText(state);
             if (value.length() == 0) return;
-            readableText(canvas, context, value, x, baseline, maxWidth,
-                    size * state.getSupportingScale(), 12f, color, align, face);
+            boolean previous = RendererBase.PAINT_POOL.get().photoText;
+            RendererBase.PAINT_POOL.get().photoText = glass != null && (mode() == 1 || mode() == 2 || mode() == 4);
+            try {
+                readableText(canvas, context, value, x, baseline, maxWidth,
+                        size * state.getSupportingScale(), 12f, color, align, face);
+            } finally {
+                RendererBase.PAINT_POOL.get().photoText = previous;
+            }
         }
 
         private static boolean secondsVisible(ClockState state) {
@@ -2170,7 +2233,7 @@ public final class UltimateClockStyles {
             return Locale.CHINESE.getLanguage().equals(language);
         }
 
-        private static void drawScallopedCircle(Canvas canvas, float cx, float cy,
+        private void drawScallopedCircle(Canvas canvas, float cx, float cy,
                 float radius, int color) {
             android.graphics.Path path = new android.graphics.Path();
             final int points = 96;
@@ -2182,7 +2245,8 @@ public final class UltimateClockStyles {
                 if (index == 0) path.moveTo(x, y); else path.lineTo(x, y);
             }
             path.close();
-            canvas.drawPath(path, fill(color));
+            if (glass == null) canvas.drawPath(path, fill(color));
+            else glass.path(canvas, path, color);
         }
 
         private void drawWorldStrip(Canvas canvas, ClockRenderContext context,
@@ -2209,13 +2273,16 @@ public final class UltimateClockStyles {
             int save = canvas.save();
             canvas.clipRect(strip.left, top, strip.right, bottom);
             canvas.translate(strip.left + inset - scroll, top);
-            drawWorldCards(canvas, context, theme, state, supporting, bottom - top);
+            drawWorldCards(canvas, context, theme, state, supporting, bottom - top,
+                    strip.left + inset - scroll, top);
             canvas.restoreToCount(save);
         }
 
         private static void drawWorldCards(Canvas canvas, ClockRenderContext context,
-                ClockThemeTokens theme, ClockState state, Typeface supporting, float height) {
-            ClockPalette colors = ClockPalette.fromTokens(theme);
+                ClockThemeTokens theme, ClockState state, Typeface supporting, float height,
+                float originX, float originY) {
+            GaussianGlass glass = GaussianGlass.create(context, theme);
+            ClockPalette colors = glass == null ? ClockPalette.fromTokens(theme) : glass.palette();
             float unit = Math.min(context.getWidth(), context.getHeight());
             float cardWidth = worldClockCardWidth(context.getWidth(), context.getHeight(),
                     context.getDensity());
@@ -2223,15 +2290,19 @@ public final class UltimateClockStyles {
                     context.getDensity());
             int save = canvas.save();
             Typeface timeFace = displayTypeface(theme, Typeface.BOLD);
+            int cardIndex = 0;
             for (WorldClockEntry entry : state.getWorldClocks()) {
+                float cardOriginX = originX + cardIndex++ * (cardWidth + gap);
                 RectF card = new RectF(0f, 0f, cardWidth, height);
                 if (canvas.quickReject(card)) {
                     canvas.translate(cardWidth + gap, 0f);
                     continue;
                 }
                 float radius = Math.min(context.getDensity() * 20f, card.height() * .18f);
-                canvas.drawRoundRect(card, radius, radius,
-                        fill(colors.panel));
+                if (glass != null) colors = glass.paletteAt(cardOriginX, originY, cardWidth, height);
+                if (glass == null) canvas.drawRoundRect(card, radius, radius, fill(colors.panel));
+                else glass.roundRect(canvas, card, radius, radius, colors.panel,
+                        cardOriginX, originY, 0f);
                 float padding = cardWidth * .09f;
                 float contentWidth = cardWidth - padding * 2f;
                 float supportScale = state.getSupportingScale();

@@ -7,6 +7,7 @@ import android.content.SharedPreferences;
 import android.content.res.ColorStateList;
 import android.content.res.Configuration;
 import android.graphics.Canvas;
+import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Rect;
@@ -75,6 +76,7 @@ import com.clockmods.pro.style.CalendarStyle;
 import com.clockmods.pro.style.CalendarStyleMetadata;
 import com.clockmods.pro.style.UltimateCalendarStyles;
 import com.clockmods.sdk.clock.ClockRenderContext;
+import com.clockmods.sdk.clock.ClockBackground;
 import com.clockmods.sdk.clock.ClockState;
 import com.clockmods.sdk.clock.ClockStyle;
 import com.clockmods.sdk.clock.ClockStyleCapabilities;
@@ -2643,19 +2645,50 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         UltimateThemePreviewView preview = new UltimateThemePreviewView(this, style);
         content.addView(preview, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(130)));
+        boolean imageBackground = UltimateClockPreferences.BACKGROUND_MODE_IMAGE.equals(
+                ultimatePreferences.getBackgroundMode()) && repository.hasImage();
+        LinearLayout solidControls = new LinearLayout(this);
+        solidControls.setOrientation(LinearLayout.VERTICAL);
+        LinearLayout blurControls = new LinearLayout(this);
+        boolean wideBlurControls = getResources().getConfiguration().screenWidthDp >= 600
+                && getResources().getConfiguration().screenWidthDp
+                > getResources().getConfiguration().screenHeightDp;
+        blurControls.setOrientation(wideBlurControls ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
+        MaterialSwitch blurSwitch = imageBackground ? addSwitch(content,
+                R.string.ultimate_palette_gaussian_blur, R.string.ultimate_palette_gaussian_blur_summary,
+                draft[0].gaussianBlur, enabled -> {
+                    draft[0] = draft[0].withGaussianBlur(enabled);
+                    solidControls.setVisibility(enabled ? View.GONE : View.VISIBLE);
+                    blurControls.setVisibility(enabled ? View.VISIBLE : View.GONE);
+                    preview.setPalette(draft[0]);
+                }) : null;
+        solidControls.setVisibility(imageBackground && draft[0].gaussianBlur ? View.GONE : View.VISIBLE);
+        blurControls.setVisibility(imageBackground && draft[0].gaussianBlur ? View.VISIBLE : View.GONE);
+        content.addView(blurControls);
+        Slider strengthSlider = addBlurSlider(blurControls, R.string.ultimate_palette_blur_strength,
+                draft[0].blurStrength, percent -> {
+                    draft[0] = draft[0].withBlurStrength(percent);
+                    preview.setPalette(draft[0]);
+                });
+        Slider brightnessSlider = addBlurSlider(blurControls, R.string.ultimate_palette_blur_brightness,
+                draft[0].blurBrightness, percent -> {
+                    draft[0] = draft[0].withBlurBrightness(percent);
+                    preview.setPalette(draft[0]);
+                });
+        content.addView(solidControls);
         ColorPickerView picker = new ColorPickerView(this);
         picker.setColor(draft[0].background);
         picker.setAccessibilityLabel(getString(labels[0]));
-        addSegmented(content, labels, 0, selected -> {
+        addSegmented(solidControls, labels, 0, selected -> {
             role[0] = selected;
             picker.setColor(draft[0].color(selected));
             picker.setAccessibilityLabel(getString(labels[selected]));
         });
-        content.addView(picker, new LinearLayout.LayoutParams(
+        solidControls.addView(picker, new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(180)));
         TextView hint = label(R.string.ultimate_palette_adaptive, 12, false);
         hint.setPadding(0, dp(12), 0, 0);
-        content.addView(hint);
+        solidControls.addView(hint);
         picker.setOnColorChangedListener(color -> {
             draft[0] = draft[0].withColor(role[0], color);
             preview.setPalette(draft[0]);
@@ -2680,10 +2713,65 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEUTRAL)
                 .setOnClickListener(view -> {
                     draft[0] = ClockPalette.DEFAULT;
+                    if (blurSwitch != null) blurSwitch.setChecked(false);
+                    strengthSlider.setValue(draft[0].blurStrength);
+                    brightnessSlider.setValue(draft[0].blurBrightness);
                     picker.setColor(draft[0].color(role[0]));
                     preview.setPalette(draft[0]);
                 }));
         dialog.show();
+        if (imageBackground) {
+            imageExecutor.execute(() -> {
+                Bitmap loaded;
+                try {
+                    loaded = repository.loadImage(640, 360);
+                } catch (java.io.IOException | RuntimeException exception) {
+                    loaded = null;
+                }
+                Bitmap image = loaded;
+                runOnUiThread(() -> {
+                    if (!dialog.isShowing() || isDestroyed()) {
+                        if (image != null) image.recycle();
+                        return;
+                    }
+                    preview.previewBackground = ClockBackground.image(image,
+                            repository.getCurrentColor(), repository.isDimBackground());
+                    preview.invalidate();
+                });
+            });
+        }
+    }
+
+    private Slider addBlurSlider(LinearLayout parent, int titleRes, int current, IntChange change) {
+        LinearLayout column = new LinearLayout(this);
+        column.setOrientation(LinearLayout.VERTICAL);
+        boolean sideBySide = parent.getOrientation() == LinearLayout.HORIZONTAL;
+        LinearLayout.LayoutParams columnParams = new LinearLayout.LayoutParams(
+                sideBySide ? 0 : ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, sideBySide ? 1f : 0f);
+        if (sideBySide && parent.getChildCount() > 0) columnParams.setMarginStart(dp(16));
+        parent.addView(column, columnParams);
+        String title = getString(titleRes);
+        TextView value = label(getString(R.string.ultimate_palette_slider_value, title, current), 14, true);
+        value.setPadding(0, dp(8), 0, 0);
+        column.addView(value);
+        Slider slider = new Slider(this);
+        slider.setValueFrom(0f);
+        slider.setValueTo(100f);
+        slider.setStepSize(1f);
+        slider.setTickVisible(false);
+        slider.setTrackStopIndicatorSize(0);
+        slider.setValue(current);
+        slider.setContentDescription(title);
+        slider.setLabelFormatter(number -> getString(R.string.ultimate_percent_value, Math.round(number)));
+        slider.addOnChangeListener((control, selected, fromUser) -> {
+            int percent = Math.round(selected);
+            value.setText(getString(R.string.ultimate_palette_slider_value, title, percent));
+            if (fromUser) change.apply(percent);
+        });
+        column.addView(slider, new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
+        return slider;
     }
 
     private void showColorDialog(int titleRes, int accessibilityRes, int current,
@@ -3327,6 +3415,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         private final ClockTypography typography = new ClockTypography();
         private final String scopeId;
         private ClockThemeTokens previewTokens;
+        private ClockBackground previewBackground;
 
         UltimateThemePreviewView(Context context, ClockStyle style) {
             super(context);
@@ -3370,7 +3459,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     getResources().getDisplayMetrics().density,
                     TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 1f,
                             getResources().getDisplayMetrics()),
-                    calendar.getTimeInMillis(), true);
+                    calendar.getTimeInMillis(), true, previewBackground);
             int saveCount = canvas.save();
             try {
                 style.getRenderer().render(canvas, context, state,

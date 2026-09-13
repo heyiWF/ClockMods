@@ -140,6 +140,13 @@ public class UltimateClockView extends FrameLayout {
             private boolean hasScrollableCities() {
                 return canScrollHorizontally(-1) || canScrollHorizontally(1);
             }
+
+            @Override protected void onScrollChanged(int x, int y, int oldX, int oldY) {
+                super.onScrollChanged(x, y, oldX, oldY);
+                // Scrolling normally only moves the child's cached display list. Glass needs a
+                // fresh sample at its new position on every drag/fling frame, even with seconds off.
+                if (getChildCount() > 0) getChildAt(0).invalidate();
+            }
         };
         worldClockScroller.setHorizontalScrollBarEnabled(false);
         worldClockScroller.setHorizontalFadingEdgeEnabled(false);
@@ -157,7 +164,9 @@ public class UltimateClockView extends FrameLayout {
             @Override protected void onDraw(Canvas canvas) {
                 if (worldClockState != null && worldClockContext != null) {
                     UltimateClockStyles.drawWorldClockCards(canvas, worldClockContext,
-                            worldClockState, worldClockTheme, getHeight());
+                            worldClockState, worldClockTheme, getHeight(),
+                            worldClockScroller.getLeft() + getLeft() - worldClockScroller.getScrollX(),
+                            worldClockScroller.getTop() + getTop() - worldClockScroller.getScrollY());
                 }
             }
         };

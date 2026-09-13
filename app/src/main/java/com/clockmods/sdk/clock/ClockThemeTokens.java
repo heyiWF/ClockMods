@@ -9,6 +9,8 @@ import android.graphics.Typeface;
  * alone is not considered a new clock style.</p>
  */
 public final class ClockThemeTokens {
+    public static final int DEFAULT_BLUR_STRENGTH = 50;
+    public static final int DEFAULT_BLUR_BRIGHTNESS = 25;
     private final int backgroundStartColor;
     private final int backgroundEndColor;
     private final int surfaceColor;
@@ -21,6 +23,9 @@ public final class ClockThemeTokens {
     private final Typeface displayTypeface;
     private final Typeface supportingTypeface;
     private final float strokeScale;
+    private final boolean gaussianBlur;
+    private final int blurStrength;
+    private final int blurBrightness;
 
     private ClockThemeTokens(Builder builder) {
         backgroundStartColor = builder.backgroundStartColor;
@@ -35,6 +40,9 @@ public final class ClockThemeTokens {
         displayTypeface = builder.displayTypeface;
         supportingTypeface = builder.supportingTypeface;
         strokeScale = builder.strokeScale;
+        gaussianBlur = builder.gaussianBlur;
+        blurStrength = builder.blurStrength;
+        blurBrightness = builder.blurBrightness;
     }
 
     public static Builder builder() {
@@ -52,7 +60,9 @@ public final class ClockThemeTokens {
                 .lineColor(lineColor)
                 .fonts(displayFontFamily, supportingFontFamily)
                 .typefaces(displayTypeface, supportingTypeface)
-                .strokeScale(strokeScale);
+                .strokeScale(strokeScale)
+                .gaussianBlur(gaussianBlur)
+                .blurStrength(blurStrength).blurBrightness(blurBrightness);
     }
 
     public int getBackgroundStartColor() { return backgroundStartColor; }
@@ -73,6 +83,9 @@ public final class ClockThemeTokens {
     /** As {@link #getDisplayTypeface()}, for the supporting family. */
     public Typeface getSupportingTypeface() { return supportingTypeface; }
     public float getStrokeScale() { return strokeScale; }
+    public boolean isGaussianBlur() { return gaussianBlur; }
+    public int getBlurStrength() { return blurStrength; }
+    public int getBlurBrightness() { return blurBrightness; }
 
     public static final class Builder {
         private int backgroundStartColor = 0xFF101418;
@@ -87,6 +100,19 @@ public final class ClockThemeTokens {
         private Typeface displayTypeface;
         private Typeface supportingTypeface;
         private float strokeScale = 1f;
+        private boolean gaussianBlur;
+        private int blurStrength = DEFAULT_BLUR_STRENGTH;
+        private int blurBrightness = DEFAULT_BLUR_BRIGHTNESS;
+
+        public Builder gaussianBlur(boolean enabled) { gaussianBlur = enabled; return this; }
+        public Builder blurStrength(int percent) {
+            blurStrength = Math.max(0, Math.min(100, percent));
+            return this;
+        }
+        public Builder blurBrightness(int percent) {
+            blurBrightness = Math.max(0, Math.min(100, percent));
+            return this;
+        }
 
         public Builder background(int startColor, int endColor) {
             backgroundStartColor = startColor;

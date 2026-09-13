@@ -19,6 +19,7 @@ import android.widget.Space;
 import android.widget.TextView;
 
 import androidx.activity.EdgeToEdge;
+import androidx.activity.OnBackPressedCallback;
 import androidx.appcompat.app.AppCompatActivity;
 
 import com.clockmods.LocaleManager;
@@ -134,6 +135,12 @@ public final class SetupWizardActivity extends AppCompatActivity {
         }
         buildShell();
         showStep(savedInstanceState == null ? 0 : savedInstanceState.getInt(STATE_STEP, 0));
+        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
+            @Override
+            public void handleOnBackPressed() {
+                finishWithoutChanges();
+            }
+        });
     }
 
     private void buildShell() {
@@ -577,11 +584,6 @@ public final class SetupWizardActivity extends AppCompatActivity {
         markCompleted(this);
         setResult(RESULT_CANCELED);
         finish();
-    }
-
-    @Override
-    public void onBackPressed() {
-        finishWithoutChanges();
     }
 
     @Override
