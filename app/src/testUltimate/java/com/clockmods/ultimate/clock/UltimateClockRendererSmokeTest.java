@@ -90,6 +90,54 @@ public class UltimateClockRendererSmokeTest {
         }
     }
 
+    @Test public void largerDateWrapsBeforeShrinkingAndReturnsToOneLine() throws Exception {
+        String solar = "2026 年 9 月 13 日 星期日";
+        String lunar = "丙午[马]年八月初三";
+        String combined = solar + " / " + lunar;
+        ClockStyle style = UltimateClockStyles.createRegistry().find(UltimateClockStyles.STYLE_ORBIT);
+        PaintPoolFixture paints = PaintPoolFixture.install();
+        try {
+            for (float scale : new float[] {.6f, 1.8f, .6f}) {
+                ClockState state = ClockState.builder(1787633430123L).dateText(combined)
+                        .locale(Locale.SIMPLIFIED_CHINESE).dateScale(scale).build();
+                RecordingCanvas canvas = new RecordingCanvas(2560f, 1440f);
+                ClockRenderContext context = new ClockRenderContext(0f, 0f, 2560f, 1440f,
+                        2f, 2f, state.getTimeMillis(), false);
+                style.getRenderer().render(canvas, context, state, style.getThemeTokens());
+                canvas.assertTextInside(UltimateClockStyles.STYLE_ORBIT);
+                if (scale < 1f) {
+                    Assert.assertTrue(canvas.textBounds.stream().anyMatch(b -> combined.equals(b.text)));
+                } else {
+                    TextBounds first = canvas.textBounds.stream().filter(b -> solar.equals(b.text))
+                            .findFirst().orElseThrow(() -> new AssertionError("Missing solar row"));
+                    TextBounds second = canvas.textBounds.stream().filter(b -> lunar.equals(b.text))
+                            .findFirst().orElseThrow(() -> new AssertionError("Missing lunar row"));
+                    Assert.assertEquals(1440f * .032f * scale, first.textSize, .01f);
+                    Assert.assertEquals(first.textSize, second.textSize, .01f);
+                    Assert.assertTrue(second.top > first.bottom);
+                }
+            }
+        } finally {
+            paints.restore();
+        }
+    }
+
+    @Test public void dateWrappingHonorsWidthAndNaturalBoundaries() {
+        JvmPaint paint = new JvmPaint();
+        paint.setTextSize(30f);
+        String date = "September 13, 2026 Sunday";
+        Assert.assertArrayEquals(new String[] {date, ""}, UltimateClockStyles.dateLines(
+                date, paint, paint.measureText(date), false, Locale.US));
+        Assert.assertArrayEquals(new String[] {"September 13,", "2026 Sunday"},
+                UltimateClockStyles.dateLines(date, paint, 240f, false, Locale.US));
+        Assert.assertArrayEquals(new String[] {"", ""}, UltimateClockStyles.dateLines(
+                "", paint, 100f, false, Locale.US));
+        String solar = "09 / 13 / 2026";
+        String lunar = "丙午[马]年八月初三";
+        Assert.assertArrayEquals(new String[] {solar, lunar}, UltimateClockStyles.dateLines(
+                solar + " / " + lunar, paint, 1000f, true, Locale.SIMPLIFIED_CHINESE));
+    }
+
     private static void assertRendersWithoutLeakingCanvasState(ClockStyle style,
             ClockState state, int width, int height) {
         String label = style.getMetadata().getId() + " at " + width + "x" + height;

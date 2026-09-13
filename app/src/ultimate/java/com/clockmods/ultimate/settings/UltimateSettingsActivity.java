@@ -2609,6 +2609,8 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         slider.setValueFrom(minPercent);
         slider.setValueTo(maxPercent);
         slider.setStepSize(1f);
+        slider.setTickVisible(false);
+        slider.setTrackStopIndicatorSize(0);
         slider.setValue(Math.max(minPercent, Math.min(maxPercent,
                 Math.round(current * 100f))));
         slider.setContentDescription(getString(titleRes));

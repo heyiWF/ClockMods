@@ -27,6 +27,7 @@ import java.util.Calendar;
 import java.util.List;
 import java.util.Locale;
 import java.util.TimeZone;
+import java.text.BreakIterator;
 
 /** Built-in Ultimate styles. Each renderer has a different composition, not merely a palette. */
 public final class UltimateClockStyles {
@@ -169,6 +170,35 @@ public final class UltimateClockStyles {
             return new String[] {clean, ""};
         }
         return new String[] {clean.substring(0, divider).trim(), lunar};
+    }
+
+    /** Measures at the requested size before fitting; prefer the solar/lunar boundary. */
+    static String[] dateLines(String value, Paint paint, float maxWidth,
+            boolean stackLunar, Locale locale) {
+        String clean = value == null ? "" : value.trim();
+        String[] lunar = splitDateAndLunar(clean);
+        if (stackLunar && !lunar[1].isEmpty()) return lunar;
+        if (paint.measureText(clean) <= maxWidth) return new String[] {clean, ""};
+        if (!lunar[1].isEmpty()) return lunar;
+
+        // Without a lunar date, wrap at a locale-aware line boundary (not inside a word).
+        BreakIterator breaks = BreakIterator.getLineInstance(locale);
+        breaks.setText(clean);
+        int split = 0;
+        float bestWidth = Float.MAX_VALUE;
+        for (int index = breaks.first(); index != BreakIterator.DONE; index = breaks.next()) {
+            if (index <= 0 || index >= clean.length()) continue;
+            String first = clean.substring(0, index).trim();
+            String second = clean.substring(index).trim();
+            if (first.isEmpty() || second.isEmpty()) continue;
+            float width = Math.max(paint.measureText(first), paint.measureText(second));
+            if (width < bestWidth) {
+                bestWidth = width;
+                split = index;
+            }
+        }
+        return split == 0 ? new String[] {clean, ""}
+                : new String[] {clean.substring(0, split).trim(), clean.substring(split).trim()};
     }
 
     /** Returns a fresh registry so an app or plugin may add styles without global mutable state. */
@@ -649,7 +679,8 @@ public final class UltimateClockStyles {
         }
 
         /**
-         * Draws a solar/lunar date as two rows when requested.  The host joins the values with the
+         * Draws a date as two rows when requested or too wide at the chosen font size.
+         * The host joins solar/lunar values with the
          * final " / "; {@link #splitDateAndLunar(String)} deliberately preserves slashes that are
          * part of the user's Gregorian date format.
          */
@@ -667,10 +698,14 @@ public final class UltimateClockStyles {
                     : 2f * Math.min(x - safeLeft, safeRight - x);
             maxWidth = Math.min(maxWidth, availableWidth);
             if (maxWidth <= 0f) return;
-            String[] lines = splitDateAndLunar(state.getDateText());
             float floor = readableSize(context, 0f, 12f);
             float requested = Math.max(floor, preferredSize * state.getDateScale());
-            if (!stackLunar || lines[1].length() == 0) {
+            Paint requestedPaint = fill(Color.WHITE);
+            requestedPaint.setTypeface(face);
+            requestedPaint.setTextSize(requested);
+            String[] lines = dateLines(state.getDateText(), requestedPaint, maxWidth,
+                    stackLunar, state.getLocale());
+            if (lines[1].length() == 0) {
                 float size = Math.max(floor,
                         fitText(state.getDateText(), maxWidth, requested, face));
                 Paint metricsPaint = fill(Color.WHITE);
@@ -689,6 +724,12 @@ public final class UltimateClockStyles {
                     fitText(lines[0], maxWidth, requested, face),
                     fitText(lines[1], maxWidth, requested, face)));
             float lineGap = size * 1.45f;
+            // Headers grow downward when they wrap; footers retain their bottom anchor.
+            boolean designedStack = stackLunar
+                    && !splitDateAndLunar(state.getDateText())[1].isEmpty();
+            if (!designedStack && lowerBaseline < context.getCenterY()) {
+                lowerBaseline += lineGap;
+            }
             Paint metricsPaint = fill(Color.WHITE);
             metricsPaint.setTypeface(face);
             metricsPaint.setTextSize(size);
@@ -1746,17 +1787,23 @@ public final class UltimateClockStyles {
                     second.bottom - second.height() * .052f, labelSize, colors.onAccent,
                     Paint.Align.RIGHT, supporting);
             float dateBaseline = first.top + first.height() * .078f;
-            if (!landscape) {
-                float dateSize = readableSize(context,
-                        Math.min(w, h) * .034f * state.getDateScale(), 12f);
-                Paint datePaint = fill(colors.onPanel);
-                datePaint.setTypeface(supporting);
-                datePaint.setTextSize(dateSize);
-                float secondLine = splitDateAndLunar(state.getDateText())[1].isEmpty()
-                        ? 0f : dateSize * 1.45f;
-                dateBaseline = first.top + Math.min(context.getDensity() * 20f,
-                        first.height() * .05f) - datePaint.getFontMetrics().ascent + secondLine;
-            }
+            float dateSize = readableSize(context,
+                    Math.min(w, h) * .034f * state.getDateScale(), 12f);
+            Paint datePaint = fill(colors.onPanel);
+            datePaint.setTypeface(supporting);
+            datePaint.setTextSize(dateSize);
+            String[] dateRows = dateLines(state.getDateText(), datePaint, first.width() * .74f,
+                    !landscape, state.getLocale());
+            dateSize = Math.max(readableSize(context, 0f, 12f), Math.min(
+                    fitText(dateRows[0], first.width() * .74f, dateSize, supporting),
+                    dateRows[1].isEmpty() ? dateSize
+                            : fitText(dateRows[1], first.width() * .74f, dateSize, supporting)));
+            datePaint.setTextSize(dateSize);
+            float secondLine = !landscape && !splitDateAndLunar(state.getDateText())[1].isEmpty()
+                    ? dateSize * 1.45f : 0f;
+            float paddedBaseline = first.top + Math.min(context.getDensity() * 20f,
+                    first.height() * .05f) - datePaint.getFontMetrics().ascent + secondLine;
+            dateBaseline = landscape ? Math.max(dateBaseline, paddedBaseline) : paddedBaseline;
             drawDate(canvas, context, state, first.left + first.width() * .05f,
                     dateBaseline, first.width() * .74f,
                     Paint.Align.LEFT, colors.onPanel, supporting, Math.min(w, h) * .034f);
