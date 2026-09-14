@@ -1,10 +1,14 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
+    <string name="setup_wizard_step_short">%1$d / %2$d</string>
+    <string name="setup_wizard_tab_language">语言</string>
+    <string name="setup_wizard_tab_weather">天气</string>
+    <string name="setup_wizard_tab_style">外观</string>
     <string name="setup_wizard_title">开始使用 ClockMods</string>
     <string name="setup_wizard_intro">用不到一分钟完成几项重要设置，之后也可以随时在设置中修改。</string>
     <string name="setup_wizard_step">第 %1$d 步，共 %2$d 步</string>
     <string name="setup_wizard_language_title">选择语言</string>
-    <string name="setup_wizard_language_summary">选择应用界面使用的语言。</string>
+    <string name="setup_wizard_language_summary">从熟悉的语言开始，让时间以你喜欢的方式呈现。</string>
     <string name="setup_wizard_weather_title">设置天气</string>
     <string name="setup_wizard_weather_summary">在时钟上显示当前位置的天气。开启后会在需要时请求定位权限。</string>
     <string name="setup_wizard_weather_enabled">显示天气</string>

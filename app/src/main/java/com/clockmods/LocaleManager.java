@@ -25,7 +25,11 @@ public final class LocaleManager {
 
     /** @return the locale that matches the stored interface-language preference. */
     public static Locale resolveLocale(Context context) {
-        String language = new ClockPreferences(context).getClockLanguage();
+        return resolveLocale(new ClockPreferences(context).getClockLanguage());
+    }
+
+    /** Resolves a draft language choice without changing the stored app preference. */
+    public static Locale resolveLocale(String language) {
         if (ClockPreferences.LANGUAGE_ENGLISH.equals(language)) {
             return Locale.ENGLISH;
         }
