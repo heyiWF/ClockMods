@@ -144,8 +144,6 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     public static final String STYLE_PREFERENCES = UltimateClockPreferences.PREFERENCES_NAME;
     public static final String KEY_STYLE_ID = UltimateClockPreferences.KEY_STYLE_ID;
     public static final String KEY_SECOND_MOTION = UltimateClockPreferences.KEY_SECOND_MOTION;
-    public static final String KEY_FOLLOW_REDUCED_MOTION =
-            UltimateClockPreferences.KEY_FOLLOW_REDUCED_MOTION;
 
     // Keep the settings contract tied to the SDK's stable IDs. These aliases preserve a small
     // public surface for integrations while preventing the UI and registry from drifting apart.
@@ -1006,15 +1004,6 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                             markChanged("second_motion");
                         });
             }
-        }
-        if (!proClassic && capabilities.supports(
-                ClockStyleCapabilities.Capability.REDUCED_MOTION)) {
-            addSwitch(body, R.string.ultimate_style_follow_reduced_motion,
-                    R.string.ultimate_style_follow_reduced_motion_summary,
-                    ultimatePreferences.isFollowSystemReducedMotion(), value -> {
-                        ultimatePreferences.setFollowSystemReducedMotion(value);
-                        markChanged("follow_reduced_motion");
-                    });
         }
 
         if (ClockPalette.supports(selectedId)) {
@@ -3459,7 +3448,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     getResources().getDisplayMetrics().density,
                     TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 1f,
                             getResources().getDisplayMetrics()),
-                    calendar.getTimeInMillis(), true, previewBackground);
+                    calendar.getTimeInMillis(), previewBackground);
             int saveCount = canvas.save();
             try {
                 style.getRenderer().render(canvas, context, state,

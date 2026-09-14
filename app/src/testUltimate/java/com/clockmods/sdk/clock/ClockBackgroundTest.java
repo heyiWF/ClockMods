@@ -50,7 +50,7 @@ public class ClockBackgroundTest {
     @Test
     public void legacyRenderContextHasNoHostBackgroundByDefault() {
         ClockRenderContext context = new ClockRenderContext(
-                0f, 0f, 100f, 80f, 1f, 1f, 42L, false);
+                0f, 0f, 100f, 80f, 1f, 1f, 42L);
 
         Assert.assertNull(context.getBackground());
     }

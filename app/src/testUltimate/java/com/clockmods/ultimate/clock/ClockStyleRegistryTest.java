@@ -81,10 +81,10 @@ public class ClockStyleRegistryTest {
 
         Assert.assertEquals(ClockState.SecondHandMotion.TICK,
                 UltimateClockView.resolveSecondHandMotion(ribbon, true,
-                        ClockState.SecondHandMotion.OFF, false));
+                        ClockState.SecondHandMotion.OFF));
         Assert.assertEquals(ClockState.SecondHandMotion.OFF,
                 UltimateClockView.resolveSecondHandMotion(ribbon, false,
-                        ClockState.SecondHandMotion.SWEEP, false));
+                        ClockState.SecondHandMotion.SWEEP));
     }
 
     @Test
@@ -94,10 +94,10 @@ public class ClockStyleRegistryTest {
 
         Assert.assertEquals(ClockState.SecondHandMotion.OFF,
                 UltimateClockView.resolveSecondHandMotion(glass, true,
-                        ClockState.SecondHandMotion.OFF, false));
-        Assert.assertEquals(ClockState.SecondHandMotion.TICK,
+                        ClockState.SecondHandMotion.OFF));
+        Assert.assertEquals(ClockState.SecondHandMotion.SWEEP,
                 UltimateClockView.resolveSecondHandMotion(glass, true,
-                        ClockState.SecondHandMotion.SWEEP, true));
+                        ClockState.SecondHandMotion.SWEEP));
     }
 
     @Test

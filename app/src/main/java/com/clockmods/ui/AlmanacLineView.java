@@ -5,9 +5,7 @@ import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
 import android.graphics.Typeface;
-import android.os.Build;
 import android.os.SystemClock;
-import android.provider.Settings;
 import android.util.AttributeSet;
 import android.util.TypedValue;
 import android.view.View;
@@ -138,7 +136,7 @@ public final class AlmanacLineView extends View {
         // is pixel-identical and the line reads as one continuous belt rather than snapping home.
         float loopWidth = contentWidth + scrollGap();
         float offset = 0f;
-        if (active && animationsEnabled()) {
+        if (active) {
             long scrollMs = (long) Math.ceil(loopWidth / (SCROLL_DP_PER_SECOND * density) * 1000f);
             if (scrollMs <= 0L) scrollMs = 1L;
             long cycle = SCROLL_PAUSE_MS + scrollMs;
@@ -182,17 +180,5 @@ public final class AlmanacLineView extends View {
         if (prefix.length() == 0) return 0f;
         paint.setTypeface(boldTypeface);
         return paint.measureText(prefix);
-    }
-
-    @SuppressWarnings("deprecation")
-    private boolean animationsEnabled() {
-        try {
-            float scale = Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1
-                    ? Settings.Global.getFloat(getContext().getContentResolver(),
-                            Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
-                    : Settings.System.getFloat(getContext().getContentResolver(),
-                            Settings.System.ANIMATOR_DURATION_SCALE, 1f);
-            return scale > 0f;
-        } catch (RuntimeException ignored) { return true; }
     }
 }

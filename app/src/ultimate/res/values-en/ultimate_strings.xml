@@ -47,8 +47,6 @@
     <string name="ultimate_motion_smooth">Smooth</string>
     <string name="ultimate_motion_tick">Tick</string>
     <string name="ultimate_motion_off">Off</string>
-    <string name="ultimate_style_follow_reduced_motion">Follow system reduced motion</string>
-    <string name="ultimate_style_follow_reduced_motion_summary">Honors the system reduced-motion preference.</string>
     <string name="ultimate_typography_section">Typography</string>
     <string name="ultimate_font_family">Font family</string>
     <string name="ultimate_bold_text">Use bold text</string>

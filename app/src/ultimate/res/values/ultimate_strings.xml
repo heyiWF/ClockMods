@@ -47,8 +47,6 @@
     <string name="ultimate_motion_smooth">平滑</string>
     <string name="ultimate_motion_tick">跳秒</string>
     <string name="ultimate_motion_off">关闭</string>
-    <string name="ultimate_style_follow_reduced_motion">跟随系统减少动画</string>
-    <string name="ultimate_style_follow_reduced_motion_summary">尊重系统的“移除动画”偏好，降低动态效果。</string>
     <string name="ultimate_typography_section">字体</string>
     <string name="ultimate_font_family">字体</string>
     <string name="ultimate_bold_text">使用粗体</string>

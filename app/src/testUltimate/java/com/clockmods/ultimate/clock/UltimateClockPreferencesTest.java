@@ -30,14 +30,11 @@ public class UltimateClockPreferencesTest {
                 UltimateClockPreferences.PREFERENCES_NAME);
         Assert.assertEquals("style_id", UltimateClockPreferences.KEY_STYLE_ID);
         Assert.assertEquals("second_motion", UltimateClockPreferences.KEY_SECOND_MOTION);
-        Assert.assertEquals("follow_reduced_motion",
-                UltimateClockPreferences.KEY_FOLLOW_REDUCED_MOTION);
         Assert.assertEquals("background_mode", UltimateClockPreferences.KEY_BACKGROUND_MODE);
         Assert.assertEquals(UltimateClockStyles.STYLE_GLASS_ATELIER,
                 preferences.getStyleId());
         Assert.assertEquals(ClockState.SecondHandMotion.SWEEP,
                 preferences.getSecondHandMotion());
-        Assert.assertTrue(preferences.isFollowSystemReducedMotion());
         Assert.assertEquals(UltimateClockPreferences.BACKGROUND_MODE_THEME,
                 preferences.getBackgroundMode());
     }
@@ -90,10 +87,9 @@ public class UltimateClockPreferencesTest {
     }
 
     @Test
-    public void restoreDefaultsWritesAllFourSettings() {
+    public void restoreDefaultsWritesAllSettings() {
         preferences.setStyleId(UltimateClockStyles.STYLE_DIGITAL_GRID);
         preferences.setSecondHandMotion(ClockState.SecondHandMotion.OFF);
-        preferences.setFollowSystemReducedMotion(false);
         preferences.setBackgroundMode(UltimateClockPreferences.BACKGROUND_MODE_IMAGE);
 
         preferences.restoreDefaults();
@@ -102,8 +98,6 @@ public class UltimateClockPreferencesTest {
                 preferences.getStyleId());
         Assert.assertEquals(UltimateClockPreferences.DEFAULT_SECOND_HAND_MOTION,
                 preferences.getSecondHandMotion());
-        Assert.assertEquals(UltimateClockPreferences.DEFAULT_FOLLOW_SYSTEM_REDUCED_MOTION,
-                preferences.isFollowSystemReducedMotion());
         Assert.assertEquals(UltimateClockPreferences.DEFAULT_BACKGROUND_MODE,
                 preferences.getBackgroundMode());
     }

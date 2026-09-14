@@ -9,22 +9,21 @@ public final class ClockRenderContext {
     private final float density;
     private final float scaledDensity;
     private final long frameTimeMillis;
-    private final boolean reducedMotion;
     private final ClockBackground background;
     private final float bottomInset;
     private final float worldClockScroll;
     private final boolean worldClockStripHosted;
 
     public ClockRenderContext(float left, float top, float right, float bottom, float density,
-            float scaledDensity, long frameTimeMillis, boolean reducedMotion) {
-        this(left, top, right, bottom, density, scaledDensity, frameTimeMillis, reducedMotion,
+            float scaledDensity, long frameTimeMillis) {
+        this(left, top, right, bottom, density, scaledDensity, frameTimeMillis,
                 null, 0f);
     }
 
     public ClockRenderContext(float left, float top, float right, float bottom, float density,
-            float scaledDensity, long frameTimeMillis, boolean reducedMotion,
+            float scaledDensity, long frameTimeMillis,
             ClockBackground background) {
-        this(left, top, right, bottom, density, scaledDensity, frameTimeMillis, reducedMotion,
+        this(left, top, right, bottom, density, scaledDensity, frameTimeMillis,
                 background, 0f);
     }
 
@@ -34,23 +33,23 @@ public final class ClockRenderContext {
      * that must remain above an overlaid attribution or control pill.
      */
     public ClockRenderContext(float left, float top, float right, float bottom, float density,
-            float scaledDensity, long frameTimeMillis, boolean reducedMotion,
+            float scaledDensity, long frameTimeMillis,
             ClockBackground background, float bottomInset) {
-        this(left, top, right, bottom, density, scaledDensity, frameTimeMillis, reducedMotion,
+        this(left, top, right, bottom, density, scaledDensity, frameTimeMillis,
                 background, bottomInset, 0f);
     }
 
     /** Creates a frame with host-owned world-clock horizontal scroll offset. */
     public ClockRenderContext(float left, float top, float right, float bottom, float density,
-            float scaledDensity, long frameTimeMillis, boolean reducedMotion,
+            float scaledDensity, long frameTimeMillis,
             ClockBackground background, float bottomInset, float worldClockScroll) {
-        this(left, top, right, bottom, density, scaledDensity, frameTimeMillis, reducedMotion,
+        this(left, top, right, bottom, density, scaledDensity, frameTimeMillis,
                 background, bottomInset, worldClockScroll, false);
     }
 
     /** A native host may draw the city strip itself; styles still reserve its space. */
     public ClockRenderContext(float left, float top, float right, float bottom, float density,
-            float scaledDensity, long frameTimeMillis, boolean reducedMotion,
+            float scaledDensity, long frameTimeMillis,
             ClockBackground background, float bottomInset, float worldClockScroll,
             boolean worldClockStripHosted) {
         if (right < left || bottom < top) {
@@ -63,7 +62,6 @@ public final class ClockRenderContext {
         this.density = Math.max(0.01f, density);
         this.scaledDensity = Math.max(0.01f, scaledDensity);
         this.frameTimeMillis = frameTimeMillis;
-        this.reducedMotion = reducedMotion;
         this.background = background;
         this.bottomInset = Math.max(0f, Math.min(bottomInset, bottom - top));
         this.worldClockScroll = Math.max(0f, worldClockScroll);
@@ -81,7 +79,6 @@ public final class ClockRenderContext {
     public float getDensity() { return density; }
     public float getScaledDensity() { return scaledDensity; }
     public long getFrameTimeMillis() { return frameTimeMillis; }
-    public boolean isReducedMotion() { return reducedMotion; }
     public ClockBackground getBackground() { return background; }
     public float getBottomInset() { return bottomInset; }
     public float getWorldClockScroll() { return worldClockScroll; }

@@ -6,7 +6,6 @@ import android.os.Build;
 import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
-import android.provider.Settings;
 import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
@@ -558,11 +557,6 @@ public final class ProCalendarFragment extends Fragment implements CalendarLayou
         if (pager.preparedDirection() != direction) {
             pager.bindPreview(direction, buildAdjacentPageState(direction));
         }
-        if (!animationsEnabled()) {
-            applyPageOffset(direction);
-            resetPages();
-            return;
-        }
         monthAnimating = true;
         final int epoch = ++monthAnimationEpoch;
         pager.animateCommit(direction, () -> {
@@ -578,10 +572,6 @@ public final class ProCalendarFragment extends Fragment implements CalendarLayou
     private void animateMonthSnapBack() {
         CalendarPager pager = pager();
         if (pager == null || monthAnimating) return;
-        if (!animationsEnabled()) {
-            resetPages();
-            return;
-        }
         pager.animateSnapBack(this::resetPages);
     }
 
@@ -688,15 +678,6 @@ public final class ProCalendarFragment extends Fragment implements CalendarLayou
 
     private static boolean isWeekend(int dayOfWeek) {
         return dayOfWeek == Calendar.SATURDAY || dayOfWeek == Calendar.SUNDAY;
-    }
-
-    private boolean animationsEnabled() {
-        try {
-            return Settings.Global.getFloat(requireContext().getContentResolver(),
-                    Settings.Global.ANIMATOR_DURATION_SCALE, 1f) > 0f;
-        } catch (RuntimeException ignored) {
-            return true;
-        }
     }
 
     // endregion

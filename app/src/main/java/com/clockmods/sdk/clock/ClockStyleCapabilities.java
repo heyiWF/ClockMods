@@ -14,7 +14,6 @@ public final class ClockStyleCapabilities {
         WEATHER,
         STATUS,
         TWENTY_FOUR_HOUR,
-        REDUCED_MOTION,
         WORLD_CLOCK
     }
 

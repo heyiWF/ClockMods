@@ -13,7 +13,7 @@ public class GaussianGlassTest {
                 com.clockmods.sdk.clock.ClockBackground.color(0xFFFFFFFF, false),
                 com.clockmods.sdk.clock.ClockBackground.image(null, 0xFF000000, false)}) {
             com.clockmods.sdk.clock.ClockRenderContext context = new com.clockmods.sdk.clock.ClockRenderContext(
-                    0, 0, 640, 360, 1, 1, 0, true, background);
+                    0, 0, 640, 360, 1, 1, 0, background);
             assertNull(GaussianGlass.create(context, theme));
         }
         assertEquals(ClockPalette.DEFAULT.panel, ClockPalette.fromTokens(theme).panel);

@@ -57,8 +57,7 @@ public final class MeridianStyle implements ClockStyle {
                     ClockStyleCapabilities.Capability.SECONDS,
                     ClockStyleCapabilities.Capability.DATE,
                     ClockStyleCapabilities.Capability.TIME_ZONE,
-                    ClockStyleCapabilities.Capability.TWENTY_FOUR_HOUR,
-                    ClockStyleCapabilities.Capability.REDUCED_MOTION),
+                    ClockStyleCapabilities.Capability.TWENTY_FOUR_HOUR),
             1,
             14);
 
@@ -179,7 +178,6 @@ ID 必须是小写、带命名空间的标识符。当前校验允许以字母�
 - `WEATHER`：使用天气摘要。
 - `STATUS`：使用状态摘要。
 - `TWENTY_FOUR_HOUR`：尊重 12/24 小时设置。
-- `REDUCED_MOTION`：能根据宿主的减少动画策略降级动态效果。
 
 Ultimate 宿主会根据 `SECONDS` 和 `SMOOTH_SECONDS` 调整有效秒针模式与刷新节奏。其他能力同时用于发现和描述；声明能力不会自动绘制相应内容，renderer 仍需读取 `ClockState` 并设计对应布局。只声明真正实现的能力。
 
@@ -195,7 +193,7 @@ token 用于统一预览和实时渲染的视觉参数，但不是完整主题�
 
 ## 每帧输入
 
-`ClockRenderContext` 提供当前帧的像素边界、中心点、density、scaled density、帧时间、减少动画状态、可选 `ClockBackground` 和底部遮罩预留高度。
+`ClockRenderContext` 提供当前帧的像素边界、中心点、density、scaled density、帧时间、可选 `ClockBackground` 和底部遮罩预留高度。
 
 `ClockState` 提供：
 
@@ -231,7 +229,7 @@ renderer 应以 `ClockState.getTimeMillis()` 或 `newCalendar()` 为唯一时间
 }
 ```
 
-宿主还会在 View detach、窗口不可见或失去焦点时停止帧调度，并根据秒针模式、能力和减少动画设置选择分钟、秒或逐帧刷新。renderer 不应创建 Handler、线程、定时器或自行调用 `invalidate()`。
+宿主还会在 View detach、窗口不可见或失去焦点时停止帧调度，并根据秒针模式和样式能力选择分钟、秒或逐帧刷新。renderer 不应创建 Handler、线程、定时器或自行调用 `invalidate()`。
 
 约束：
 
@@ -259,7 +257,7 @@ Ultimate 会使用 `resolveForApi()` 过滤不兼容样式。不要仅依赖设�
 1. 使用不会变化的小写点号 ID，并填写准确的 `kind`、`version` 和 `minApi`。
 2. 只声明 renderer 确实实现的 capabilities。
 3. 将状态读取和视觉 token 与 Canvas 几何分离。
-4. 同时验证横屏、竖屏、小尺寸、12/24 小时、长日期、天气缺失和减少动画。
+4. 同时验证横屏、竖屏、小尺寸、12/24 小时、长日期、天气缺失和各秒针模式。
 5. 对 `TICK`、`SWEEP`、`OFF` 分别验证秒显示；没有 `SMOOTH_SECONDS` 时正确降级。
 6. 正确处理 `null/THEME`、`COLOR`、`IMAGE` 和 dimmed 背景。
 7. 通过 `ClockStyleRegistry` 驱动选择器和 fallback，不复制 ID 清单。

@@ -12,7 +12,6 @@ public final class UltimateClockPreferences {
     public static final String PREFERENCES_NAME = "clockmods_ultimate_style";
     public static final String KEY_STYLE_ID = "style_id";
     public static final String KEY_SECOND_MOTION = "second_motion";
-    public static final String KEY_FOLLOW_REDUCED_MOTION = "follow_reduced_motion";
     public static final String KEY_BACKGROUND_MODE = "background_mode";
     public static final String BACKGROUND_MODE_THEME = "theme";
     public static final String BACKGROUND_MODE_COLOR = "color";
@@ -20,12 +19,10 @@ public final class UltimateClockPreferences {
     public static final String DEFAULT_STYLE_ID = UltimateClockStyles.STYLE_GLASS_ATELIER;
     public static final ClockState.SecondHandMotion DEFAULT_SECOND_HAND_MOTION =
             ClockState.SecondHandMotion.SWEEP;
-    public static final boolean DEFAULT_FOLLOW_SYSTEM_REDUCED_MOTION = true;
     public static final String DEFAULT_BACKGROUND_MODE = BACKGROUND_MODE_THEME;
 
     private static final String PREFS_NAME = PREFERENCES_NAME;
     private static final String KEY_SECOND_HAND_MOTION = KEY_SECOND_MOTION;
-    private static final String KEY_FOLLOW_SYSTEM_REDUCED_MOTION = KEY_FOLLOW_REDUCED_MOTION;
 
     private final SharedPreferences preferences;
 
@@ -87,15 +84,6 @@ public final class UltimateClockPreferences {
         preferences.edit().putString(KEY_SECOND_HAND_MOTION, stored).apply();
     }
 
-    public boolean isFollowSystemReducedMotion() {
-        return preferences.getBoolean(KEY_FOLLOW_SYSTEM_REDUCED_MOTION,
-                DEFAULT_FOLLOW_SYSTEM_REDUCED_MOTION);
-    }
-
-    public void setFollowSystemReducedMotion(boolean follow) {
-        preferences.edit().putBoolean(KEY_FOLLOW_SYSTEM_REDUCED_MOTION, follow).apply();
-    }
-
     public String getBackgroundMode() {
         return normalizeBackgroundMode(preferences.getString(
                 KEY_BACKGROUND_MODE, DEFAULT_BACKGROUND_MODE));
@@ -134,8 +122,6 @@ public final class UltimateClockPreferences {
         editor
                 .putString(KEY_STYLE_ID, DEFAULT_STYLE_ID)
                 .putString(KEY_SECOND_HAND_MOTION, "smooth")
-                .putBoolean(KEY_FOLLOW_SYSTEM_REDUCED_MOTION,
-                        DEFAULT_FOLLOW_SYSTEM_REDUCED_MOTION)
                 .putString(KEY_BACKGROUND_MODE, DEFAULT_BACKGROUND_MODE)
                 .apply();
     }

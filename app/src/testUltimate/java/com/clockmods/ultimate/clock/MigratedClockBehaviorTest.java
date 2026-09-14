@@ -17,11 +17,9 @@ public class MigratedClockBehaviorTest {
     @Test
     public void smoothSecondsIncludeMillisecondsAndTickSecondsDoNot() {
         Assert.assertEquals(12.625f, UltimateClockStyles.secondProgress(12, 625,
-                ClockState.SecondHandMotion.SWEEP, false), 0f);
+                ClockState.SecondHandMotion.SWEEP), 0f);
         Assert.assertEquals(12f, UltimateClockStyles.secondProgress(12, 625,
-                ClockState.SecondHandMotion.TICK, false), 0f);
-        Assert.assertEquals(12f, UltimateClockStyles.secondProgress(12, 625,
-                ClockState.SecondHandMotion.SWEEP, true), 0f);
+                ClockState.SecondHandMotion.TICK), 0f);
     }
 
     @Test

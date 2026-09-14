@@ -80,7 +80,7 @@ public class UltimateClockRendererSmokeTest {
                 ClockStyle style = registry.find(styleId);
                 RecordingCanvas canvas = new RecordingCanvas(720f, 1600f);
                 ClockRenderContext context = new ClockRenderContext(
-                        0f, 0f, 720f, 1600f, 2f, 2f, state.getTimeMillis(), false,
+                        0f, 0f, 720f, 1600f, 2f, 2f, state.getTimeMillis(),
                         ClockBackground.theme(false), 2f * 28f);
                 style.getRenderer().render(canvas, context, state, style.getThemeTokens());
                 canvas.assertTextInside(styleId);
@@ -102,7 +102,7 @@ public class UltimateClockRendererSmokeTest {
                         .locale(Locale.SIMPLIFIED_CHINESE).dateScale(scale).build();
                 RecordingCanvas canvas = new RecordingCanvas(2560f, 1440f);
                 ClockRenderContext context = new ClockRenderContext(0f, 0f, 2560f, 1440f,
-                        2f, 2f, state.getTimeMillis(), false);
+                        2f, 2f, state.getTimeMillis());
                 style.getRenderer().render(canvas, context, state, style.getThemeTokens());
                 canvas.assertTextInside(UltimateClockStyles.STYLE_ORBIT);
                 if (scale < 1f) {
@@ -144,7 +144,7 @@ public class UltimateClockRendererSmokeTest {
         TrackingCanvas canvas = new TrackingCanvas();
         int initialSaveCount = canvas.getSaveCount();
         ClockRenderContext context = new ClockRenderContext(
-                0f, 0f, width, height, 2f, 2f, state.getTimeMillis(), false,
+                0f, 0f, width, height, 2f, 2f, state.getTimeMillis(),
                 ClockBackground.theme(false), 2f * 56f);
 
         try {

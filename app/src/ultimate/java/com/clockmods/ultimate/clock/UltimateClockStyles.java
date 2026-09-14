@@ -49,9 +49,9 @@ public final class UltimateClockStyles {
     private UltimateClockStyles() { }
 
     static float secondProgress(int second, int millisecond,
-            ClockState.SecondHandMotion motion, boolean reducedMotion) {
+            ClockState.SecondHandMotion motion) {
         int normalizedSecond = Math.max(0, Math.min(59, second));
-        if (motion == ClockState.SecondHandMotion.SWEEP && !reducedMotion) {
+        if (motion == ClockState.SecondHandMotion.SWEEP) {
             return normalizedSecond + Math.max(0, Math.min(999, millisecond)) / 1000f;
         }
         return normalizedSecond;
@@ -237,8 +237,7 @@ public final class UltimateClockStyles {
                         ClockStyleCapabilities.Capability.TIME_ZONE,
                         ClockStyleCapabilities.Capability.WEATHER,
                         ClockStyleCapabilities.Capability.STATUS,
-                        ClockStyleCapabilities.Capability.TWENTY_FOUR_HOUR,
-                        ClockStyleCapabilities.Capability.REDUCED_MOTION
+                        ClockStyleCapabilities.Capability.TWENTY_FOUR_HOUR
                 }, new GlassAtelierRenderer()));
         styles.add(style(STYLE_NOIR_INSTRUMENT, "Noir Instrument",
                 "A calibrated black instrument panel with a secondary seconds gauge.",
@@ -250,8 +249,7 @@ public final class UltimateClockStyles {
                         ClockStyleCapabilities.Capability.TIME_ZONE,
                         ClockStyleCapabilities.Capability.WEATHER,
                         ClockStyleCapabilities.Capability.STATUS,
-                        ClockStyleCapabilities.Capability.TWENTY_FOUR_HOUR,
-                        ClockStyleCapabilities.Capability.REDUCED_MOTION
+                        ClockStyleCapabilities.Capability.TWENTY_FOUR_HOUR
                 }, new NoirInstrumentRenderer()));
         styles.add(style(STYLE_PAPER_STATION, "Paper Station",
                 "A quiet paper planner face with ink marks, calendar rules, and a red index hand.",
@@ -261,8 +259,7 @@ public final class UltimateClockStyles {
                         ClockStyleCapabilities.Capability.SMOOTH_SECONDS,
                         ClockStyleCapabilities.Capability.DATE,
                         ClockStyleCapabilities.Capability.TIME_ZONE,
-                        ClockStyleCapabilities.Capability.WEATHER,
-                        ClockStyleCapabilities.Capability.REDUCED_MOTION
+                        ClockStyleCapabilities.Capability.WEATHER
                 }, new PaperStationRenderer()));
         styles.add(style(STYLE_ORBIT_NEON, "Orbit Neon",
                 "Concentric orbital progress rings turn time into a living instrument.",
@@ -274,8 +271,7 @@ public final class UltimateClockStyles {
                         ClockStyleCapabilities.Capability.TIME_ZONE,
                         ClockStyleCapabilities.Capability.WEATHER,
                         ClockStyleCapabilities.Capability.STATUS,
-                        ClockStyleCapabilities.Capability.TWENTY_FOUR_HOUR,
-                        ClockStyleCapabilities.Capability.REDUCED_MOTION
+                        ClockStyleCapabilities.Capability.TWENTY_FOUR_HOUR
                 }, new OrbitNeonRenderer()));
         styles.add(style(STYLE_DIGITAL_GRID, "Digital Grid",
                 "A modular seven-segment display laid over a precise technical grid.",
@@ -286,8 +282,7 @@ public final class UltimateClockStyles {
                         ClockStyleCapabilities.Capability.TIME_ZONE,
                         ClockStyleCapabilities.Capability.WEATHER,
                         ClockStyleCapabilities.Capability.STATUS,
-                        ClockStyleCapabilities.Capability.TWENTY_FOUR_HOUR,
-                        ClockStyleCapabilities.Capability.REDUCED_MOTION
+                        ClockStyleCapabilities.Capability.TWENTY_FOUR_HOUR
                 }, new DigitalGridRenderer()));
         styles.add(style(STYLE_TYPOGRAPHIC, "Typographic",
                 "A bold editorial layout where time, date, and context form a measured poster.",
@@ -298,8 +293,7 @@ public final class UltimateClockStyles {
                         ClockStyleCapabilities.Capability.TIME_ZONE,
                         ClockStyleCapabilities.Capability.WEATHER,
                         ClockStyleCapabilities.Capability.STATUS,
-                        ClockStyleCapabilities.Capability.TWENTY_FOUR_HOUR,
-                        ClockStyleCapabilities.Capability.REDUCED_MOTION
+                        ClockStyleCapabilities.Capability.TWENTY_FOUR_HOUR
                 }, new TypographicRenderer()));
         ClockStyleCapabilities.Capability[] migrated = new ClockStyleCapabilities.Capability[] {
                 ClockStyleCapabilities.Capability.SECONDS,
@@ -308,7 +302,6 @@ public final class UltimateClockStyles {
                 ClockStyleCapabilities.Capability.WEATHER,
                 ClockStyleCapabilities.Capability.STATUS,
                 ClockStyleCapabilities.Capability.TWENTY_FOUR_HOUR,
-                ClockStyleCapabilities.Capability.REDUCED_MOTION,
                 ClockStyleCapabilities.Capability.WORLD_CLOCK
         };
         ClockStyleCapabilities.Capability[] migratedSmooth = new ClockStyleCapabilities.Capability[] {
@@ -319,7 +312,6 @@ public final class UltimateClockStyles {
                 ClockStyleCapabilities.Capability.WEATHER,
                 ClockStyleCapabilities.Capability.STATUS,
                 ClockStyleCapabilities.Capability.TWENTY_FOUR_HOUR,
-                ClockStyleCapabilities.Capability.REDUCED_MOTION,
                 ClockStyleCapabilities.Capability.WORLD_CLOCK
         };
         styles.add(style(STYLE_DUAL_BLOCKS, "双块", "小时与分钟的双块布局。",
@@ -874,26 +866,22 @@ public final class UltimateClockStyles {
                     : String.format(Locale.US, "%02d:%02d", hour, c.get(Calendar.MINUTE));
         }
 
-        protected static float secondValue(Calendar c, ClockState state,
-                ClockRenderContext context) {
+        protected static float secondValue(Calendar c, ClockState state) {
             return secondProgress(c.get(Calendar.SECOND), c.get(Calendar.MILLISECOND),
-                    state.getSecondHandMotion(), context.isReducedMotion());
+                    state.getSecondHandMotion());
         }
 
-        protected static float hourAngle(Calendar c, ClockState state,
-                ClockRenderContext context) {
+        protected static float hourAngle(Calendar c, ClockState state) {
             return (c.get(Calendar.HOUR) + c.get(Calendar.MINUTE) / 60f
-                    + secondValue(c, state, context) / 3600f) * 30f - 90f;
+                    + secondValue(c, state) / 3600f) * 30f - 90f;
         }
 
-        protected static float minuteAngle(Calendar c, ClockState state,
-                ClockRenderContext context) {
-            return (c.get(Calendar.MINUTE) + secondValue(c, state, context) / 60f) * 6f - 90f;
+        protected static float minuteAngle(Calendar c, ClockState state) {
+            return (c.get(Calendar.MINUTE) + secondValue(c, state) / 60f) * 6f - 90f;
         }
 
-        protected static float secondAngle(Calendar c, ClockState state,
-                ClockRenderContext context) {
-            return secondValue(c, state, context) * 6f - 90f;
+        protected static float secondAngle(Calendar c, ClockState state) {
+            return secondValue(c, state) * 6f - 90f;
         }
 
         protected static void cleanHand(Canvas canvas, float cx, float cy, float degrees,
@@ -1056,15 +1044,15 @@ public final class UltimateClockStyles {
             }
 
             Calendar calendar = state.newCalendar();
-            cleanHand(canvas, cx, cy, hourAngle(calendar, state, context), radius * .50f,
+            cleanHand(canvas, cx, cy, hourAngle(calendar, state), radius * .50f,
                     radius * .052f, theme.getPrimaryTextColor(), radius * .07f,
                     Paint.Cap.ROUND);
-            cleanHand(canvas, cx, cy, minuteAngle(calendar, state, context), radius * .72f,
+            cleanHand(canvas, cx, cy, minuteAngle(calendar, state), radius * .72f,
                     radius * .028f, theme.getPrimaryTextColor(), radius * .10f,
                     Paint.Cap.ROUND);
             if (state.isShowSeconds()
                     && state.getSecondHandMotion() != ClockState.SecondHandMotion.OFF) {
-                cleanHand(canvas, cx, cy, secondAngle(calendar, state, context), radius * .82f,
+                cleanHand(canvas, cx, cy, secondAngle(calendar, state), radius * .82f,
                         Math.max(lineWidth(context, theme, 1f), radius * .009f),
                         theme.getAccentColor(), radius * .17f, Paint.Cap.ROUND);
             }
@@ -1136,15 +1124,15 @@ public final class UltimateClockStyles {
                         theme.getPrimaryTextColor(), Paint.Align.CENTER, condensed);
             }
             Calendar c = state.newCalendar();
-            cleanHand(canvas, cx, cy, hourAngle(c, state, context), radius * .48f,
+            cleanHand(canvas, cx, cy, hourAngle(c, state), radius * .48f,
                     radius * .042f, theme.getPrimaryTextColor(), radius * .07f,
                     Paint.Cap.SQUARE);
-            cleanHand(canvas, cx, cy, minuteAngle(c, state, context), radius * .70f,
+            cleanHand(canvas, cx, cy, minuteAngle(c, state), radius * .70f,
                     radius * .022f, theme.getPrimaryTextColor(), radius * .10f,
                     Paint.Cap.SQUARE);
             if (state.isShowSeconds()
                     && state.getSecondHandMotion() != ClockState.SecondHandMotion.OFF) {
-                cleanHand(canvas, cx, cy, secondAngle(c, state, context), radius * .80f,
+                cleanHand(canvas, cx, cy, secondAngle(c, state), radius * .80f,
                         Math.max(lineWidth(context, theme, .8f), radius * .007f),
                         theme.getAccentColor(), radius * .16f, Paint.Cap.SQUARE);
             }
@@ -1192,7 +1180,7 @@ public final class UltimateClockStyles {
                 }
                 if (state.isShowSeconds()
                         && state.getSecondHandMotion() != ClockState.SecondHandMotion.OFF) {
-                    cleanHand(canvas, subX, subY, secondAngle(c, state, context), subR * .65f,
+                    cleanHand(canvas, subX, subY, secondAngle(c, state), subR * .65f,
                             lineWidth(context, theme, .8f), theme.getAccentColor(), subR * .08f,
                             Paint.Cap.SQUARE);
                 }
@@ -1261,15 +1249,15 @@ public final class UltimateClockStyles {
                         theme.getPrimaryTextColor(), Paint.Align.CENTER, serif);
             }
             Calendar calendar = state.newCalendar();
-            cleanHand(canvas, cx, cy, hourAngle(calendar, state, context), radius * .48f,
+            cleanHand(canvas, cx, cy, hourAngle(calendar, state), radius * .48f,
                     radius * .032f, theme.getPrimaryTextColor(), radius * .06f,
                     Paint.Cap.SQUARE);
-            cleanHand(canvas, cx, cy, minuteAngle(calendar, state, context), radius * .70f,
+            cleanHand(canvas, cx, cy, minuteAngle(calendar, state), radius * .70f,
                     radius * .018f, theme.getPrimaryTextColor(), radius * .08f,
                     Paint.Cap.SQUARE);
             if (state.isShowSeconds()
                     && state.getSecondHandMotion() != ClockState.SecondHandMotion.OFF) {
-                cleanHand(canvas, cx, cy, secondAngle(calendar, state, context), radius * .80f,
+                cleanHand(canvas, cx, cy, secondAngle(calendar, state), radius * .80f,
                         Math.max(lineWidth(context, theme, .75f), radius * .006f),
                         theme.getAccentColor(), radius * .15f, Paint.Cap.SQUARE);
             }
@@ -1336,8 +1324,8 @@ public final class UltimateClockStyles {
                     stroke(alpha(theme.getLineColor(), 85), innerWidth));
             Calendar c = state.newCalendar();
             float hourProgress = (c.get(Calendar.HOUR) + c.get(Calendar.MINUTE) / 60f) / 12f;
-            float minuteProgress = (c.get(Calendar.MINUTE) + secondValue(c, state, context) / 60f) / 60f;
-            float secondProgress = secondValue(c, state, context) / 60f;
+            float minuteProgress = (c.get(Calendar.MINUTE) + secondValue(c, state) / 60f) / 60f;
+            float secondProgress = secondValue(c, state) / 60f;
             RectF outerRect = new RectF(cx - outer, cy - outer, cx + outer, cy + outer);
             RectF midRect = new RectF(cx - middle, cy - middle, cx + middle, cy + middle);
             RectF innerRect = new RectF(cx - inner, cy - inner, cx + inner, cy + inner);
@@ -1689,7 +1677,7 @@ public final class UltimateClockStyles {
             float barY = context.getTop() + h * (landscape ? .64f : .755f);
             float secProgress = state.isShowSeconds()
                     && state.getSecondHandMotion() != ClockState.SecondHandMotion.OFF
-                    ? secondValue(c, state, context) / 60f : 0f;
+                    ? secondValue(c, state) / 60f : 0f;
             canvas.drawLine(barLeft, barY, barRight, barY,
                     stroke(alpha(theme.getLineColor(), 150),
                             Math.max(lineWidth(context, theme, 1f), unit * .004f)));
@@ -1759,7 +1747,7 @@ public final class UltimateClockStyles {
                 faceContext = new ClockRenderContext(context.getLeft(), context.getTop(),
                         context.getRight(), contentBottom, context.getDensity(),
                         context.getScaledDensity(), context.getFrameTimeMillis(),
-                        context.isReducedMotion(), context.getBackground(), 0f,
+                        context.getBackground(), 0f,
                         context.getWorldClockScroll());
             }
             int save = canvas.save();
@@ -1878,7 +1866,7 @@ public final class UltimateClockStyles {
             ring(canvas, cx, cy, outer * .755f, colors.ring(.15f), Math.max(2f, h * .004f));
             ring(canvas, cx, cy, outer * .515f, colors.ring(.10f), Math.max(1f, h * .0026f));
             if (secondsVisible(state)) {
-                float angle = secondAngle(c, state, context);
+                float angle = secondAngle(c, state);
                 double rad = Math.toRadians(angle);
                 float dotX = cx + (float) Math.cos(rad) * outer;
                 float dotY = cy + (float) Math.sin(rad) * outer;
@@ -2109,12 +2097,12 @@ public final class UltimateClockStyles {
                 tick.setStrokeCap(Paint.Cap.ROUND);
                 canvas.drawLine(x1, y1, x2, y2, tick);
             }
-            cleanHand(canvas, cx, cy, hourAngle(c, state, context), radius * .50f,
+            cleanHand(canvas, cx, cy, hourAngle(c, state), radius * .50f,
                     radius * .055f, colors.onPanelAlt, radius * .03f, Paint.Cap.ROUND);
-            cleanHand(canvas, cx, cy, minuteAngle(c, state, context), radius * .69f,
+            cleanHand(canvas, cx, cy, minuteAngle(c, state), radius * .69f,
                     radius * .039f, colors.onPanelAlt, radius * .04f, Paint.Cap.ROUND);
             if (secondsVisible(state)) {
-                cleanHand(canvas, cx, cy, secondAngle(c, state, context), radius * .77f,
+                cleanHand(canvas, cx, cy, secondAngle(c, state), radius * .77f,
                         Math.max(context.getDensity() * 1.5f, radius * .010f), colors.hand(),
                         radius * .04f, Paint.Cap.ROUND);
             }

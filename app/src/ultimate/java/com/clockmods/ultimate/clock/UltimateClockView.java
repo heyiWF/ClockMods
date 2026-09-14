@@ -1,6 +1,5 @@
 package com.clockmods.ultimate.clock;
 
-import android.animation.ValueAnimator;
 import android.content.Context;
 import android.graphics.Bitmap;
 import android.graphics.Canvas;
@@ -8,8 +7,6 @@ import android.graphics.RectF;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
-import android.os.SystemClock;
-import android.provider.Settings;
 import android.text.format.DateFormat;
 import android.util.AttributeSet;
 import android.util.TypedValue;
@@ -58,7 +55,6 @@ import java.util.concurrent.Executors;
 public class UltimateClockView extends FrameLayout {
     private static final long MILLIS_PER_SECOND = 1000L;
     private static final long MINUTE_REFRESH_MILLIS = 60_000L;
-    private static final long REDUCED_MOTION_CACHE_MILLIS = 1000L;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable ticker = new Runnable() {
@@ -74,9 +70,6 @@ public class UltimateClockView extends FrameLayout {
     private String styleId = UltimateClockPreferences.DEFAULT_STYLE_ID;
     private ClockState.SecondHandMotion secondHandMotion =
             UltimateClockPreferences.DEFAULT_SECOND_HAND_MOTION;
-    private boolean followSystemReducedMotion =
-            UltimateClockPreferences.DEFAULT_FOLLOW_SYSTEM_REDUCED_MOTION;
-    private boolean manualReducedMotion;
     private String backgroundMode = UltimateClockPreferences.DEFAULT_BACKGROUND_MODE;
     private boolean showSeconds = true;
     private boolean use24Hour;
@@ -117,8 +110,6 @@ public class UltimateClockView extends FrameLayout {
     private boolean attached;
     private boolean windowVisible = true;
     private boolean windowFocused = true;
-    private long reducedMotionCheckedAt;
-    private boolean systemReducedMotion;
     private float bottomOverlayInset;
 
     public UltimateClockView(Context context) {
@@ -189,7 +180,6 @@ public class UltimateClockView extends FrameLayout {
         if (preferences == null) return;
         styleId = preferences.getStyleId();
         secondHandMotion = preferences.getSecondHandMotion();
-        followSystemReducedMotion = preferences.isFollowSystemReducedMotion();
         backgroundMode = preferences.getBackgroundMode();
         if (worldClockRepository == null) {
             worldClockRepository = new WorldClockRepository(getContext());
@@ -271,23 +261,6 @@ public class UltimateClockView extends FrameLayout {
 
     public ClockState.SecondHandMotion getSecondHandMotion() {
         return secondHandMotion;
-    }
-
-    public void setFollowSystemReducedMotion(boolean follow) {
-        followSystemReducedMotion = follow;
-        reducedMotionCheckedAt = 0L;
-        if (preferences != null) preferences.setFollowSystemReducedMotion(follow);
-        invalidateAndReschedule();
-    }
-
-    public boolean isFollowSystemReducedMotion() {
-        return followSystemReducedMotion;
-    }
-
-    /** Forces a reduced-motion frame policy when the host has its own accessibility setting. */
-    public void setReducedMotion(boolean reducedMotion) {
-        manualReducedMotion = reducedMotion;
-        invalidateAndReschedule();
     }
 
     public void setShowSeconds(boolean show) {
@@ -423,7 +396,6 @@ public class UltimateClockView extends FrameLayout {
 
     @Override protected void onAttachedToWindow() {
         super.onAttachedToWindow();
-        reducedMotionCheckedAt = 0L;
         synchronized (workerLock) {
             attached = true;
             imageExecutor = Executors.newSingleThreadExecutor();
@@ -496,10 +468,9 @@ public class UltimateClockView extends FrameLayout {
         super.onDraw(canvas);
         if (getWidth() <= 0 || getHeight() <= 0) return;
         long now = currentTimeMillis();
-        boolean reduced = manualReducedMotion ||
-                (followSystemReducedMotion && isSystemReducedMotion());
         ClockStyle style = styleRegistry.resolveForApi(styleId, Build.VERSION.SDK_INT);
-        ClockState.SecondHandMotion motion = effectiveSecondHandMotion(style, reduced);
+        ClockState.SecondHandMotion motion = resolveSecondHandMotion(
+                style, showSeconds, secondHandMotion);
         ClockState state = ClockState.builder(now)
                 .timeZone(timeZone)
                 .locale(locale)
@@ -520,7 +491,7 @@ public class UltimateClockView extends FrameLayout {
         ClockRenderContext renderContext = new ClockRenderContext(0f, 0f, getWidth(), getHeight(),
                 getResources().getDisplayMetrics().density,
                 TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 1f,
-                            getResources().getDisplayMetrics()), now, reduced,
+                            getResources().getDisplayMetrics()), now,
                 createBackground(now), bottomOverlayInset, 0f, true);
         ClockThemeTokens theme = typography.apply(getContext(), paletteTokens, styleId,
                 fontFamily, fontWeight);
@@ -605,10 +576,9 @@ public class UltimateClockView extends FrameLayout {
     private void scheduleNextFrame() {
         if (!shouldRunFrames()) return;
         long delay;
-        boolean reduced = manualReducedMotion
-                || (followSystemReducedMotion && isSystemReducedMotion());
         ClockStyle style = styleRegistry.resolveForApi(styleId, Build.VERSION.SDK_INT);
-        ClockState.SecondHandMotion motion = effectiveSecondHandMotion(style, reduced);
+        ClockState.SecondHandMotion motion = resolveSecondHandMotion(
+                style, showSeconds, secondHandMotion);
         if (motion == ClockState.SecondHandMotion.OFF) {
             long now = currentTimeMillis();
             delay = MINUTE_REFRESH_MILLIS - (now % MINUTE_REFRESH_MILLIS);
@@ -622,36 +592,8 @@ public class UltimateClockView extends FrameLayout {
         handler.postDelayed(ticker, Math.max(1L, delay));
     }
 
-    private boolean isSystemReducedMotion() {
-        long now = SystemClock.uptimeMillis();
-        if (reducedMotionCheckedAt != 0L
-                && now - reducedMotionCheckedAt < REDUCED_MOTION_CACHE_MILLIS) {
-            return systemReducedMotion;
-        }
-        boolean reduced = false;
-        if (Build.VERSION.SDK_INT >= 26) {
-            reduced = !ValueAnimator.areAnimatorsEnabled();
-        } else if (Build.VERSION.SDK_INT >= 17) {
-            try {
-                reduced = Settings.Global.getFloat(getContext().getContentResolver(),
-                        Settings.Global.ANIMATOR_DURATION_SCALE, 1f) == 0f;
-            } catch (RuntimeException ignored) {
-                reduced = false;
-            }
-        }
-        systemReducedMotion = reduced;
-        reducedMotionCheckedAt = now;
-        return reduced;
-    }
-
-    private ClockState.SecondHandMotion effectiveSecondHandMotion(ClockStyle style,
-            boolean reducedMotion) {
-        return resolveSecondHandMotion(style, showSeconds, secondHandMotion, reducedMotion);
-    }
-
     static ClockState.SecondHandMotion resolveSecondHandMotion(ClockStyle style,
-            boolean showSeconds, ClockState.SecondHandMotion requestedMotion,
-            boolean reducedMotion) {
+            boolean showSeconds, ClockState.SecondHandMotion requestedMotion) {
         ClockStyleCapabilities capabilities = style.getMetadata().getCapabilities();
         if (!showSeconds
                 || !capabilities.supports(ClockStyleCapabilities.Capability.SECONDS)) {
@@ -669,8 +611,8 @@ public class UltimateClockView extends FrameLayout {
             return ClockState.SecondHandMotion.OFF;
         }
         if (safeMotion == ClockState.SecondHandMotion.SWEEP
-                && (reducedMotion || !capabilities.supports(
-                        ClockStyleCapabilities.Capability.SMOOTH_SECONDS))) {
+                && !capabilities.supports(
+                        ClockStyleCapabilities.Capability.SMOOTH_SECONDS)) {
             return ClockState.SecondHandMotion.TICK;
         }
         return safeMotion;

@@ -7,7 +7,6 @@ import android.graphics.Paint;
 import android.graphics.Typeface;
 import android.os.SystemClock;
 import android.os.Build;
-import android.provider.Settings;
 import android.text.TextUtils;
 import android.util.AttributeSet;
 import android.util.TypedValue;
@@ -86,9 +85,8 @@ public final class CalendarLabelCarouselView extends View {
         super.onDraw(canvas);
         if (items.isEmpty()) return;
         long now = SystemClock.uptimeMillis();
-        boolean animate = active && animationsEnabled();
 
-        if (!animate) {
+        if (!active) {
             drawItem(canvas, items.get(0), 0f, 0L);
             return;
         }
@@ -171,17 +169,5 @@ public final class CalendarLabelCarouselView extends View {
     private float slideDistance() {
         paint.setTextSize(preferredTextSize);
         return paint.descent() - paint.ascent();
-    }
-
-    @SuppressWarnings("deprecation")
-    private boolean animationsEnabled() {
-        try {
-            float scale = Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1
-                    ? Settings.Global.getFloat(getContext().getContentResolver(),
-                            Settings.Global.ANIMATOR_DURATION_SCALE, 1f)
-                    : Settings.System.getFloat(getContext().getContentResolver(),
-                            Settings.System.ANIMATOR_DURATION_SCALE, 1f);
-            return scale > 0f;
-        } catch (RuntimeException ignored) { return true; }
     }
 }
