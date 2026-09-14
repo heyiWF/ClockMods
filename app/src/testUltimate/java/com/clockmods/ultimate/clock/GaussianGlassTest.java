@@ -62,4 +62,30 @@ public class GaussianGlassTest {
         assertEquals(0, soft[47] & 255);
         assertTrue((strong[47] & 255) > 0);
     }
+
+    @Test public void midpointBrightnessIsAnIdentityTransform() {
+        assertArrayEquals(new float[] {1f, 0f}, GaussianGlass.brightnessTransform(50), 0f);
+        for (int color : new int[] {0xFF000000, 0xFFFFFFFF, 0xFF123456, 0xFFCA842B}) {
+            assertEquals(color, GaussianGlass.applyBrightnessOverlay(color, 50));
+        }
+    }
+
+    @Test public void brightnessEndpointsDarkenAndLightenWithoutFlatteningTheImage() {
+        int color = 0xFF406080;
+        int darker = GaussianGlass.applyBrightnessOverlay(color, 0);
+        int lighter = GaussianGlass.applyBrightnessOverlay(color, 100);
+        for (int shift = 0; shift <= 16; shift += 8) {
+            int originalChannel = color >>> shift & 255;
+            assertTrue((darker >>> shift & 255) < originalChannel);
+            assertTrue((lighter >>> shift & 255) > originalChannel);
+        }
+        assertNotEquals(0xFF000000, darker);
+        assertNotEquals(0xFFFFFFFF, lighter);
+
+        for (int brightness : new int[] {0, 25, 50, 75, 100}) {
+            int black = GaussianGlass.applyBrightnessOverlay(0xFF000000, brightness) & 255;
+            int white = GaussianGlass.applyBrightnessOverlay(0xFFFFFFFF, brightness) & 255;
+            assertTrue("blur detail was flattened at " + brightness, white > black);
+        }
+    }
 }

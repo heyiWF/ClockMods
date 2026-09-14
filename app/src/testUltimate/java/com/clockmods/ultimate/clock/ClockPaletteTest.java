@@ -73,26 +73,18 @@ public class ClockPaletteTest {
         assertEquals(100, p.withBlurBrightness(101).blurBrightness);
     }
 
-    @Test public void tintedGlassTextHasContrastAtEverySliderBrightness() {
+    @Test public void tintedGlassTextFollowsTheBrightnessAdjustedSample() {
         for (int r = 0; r <= 255; r += 51) {
             for (int g = 0; g <= 255; g += 51) {
                 for (int b = 0; b <= 255; b += 51) {
                     int tint = 0xFF000000 | r << 16 | g << 8 | b;
-                    int previousCenter = -1;
                     for (int brightness = 0; brightness <= 100; brightness++) {
                         ClockPalette p = ClockPalette.glass(brightness, tint);
                         assertNotEquals(0xFF000000, p.onPanel);
                         assertNotEquals(0xFFFFFFFF, p.onPanel);
-                        int[] range = GaussianGlass.brightnessRange(brightness, p.onPanel);
-                        assertTrue(range[0] >= 0 && range[1] <= 255 && range[0] <= range[1]);
-                        for (int channel : range) {
-                            int surface = 0xFF000000 | channel << 16 | channel << 8 | channel;
-                            readable(p.onPanel, surface);
-                            readable(p.mutedPanel, surface);
-                        }
-                        int center = (range[0] + range[1]) / 2;
-                        assertTrue(center >= previousCenter);
-                        previousCenter = center;
+                        int surface = GaussianGlass.applyBrightnessOverlay(tint, brightness);
+                        readable(p.onPanel, surface);
+                        readable(p.mutedPanel, surface);
                     }
                 }
             }

@@ -53,23 +53,9 @@ public final class ClockPalette {
                 ClockThemeTokens.DEFAULT_BLUR_STRENGTH, brightness, true, tint);
     }
 
-    static int glassCenter(int brightness) {
-        int value = Math.max(0, Math.min(100, brightness));
-        return Math.round(value <= 50 ? 117f * value / 50f : 117f + 138f * (value - 50) / 50f);
-    }
-
-    /** Preserve the sampled card hue, moving toward a tinted extreme only as contrast requires. */
+    /** Choose readable foregrounds from the sampled image after its brightness overlay. */
     static int glassTextColor(int brightness, int tint) {
-        boolean light = brightness <= 50;
-        int preferred = mix(tint, light ? 0xFFF6F8FC : 0xFF111B2C, light ? .82f : .90f);
-        int extreme = light ? 0xFFFEFEFF : 0xFF010102;
-        int center = glassCenter(brightness);
-        int surface = 0xFF000000 | center << 16 | center << 8 | center;
-        for (int step = 0; step <= 20; step++) {
-            int candidate = mix(preferred, extreme, step / 20f);
-            if (contrast(candidate, surface) >= 4.5) return candidate;
-        }
-        return extreme;
+        return foreground(GaussianGlass.applyBrightnessOverlay(tint, brightness));
     }
 
     public static boolean supports(String id) {

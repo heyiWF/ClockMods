@@ -19,6 +19,8 @@ import java.util.HashMap;
 /** A background-anchored blur sampled through moving card masks, including software previews. */
 final class GaussianGlass {
     private static final int MAX_EDGE = 192;
+    // Keep texture visible at both slider ends instead of fading the blur to solid black/white.
+    private static final float MAX_BRIGHTNESS_OVERLAY_ALPHA = .55f;
     // Keys do not keep the host's full-size background alive after replacement or view disposal.
     private static final WeakHashMap<Bitmap, GaussianGlass> CACHE = new WeakHashMap<>();
     private final Bitmap bitmap;
@@ -30,7 +32,7 @@ final class GaussianGlass {
     private final float left, top, right, bottom;
     private final int strength, brightness;
     private final float imageLeft, imageTop, scaleX, scaleY;
-    private final HashMap<Long, Paint> paints = new HashMap<>();
+    private final Paint materialPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
     private final HashMap<Integer, ClockPalette> palettes = new HashMap<>();
     private final ClockPalette defaultPalette;
     private ClockPalette activePalette;
@@ -62,6 +64,17 @@ final class GaussianGlass {
         right = context.getRight();
         bottom = context.getBottom();
         shader = new BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
+        materialPaint.setShader(shader);
+        float[] brightnessTransform = brightnessTransform(brightness);
+        if (brightness != 50) {
+            float scale = brightnessTransform[0];
+            float offset = brightnessTransform[1];
+            materialPaint.setColorFilter(new ColorMatrixColorFilter(new float[] {
+                    scale, 0, 0, 0, offset,
+                    0, scale, 0, 0, offset,
+                    0, 0, scale, 0, offset,
+                    0, 0, 0, 1, 0}));
+        }
         float scale = Math.max(context.getWidth() / sourceWidth, context.getHeight() / sourceHeight);
         scaleX = sourceWidth * scale / bitmap.getWidth();
         scaleY = sourceHeight * scale / bitmap.getHeight();
@@ -119,25 +132,7 @@ final class GaussianGlass {
     }
 
     private Paint material(int surface) {
-        int foreground = activePalette.onPanel;
-        long key = ((long) foreground << 32) | (surface & 0xFFFFFFFFL);
-        Paint cached = paints.get(key);
-        if (cached != null) return cached;
-        Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.FILTER_BITMAP_FLAG);
-        paint.setShader(shader);
-        // Keep the complete image range readable, even when a card crosses a black/white edge.
-        int[] range = brightnessRange(brightness, foreground);
-        float span = range[1] - range[0];
-        int maximum = Math.max((surface >> 16) & 255, Math.max((surface >> 8) & 255, surface & 255));
-        float r = span / 255f * ((surface >> 16) & 255) / Math.max(1f, maximum);
-        float g = span / 255f * ((surface >> 8) & 255) / Math.max(1f, maximum);
-        float b = span / 255f * (surface & 255) / Math.max(1f, maximum);
-        float offset = range[0];
-        paint.setColorFilter(new ColorMatrixColorFilter(new float[] {
-                r, 0, 0, 0, offset, 0, g, 0, 0, offset, 0, 0, b, 0, offset, 0, 0, 0, 1, 0}));
-        if (paints.size() >= 128) paints.clear();
-        paints.put(key, paint);
-        return paint;
+        return materialPaint;
     }
 
     void roundRect(Canvas canvas, RectF bounds, float rx, float ry, int surface,
@@ -239,19 +234,26 @@ final class GaussianGlass {
         return weights;
     }
 
-    static int[] brightnessRange(int brightness, int foreground) {
-        boolean lightText = brightness <= 50;
-        int low = 0, high = 255;
-        while (low < high) {
-            int mid = lightText ? (low + high + 1) / 2 : (low + high) / 2;
-            int gray = 0xFF000000 | mid << 16 | mid << 8 | mid;
-            boolean readable = ClockPalette.contrast(foreground, gray) >= 4.5;
-            if (lightText ? readable : !readable) low = lightText ? mid : mid + 1;
-            else high = lightText ? mid - 1 : mid;
+    /**
+     * Models a translucent black/white layer over the already blurred image. A value of 50 is
+     * deliberately the identity transform; the bounded endpoint alpha preserves image texture.
+     */
+    static float[] brightnessTransform(int brightness) {
+        int value = Math.max(0, Math.min(100, brightness));
+        float alpha = Math.abs(value - 50) / 50f * MAX_BRIGHTNESS_OVERLAY_ALPHA;
+        return new float[] {1f - alpha, value > 50 ? 255f * alpha : 0f};
+    }
+
+    /** Applies the same transform used by the rendering paint to a sampled color. */
+    static int applyBrightnessOverlay(int color, int brightness) {
+        float[] transform = brightnessTransform(brightness);
+        int result = color & 0xFF000000;
+        for (int shift = 0; shift <= 16; shift += 8) {
+            int channel = (color >>> shift) & 255;
+            int adjusted = Math.max(0, Math.min(255,
+                    Math.round(channel * transform[0] + transform[1])));
+            result |= adjusted << shift;
         }
-        int center = ClockPalette.glassCenter(brightness);
-        int radius = lightText ? Math.min(center, low - center) : Math.min(center - low, 255 - center);
-        radius = Math.max(0, radius);
-        return new int[] {center - radius, center + radius};
+        return result;
     }
 }

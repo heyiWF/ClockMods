@@ -1,5 +1,6 @@
 package com.clockmods.ultimate.settings;
 
+import com.clockmods.background.ClockPreferences;
 import com.clockmods.sdk.clock.ClockStyle;
 import com.clockmods.ultimate.clock.UltimateClockStyles;
 
@@ -23,6 +24,29 @@ public class UltimateSettingsActivityTest {
                 -1, 480, 182, 360));
         Assert.assertEquals(0, UltimateSettingsActivity.styleGalleryTargetScrollX(
                 -1, 20, 182, 360));
+    }
+
+    @Test
+    public void palettePreviewViewportFollowsTheClockOrientation() {
+        Assert.assertArrayEquals(new int[] {1600, 900},
+                UltimateSettingsActivity.clockPreviewViewport(1600, 900,
+                        ClockPreferences.ORIENTATION_FOLLOW_SYSTEM));
+        Assert.assertArrayEquals(new int[] {1600, 900},
+                UltimateSettingsActivity.clockPreviewViewport(900, 1600,
+                        ClockPreferences.ORIENTATION_LANDSCAPE));
+        Assert.assertArrayEquals(new int[] {900, 1600},
+                UltimateSettingsActivity.clockPreviewViewport(1600, 900,
+                        ClockPreferences.ORIENTATION_PORTRAIT));
+    }
+
+    @Test
+    public void palettePreviewFitsTheClockAspectInsideItsBounds() {
+        Assert.assertArrayEquals(new int[] {347, 195},
+                UltimateSettingsActivity.fitClockPreviewSize(875, 195, 1600, 900));
+        Assert.assertArrayEquals(new int[] {110, 195},
+                UltimateSettingsActivity.fitClockPreviewSize(875, 195, 900, 1600));
+        Assert.assertArrayEquals(new int[] {300, 169},
+                UltimateSettingsActivity.fitClockPreviewSize(300, 400, 1600, 900));
     }
 
     @Test

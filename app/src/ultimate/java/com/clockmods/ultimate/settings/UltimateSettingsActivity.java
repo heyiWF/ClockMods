@@ -2628,22 +2628,38 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         int[] role = {0};
         int[] labels = {R.string.ultimate_palette_background, R.string.ultimate_palette_panel,
                 R.string.ultimate_palette_accent};
+        Rect dialogBounds = WindowMetricsCalculator.getOrCreate()
+                .computeCurrentWindowMetrics(this).getBounds();
+        boolean wideLayout = dialogBounds.width() >= dp(600)
+                && dialogBounds.width() > dialogBounds.height();
         LinearLayout content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL);
+        content.setOrientation(wideLayout ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
         content.setPadding(dp(24), dp(8), dp(24), dp(12));
+        // Settings may be embedded in a narrow detail pane. The clock itself returns to the
+        // full display, so use maximum bounds to keep its crop and adaptive text sample aligned.
+        Rect windowBounds = WindowMetricsCalculator.getOrCreate()
+                .computeMaximumWindowMetrics(this).getBounds();
+        int[] previewViewport = clockPreviewViewport(windowBounds.width(), windowBounds.height(),
+                repository.getScreenOrientation());
         UltimateThemePreviewView preview = new UltimateThemePreviewView(this, style);
-        content.addView(preview, new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, dp(130)));
+        preview.setTargetViewport(previewViewport[0], previewViewport[1], dp(130));
+        LinearLayout.LayoutParams previewParams = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT);
+        previewParams.gravity = wideLayout ? Gravity.TOP : Gravity.CENTER_HORIZONTAL;
+        if (wideLayout) previewParams.setMarginEnd(dp(24));
+        content.addView(preview, previewParams);
+        LinearLayout controls = new LinearLayout(this);
+        controls.setOrientation(LinearLayout.VERTICAL);
+        content.addView(controls, new LinearLayout.LayoutParams(
+                wideLayout ? 0 : ViewGroup.LayoutParams.MATCH_PARENT,
+                ViewGroup.LayoutParams.WRAP_CONTENT, wideLayout ? 1f : 0f));
         boolean imageBackground = UltimateClockPreferences.BACKGROUND_MODE_IMAGE.equals(
                 ultimatePreferences.getBackgroundMode()) && repository.hasImage();
         LinearLayout solidControls = new LinearLayout(this);
         solidControls.setOrientation(LinearLayout.VERTICAL);
         LinearLayout blurControls = new LinearLayout(this);
-        boolean wideBlurControls = getResources().getConfiguration().screenWidthDp >= 600
-                && getResources().getConfiguration().screenWidthDp
-                > getResources().getConfiguration().screenHeightDp;
-        blurControls.setOrientation(wideBlurControls ? LinearLayout.HORIZONTAL : LinearLayout.VERTICAL);
-        MaterialSwitch blurSwitch = imageBackground ? addSwitch(content,
+        blurControls.setOrientation(LinearLayout.VERTICAL);
+        MaterialSwitch blurSwitch = imageBackground ? addSwitch(controls,
                 R.string.ultimate_palette_gaussian_blur, R.string.ultimate_palette_gaussian_blur_summary,
                 draft[0].gaussianBlur, enabled -> {
                     draft[0] = draft[0].withGaussianBlur(enabled);
@@ -2653,7 +2669,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 }) : null;
         solidControls.setVisibility(imageBackground && draft[0].gaussianBlur ? View.GONE : View.VISIBLE);
         blurControls.setVisibility(imageBackground && draft[0].gaussianBlur ? View.VISIBLE : View.GONE);
-        content.addView(blurControls);
+        controls.addView(blurControls);
         Slider strengthSlider = addBlurSlider(blurControls, R.string.ultimate_palette_blur_strength,
                 draft[0].blurStrength, percent -> {
                     draft[0] = draft[0].withBlurStrength(percent);
@@ -2664,7 +2680,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     draft[0] = draft[0].withBlurBrightness(percent);
                     preview.setPalette(draft[0]);
                 });
-        content.addView(solidControls);
+        controls.addView(solidControls);
         ColorPickerView picker = new ColorPickerView(this);
         picker.setColor(draft[0].background);
         picker.setAccessibilityLabel(getString(labels[0]));
@@ -2684,11 +2700,14 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         });
         ScrollView scroll = new ScrollView(this);
         scroll.setFillViewport(false);
-        scroll.addView(content);
+        scroll.addView(content, new ScrollView.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         FrameLayout holder = new FrameLayout(this);
-        int height = Math.min(dp(440), (int) (getResources().getDisplayMetrics().heightPixels * .60f));
+        int holderHeight = Math.min(dp(600),
+                Math.max(1, dialogBounds.height() - dp(160)));
+        holder.setMinimumHeight(holderHeight);
         holder.addView(scroll, new FrameLayout.LayoutParams(
-                ViewGroup.LayoutParams.MATCH_PARENT, height));
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
         AlertDialog dialog = new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.ultimate_style_palette)
                 .setView(holder)
@@ -2699,21 +2718,28 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     markChanged("style_palette");
                     showPage(Page.STYLE);
                 }).create();
-        dialog.setOnShowListener(d -> dialog.getButton(AlertDialog.BUTTON_NEUTRAL)
-                .setOnClickListener(view -> {
-                    draft[0] = ClockPalette.DEFAULT;
-                    if (blurSwitch != null) blurSwitch.setChecked(false);
-                    strengthSlider.setValue(draft[0].blurStrength);
-                    brightnessSlider.setValue(draft[0].blurBrightness);
-                    picker.setColor(draft[0].color(role[0]));
-                    preview.setPalette(draft[0]);
-                }));
+        dialog.setOnShowListener(d -> {
+            Window window = dialog.getWindow();
+            if (window != null) {
+                int width = Math.min(dp(620), Math.max(1, dialogBounds.width() - dp(32)));
+                int height = Math.min(dp(720), Math.max(1, dialogBounds.height() - dp(32)));
+                window.setLayout(width, height);
+            }
+            dialog.getButton(AlertDialog.BUTTON_NEUTRAL).setOnClickListener(view -> {
+                draft[0] = ClockPalette.DEFAULT;
+                if (blurSwitch != null) blurSwitch.setChecked(false);
+                strengthSlider.setValue(draft[0].blurStrength);
+                brightnessSlider.setValue(draft[0].blurBrightness);
+                picker.setColor(draft[0].color(role[0]));
+                preview.setPalette(draft[0]);
+            });
+        });
         dialog.show();
         if (imageBackground) {
             imageExecutor.execute(() -> {
                 Bitmap loaded;
                 try {
-                    loaded = repository.loadImage(640, 360);
+                    loaded = repository.loadImage(previewViewport[0], previewViewport[1]);
                 } catch (java.io.IOException | RuntimeException exception) {
                     loaded = null;
                 }
@@ -3263,6 +3289,35 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         return Math.max(0, cardLeft - Math.max(0, viewportWidth - cardWidth) / 2);
     }
 
+    static int[] clockPreviewViewport(int windowWidth, int windowHeight, int orientation) {
+        int width = Math.max(1, windowWidth);
+        int height = Math.max(1, windowHeight);
+        boolean shouldBePortrait = orientation == ClockPreferences.ORIENTATION_PORTRAIT;
+        boolean shouldBeLandscape = orientation == ClockPreferences.ORIENTATION_LANDSCAPE;
+        if ((shouldBePortrait && width > height) || (shouldBeLandscape && width < height)) {
+            int swap = width;
+            width = height;
+            height = swap;
+        }
+        return new int[] {width, height};
+    }
+
+    static int[] fitClockPreviewSize(int maxWidth, int maxHeight,
+            int viewportWidth, int viewportHeight) {
+        int widthLimit = Math.max(1, maxWidth);
+        int heightLimit = Math.max(1, maxHeight);
+        int width = Math.max(1, viewportWidth);
+        int height = Math.max(1, viewportHeight);
+        int widthAtHeightLimit = Math.max(1,
+                (int) Math.round(heightLimit * (double) width / height));
+        if (widthAtHeightLimit <= widthLimit) {
+            return new int[] {widthAtHeightLimit, heightLimit};
+        }
+        int heightAtWidthLimit = Math.max(1,
+                (int) Math.round(widthLimit * (double) height / width));
+        return new int[] {widthLimit, Math.min(heightLimit, heightAtWidthLimit)};
+    }
+
     static boolean shouldShowSecondMotionControls(ClockStyle style) {
         if (style == null) return false;
         return style.getMetadata().getKind()
@@ -3405,6 +3460,9 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         private final String scopeId;
         private ClockThemeTokens previewTokens;
         private ClockBackground previewBackground;
+        private int targetViewportWidth;
+        private int targetViewportHeight;
+        private int maxPreviewHeight;
 
         UltimateThemePreviewView(Context context, ClockStyle style) {
             super(context);
@@ -3422,10 +3480,39 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             invalidate();
         }
 
+        void setTargetViewport(int width, int height, int maxHeight) {
+            targetViewportWidth = Math.max(1, width);
+            targetViewportHeight = Math.max(1, height);
+            maxPreviewHeight = Math.max(1, maxHeight);
+            requestLayout();
+        }
+
+        @Override
+        protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+            if (targetViewportWidth <= 0 || targetViewportHeight <= 0) {
+                super.onMeasure(widthMeasureSpec, heightMeasureSpec);
+                return;
+            }
+            int widthMode = MeasureSpec.getMode(widthMeasureSpec);
+            int heightMode = MeasureSpec.getMode(heightMeasureSpec);
+            int maxWidth = widthMode == MeasureSpec.UNSPECIFIED
+                    ? targetViewportWidth : MeasureSpec.getSize(widthMeasureSpec);
+            int maxHeight = maxPreviewHeight;
+            if (heightMode != MeasureSpec.UNSPECIFIED) {
+                maxHeight = Math.min(maxHeight, MeasureSpec.getSize(heightMeasureSpec));
+            }
+            int[] size = fitClockPreviewSize(maxWidth, maxHeight,
+                    targetViewportWidth, targetViewportHeight);
+            setMeasuredDimension(resolveSize(size[0], widthMeasureSpec),
+                    resolveSize(size[1], heightMeasureSpec));
+        }
+
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
             if (getWidth() <= 0 || getHeight() <= 0) return;
+            int renderWidth = targetViewportWidth > 0 ? targetViewportWidth : getWidth();
+            int renderHeight = targetViewportHeight > 0 ? targetViewportHeight : getHeight();
             Calendar calendar = Calendar.getInstance(TimeZone.getDefault(), Locale.getDefault());
             calendar.set(2026, Calendar.JUNE, 18, 10, 9, 36);
             calendar.set(Calendar.MILLISECOND, 0);
@@ -3444,13 +3531,15 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                             / ClockPreferences.DEFAULT_DATE_FONT_SCALE)
                     .supportingScale(repository.getSupportingFontScale(scopeId))
                     .build();
-            ClockRenderContext context = new ClockRenderContext(0f, 0f, getWidth(), getHeight(),
+            ClockRenderContext context = new ClockRenderContext(0f, 0f, renderWidth, renderHeight,
                     getResources().getDisplayMetrics().density,
                     TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 1f,
                             getResources().getDisplayMetrics()),
                     calendar.getTimeInMillis(), previewBackground);
             int saveCount = canvas.save();
             try {
+                canvas.scale(getWidth() / (float) renderWidth,
+                        getHeight() / (float) renderHeight);
                 style.getRenderer().render(canvas, context, state,
                         typography.apply(getContext(), previewTokens, scopeId,
                                 repository.getFontFamily(scopeId),
