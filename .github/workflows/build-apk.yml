@@ -1,0 +1,108 @@
+name: Build APK
+
+on:
+  push:
+    branches: [main, ultimate]
+  pull_request:
+    branches: [main, ultimate]
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  build:
+    name: Assemble debug APKs
+    runs-on: ubuntu-latest
+    timeout-minutes: 40
+
+    steps:
+      - name: Checkout
+        uses: actions/checkout@v7
+
+      - name: Set up JDK
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '21'
+
+      # Installs cmdline-tools and accepts the SDK licences, then pre-fetches the
+      # exact platform and build-tools app/build.gradle pins (compileSdk 36.1,
+      # buildToolsVersion 36.1.0) so Gradle never has to download them mid-build.
+      - name: Set up Android SDK
+        uses: android-actions/setup-android@v4
+        with:
+          packages: 'platforms;android-36.1 build-tools;36.1.0'
+
+      - name: Set up Gradle
+        uses: gradle/actions/setup-gradle@v6
+
+      # Push builds get the real credentials; PR builds deliberately do not, so a
+      # fork PR can never read them. Weather then falls back to "not configured".
+      - name: Write local QWeather config
+        if: github.event_name != 'pull_request'
+        env:
+          QWEATHER_API_HOST: ${{ vars.QWEATHER_API_HOST }}
+          QWEATHER_CREDENTIAL_ID: ${{ secrets.QWEATHER_CREDENTIAL_ID }}
+          QWEATHER_DEVELOPER_ID: ${{ secrets.QWEATHER_DEVELOPER_ID }}
+          QWEATHER_PROJECT_ID: ${{ secrets.QWEATHER_PROJECT_ID }}
+          QWEATHER_PRIVATE_KEY_BASE64: ${{ secrets.QWEATHER_PRIVATE_KEY_BASE64 }}
+        run: |
+          umask 077
+          {
+            echo "apiHost=${QWEATHER_API_HOST:-devapi.qweather.com}"
+            echo "credentialId=${QWEATHER_CREDENTIAL_ID}"
+            echo "developerId=${QWEATHER_DEVELOPER_ID}"
+            echo "projectId=${QWEATHER_PROJECT_ID}"
+            echo "privateKeyBase64=${QWEATHER_PRIVATE_KEY_BASE64}"
+          } > qweather.properties
+
+      # assembleDebug picks up whichever flavors the checked-out branch defines:
+      # compat/modern/pro on `main`, `ultimate` on the ultimate branch.
+      - name: Assemble debug APKs
+        run: ./gradlew --no-daemon --stacktrace assembleDebug
+
+      # Secrets are not injected for PR builds, so nothing sensitive is uploaded there.
+      - name: Upload APKs
+        if: github.event_name != 'pull_request'
+        uses: actions/upload-artifact@v7
+        with:
+          name: clockmods-apks-${{ github.ref_name }}-${{ github.run_number }}
+          path: app/build/outputs/apk/*/debug/*.apk
+          if-no-files-found: error
+          retention-days: 30
+
+      - name: Summary
+        if: always()
+        env:
+          EVENT_NAME: ${{ github.event_name }}
+          REF_NAME: ${{ github.ref_name }}
+        run: |
+          if [ "$EVENT_NAME" = "pull_request" ]; then
+            creds="skipped (pull request)"
+          else
+            creds="injected"
+          fi
+          {
+            echo "### Build APK"
+            echo ""
+            echo "- ref: \`$REF_NAME\`"
+            echo "- commit: \`${{ github.sha }}\`"
+            echo "- event: \`$EVENT_NAME\`"
+            echo "- QWeather credentials: $creds"
+            echo ""
+            echo "| APK | Size |"
+            echo "| --- | --- |"
+            find app/build/outputs/apk -name '*.apk' -printf '%p\t%s\n' 2>/dev/null |
+              sort | while IFS=$'\t' read -r f s; do
+                echo "| \`$f\` | $((s / 1024)) KB |"
+              done
+          } >> "$GITHUB_STEP_SUMMARY"
+
+      - name: Clean up credentials
+        if: always()
+        run: rm -f qweather.properties
