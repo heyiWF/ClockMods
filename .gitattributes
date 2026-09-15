@@ -1,0 +1,4 @@
+# Keep the Gradle wrapper launchers runnable on their target platforms
+# regardless of the committer's core.autocrlf setting.
+gradlew      text eol=lf
+gradlew.bat  text eol=crlf

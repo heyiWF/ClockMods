@@ -287,7 +287,7 @@ public final class QWeatherClient {
             connection.setConnectTimeout(timeoutMs);
             connection.setReadTimeout(timeoutMs);
             connection.setRequestProperty("Authorization", "Bearer " + QWeatherSigner.token(
-                    QWeatherConfig.credentialId(), QWeatherConfig.projectId(),
+                    QWeatherConfig.credentialId(), QWeatherConfig.developerId(), QWeatherConfig.projectId(),
                     QWeatherConfig.privateKeyBase64(), System.currentTimeMillis() / 1000L));
             int status = connection.getResponseCode();
             String response = read(status >= 200 && status < 300

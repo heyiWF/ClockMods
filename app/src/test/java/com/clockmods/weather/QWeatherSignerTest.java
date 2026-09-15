@@ -29,13 +29,14 @@ public class QWeatherSignerTest {
         EdDSAParameterSpec spec = EdDSANamedCurveTable.getByName(EdDSANamedCurveTable.ED_25519);
         EdDSAPrivateKey privateKey = new EdDSAPrivateKey(new EdDSAPrivateKeySpec(seed, spec));
         String key = Base64.encodeBase64String(privateKey.getEncoded());
-        String token = QWeatherSigner.token("CREDENTIAL", "PROJECT", key, 1000L);
+        String token = QWeatherSigner.token("CREDENTIAL", "DEVELOPER", "PROJECT", key, 1000L);
         String[] parts = token.split("\\.");
         Assert.assertEquals(3, parts.length);
         JSONObject header = json(parts[0]);
         JSONObject payload = json(parts[1]);
         Assert.assertEquals("EdDSA", header.getString("alg"));
         Assert.assertEquals("CREDENTIAL", header.getString("kid"));
+        Assert.assertEquals("DEVELOPER", payload.getString("iss"));
         Assert.assertEquals("PROJECT", payload.getString("sub"));
         Assert.assertEquals(970L, payload.getLong("iat"));
         Assert.assertEquals(1870L, payload.getLong("exp"));

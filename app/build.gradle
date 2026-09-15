@@ -31,6 +31,7 @@ android {
         versionName = "1.0"
         buildConfigField 'String', 'QWEATHER_API_HOST', '"' + qweatherValue('apiHost', 'devapi.qweather.com') + '"'
         buildConfigField 'String', 'QWEATHER_CREDENTIAL_ID', '"' + qweatherValue('credentialId', '') + '"'
+        buildConfigField 'String', 'QWEATHER_DEVELOPER_ID', '"' + qweatherValue('developerId', '') + '"'
         buildConfigField 'String', 'QWEATHER_PROJECT_ID', '"' + qweatherValue('projectId', '') + '"'
         buildConfigField 'String', 'QWEATHER_PRIVATE_KEY_BASE64', '"' + qweatherValue('privateKeyBase64', '') + '"'
     }

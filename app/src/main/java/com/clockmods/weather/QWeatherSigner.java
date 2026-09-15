@@ -14,14 +14,14 @@ public final class QWeatherSigner {
 
     private QWeatherSigner() { }
 
-        public static String token(String credentialId, String projectId, String privateKeyBase64,
+    public static String token(String credentialId, String developerId, String projectId, String privateKeyBase64,
             long nowSeconds) throws Exception {
         if (Security.getProvider(EdDSASecurityProvider.PROVIDER_NAME) == null) {
             Security.addProvider(new EdDSASecurityProvider());
         }
         String header = "{\"alg\":\"EdDSA\",\"kid\":\"" + credentialId + "\"}";
         long issuedAt = nowSeconds - 30L;
-        String payload = "{\"sub\":\"" + projectId + "\",\"iat\":" + issuedAt
+        String payload = "{\"iss\":\"" + developerId + "\",\"sub\":\"" + projectId + "\",\"iat\":" + issuedAt
             + ",\"exp\":" + (issuedAt + 900L) + "}";
         String signingInput = base64Url(header.getBytes("UTF-8")) + "."
             + base64Url(payload.getBytes("UTF-8"));
@@ -31,7 +31,7 @@ public final class QWeatherSigner {
         engine.initSign(privateKey);
         byte[] signature = engine.signOneShot(signingInput.getBytes("UTF-8"));
         return signingInput + "." + base64Url(signature);
-        }
+    }
 
     private static String base64Url(byte[] value) {
         StringBuilder encoded = new StringBuilder((value.length * 4 + 2) / 3);
