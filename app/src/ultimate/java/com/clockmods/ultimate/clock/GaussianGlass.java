@@ -18,7 +18,15 @@ import java.util.HashMap;
 
 /** A background-anchored blur sampled through moving card masks, including software previews. */
 final class GaussianGlass {
-    private static final int MAX_EDGE = 192;
+    private static final int BASE_BLUR_EDGE = 192;
+    // A weak blur preserves fine detail, so its working bitmap must also preserve enough detail.
+    // Keeping every strength at BASE_BLUR_EDGE makes individual texels visible when that bitmap is
+    // enlarged to a phone screen. The cap bounds memory while reducing a 2400 px texture's texels
+    // from 12.5 screen pixels to at most 2.35 screen pixels.
+    private static final int MAX_DETAIL_EDGE = 1024;
+    // Above this sigma there is little quality benefit in adding taps instead of downsampling.
+    private static final float TARGET_WORKING_SIGMA = 4f;
+    private static final float SIGMA_PER_STRENGTH = .06f;
     // Keep texture visible at both slider ends instead of fading the blur to solid black/white.
     private static final float MAX_BRIGHTNESS_OVERLAY_ALPHA = .55f;
     // Keys do not keep the host's full-size background alive after replacement or view disposal.
@@ -171,15 +179,42 @@ final class GaussianGlass {
             canvas.drawBitmap(source, 0f, 0f, null);
             return copy;
         }
-        float scale = Math.min(1f, MAX_EDGE / (float) Math.max(source.getWidth(), source.getHeight()));
+        int sourceLongEdge = Math.max(source.getWidth(), source.getHeight());
+        int targetLongEdge = workingLongEdge(sourceLongEdge, strength);
+        float scale = Math.min(1f, targetLongEdge / (float) sourceLongEdge);
         int width = Math.max(1, Math.round(source.getWidth() * scale));
         int height = Math.max(1, Math.round(source.getHeight() * scale));
         Bitmap small = Bitmap.createScaledBitmap(source, width, height, true);
         int[] pixels = new int[width * height];
         small.getPixels(pixels, 0, width, 0, 0, width, height);
         if (small != source) small.recycle();
-        return Bitmap.createBitmap(blurPixels(pixels, width, height, strength),
+        float sigma = blurSigma(strength, Math.max(width, height), sourceLongEdge);
+        return Bitmap.createBitmap(blurPixels(pixels, width, height, sigma),
                 width, height, Bitmap.Config.ARGB_8888);
+    }
+
+    /**
+     * Selects an adaptive working resolution. Strong blur can safely use the compact legacy
+     * texture, while weak blur gets progressively more source samples instead of magnifying the
+     * same 192 texels across the display.
+     */
+    static int workingLongEdge(int sourceLongEdge, int strength) {
+        int sourceEdge = Math.max(1, sourceLongEdge);
+        int value = Math.max(0, Math.min(100, strength));
+        if (value == 0) return sourceEdge;
+        int baseEdge = Math.min(sourceEdge, BASE_BLUR_EDGE);
+        int qualityEdge = Math.round(baseEdge * TARGET_WORKING_SIGMA
+                / (value * SIGMA_PER_STRENGTH));
+        return Math.min(sourceEdge, Math.min(MAX_DETAIL_EDGE, Math.max(baseEdge, qualityEdge)));
+    }
+
+    /** Keeps the Gaussian radius in source-image coordinates stable as resolution changes. */
+    static float blurSigma(int strength, int workingLongEdge, int sourceLongEdge) {
+        int value = Math.max(0, Math.min(100, strength));
+        int sourceEdge = Math.max(1, sourceLongEdge);
+        int baseEdge = Math.min(sourceEdge, BASE_BLUR_EDGE);
+        int workingEdge = Math.max(1, Math.min(sourceEdge, workingLongEdge));
+        return value * SIGMA_PER_STRENGTH * workingEdge / baseEdge;
     }
 
     /** Separable Gaussian convolution with clamped edges; transparent pixels composite on black. */
@@ -188,7 +223,11 @@ final class GaussianGlass {
     }
 
     static int[] blurPixels(int[] pixels, int width, int height, int strength) {
-        float sigma = Math.max(0, Math.min(100, strength)) * .06f;
+        float sigma = Math.max(0, Math.min(100, strength)) * SIGMA_PER_STRENGTH;
+        return blurPixels(pixels, width, height, sigma);
+    }
+
+    private static int[] blurPixels(int[] pixels, int width, int height, float sigma) {
         int radius = (int) Math.ceil(sigma * 3f);
         float[] kernel = kernel(radius, sigma);
         float[] horizontal = new float[pixels.length * 3];

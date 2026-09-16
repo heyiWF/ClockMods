@@ -63,6 +63,41 @@ public class GaussianGlassTest {
         assertTrue((strong[47] & 255) > 0);
     }
 
+    @Test public void weakBlurUsesMoreSamplesThanStrongBlur() {
+        int sourceEdge = 2400;
+        assertEquals(sourceEdge, GaussianGlass.workingLongEdge(sourceEdge, 0));
+        assertEquals(1024, GaussianGlass.workingLongEdge(sourceEdge, 1));
+        assertEquals(1024, GaussianGlass.workingLongEdge(sourceEdge, 10));
+        assertEquals(512, GaussianGlass.workingLongEdge(sourceEdge, 25));
+        assertEquals(256, GaussianGlass.workingLongEdge(sourceEdge, 50));
+        assertEquals(192, GaussianGlass.workingLongEdge(sourceEdge, 100));
+
+        int previous = sourceEdge;
+        for (int strength = 1; strength <= 100; strength++) {
+            int edge = GaussianGlass.workingLongEdge(sourceEdge, strength);
+            assertTrue(edge <= previous);
+            assertTrue(edge >= 192);
+            previous = edge;
+        }
+    }
+
+    @Test public void adaptiveResolutionPreservesTheBlurRadiusInSourceCoordinates() {
+        int sourceEdge = 2400;
+        for (int strength : new int[] {1, 5, 10, 25, 50, 75, 100}) {
+            int workingEdge = GaussianGlass.workingLongEdge(sourceEdge, strength);
+            float sourceSigma = GaussianGlass.blurSigma(
+                    strength, workingEdge, sourceEdge) * sourceEdge / workingEdge;
+            float legacySourceSigma = strength * .06f * sourceEdge / 192f;
+            assertEquals(legacySourceSigma, sourceSigma, .0001f);
+        }
+    }
+
+    @Test public void smallSourcesAreNeverUpscaledForBlur() {
+        for (int strength : new int[] {-1, 0, 1, 25, 50, 100, 101}) {
+            assertEquals(96, GaussianGlass.workingLongEdge(96, strength));
+        }
+    }
+
     @Test public void midpointBrightnessIsAnIdentityTransform() {
         assertArrayEquals(new float[] {1f, 0f}, GaussianGlass.brightnessTransform(50), 0f);
         for (int color : new int[] {0xFF000000, 0xFFFFFFFF, 0xFF123456, 0xFFCA842B}) {

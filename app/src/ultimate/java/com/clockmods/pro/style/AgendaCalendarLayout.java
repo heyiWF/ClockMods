@@ -400,8 +400,14 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
         weekView.setVisibility(state.title.sub.length() == 0 ? View.GONE : View.VISIBLE);
         strip.removeAllViews();
         cells.clear();
+        Typeface display = themeTypeface(true);
+        Typeface regular = themeTypeface(false);
         for (int index = 0; index < state.days.size(); index++) {
             DayCell cell = new DayCell(true);
+            // CalendarDayNumberView draws on Canvas, so the global TextView font pass cannot reach
+            // it. Apply the scoped font as the cell is created; bind() also runs after every week
+            // turn, long after the one applyTypefaces() call made during settings refresh.
+            cell.setTypefaces(display, regular);
             cell.bind(state.days.get(index), state, index, index == state.selection.index);
             cells.add(cell);
             strip.addView(cell, cellParams());
@@ -780,8 +786,11 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
     public void bindPreview(int direction, CalendarPageState adjacent) {
         if (stripViewport == null || stripPreview == null) return;
         stripPreview.removeAllViews();
+        Typeface display = themeTypeface(true);
+        Typeface regular = themeTypeface(false);
         for (int index = 0; index < adjacent.days.size(); index++) {
             DayCell cell = new DayCell(false);
+            cell.setTypefaces(display, regular);
             cell.bind(adjacent.days.get(index), adjacent, index,
                     index == adjacent.selection.index);
             stripPreview.addView(cell, cellParams());

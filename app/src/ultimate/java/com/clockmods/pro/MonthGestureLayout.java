@@ -1,6 +1,7 @@
 package com.clockmods.pro;
 
 import android.content.Context;
+import android.graphics.Rect;
 import android.util.AttributeSet;
 import android.view.MotionEvent;
 import android.view.VelocityTracker;
@@ -32,9 +33,11 @@ public final class MonthGestureLayout extends LinearLayout {
     private float downY;
     private boolean horizontal;
     private boolean vertical;
+    private final MonthGestureRegion gestureRegion = new MonthGestureRegion();
 
     /** When set, only touches that start inside this view are treated as possible page drags. */
     private View dragRegion;
+    private final Rect dragRegionBounds = new Rect();
 
     public MonthGestureLayout(Context context, AttributeSet attrs) {
         super(context, attrs);
@@ -50,28 +53,35 @@ public final class MonthGestureLayout extends LinearLayout {
 
     private boolean inDragRegion(float x, float y) {
         if (dragRegion == null) return true;
-        // Both the layout and the region live in the same window, so the region's left/top measured
-        // against this layout are a direct frame for a touch delivered in the layout's coordinates.
-        return x >= dragRegion.getLeft() && x < dragRegion.getLeft() + dragRegion.getWidth()
-                && y >= dragRegion.getTop() && y < dragRegion.getTop() + dragRegion.getHeight();
+        // getLeft()/getTop() are relative to the immediate parent, while a landscape style can put
+        // the drag region several levels below this layout. Convert the descendant's drawing rect
+        // into this layout's coordinates before comparing it with the delivered touch.
+        dragRegion.getDrawingRect(dragRegionBounds);
+        offsetDescendantRectToMyCoords(dragRegion, dragRegionBounds);
+        return MonthGestureRegion.contains(dragRegionBounds.left, dragRegionBounds.top,
+                dragRegionBounds.right, dragRegionBounds.bottom, x, y);
     }
 
     @Override public boolean onInterceptTouchEvent(MotionEvent event) {
-        track(event);
         switch (event.getActionMasked()) {
             case MotionEvent.ACTION_DOWN:
+                recycleTracker();
                 downX = event.getX();
                 downY = event.getY();
                 horizontal = false;
                 vertical = false;
-                if (!inDragRegion(downX, downY)) {
+                gestureRegion.start(inDragRegion(downX, downY));
+                if (!gestureRegion.acceptsGesture()) {
                     // A touch outside the drag region is not ours: don't block the parent's pager,
-                    // and never return true so the parent can take over on a later MOVE.
+                    // and keep that decision for the entire stream so a later MOVE cannot steal it.
                     return false;
                 }
+                track(event);
                 getParent().requestDisallowInterceptTouchEvent(true);
                 return false;
             case MotionEvent.ACTION_MOVE:
+                if (!gestureRegion.acceptsGesture()) return false;
+                track(event);
                 lockDirection(event);
                 if (vertical) {
                     getParent().requestDisallowInterceptTouchEvent(false);
@@ -81,7 +91,10 @@ public final class MonthGestureLayout extends LinearLayout {
                 return horizontal;
             case MotionEvent.ACTION_UP:
             case MotionEvent.ACTION_CANCEL:
-                getParent().requestDisallowInterceptTouchEvent(false);
+                if (gestureRegion.acceptsGesture()) {
+                    getParent().requestDisallowInterceptTouchEvent(false);
+                }
+                gestureRegion.finish();
                 recycleTracker();
                 return false;
             default:
@@ -90,6 +103,7 @@ public final class MonthGestureLayout extends LinearLayout {
     }
 
     @Override public boolean onTouchEvent(MotionEvent event) {
+        if (!gestureRegion.acceptsGesture()) return false;
         track(event);
         if (event.getActionMasked() == MotionEvent.ACTION_MOVE) {
             lockDirection(event);
@@ -112,6 +126,7 @@ public final class MonthGestureLayout extends LinearLayout {
             }
             if (listener != null) listener.onMonthDragFinished(direction);
             getParent().requestDisallowInterceptTouchEvent(false);
+            gestureRegion.finish();
             recycleTracker();
             return horizontal;
         }
