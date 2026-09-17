@@ -24,6 +24,7 @@ import com.clockmods.background.ClockPreferences;
 import com.clockmods.background.FontCatalog;
 import com.clockmods.calendar.LunarCalendar;
 import com.clockmods.sdk.clock.ClockBackground;
+import com.clockmods.sdk.clock.ClockOverlayBounds;
 import com.clockmods.sdk.clock.ClockRenderContext;
 import com.clockmods.sdk.clock.ClockState;
 import com.clockmods.sdk.clock.ClockStyle;
@@ -111,7 +112,29 @@ public class UltimateClockView extends FrameLayout {
     private boolean windowVisible = true;
     private boolean windowFocused = true;
     private float bottomOverlayInset;
-    private float topOverlayInset;
+    private ClockOverlayBounds statusOverlay;
+    private StatusOverlayPlateListener statusOverlayPlateListener;
+    private boolean statusOverlayBlurred;
+    private int statusOverlayContent;
+    private boolean statusOverlayPlatePosted;
+
+    /**
+     * Notified when the plate drawn behind the host's status overlay changes.
+     *
+     * <p>A face rendering with Gaussian blur frosted every other surface it owns, so it draws the
+     * capsule's plate too and the host has to get out of the way. Which of the two is standing
+     * depends on state the host cannot see — whether the background bitmap has arrived, whether the
+     * user turned blur on — so the view reports it instead of the host guessing.</p>
+     */
+    public interface StatusOverlayPlateListener {
+        /**
+         * @param blurred     true when this frame drew a frosted plate, so the host must drop its
+         *                    own capsule and let it show through
+         * @param contentColor the colour the overlay's own content reads on, or 0 when there is no
+         *                    plate
+         */
+        void onStatusOverlayPlate(boolean blurred, int contentColor);
+    }
 
     public UltimateClockView(Context context) {
         this(context, null);
@@ -364,16 +387,19 @@ public class UltimateClockView extends FrameLayout {
     }
 
     /**
-     * Reserves the band a host overlay occupies along the top edge — the status capsule — so a
-     * style keeps its own top-right metadata below it instead of drawing underneath it. Like the
-     * bottom inset this only moves content; the background still covers the whole view.
+     * Reports the box a host overlay occupies — the status capsule — so a style keeps its own
+     * metadata clear of it. Like the bottom inset this only moves content; the background still
+     * covers the whole view. Pass {@code null} when nothing is overlaid.
      */
-    public void setTopOverlayInset(float inset) {
-        float safe = Math.max(0f, inset);
-        if (safe == topOverlayInset) return;
-        topOverlayInset = safe;
-        requestLayout();
+    public void setStatusOverlay(ClockOverlayBounds bounds) {
+        if (bounds == null ? statusOverlay == null : bounds.equals(statusOverlay)) return;
+        statusOverlay = bounds;
         invalidate();
+    }
+
+    /** Observes whether the view, not the host, is drawing the overlay's frosted plate. */
+    public void setStatusOverlayPlateListener(StatusOverlayPlateListener listener) {
+        statusOverlayPlateListener = listener;
     }
 
     /** The background repository still supplies clock settings; style renderers own their surface. */
@@ -506,7 +532,7 @@ public class UltimateClockView extends FrameLayout {
                 getResources().getDisplayMetrics().density,
                 TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 1f,
                             getResources().getDisplayMetrics()), now,
-                createBackground(now), bottomOverlayInset, 0f, true, topOverlayInset);
+                createBackground(now), bottomOverlayInset, 0f, true, statusOverlay);
         ClockThemeTokens theme = typography.apply(getContext(), paletteTokens, styleId,
                 fontFamily, fontWeight);
         worldClockState = state;
@@ -519,7 +545,52 @@ public class UltimateClockView extends FrameLayout {
         } finally {
             canvas.restoreToCount(saveCount);
         }
+        drawStatusOverlayPlate(canvas, renderContext, theme);
         updateContentDescription(state, style);
+    }
+
+    /**
+     * Frosts the plate under the host's status overlay the way the face frosts its own cards.
+     *
+     * <p>Only when the face really renders with Gaussian blur — which needs an image background, not
+     * just the switch — because the flat capsule the host draws for every other face is the right
+     * look there. {@link GaussianGlass#create} hands back the face's own cached glass, so the plate
+     * is the same frosted sample its cards use rather than a second blur of the same image.</p>
+     */
+    private void drawStatusOverlayPlate(Canvas canvas, ClockRenderContext context,
+            ClockThemeTokens theme) {
+        ClockOverlayBounds bounds = statusOverlay;
+        GaussianGlass glass = bounds == null ? null : GaussianGlass.create(context, theme);
+        if (glass == null) {
+            reportStatusOverlayPlate(false, 0);
+            return;
+        }
+        RectF plate = new RectF(bounds.getLeft(), bounds.getTop(), bounds.getRight(),
+                bounds.getBottom());
+        float radius = plate.height() * .5f;
+        glass.roundRect(canvas, plate, radius, radius, 0, 0f, 0f, 0f);
+        ClockPalette palette = glass.paletteAt(plate.left, plate.top, plate.width(),
+                plate.height());
+        reportStatusOverlayPlate(true, palette.onPanel);
+    }
+
+    /**
+     * Posts the plate's state to the host rather than calling it here: the host reacts by restyling
+     * its own view, and a draw pass has no business relaying out a sibling.
+     */
+    private void reportStatusOverlayPlate(boolean blurred, int contentColor) {
+        if (statusOverlayBlurred == blurred && statusOverlayContent == contentColor) return;
+        statusOverlayBlurred = blurred;
+        statusOverlayContent = contentColor;
+        if (statusOverlayPlateListener == null || statusOverlayPlatePosted) return;
+        statusOverlayPlatePosted = true;
+        post(() -> {
+            statusOverlayPlatePosted = false;
+            if (statusOverlayPlateListener != null) {
+                statusOverlayPlateListener.onStatusOverlayPlate(
+                        statusOverlayBlurred, statusOverlayContent);
+            }
+        });
     }
 
     /** Observe double taps before dispatching the stream to the native city scroller. */

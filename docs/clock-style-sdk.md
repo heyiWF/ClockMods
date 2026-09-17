@@ -193,7 +193,7 @@ token 用于统一预览和实时渲染的视觉参数，但不是完整主题�
 
 ## 每帧输入
 
-`ClockRenderContext` 提供当前帧的像素边界、中心点、density、scaled density、帧时间、可选 `ClockBackground` 和底部遮罩预留高度。
+`ClockRenderContext` 提供当前帧的像素边界、中心点、density、scaled density、帧时间、可选 `ClockBackground`、底部遮罩预留高度，以及宿主状态胶囊所占的 `ClockOverlayBounds`。
 
 `ClockState` 提供：
 
@@ -212,6 +212,26 @@ renderer 应以 `ClockState.getTimeMillis()` 或 `newCalendar()` 为唯一时间
 ### 底部遮罩预留
 
 `getBottomInset()` 返回宿主在视图底部叠加内容（如天气服务来源标注）所占的像素高度。画布边界不会因此缩小，背景层仍应铺满整个视图；只有会被遮住的前景元素——时区、日期、天气这类底部元数据——需要按这个值上移。不带 inset 参数的构造函数返回 `0f`，renderer 按无遮罩处理即可。
+
+### 顶部状态胶囊
+
+`getStatusOverlay()` 返回宿主自己叠加的状态胶囊所占的 `ClockOverlayBounds`，未显示时为 `null`。它是一个方框而不是一条横带：胶囊是停在一角的小控件，同一条边上的其余部分仍归样式使用。
+
+判定规则是两轴同时相交——只有当一行文字横向够到胶囊所在的列、纵向也够到它所在的行时，这一行才需要让位。让位方式是下移到方框底部之下，而不是重新排版整块内容：
+
+```java
+ClockOverlayBounds overlay = context.getStatusOverlay();
+if (overlay != null && overlay.spansHorizontally(rowLeft, rowRight)
+        && overlay.spansVertically(baseline - ascent, baseline + descent)) {
+    baseline = overlay.getBottom() + gap + ascent;
+}
+```
+
+因此「轨道」这类左边是 context 行、右边是 date 行的样式，可以让左侧那行下移，而右侧那行保持原位。行的横向范围要用该行可用的最大宽度估算，宁可保守也不要漏判。
+
+宿主会按样式选择胶囊的落点：多数样式沿用右上角，卡片型样式把它放进占据该角的面板内部，只有顶部元数据在左侧的样式才改放左上角。第三方样式不需要参与这个决策，只要在绘制顶部元数据时避让方框即可。
+
+胶囊的底板由宿主决定，样式不必关心：样式不带高斯模糊时，宿主铺一层取自该样式 surface 的实心胶囊；样式的 tokens 开了高斯模糊、且背景确实是图片时，宿主改用与样式卡片同一份模糊采样绘制底板（自身不加填充，只留描边），前景色也取自同一处采样，因此不需要样式额外配合，也不会出现一帧的错位。
 
 ## 生命周期与线程
 

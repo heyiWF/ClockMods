@@ -12,6 +12,7 @@ import android.graphics.Typeface;
 
 import com.clockmods.sdk.clock.ClockRenderContext;
 import com.clockmods.sdk.clock.ClockBackground;
+import com.clockmods.sdk.clock.ClockOverlayBounds;
 import com.clockmods.sdk.clock.ClockRenderer;
 import com.clockmods.sdk.clock.ClockState;
 import com.clockmods.sdk.clock.ClockStyle;
@@ -110,6 +111,134 @@ public final class UltimateClockStyles {
     static float worldClockContentWidth(int count, float width, float height, float density) {
         return count <= 0 ? 0f : count * worldClockCardWidth(width, height, density)
                 + (count - 1) * worldClockCardGap(width, height, density);
+    }
+
+    /** The inset 轨道, 气泡 and 丝带 draw their full-width context row at. */
+    private static final float CONTEXT_ROW_INSET = .029f;
+    /** The inset 字形时刻 right-aligns its seconds block at. */
+    private static final float TYPOGRAPHIC_SECONDS_INSET = .07f;
+    /** The inset 数字网格's landscape SEC panel ends at. */
+    private static final float DIGITAL_GRID_SECONDS_INSET = .07f;
+
+    /**
+     * Where the host should park its status capsule for {@code styleId}, as
+     * {@code {left, top, right, bottom}} in view coordinates.
+     *
+     * <p>Most faces leave the top-right corner free, so the capsule keeps the corner it has always
+     * had. The two card faces put it inside the card that owns that corner and line it up with that
+     * card's own context row, so it reads as part of the composition rather than as an overlay
+     * parked on top of it: the minute panel of 双块 in landscape and the hours panel of its portrait
+     * stack, the digital panel of 混合 in landscape and its analogue panel in portrait. 轨道 is the
+     * mirror case: its only top metadata is the left-hand context row, so the capsule moves to that
+     * corner and the row makes room for it.</p>
+     *
+     * <p>Everywhere else the capsule keeps the corner but takes the inset of whatever the face
+     * right-aligns beneath it — 轨道, 气泡 and 丝带's context row, 字形时刻's seconds block, 数字网格's
+     * SEC panel — rather than the host's page margin, so the two share an edge instead of the
+     * capsule hanging over the end of the column. A face with nothing right-aligned there keeps the
+     * host's margin; see {@link #endAlignedInsetFraction}.</p>
+     *
+     * <p>Returning the box rather than a corner lets the host anchor the edge the style actually
+     * cares about, so the capsule does not drift sideways as the battery reading widens.</p>
+     */
+    public static float[] statusCapsuleBounds(String styleId, float width, float height,
+            float density, float marginX, float marginY, float capsuleWidth, float capsuleHeight) {
+        if (STYLE_DUAL_BLOCKS.equals(styleId)) {
+            // Landscape: the minutes panel is the right half, from h*.037 to the bottom margin.
+            // Portrait: the panels stack, so the corner belongs to the hours panel on top.
+            if (width >= height) {
+                float panelRight = width - width * .029f;
+                float panelWidth = panelRight - (width * .5f + width * .022f * .5f);
+                return capsuleInPanel(panelRight, panelWidth * .05f, height * .037f,
+                        height * .926f, density, capsuleWidth, capsuleHeight);
+            }
+            float gap = width * .035f;
+            return capsuleInPanel(width - width * .055f, width * .89f * .05f, height * .037f,
+                    height * .463f - gap * .5f, density, capsuleWidth, capsuleHeight);
+        }
+        if (STYLE_BLEND.equals(styleId)) {
+            // Landscape: the digital panel runs from h*.046 to the bottom margin on the right.
+            // Portrait: its analogue panel is the one that owns the corner, from h*.035.
+            if (width >= height) {
+                float panelRight = width - width * .027f;
+                float panelWidth = panelRight - width * .550f;
+                return capsuleInPanel(panelRight, panelWidth * .045f, height * .046f,
+                        height * .920f, density, capsuleWidth, capsuleHeight);
+            }
+            return capsuleInPanel(width - width * .05f, width * .90f * .045f, height * .035f,
+                    height * .515f, density, capsuleWidth, capsuleHeight);
+        }
+        if (STYLE_ORBIT.equals(styleId)) {
+            // 轨道's context row is the only thing on that edge, so the capsule lines up with it.
+            // It also hangs from that row rather than from the page margin: the row sits at h*.072,
+            // so a fixed top margin leaves a gap that grows with the view, and on a tall portrait
+            // screen the capsule stayed up in the corner while the row was far below it. The clamp
+            // leaves the landscape case — where the row is high enough to run into the capsule
+            // anyway — exactly as it was.
+            float left = width * CONTEXT_ROW_INSET;
+            float rowTop = height * .072f - Math.min(width, height) * .027f * 1.15f;
+            float top = Math.max(marginY, rowTop - density * 4f - capsuleHeight);
+            return new float[] {left, top, left + capsuleWidth, top + capsuleHeight};
+        }
+        // A face that right-aligns something in that corner — 丝带 and 气泡's context row, 字形时刻's
+        // seconds block, 数字网格's SEC panel — puts the capsule on that element's edge instead of
+        // the host's page margin, so the two share a margin rather than the capsule hanging over
+        // the end of the column. Faces with nothing right-aligned there keep the corner.
+        float fraction = endAlignedInsetFraction(styleId, width >= height);
+        float endInset = fraction > 0f ? width * fraction : marginX;
+        float right = width - endInset;
+        float top = topMetadataTop(styleId, width, height, density, marginY);
+        return new float[] {right - capsuleWidth, top, right, top + capsuleHeight};
+    }
+
+    /**
+     * The y a corner capsule starts at: the line the face's own top metadata begins on, or the
+     * host's margin when the face has none beside the capsule.
+     *
+     * <p>气泡's portrait composition is the case in point. It stacks its metadata down the left, so
+     * the only thing beside the capsule is the two-line date block — and that block is anchored by
+     * {@code readableDate}'s safe inset rather than by its own baseline, because two lines need the
+     * room. Parking the capsule on the page margin left it riding a few pixels above the date.</p>
+     */
+    private static float topMetadataTop(String styleId, float width, float height, float density,
+            float marginY) {
+        if (STYLE_BUBBLES.equals(styleId) && width < height) {
+            return Math.min(Math.min(width, height) * .045f, density * 20f);
+        }
+        return marginY;
+    }
+
+    /**
+     * The inset, as a fraction of the view width, that {@code styleId} right-aligns against in the
+     * top-right corner — or {@code 0} when it has nothing there and the host's own margin stands.
+     */
+    private static float endAlignedInsetFraction(String styleId, boolean landscape) {
+        if (STYLE_RIBBON.equals(styleId)) return CONTEXT_ROW_INSET;
+        // 气泡's portrait composition moves both metadata rows to the left.
+        if (STYLE_BUBBLES.equals(styleId)) return landscape ? CONTEXT_ROW_INSET : 0f;
+        if (STYLE_TYPOGRAPHIC.equals(styleId)) return TYPOGRAPHIC_SECONDS_INSET;
+        // 数字网格's SEC panel only sits on that edge in landscape; portrait centres it.
+        if (STYLE_DIGITAL_GRID.equals(styleId)) {
+            return landscape ? DIGITAL_GRID_SECONDS_INSET : 0f;
+        }
+        return 0f;
+    }
+
+    /**
+     * The capsule's box in a panel's top-right corner: inset from both card edges, lined up with the
+     * row inset the panel's own metadata uses, and starting on the panel's metadata line.
+     *
+     * <p>That last part is what {@code drawDual} does with its date — {@code min(density * 20,
+     * height * .05)} down from the panel's top edge — so the capsule and the date begin at the same
+     * height. Without it the capsule rode above the date, and in landscape, where the two live in
+     * neighbouring panels that share a top edge, the two cards' contents visibly started on
+     * different lines.</p>
+     */
+    private static float[] capsuleInPanel(float panelRight, float rowInset, float panelTop,
+            float panelHeight, float density, float capsuleWidth, float capsuleHeight) {
+        float right = panelRight - rowInset;
+        float top = panelTop + Math.min(density * 20f, panelHeight * .05f);
+        return new float[] {right - capsuleWidth, top, right, top + capsuleHeight};
     }
 
     /** Shared card artwork for the native scrolling host and standalone theme previews. */
@@ -1748,7 +1877,7 @@ public final class UltimateClockStyles {
                         context.getRight(), contentBottom, context.getDensity(),
                         context.getScaledDensity(), context.getFrameTimeMillis(),
                         context.getBackground(), 0f,
-                        context.getWorldClockScroll(), false, context.getTopOverlayInset());
+                        context.getWorldClockScroll(), false, context.getStatusOverlay());
             }
             int save = canvas.save();
             if (style == 0) drawDual(canvas, faceContext, state, c, display, supporting, colors);
@@ -2069,7 +2198,11 @@ public final class UltimateClockStyles {
                         Math.min(w, h) * .034f * state.getSupportingScale(), 16f);
                 float sr = Math.max(Math.min(w, h) * .038f, secondSize * .88f);
                 float sx = digital.right - digital.width() * .09f;
-                float sy = digital.bottom - Math.max(digital.height() * .067f, sr * 1.25f);
+                // The badge shares the panel's bottom row with the date block, so it sits on that
+                // block's baseline. Anchoring it to a fraction of the panel height instead left it
+                // crammed against the panel's bottom edge — 6dp of air where the status capsule
+                // takes 20dp from the same panel's top — with the date a line higher up.
+                float sy = digital.bottom - digital.height() * .050f - sr;
                 drawScallopedCircle(canvas, sx, sy, sr, colors.badge);
                 text(canvas, String.format(Locale.US, "%02d", c.get(Calendar.SECOND)), sx,
                         centeredBaseline(sy, secondSize, supporting), secondSize,
@@ -2167,11 +2300,16 @@ public final class UltimateClockStyles {
                         centeredBaseline(sy, secondsSize, supporting), secondsSize,
                         colors.onBadge, Paint.Align.CENTER, supporting);
             }
+            // The metadata row hangs lower in landscape than in portrait. h*.079 is tuned for a
+            // short landscape viewport; on a tall portrait view it leaves the context row stranded
+            // a third of the way down the screen, far below the host's capsule. Portrait uses the
+            // first-row figure the portrait compositions already anchor to (see 气泡's date).
+            float topRowY = context.getTop() + h * (portrait ? .055f : .079f);
             drawDate(canvas, context, state, context.getLeft() + w * .038f,
-                    context.getTop() + h * .079f, w * .55f, Paint.Align.LEFT, colors.onBackground,
+                    topRowY, w * .55f, Paint.Align.LEFT, colors.onBackground,
                     supporting, Math.min(w, h) * .032f);
             drawContext(canvas, context, state, context.getRight() - w * .029f,
-                    context.getTop() + h * .079f, w * .35f, Paint.Align.RIGHT, colors.mutedBackground,
+                    topRowY, w * .35f, Paint.Align.RIGHT, colors.mutedBackground,
                     supporting, Math.min(w, h) * .027f);
         }
 
@@ -2182,7 +2320,7 @@ public final class UltimateClockStyles {
             RendererBase.PAINT_POOL.get().photoText = glass != null && (mode() == 1 || mode() == 2 || mode() == 4);
             try {
                 readableDate(canvas, context, state, x,
-                        clearOfTopOverlay(context, baseline, align,
+                        clearOfStatusOverlay(context, x, align, baseline, maxWidth,
                                 size * Math.max(1f, state.getDateScale())),
                         maxWidth, size, color, align, face,
                         context.getHeight() > context.getWidth());
@@ -2192,20 +2330,30 @@ public final class UltimateClockStyles {
         }
 
         /**
-         * Keeps a top-right metadata line out from under the host's corner overlay.
+         * Drops a metadata row below the host's status capsule when the two would share ground.
          *
-         * <p>Only right-aligned rows can collide, because the overlay is parked in the top-right
-         * corner; a left-aligned row at the same height is on the far side of the face and stays
-         * exactly where the composition put it. The clearance is derived from the size the row will
-         * actually be drawn at rather than a fixed offset, so it drops just far enough for its
-         * ascent to clear the band and no further.</p>
+         * <p>Both axes matter. The capsule is a small box, not a strip across the edge: a row is
+         * only in its way when it reaches the same columns <em>and</em> the same rows, which is what
+         * lets 轨道 keep its date row on the right while the context row on the left makes room.
+         * The row's own extent is taken as the anchor plus the width it was given, so the check
+         * stays conservative without the style having to measure anything.</p>
          */
-        private static float clearOfTopOverlay(ClockRenderContext context, float baseline,
-                Paint.Align align, float drawnSize) {
-            float band = context.getTopOverlayInset();
-            if (band <= 0f || align != Paint.Align.RIGHT) return baseline;
+        private static float clearOfStatusOverlay(ClockRenderContext context, float anchorX,
+                Paint.Align align, float baseline, float maxWidth, float drawnSize) {
+            ClockOverlayBounds overlay = context.getStatusOverlay();
+            if (overlay == null) return baseline;
+            float size = Math.max(0f, drawnSize);
+            float span = Math.max(0f, maxWidth);
+            float rowLeft = align == Paint.Align.RIGHT ? anchorX - span
+                    : align == Paint.Align.CENTER ? anchorX - span * .5f : anchorX;
             // 1.15 covers an ascent that overshoots the em box, which CJK faces routinely do.
-            return Math.max(baseline, context.getTop() + band + Math.max(0f, drawnSize) * 1.15f);
+            float ascent = size * 1.15f;
+            if (!overlay.spansHorizontally(rowLeft, rowLeft + span)
+                    || !overlay.spansVertically(baseline - ascent, baseline + size * .25f)) {
+                return baseline;
+            }
+            return overlay.getBottom()
+                    + Math.max(context.getDensity() * 4f, size * .25f) + ascent;
         }
 
         /** Draws the Gregorian date above its lunar counterpart, both at one readable size. */
@@ -2225,7 +2373,7 @@ public final class UltimateClockStyles {
             RendererBase.PAINT_POOL.get().photoText = glass != null && (mode() == 1 || mode() == 2 || mode() == 4);
             try {
                 readableText(canvas, context, value, x,
-                        clearOfTopOverlay(context, baseline, align,
+                        clearOfStatusOverlay(context, x, align, baseline, maxWidth,
                                 size * Math.max(1f, state.getSupportingScale())),
                         maxWidth, size * state.getSupportingScale(), 12f, color, align, face);
             } finally {
