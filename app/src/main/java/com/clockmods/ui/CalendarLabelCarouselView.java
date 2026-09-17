@@ -63,12 +63,38 @@ public final class CalendarLabelCarouselView extends View {
     public void setTextColor(int color) { paint.setColor(color); invalidate(); }
 
     public void setTextSizePx(float size) {
+        if (size == preferredTextSize) return;
         preferredTextSize = size;
         paint.setTextSize(size);
+        // The view now measures to its own line, so a new size is a new height.
+        requestLayout();
         invalidate();
     }
 
-    public void setTypeface(Typeface typeface) { paint.setTypeface(typeface); invalidate(); }
+    /**
+     * Measures one line of the label rather than whatever the parent offers.
+     *
+     * <p>A plain {@link View} reports the whole {@code AT_MOST} spec as its measured height, which
+     * is harmless where the carousel is the only thing in its slot but not in the portrait 周程
+     * strip: there the cell stacks this label under a weighted number, so the carousel claimed the
+     * entire cell, the cell overflowed, and {@link android.widget.LinearLayout} took the excess out
+     * of the label above and the number in the middle — leaving the number no box to draw its glyph
+     * in and the weekday squashed to a few pixels. The line the label actually needs is the paint's
+     * ascent-to-descent span, which is also what {@link #drawItem} centres on.</p>
+     */
+    @Override protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
+        int lineHeight = Math.max(1, Math.round(paint.descent() - paint.ascent()));
+        setMeasuredDimension(resolveSize(getSuggestedMinimumWidth(), widthMeasureSpec),
+                resolveSize(lineHeight, heightMeasureSpec));
+    }
+
+    public void setTypeface(Typeface typeface) {
+        if (typeface == paint.getTypeface()) return;
+        paint.setTypeface(typeface);
+        // A different family has different font metrics, so the measured line can change.
+        requestLayout();
+        invalidate();
+    }
 
     public void setActive(boolean value) {
         if (value == active) return;
