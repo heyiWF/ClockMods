@@ -102,7 +102,13 @@ public final class ClockPalette {
 
     public int hand() { return contrast(accent, panelAlt) >= 3 ? accent : onPanelAlt; }
 
-    static int foreground(int surface) {
+    /**
+     * The readable foreground for {@code surface}: the theme's own light or dark tint, pushed
+     * toward the nearer extreme until it clears a 4.5:1 contrast ratio. Public because hosts
+     * outside this package need it to dress a surface they take from a theme — the status capsule
+     * over the clock face, for one — in colours that stay legible on that theme.
+     */
+    public static int foreground(int surface) {
         int light = mix(surface, 0xFFF6F8FC, .82f);
         int dark = mix(surface, 0xFF111B2C, .90f);
         boolean useLight = contrast(0xFFFEFEFF, surface) >= contrast(0xFF010102, surface);

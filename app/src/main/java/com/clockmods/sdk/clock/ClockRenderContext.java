@@ -13,6 +13,7 @@ public final class ClockRenderContext {
     private final float bottomInset;
     private final float worldClockScroll;
     private final boolean worldClockStripHosted;
+    private final float topOverlayInset;
 
     public ClockRenderContext(float left, float top, float right, float bottom, float density,
             float scaledDensity, long frameTimeMillis) {
@@ -52,6 +53,20 @@ public final class ClockRenderContext {
             float scaledDensity, long frameTimeMillis,
             ClockBackground background, float bottomInset, float worldClockScroll,
             boolean worldClockStripHosted) {
+        this(left, top, right, bottom, density, scaledDensity, frameTimeMillis,
+                background, bottomInset, worldClockScroll, worldClockStripHosted, 0f);
+    }
+
+    /**
+     * Creates a frame with a host-owned band reserved along the top edge, mirroring
+     * {@code bottomInset}. A host parks a control or status capsule there, so a style has to keep
+     * its own top-anchored metadata below it instead of drawing underneath it. The canvas bounds
+     * stay unchanged, exactly as they do for the bottom reservation.
+     */
+    public ClockRenderContext(float left, float top, float right, float bottom, float density,
+            float scaledDensity, long frameTimeMillis,
+            ClockBackground background, float bottomInset, float worldClockScroll,
+            boolean worldClockStripHosted, float topOverlayInset) {
         if (right < left || bottom < top) {
             throw new IllegalArgumentException("Render bounds must not be inverted");
         }
@@ -66,6 +81,7 @@ public final class ClockRenderContext {
         this.bottomInset = Math.max(0f, Math.min(bottomInset, bottom - top));
         this.worldClockScroll = Math.max(0f, worldClockScroll);
         this.worldClockStripHosted = worldClockStripHosted;
+        this.topOverlayInset = Math.max(0f, Math.min(topOverlayInset, bottom - top));
     }
 
     public float getLeft() { return left; }
@@ -83,4 +99,11 @@ public final class ClockRenderContext {
     public float getBottomInset() { return bottomInset; }
     public float getWorldClockScroll() { return worldClockScroll; }
     public boolean isWorldClockStripHosted() { return worldClockStripHosted; }
+    /**
+     * Height of the band the host has covered with its own overlay along the top edge — a status
+     * capsule, for instance — or {@code 0} when nothing is overlaid. Metadata a style anchors to
+     * the top has to clear it; see {@code MigratedRenderer#clearOfTopOverlay} for the rule the
+     * built-in styles follow.
+     */
+    public float getTopOverlayInset() { return topOverlayInset; }
 }

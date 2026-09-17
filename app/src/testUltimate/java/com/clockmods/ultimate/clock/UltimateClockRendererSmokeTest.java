@@ -138,6 +138,65 @@ public class UltimateClockRendererSmokeTest {
                 solar + " / " + lunar, paint, 1000f, true, Locale.SIMPLIFIED_CHINESE));
     }
 
+    /**
+     * The host parks the status capsule in the top-right corner, so a style's own top-right line
+     * has to drop below the band the host reserves for it.
+     *
+     * <p>Only the three arithmetic layouts are asserted here: {@code dual_blocks} and {@code blend}
+     * anchor their frames with {@link android.graphics.RectF}, whose geometry methods are stubs in
+     * Gradle's mockable android.jar, so their corner rows cannot be measured on the JVM. Verified on
+     * device instead, where both already sat clear of the capsule.</p>
+     */
+    @Test public void topRightMetadataClearsTheHostStatusCapsule() throws Exception {
+        String[] styleIds = {
+                UltimateClockStyles.STYLE_ORBIT,
+                UltimateClockStyles.STYLE_BUBBLES,
+                UltimateClockStyles.STYLE_RIBBON
+        };
+        ClockStyleRegistry registry = UltimateClockStyles.createRegistry();
+        ClockState state = longChineseState(false);
+        ClockBackground background = ClockBackground.theme(false);
+        // A 50dp capsule band at 2x density.
+        float band = 100f;
+        PaintPoolFixture paints = PaintPoolFixture.install();
+        try {
+            for (String styleId : styleIds) {
+                ClockStyle style = registry.find(styleId);
+                Assert.assertNotNull(styleId, style);
+                float unbounded = cornerTextTop(style, state, background, 0f);
+                float bounded = cornerTextTop(style, state, background, band);
+                Assert.assertFalse(styleId + " drew no top-right row to check",
+                        Float.isNaN(unbounded));
+                Assert.assertTrue(styleId + " no longer reproduces the overlap, fixture is stale: "
+                                + unbounded,
+                        unbounded < band);
+                Assert.assertTrue(styleId + " still reaches into the capsule band: " + bounded,
+                        bounded >= band - 1f);
+            }
+        } finally {
+            paints.restore();
+        }
+    }
+
+    /**
+     * The top edge of the highest text drawn in the top-right corner, or NaN when there is none.
+     * Text below {@code CORNER_DEPTH} is ignored: it cannot collide with a band along the top edge.
+     */
+    private static float cornerTextTop(ClockStyle style, ClockState state,
+            ClockBackground background, float band) {
+        float cornerDepth = 400f;
+        RecordingCanvas canvas = new RecordingCanvas(2560f, 1440f);
+        ClockRenderContext context = new ClockRenderContext(0f, 0f, 2560f, 1440f, 2f, 2f,
+                state.getTimeMillis(), background, 0f, 0f, true, band);
+        style.getRenderer().render(canvas, context, state, style.getThemeTokens());
+        float highest = Float.NaN;
+        for (TextBounds bounds : canvas.textBounds) {
+            if (bounds.right < 2560f - 400f || bounds.top > cornerDepth) continue;
+            highest = Float.isNaN(highest) ? bounds.top : Math.min(highest, bounds.top);
+        }
+        return highest;
+    }
+
     private static void assertRendersWithoutLeakingCanvasState(ClockStyle style,
             ClockState state, int width, int height) {
         String label = style.getMetadata().getId() + " at " + width + "x" + height;

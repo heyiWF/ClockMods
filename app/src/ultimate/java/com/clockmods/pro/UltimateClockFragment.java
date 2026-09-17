@@ -8,7 +8,9 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
+import android.os.Build;
 import android.os.Bundle;
 import android.view.GestureDetector;
 import android.view.LayoutInflater;
@@ -38,6 +40,21 @@ import java.util.Map;
 
 /** Ultimate clock destination with an SDK renderer host and the original Pro clock host. */
 public final class UltimateClockFragment extends Fragment implements SettingsRefreshable {
+    /**
+     * The status capsule's own geometry, mirroring {@code fragment_ultimate_clock}: a 16dp top
+     * margin over a 28dp row. Faces reserve that band plus {@link #STATUS_CAPSULE_GAP_DP} of air so
+     * their own top-right metadata lands below the capsule instead of under it.
+     */
+    private static final int STATUS_CAPSULE_TOP_DP = 16;
+    private static final int STATUS_CAPSULE_HEIGHT_DP = 28;
+    private static final int STATUS_CAPSULE_GAP_DP = 6;
+    /**
+     * The capsule is filled with the style's surface at full opacity. A sheer fill picked up
+     * whatever sat behind it, so a corner straddling two surfaces rendered as two different shades;
+     * an opaque chip reads as one deliberate surface instead.
+     */
+    private static final int STATUS_CAPSULE_STROKE_ALPHA = 0x3D;
+
     /**
      * Fragment.requestPermissions and its result callback are both retired; a launcher registered
      * at construction is the replacement, and it survives the process death the old pair did not.
@@ -74,6 +91,7 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
         statusOverlayRepository = new UltimateStatusOverlayRepository(requireContext());
         applyClockStyle(repository);
         statusBarView.setVisibility(repository.isShowStatusIcons() ? View.VISIBLE : View.GONE);
+        updateTopOverlayInset();
         ProFontApplier.apply(root,
                 new UltimateClockPreferences(requireContext()).getStyleId());
 
@@ -180,6 +198,7 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
         }
         statusBarView.setVisibility(repository.isShowStatusIcons() ? View.VISIBLE : View.GONE);
         statusBarView.invalidate();
+        updateTopOverlayInset();
         applyWeatherEnabled(repository);
         startWeatherIfEnabled();
     }
@@ -194,8 +213,7 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
             }
             statusBarView.setBackgroundRepository(
                     proClassicActive ? repository : statusOverlayRepository);
-            statusBarView.setBackgroundResource(
-                    proClassicActive ? 0 : R.drawable.ultimate_overlay_pill);
+            applyStatusCapsule();
             statusBarView.setPaddingRelative(dp(8), statusBarView.getPaddingTop(),
                     dp(proClassicActive ? 4 : 8), statusBarView.getPaddingBottom());
         }
@@ -347,6 +365,62 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
         if (ultimateClockView == null) return;
         ultimateClockView.setBottomOverlayInset(
                 !proClassicActive && weatherEnabled ? dp(28) : 0f);
+    }
+
+    /**
+     * Gives the status capsule the active style's own surface instead of one hard-coded dark pill
+     * for every theme — cream paper takes an ink-on-paper label, an instrument panel takes charcoal,
+     * a light glass face takes an almost-white chip with a hairline. The five palette styles follow
+     * the colours the user picked for them, so the capsule matches their cards exactly.
+     */
+    private void applyStatusCapsule() {
+        if (statusBarView == null) return;
+        if (proClassicActive) {
+            // Pro Classic owns its own face: the row sits straight on the user's background and the
+            // icons keep the clock's own colour, which is what that style has always done.
+            statusBarView.setBackground(null);
+            statusBarView.setTintOverride(0);
+            statusBarView.setContentShadowEnabled(true);
+            return;
+        }
+        UltimateClockPreferences appearance = new UltimateClockPreferences(requireContext());
+        String styleId = appearance.getStyleId();
+        int surface;
+        int content;
+        if (ClockPalette.supports(styleId)) {
+            ClockPalette palette = appearance.getPalette(styleId);
+            surface = palette.panel;
+            content = palette.onPanel;
+        } else {
+            surface = UltimateClockStyles.sharedRegistry()
+                    .resolveForApi(styleId, Build.VERSION.SDK_INT).getThemeTokens()
+                    .getSurfaceColor();
+            content = ClockPalette.foreground(surface);
+        }
+        GradientDrawable capsule = new GradientDrawable();
+        capsule.setShape(GradientDrawable.RECTANGLE);
+        capsule.setCornerRadius(dp(999));
+        capsule.setColor(surface);
+        capsule.setStroke(Math.max(1, dp(1)), withAlpha(content, STATUS_CAPSULE_STROKE_ALPHA));
+        statusBarView.setBackground(capsule);
+        statusBarView.setTintOverride(content);
+        // With a capsule of its own the row has all the contrast it needs; the drop shadow only
+        // smudged dark glyphs on light capsules.
+        statusBarView.setContentShadowEnabled(false);
+    }
+
+    /** Keeps a style's top-right metadata clear of the capsule when it is showing. */
+    private void updateTopOverlayInset() {
+        if (ultimateClockView == null) return;
+        boolean capsule = !proClassicActive && statusBarView != null
+                && statusBarView.getVisibility() == View.VISIBLE;
+        ultimateClockView.setTopOverlayInset(capsule
+                ? dp(STATUS_CAPSULE_TOP_DP + STATUS_CAPSULE_HEIGHT_DP + STATUS_CAPSULE_GAP_DP)
+                : 0f);
+    }
+
+    private static int withAlpha(int color, int alpha) {
+        return (alpha << 24) | (color & 0x00FFFFFF);
     }
 
     private void startWeatherIfEnabled() {

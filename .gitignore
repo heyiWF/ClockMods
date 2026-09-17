@@ -3,6 +3,7 @@ qweather.properties
 
 .codex*/
 .claude/
+.workbuddy/
 .tmp*/
 
 # Gradle

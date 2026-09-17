@@ -111,6 +111,7 @@ public class UltimateClockView extends FrameLayout {
     private boolean windowVisible = true;
     private boolean windowFocused = true;
     private float bottomOverlayInset;
+    private float topOverlayInset;
 
     public UltimateClockView(Context context) {
         this(context, null);
@@ -362,6 +363,19 @@ public class UltimateClockView extends FrameLayout {
         invalidate();
     }
 
+    /**
+     * Reserves the band a host overlay occupies along the top edge — the status capsule — so a
+     * style keeps its own top-right metadata below it instead of drawing underneath it. Like the
+     * bottom inset this only moves content; the background still covers the whole view.
+     */
+    public void setTopOverlayInset(float inset) {
+        float safe = Math.max(0f, inset);
+        if (safe == topOverlayInset) return;
+        topOverlayInset = safe;
+        requestLayout();
+        invalidate();
+    }
+
     /** The background repository still supplies clock settings; style renderers own their surface. */
     public void setBackgroundRepository(BackgroundRepository repository) {
         backgroundRepository = repository;
@@ -492,7 +506,7 @@ public class UltimateClockView extends FrameLayout {
                 getResources().getDisplayMetrics().density,
                 TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 1f,
                             getResources().getDisplayMetrics()), now,
-                createBackground(now), bottomOverlayInset, 0f, true);
+                createBackground(now), bottomOverlayInset, 0f, true, topOverlayInset);
         ClockThemeTokens theme = typography.apply(getContext(), paletteTokens, styleId,
                 fontFamily, fontWeight);
         worldClockState = state;

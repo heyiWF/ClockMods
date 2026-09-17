@@ -1748,7 +1748,7 @@ public final class UltimateClockStyles {
                         context.getRight(), contentBottom, context.getDensity(),
                         context.getScaledDensity(), context.getFrameTimeMillis(),
                         context.getBackground(), 0f,
-                        context.getWorldClockScroll());
+                        context.getWorldClockScroll(), false, context.getTopOverlayInset());
             }
             int save = canvas.save();
             if (style == 0) drawDual(canvas, faceContext, state, c, display, supporting, colors);
@@ -2181,11 +2181,31 @@ public final class UltimateClockStyles {
             boolean previous = RendererBase.PAINT_POOL.get().photoText;
             RendererBase.PAINT_POOL.get().photoText = glass != null && (mode() == 1 || mode() == 2 || mode() == 4);
             try {
-                readableDate(canvas, context, state, x, baseline, maxWidth, size, color, align,
-                        face, context.getHeight() > context.getWidth());
+                readableDate(canvas, context, state, x,
+                        clearOfTopOverlay(context, baseline, align,
+                                size * Math.max(1f, state.getDateScale())),
+                        maxWidth, size, color, align, face,
+                        context.getHeight() > context.getWidth());
             } finally {
                 RendererBase.PAINT_POOL.get().photoText = previous;
             }
+        }
+
+        /**
+         * Keeps a top-right metadata line out from under the host's corner overlay.
+         *
+         * <p>Only right-aligned rows can collide, because the overlay is parked in the top-right
+         * corner; a left-aligned row at the same height is on the far side of the face and stays
+         * exactly where the composition put it. The clearance is derived from the size the row will
+         * actually be drawn at rather than a fixed offset, so it drops just far enough for its
+         * ascent to clear the band and no further.</p>
+         */
+        private static float clearOfTopOverlay(ClockRenderContext context, float baseline,
+                Paint.Align align, float drawnSize) {
+            float band = context.getTopOverlayInset();
+            if (band <= 0f || align != Paint.Align.RIGHT) return baseline;
+            // 1.15 covers an ascent that overshoots the em box, which CJK faces routinely do.
+            return Math.max(baseline, context.getTop() + band + Math.max(0f, drawnSize) * 1.15f);
         }
 
         /** Draws the Gregorian date above its lunar counterpart, both at one readable size. */
@@ -2204,8 +2224,10 @@ public final class UltimateClockStyles {
             boolean previous = RendererBase.PAINT_POOL.get().photoText;
             RendererBase.PAINT_POOL.get().photoText = glass != null && (mode() == 1 || mode() == 2 || mode() == 4);
             try {
-                readableText(canvas, context, value, x, baseline, maxWidth,
-                        size * state.getSupportingScale(), 12f, color, align, face);
+                readableText(canvas, context, value, x,
+                        clearOfTopOverlay(context, baseline, align,
+                                size * Math.max(1f, state.getSupportingScale())),
+                        maxWidth, size * state.getSupportingScale(), 12f, color, align, face);
             } finally {
                 RendererBase.PAINT_POOL.get().photoText = previous;
             }

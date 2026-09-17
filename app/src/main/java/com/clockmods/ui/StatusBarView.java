@@ -49,6 +49,7 @@ public class StatusBarView extends View {
     private int mobileSignalStrength;
     private boolean contentAlignedStart;
     private int tintOverride;
+    private boolean contentShadow = true;
 
     private boolean receiverRegistered;
     private boolean networkCallbackRegistered;
@@ -140,6 +141,17 @@ public class StatusBarView extends View {
      */
     public void setTintOverride(int color) {
         tintOverride = color;
+        invalidate();
+    }
+
+    /**
+     * Turns the drop shadow behind the icons and the percentage off. A host that already gives the
+     * row a capsule of its own has contrast without it, and a dark blur under dark glyphs on a light
+     * capsule reads as smudging rather than as depth.
+     */
+    public void setContentShadowEnabled(boolean enabled) {
+        if (contentShadow == enabled) return;
+        contentShadow = enabled;
         invalidate();
     }
 
@@ -383,10 +395,15 @@ public class StatusBarView extends View {
         float scale = resolveStatusIconScale();
         fillPaint.setColor(tint);
         textPaint.setColor(tint);
-        fillPaint.setShadowLayer(4f * density * scale, 0f,
-                1.5f * density * scale, 0x66000000);
-        textPaint.setShadowLayer(4f * density * scale, 0f,
-                1.5f * density * scale, 0x66000000);
+        if (contentShadow) {
+            fillPaint.setShadowLayer(4f * density * scale, 0f,
+                    1.5f * density * scale, 0x66000000);
+            textPaint.setShadowLayer(4f * density * scale, 0f,
+                    1.5f * density * scale, 0x66000000);
+        } else {
+            fillPaint.clearShadowLayer();
+            textPaint.clearShadowLayer();
+        }
 
         float iconHeight = calculateStatusIconHeight(getHeight(), density, scale);
         float centerY = getHeight() / 2f;
