@@ -2681,6 +2681,13 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     preview.setPalette(draft[0]);
                 });
         controls.addView(solidControls);
+        // The card shadow only reads against a solid surface — the frosted cards already carry
+        // their own edge — so the switch lives with the solid controls and hides with the blur.
+        addSwitch(solidControls, R.string.ultimate_palette_card_shadow,
+                R.string.ultimate_palette_card_shadow_summary, draft[0].cardShadow, enabled -> {
+                    draft[0] = draft[0].withCardShadow(enabled);
+                    preview.setPalette(draft[0]);
+                });
         ColorPickerView picker = new ColorPickerView(this);
         picker.setColor(draft[0].background);
         picker.setAccessibilityLabel(getString(labels[0]));

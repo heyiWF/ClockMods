@@ -101,7 +101,8 @@ public final class UltimateClockPreferences {
                 preferences.getInt("palette_accent__" + styleId, defaults.accent),
                 preferences.getBoolean("palette_blur__" + styleId, false),
                 preferences.getInt("palette_blur_strength__" + styleId, defaults.blurStrength),
-                preferences.getInt("palette_blur_brightness__" + styleId, defaults.blurBrightness));
+                preferences.getInt("palette_blur_brightness__" + styleId, defaults.blurBrightness))
+                .withCardShadow(preferences.getBoolean("palette_card_shadow__" + styleId, true));
     }
 
     public void setPalette(String styleId, ClockPalette palette) {
@@ -111,7 +112,8 @@ public final class UltimateClockPreferences {
                 .putInt("palette_accent__" + styleId, palette.accent)
                 .putBoolean("palette_blur__" + styleId, palette.gaussianBlur)
                 .putInt("palette_blur_strength__" + styleId, palette.blurStrength)
-                .putInt("palette_blur_brightness__" + styleId, palette.blurBrightness).apply();
+                .putInt("palette_blur_brightness__" + styleId, palette.blurBrightness)
+                .putBoolean("palette_card_shadow__" + styleId, palette.cardShadow).apply();
     }
 
     public void restoreDefaults() {

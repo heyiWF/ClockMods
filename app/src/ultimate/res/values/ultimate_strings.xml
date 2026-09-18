@@ -260,6 +260,8 @@
     <string name="ultimate_palette_blur_strength">模糊强度</string>
     <string name="ultimate_palette_blur_brightness">模糊亮度</string>
     <string name="ultimate_palette_gaussian_blur_summary">卡片实时模糊</string>
+    <string name="ultimate_palette_card_shadow">卡片阴影</string>
+    <string name="ultimate_palette_card_shadow_summary">卡片与气泡下方投射一层轻微阴影</string>
     <string name="ultimate_style_palette_summary">独立调整当前主题，文字颜色自动适应</string>
     <string name="ultimate_palette_background">背景</string>
     <string name="ultimate_palette_panel">卡片</string>

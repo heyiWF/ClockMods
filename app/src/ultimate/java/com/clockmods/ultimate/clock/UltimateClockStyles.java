@@ -1835,21 +1835,44 @@ public final class UltimateClockStyles {
     /** The five migrated compositions, measured from the supplied 16:9 reference captures. */
     private abstract static class MigratedRenderer extends RendererBase {
         private GaussianGlass glass;
+        /** Soft elevation cast by every card and bubble, so the flat panels read as cards. */
+        private final Paint shadowPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+        private float density;
+        private boolean cardShadow;
         protected abstract int mode();
 
         private void panel(Canvas canvas, RectF bounds, float rx, float ry, int color) {
-            if (glass == null) canvas.drawRoundRect(bounds, rx, ry, fill(color));
-            else glass.roundRect(canvas, bounds, rx, ry, color, 0f, 0f, 0f);
+            if (glass != null) {
+                glass.roundRect(canvas, bounds, rx, ry, color, 0f, 0f, 0f);
+                return;
+            }
+            // A card casts its shadow first; the opaque fill painted on top covers the black copy
+            // the shadow layer also draws, leaving only the soft halo around the card's lower edge.
+            if (cardShadow) canvas.drawRoundRect(bounds, rx, ry, shadowPaint);
+            canvas.drawRoundRect(bounds, rx, ry, fill(color));
         }
 
         private void bubble(Canvas canvas, float x, float y, float radius, int color) {
-            if (glass == null) canvas.drawCircle(x, y, radius, fill(color));
-            else glass.circle(canvas, x, y, radius, color);
+            if (glass != null) {
+                glass.circle(canvas, x, y, radius, color);
+                return;
+            }
+            if (cardShadow) canvas.drawCircle(x, y, radius, shadowPaint);
+            canvas.drawCircle(x, y, radius, fill(color));
+        }
+
+        /** Keeps the shadow a few pixels and a breath of black, so it reads as lift, not a border. */
+        private void armShadow() {
+            shadowPaint.setShadowLayer(density * 5f, 0f, density * 2f, 0x36000000);
+            shadowPaint.setColor(0xFF000000);
         }
 
         @Override public final void render(Canvas canvas, ClockRenderContext context,
                 ClockState state, ClockThemeTokens theme) {
             glass = GaussianGlass.create(context, theme);
+            density = context.getDensity();
+            cardShadow = theme.isCardShadow();
+            armShadow();
             background(canvas, context, theme, glass == null);
             ClockPalette colors = glass == null ? ClockPalette.fromTokens(theme) : glass.palette();
             if (context.getBackground() != null

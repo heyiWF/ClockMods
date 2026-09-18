@@ -9,6 +9,7 @@ public final class ClockPalette {
     static final ClockPalette GLASS = new ClockPalette(0xFF454545, 0xFF58616D, 0xFF636C77);
     public final boolean gaussianBlur;
     public final int blurStrength, blurBrightness;
+    public final boolean cardShadow;
     public final int background, panel, accent, panelAlt, badge;
     public final int onBackground, onPanel, onAccent, onPanelAlt, onBadge;
     public final int mutedBackground, mutedPanel, mutedAccent;
@@ -24,14 +25,22 @@ public final class ClockPalette {
 
     public ClockPalette(int background, int panel, int accent, boolean gaussianBlur,
             int blurStrength, int blurBrightness) {
-        this(background, panel, accent, gaussianBlur, blurStrength, blurBrightness, false, 0);
+        this(background, panel, accent, gaussianBlur, blurStrength, blurBrightness, false, 0, true);
     }
 
     private ClockPalette(int background, int panel, int accent, boolean gaussianBlur,
             int blurStrength, int blurBrightness, boolean glassForegrounds, int glassTint) {
+        this(background, panel, accent, gaussianBlur, blurStrength, blurBrightness,
+                glassForegrounds, glassTint, true);
+    }
+
+    private ClockPalette(int background, int panel, int accent, boolean gaussianBlur,
+            int blurStrength, int blurBrightness, boolean glassForegrounds, int glassTint,
+            boolean cardShadow) {
         this.gaussianBlur = gaussianBlur;
         this.blurStrength = Math.max(0, Math.min(100, blurStrength));
         this.blurBrightness = Math.max(0, Math.min(100, blurBrightness));
+        this.cardShadow = cardShadow;
         this.background = background | 0xFF000000;
         this.panel = panel | 0xFF000000;
         this.accent = accent | 0xFF000000;
@@ -71,31 +80,42 @@ public final class ClockPalette {
     public ClockPalette withColor(int role, int color) {
         return new ClockPalette(role == 0 ? color : background,
                 role == 1 ? color : panel, role == 2 ? color : accent, gaussianBlur,
-                blurStrength, blurBrightness);
+                blurStrength, blurBrightness, false, 0, cardShadow);
     }
 
     public ClockPalette withGaussianBlur(boolean enabled) {
-        return new ClockPalette(background, panel, accent, enabled, blurStrength, blurBrightness);
+        return new ClockPalette(background, panel, accent, enabled, blurStrength, blurBrightness,
+                false, 0, cardShadow);
     }
 
     public ClockPalette withBlurStrength(int percent) {
-        return new ClockPalette(background, panel, accent, gaussianBlur, percent, blurBrightness);
+        return new ClockPalette(background, panel, accent, gaussianBlur, percent, blurBrightness,
+                false, 0, cardShadow);
     }
 
     public ClockPalette withBlurBrightness(int percent) {
-        return new ClockPalette(background, panel, accent, gaussianBlur, blurStrength, percent);
+        return new ClockPalette(background, panel, accent, gaussianBlur, blurStrength, percent,
+                false, 0, cardShadow);
+    }
+
+    /** Turns the cards' soft elevation shadow on or off without touching their colourway. */
+    public ClockPalette withCardShadow(boolean enabled) {
+        return new ClockPalette(background, panel, accent, gaussianBlur, blurStrength,
+                blurBrightness, false, 0, enabled);
     }
 
     public ClockThemeTokens applyTo(ClockThemeTokens source) {
         return source.toBuilder().background(background, background).lineColor(panel)
                 .surfaceColor(accent).primaryTextColor(onAccent)
                 .secondaryTextColor(onBackground).accentColor(badge)
-                .gaussianBlur(gaussianBlur).blurStrength(blurStrength).blurBrightness(blurBrightness).build();
+                .gaussianBlur(gaussianBlur).blurStrength(blurStrength).blurBrightness(blurBrightness)
+                .cardShadow(cardShadow).build();
     }
 
     public static ClockPalette fromTokens(ClockThemeTokens theme) {
         return new ClockPalette(theme.getBackgroundStartColor(), theme.getLineColor(),
-                theme.getSurfaceColor(), theme.isGaussianBlur(), theme.getBlurStrength(), theme.getBlurBrightness());
+                theme.getSurfaceColor(), theme.isGaussianBlur(), theme.getBlurStrength(),
+                theme.getBlurBrightness(), false, 0, theme.isCardShadow());
     }
 
     public int ring(float strength) { return mix(background, onBackground, strength); }

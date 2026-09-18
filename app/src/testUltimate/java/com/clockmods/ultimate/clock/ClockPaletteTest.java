@@ -36,6 +36,18 @@ public class ClockPaletteTest {
         assertEquals(changed.accent, restored.accent);
     }
 
+    @Test public void cardShadowDefaultsOnAndSurvivesTokenCopies() {
+        assertTrue("the migrated cards cast their shadow out of the box", ClockPalette.DEFAULT.cardShadow);
+        ClockPalette off = ClockPalette.DEFAULT.withCardShadow(false);
+        assertFalse(off.cardShadow);
+        // Toggling it must not disturb the colourway, and it must round-trip through the tokens.
+        assertEquals(ClockPalette.DEFAULT.background, off.background);
+        ClockPalette restored = ClockPalette.fromTokens(off.applyTo(
+                com.clockmods.sdk.clock.ClockThemeTokens.builder().build()).toBuilder().build());
+        assertFalse(restored.cardShadow);
+        assertTrue(restored.withCardShadow(true).cardShadow);
+    }
+
     private static void readable(int text, int surface) {
         assertNotEquals(0xFF000000, text);
         assertNotEquals(0xFFFFFFFF, text);

@@ -26,6 +26,7 @@ public final class ClockThemeTokens {
     private final boolean gaussianBlur;
     private final int blurStrength;
     private final int blurBrightness;
+    private final boolean cardShadow;
 
     private ClockThemeTokens(Builder builder) {
         backgroundStartColor = builder.backgroundStartColor;
@@ -43,6 +44,7 @@ public final class ClockThemeTokens {
         gaussianBlur = builder.gaussianBlur;
         blurStrength = builder.blurStrength;
         blurBrightness = builder.blurBrightness;
+        cardShadow = builder.cardShadow;
     }
 
     public static Builder builder() {
@@ -62,7 +64,8 @@ public final class ClockThemeTokens {
                 .typefaces(displayTypeface, supportingTypeface)
                 .strokeScale(strokeScale)
                 .gaussianBlur(gaussianBlur)
-                .blurStrength(blurStrength).blurBrightness(blurBrightness);
+                .blurStrength(blurStrength).blurBrightness(blurBrightness)
+                .cardShadow(cardShadow);
     }
 
     public int getBackgroundStartColor() { return backgroundStartColor; }
@@ -86,6 +89,8 @@ public final class ClockThemeTokens {
     public boolean isGaussianBlur() { return gaussianBlur; }
     public int getBlurStrength() { return blurStrength; }
     public int getBlurBrightness() { return blurBrightness; }
+    /** Whether cards and bubbles in the palette styles cast their soft elevation shadow. */
+    public boolean isCardShadow() { return cardShadow; }
 
     public static final class Builder {
         private int backgroundStartColor = 0xFF101418;
@@ -103,8 +108,10 @@ public final class ClockThemeTokens {
         private boolean gaussianBlur;
         private int blurStrength = DEFAULT_BLUR_STRENGTH;
         private int blurBrightness = DEFAULT_BLUR_BRIGHTNESS;
+        private boolean cardShadow;
 
         public Builder gaussianBlur(boolean enabled) { gaussianBlur = enabled; return this; }
+        public Builder cardShadow(boolean enabled) { cardShadow = enabled; return this; }
         public Builder blurStrength(int percent) {
             blurStrength = Math.max(0, Math.min(100, percent));
             return this;
