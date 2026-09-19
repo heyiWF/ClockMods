@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Two stacked lines: the day number (~55dp) and the date caption (~94dp in Chinese, ~120dp in
+  English). With the two 28dp corner insets the caption needs about 176dp, which is more than two
+  70dp cells can give, so the default is three cells wide. Height covers the 46sp day number plus
+  the caption, about 100dp, which is two rows.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+ android:minWidth="180dp" android:minHeight="110dp"
+ android:targetCellWidth="3" android:targetCellHeight="2"
+ android:minResizeWidth="180dp" android:minResizeHeight="110dp" android:maxResizeWidth="600dp" android:maxResizeHeight="500dp"
+ android:resizeMode="horizontal|vertical" android:widgetCategory="home_screen" android:widgetFeatures="reconfigurable|configuration_optional"
+ android:updatePeriodMillis="0" android:initialLayout="@layout/widget_calendar_compact" android:previewLayout="@layout/widget_calendar_compact"
+ android:description="@string/widget_calendar_description" android:configure="com.clockmods.widget.config.WidgetConfigActivity"/>

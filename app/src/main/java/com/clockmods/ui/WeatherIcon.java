@@ -58,7 +58,7 @@ final class WeatherIcon {
         } catch (Exception ignored) { return null; }
     }
 
-    void draw(Canvas canvas, float left, float top, float size, Paint paint) {
+    synchronized void draw(Canvas canvas, float left, float top, float size, Paint paint) {
         int targetSize = Math.max(1, (int) Math.ceil(size));
         int color = paint.getColor();
         int alpha = paint.getAlpha();

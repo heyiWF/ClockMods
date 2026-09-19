@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The default footprint follows the content rather than habit.
+
+  The widest line the default configuration renders is the date caption: about 94dp of glyphs in
+  Chinese and about 120dp in English, plus the two 28dp corner insets, so roughly 150-176dp.
+  That is a little over two 70dp cells, hence three cells wide - the smallest width at which the
+  caption is never ellipsised in any locale. Two stacked lines need about 60dp, which is the
+  one-row minimum.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+ android:minWidth="180dp" android:minHeight="56dp"
+ android:targetCellWidth="3" android:targetCellHeight="1"
+ android:minResizeWidth="180dp" android:minResizeHeight="56dp" android:maxResizeWidth="600dp" android:maxResizeHeight="500dp"
+ android:resizeMode="horizontal|vertical" android:widgetCategory="home_screen" android:widgetFeatures="reconfigurable|configuration_optional"
+ android:updatePeriodMillis="0" android:initialLayout="@layout/widget_digital_wide" android:previewLayout="@layout/widget_digital_wide"
+ android:description="@string/widget_digital_description" android:configure="com.clockmods.widget.config.WidgetConfigActivity"/>

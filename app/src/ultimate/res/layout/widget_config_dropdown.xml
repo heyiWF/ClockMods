@@ -1,0 +1,22 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  One row of the widget configuration form: a Material 3 exposed dropdown menu.
+
+  The style below is the documented one for this component
+  (material-components-android, Menus -> "Exposed dropdown menu"), and it is applied from XML on
+  purpose: TextInputLayout's only public constructors take the default *attribute*, not the default
+  *style*, so a programmatic equivalent of this attribute does not exist. The child is a
+  MaterialAutoCompleteTextView with input disabled, which is the documented non-editable variation.
+-->
+<com.google.android.material.textfield.TextInputLayout
+    xmlns:android="http://schemas.android.com/apk/res/android"
+    style="@style/Widget.Material3.TextInputLayout.OutlinedBox.ExposedDropdownMenu"
+    android:layout_width="match_parent"
+    android:layout_height="wrap_content">
+
+    <com.google.android.material.textfield.MaterialAutoCompleteTextView
+        android:id="@+id/widget_config_dropdown_field"
+        android:layout_width="match_parent"
+        android:layout_height="wrap_content"
+        android:inputType="none" />
+</com.google.android.material.textfield.TextInputLayout>

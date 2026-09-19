@@ -42,6 +42,9 @@ public final class WeatherRepository {
                     .put("updatedAt", data.updatedAt).put("source", source).put("lang", currentLanguage());
             if (data.detail != null) json.put("detail", writeDetail(data.detail));
             preferences.edit().putString("data", json.toString()).apply();
+            appContext.sendBroadcast(new android.content.Intent("com.clockmods.widget.WEATHER_CHANGED")
+                    .setComponent(new android.content.ComponentName(appContext.getPackageName(),
+                            "com.clockmods.widget.update.WidgetDataChangedReceiver")));
         } catch (Exception ignored) { }
     }
     private String currentLanguage() {

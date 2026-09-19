@@ -62,16 +62,28 @@ Ultimate 在全屏时钟之外提供一组工具：
 - **倒计时**：设置倒计时并在结束时提醒。
 - **秒表**：计时与计次。
 
+### 🧩 桌面小组件
+
+- 数字时钟、模拟时钟、时钟天气、日期日历四个独立入口，长按桌面即可添加。
+- 六套小组件主题：系统动态色、玻璃、深色仪表、纸张、霓虹、透明；独立于全屏时钟样式。
+- 每个实例独立设置时区、系统或固定时间制、显示模块、背景透明度、文字比例和点击行为。
+- 点击卡片右上角的设置按钮可重新配置；取消不会覆盖原配置。
+- 实时时间由系统 TextClock / AnalogClock 驱动；日期按实例时区跨日刷新。
+- 天气每 30 分钟尝试更新，点击天气区域可刷新；离线保留缓存与更新时间，无配置时引导进入天气设置。
+- 日期日历第一版采用大日期卡，显示农历、节气和节假日，不含完整月历网格。
+
+开发与扩展约定见 [Widget contract](docs/WIDGET_CONTRACT.md)。
+
 ### ✨ Ultimate 主题
 
-- 内置 Pro Classic、Glass Atelier、Noir Instrument、Paper Station、Orbit Neon、Digital Grid、Typographic 七套样式，涵盖原版 Pro、模拟、数字与混合时钟。
+- 内置 Pro Classic、Glass Atelier、Noir Instrument、Paper Station、Orbit Neon、Digital Grid、Typographic、双块、轨道、气泡、混合、丝带共十二套样式，涵盖原版 Pro、模拟、数字与混合时钟。
 - 秒针支持平滑扫秒、跳秒和关闭。
 
 ## 应用信息
 
 | 版本 | 最低系统 | 应用 ID | 界面与能力 |
 | --- | --- | --- | --- |
-| Ultimate `ultimate` / ClockMods Ultimate | Android 12（API 31） | `com.clockmods.ultimate` | 完整继承 Pro 工具页与相关能力，增加 Pro Classic 与六套完整时钟主题、模拟/数字样式切换、二级设置导航与可扩展 Clock Style SDK |
+| Ultimate `ultimate` / ClockMods Ultimate | Android 12（API 31） | `com.clockmods.ultimate` | 完整继承 Pro 工具页与相关能力，提供十二套完整时钟样式、模拟/数字样式切换、二级设置导航与可扩展 Clock Style SDK |
 
 ## 使用方法
 
@@ -120,7 +132,7 @@ ClockMods 不含账号、广告、云同步或用户行为统计，所有数据�
 
 ```text
 app/src/main/    时钟、农历、时间、天气、背景、Material 平台能力与共享资源
-app/src/ultimate/ Ultimate 宿主、七套内置主题、二级设置、工具页面、提醒组件与离线资产
+app/src/ultimate/ Ultimate 宿主、十二套内置时钟样式、二级设置、工具页面、提醒组件与离线资产
 app/src/main/java/com/clockmods/sdk/clock/ 公开的时钟样式 SDK 契约
 app/src/test/    核心逻辑单元测试
 app/src/testUltimate/ Ultimate 主题、SDK 与工具功能测试

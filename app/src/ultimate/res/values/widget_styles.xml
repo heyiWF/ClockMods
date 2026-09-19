@@ -1,0 +1,25 @@
+<resources>
+    <style name="Theme.ClockMods.Widget.Dynamic" parent="android:style/Theme.DeviceDefault.DayNight" />
+
+    <!--
+      Host theme for WidgetConfigActivity. It only has to provide a Material 3 surface: the
+      widget preview inside it renders the real RemoteViews, which resolves its own
+      Theme.ClockMods.Widget.Dynamic, so nothing here leaks into what the Launcher displays.
+    -->
+    <style name="Theme.ClockMods.WidgetConfig" parent="Theme.ClockMods">
+        <item name="android:windowBackground">?attr/colorSurface</item>
+    </style>
+
+    <!-- Form typography. Section headers use the primary colour, values stay secondary. -->
+    <style name="TextAppearance.ClockMods.Config.Section" parent="TextAppearance.Material3.TitleSmall">
+        <item name="android:textColor">?attr/colorPrimary</item>
+    </style>
+
+    <style name="TextAppearance.ClockMods.Config.Label" parent="TextAppearance.Material3.BodyLarge">
+        <item name="android:textColor">?attr/colorOnSurface</item>
+    </style>
+
+    <style name="TextAppearance.ClockMods.Config.Value" parent="TextAppearance.Material3.BodyMedium">
+        <item name="android:textColor">?attr/colorOnSurfaceVariant</item>
+    </style>
+</resources>

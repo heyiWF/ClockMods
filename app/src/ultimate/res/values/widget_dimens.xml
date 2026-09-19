@@ -1,0 +1,46 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  Widget content insets.
+
+  The Launcher draws the widget background with
+  @android:dimen/system_app_widget_background_radius (28dp on this platform) and adds no padding
+  of its own, so every widget has to inset its own content.
+
+  Horizontal inset rule
+  =====================
+  The corner "fan" is the part of the R x R corner square that falls outside the quarter circle.
+  A glyph that reaches into that square is either clipped or just looks cramped, so the horizontal
+  inset is exactly one corner radius: text then starts where the arc ends and can never enter the
+  fan, no matter how short the widget is. The value comes from the platform dimen rather than a
+  hard-coded number, so it follows whatever radius the device actually draws.
+
+  Vertical inset
+  ==============
+  Once the horizontal inset is a full radius, the vertical inset no longer decides whether text
+  collides with the corner, so it only has to look right: a smaller top inset keeps the block
+  optically centred and a slightly larger bottom inset balances the descender space.
+-->
+<resources>
+    <!-- One corner radius. Text must never start inside the corner fan. -->
+    <dimen name="widget_inset_start">@android:dimen/system_app_widget_background_radius</dimen>
+    <dimen name="widget_inset_end">@android:dimen/system_app_widget_background_radius</dimen>
+
+    <!-- The same rule for the compact layouts: the radius does not shrink with the widget. -->
+    <dimen name="widget_inset_start_compact">@android:dimen/system_app_widget_background_radius</dimen>
+    <dimen name="widget_inset_end_compact">@android:dimen/system_app_widget_background_radius</dimen>
+
+    <dimen name="widget_inset_top">12dp</dimen>
+    <dimen name="widget_inset_bottom">16dp</dimen>
+    <dimen name="widget_inset_top_compact">8dp</dimen>
+    <dimen name="widget_inset_bottom_compact">16dp</dimen>
+
+    <!--
+      Extra right inset for the top line only. The 48dp settings button owns the top-right corner
+      with its glyph optically 14dp in, so the one line that can actually reach that corner stops
+      20dp earlier; every other line sits below the button and only needs the radius inset.
+    -->
+    <dimen name="widget_top_line_end_extra">20dp</dimen>
+
+    <!-- Gap between the weather condition icon and the temperature on the same row. -->
+    <dimen name="widget_icon_gap">8dp</dimen>
+</resources>

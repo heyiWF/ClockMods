@@ -1,0 +1,14 @@
+<?xml version="1.0" encoding="utf-8"?>
+<!--
+  The only widget whose widest element really is the clock: it renders five rows (time, date,
+  condition icon plus temperature, summary, update status) and the time is the hero, so the
+  content genuinely wants the extra width four cells give. The resize floor is the condition row
+  (32dp icon + 8dp gap + the temperature) plus the corner insets, about 180dp.
+-->
+<appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
+ android:minWidth="250dp" android:minHeight="110dp"
+ android:targetCellWidth="4" android:targetCellHeight="2"
+ android:minResizeWidth="180dp" android:minResizeHeight="110dp" android:maxResizeWidth="600dp" android:maxResizeHeight="500dp"
+ android:resizeMode="horizontal|vertical" android:widgetCategory="home_screen" android:widgetFeatures="reconfigurable|configuration_optional"
+ android:updatePeriodMillis="0" android:initialLayout="@layout/widget_weather_wide" android:previewLayout="@layout/widget_weather_wide"
+ android:description="@string/widget_weather_description" android:configure="com.clockmods.widget.config.WidgetConfigActivity"/>
