@@ -42,5 +42,10 @@
     <dimen name="widget_top_line_end_extra">20dp</dimen>
 
     <!-- Gap between the weather condition icon and the temperature on the same row. -->
+    <!-- Single-row clocks keep the full horizontal corner inset, but need extra vertical space
+         for the taller metrics of bundled fonts at the declared 56dp resize floor. -->
+    <dimen name="widget_clock_row_top">4dp</dimen>
+    <dimen name="widget_clock_row_bottom">8dp</dimen>
+
     <dimen name="widget_icon_gap">8dp</dimen>
 </resources>

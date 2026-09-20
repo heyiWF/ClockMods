@@ -40,6 +40,12 @@ public final class WidgetTextFormatter {
         if(data==null) return "";
         return join(includeLocation ? WeatherModels.locationText(data.city,data.district) : "",data.text);
     }
+    public static String withHolidayStatus(String festivals,String name,String status) {
+        List<String> labels=new ArrayList<>();
+        if(festivals!=null) labels.addAll(Arrays.asList(festivals.split(" · ")));
+        labels.add(name); labels.add(status);
+        return join(labels.toArray(new String[0]));
+    }
     public static String join(String... values) {
         List<String> nonempty=new ArrayList<>();
         for(String value:values) if(value!=null && !value.trim().isEmpty() && !nonempty.contains(value.trim())) nonempty.add(value.trim());

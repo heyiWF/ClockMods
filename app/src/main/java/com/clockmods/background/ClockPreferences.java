@@ -199,8 +199,10 @@ public class ClockPreferences {
     public static final int DEFAULT_BACKGROUND_COLOR = 0xFF000000;
 
     private final SharedPreferences preferences;
+    private final Context appContext;
 
     public ClockPreferences(Context context) {
+        appContext = context.getApplicationContext();
         preferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
     }
 
@@ -788,6 +790,9 @@ public class ClockPreferences {
 
     public void setTimeZoneId(String timeZoneId) {
         preferences.edit().putString(KEY_TIME_ZONE_ID, timeZoneId == null ? TIME_ZONE_FOLLOW_SYSTEM : timeZoneId).apply();
+        appContext.sendBroadcast(new android.content.Intent("com.clockmods.widget.TIME_ZONE_CHANGED")
+                .setComponent(new android.content.ComponentName(appContext.getPackageName(),
+                        "com.clockmods.widget.update.WidgetDataChangedReceiver")));
     }
 
     public boolean isWeatherEnabled() {

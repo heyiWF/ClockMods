@@ -10,12 +10,12 @@ public class WidgetRefreshPolicyTest {
  assertFalse(WidgetRefreshPolicy.shouldRetry(false,true,0)); assertFalse(WidgetRefreshPolicy.shouldRetry(true,false,0));
  assertTrue(WidgetRefreshPolicy.shouldRetry(true,true,1)); assertFalse(WidgetRefreshPolicy.shouldRetry(true,true,2));
 }
-@Test public void midnightAccountsForDstAndEveryInstance() {
+@Test public void midnightAccountsForAppZoneAndDst() {
  long now=java.time.Instant.parse("2026-03-08T05:00:00Z").toEpochMilli();
- WidgetConfig ny=WidgetConfig.builder(1,WidgetKind.DIGITAL).useSystemTimeZone(false).timeZoneId("America/New_York").build();
- assertEquals(23*3600000L,WidgetMidnightScheduler.nextMidnight(now,java.util.Arrays.asList(ny))-now);
- WidgetConfig sh=ny.toBuilder().appWidgetId(2).timeZoneId("Asia/Shanghai").build();
- assertEquals(java.time.Instant.parse("2026-03-08T16:00:00Z").toEpochMilli(),WidgetMidnightScheduler.nextMidnight(now,java.util.Arrays.asList(ny,sh)));
- assertEquals(Long.MAX_VALUE,WidgetMidnightScheduler.nextMidnight(now,java.util.Collections.emptyList()));
+ assertEquals(23*3600000L,WidgetMidnightScheduler.nextMidnight(now,WidgetTimeZone.resolve("America/New_York"))-now);
+ assertEquals(java.time.Instant.parse("2026-03-08T16:00:00Z").toEpochMilli(),WidgetMidnightScheduler.nextMidnight(now,WidgetTimeZone.resolve("Asia/Shanghai")));
+ assertEquals(java.util.TimeZone.getDefault().getID(),WidgetTimeZone.resolve("").getID());
+ assertEquals(java.util.TimeZone.getDefault().getID(),WidgetTimeZone.resolve(null).getID());
+ assertEquals("Asia/Shanghai",WidgetTimeZone.resolve(" Asia/Shanghai ").getID());
 }
 }

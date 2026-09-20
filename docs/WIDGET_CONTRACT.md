@@ -11,10 +11,16 @@ controls widget kind. Invalid fields normalize at the model boundary. `WidgetCon
 the codec for future migrations/preset import; do not change persisted enum names or theme IDs.
 `useSystemTimeFormat` distinguishes a live system preference from fixed 12/24-hour display.
 `darkText` provides the transparent theme with light-wallpaper contrast.
+Widgets follow the app's timezone preference; an empty app timezone follows the system. The legacy
+per-widget timezone fields remain readable for schema compatibility but no longer affect rendering
+or scheduling. The configuration page has no timezone selector, and cards never show a timezone name.
+Location visibility applies only to weather cities. Saving the app timezone sends an explicit private
+notification to refresh existing widgets and reschedule midnight updates.
 
 Theme IDs: `system.dynamic`, `glass.light`, `instrument.dark`, `paper.warm`, `neon.night`,
-`transparent.clean`. Fonts are static sans/serif/monospace layout variants. Dynamic text/background
-colors use system resources with night variants. No external font or custom view is hosted by a launcher.
+`transparent.clean`. Font choices reuse the app catalog plus a follow-theme option. Bundled fonts are statically referenced
+from `res/font` in RemoteViews layouts; the stable ID-to-column map is independent of catalog order. Dynamic text/background
+colors use system resources with night variants. No asset Typeface is injected and no custom view is hosted by a launcher.
 
 ## Adding a kind or module
 
@@ -26,8 +32,16 @@ colors use system resources with night variants. No external font or custom view
    and URI. Never reuse another instance's pending intent.
 6. Extend device acceptance tests to apply every theme and size and verify real host binding.
 
-The preview applies the actual RemoteViews from a draft. It does not persist drafts or use the
+The preview applies the actual RemoteViews from a draft, using a configuration context without the
+AppCompat inflater. Slider updates are coalesced before entering the shared executor; stale frames
+are discarded before rendering. Child form state cannot override the serialized draft on recreation. It does not persist drafts or use the
 full-screen renderer. Cancel leaves saved configuration unchanged; Done validates the bound ID again.
+Weather cards use side-by-side information at wide sizes and a vertical variant at tall sizes.
+Small cards keep essential modules, while the calendar minimum still includes its lunar date.
+Single-row digital cards retain the full horizontal corner inset but use smaller vertical padding
+to accommodate taller bundled-font metrics. Responsive variants share one timestamp and weather
+observation via `WidgetRemoteViewsFactory.createAt`, avoiding mixed dates across a midnight update.
+
 The calendar click opens the main app because no stable calendar-page route exists. Weather uses the
 existing `UltimateSettingsActivity.createSubpageIntent(context, "weather")` contract.
 
@@ -43,8 +57,8 @@ WorkManager Java runtime is pinned to **2.11.2**, the stable release listed in t
 Manual refresh is unique work (`KEEP`). Transient failures retry at most twice; missing credentials
 or location never retry. Deletion reconciles against system-bound IDs, not just stored preferences.
 
-`WidgetMidnightScheduler` schedules the earliest *next civil midnight* among all instance time zones,
-so DST and fixed zones work. It uses an inexact, non-wakeup RTC alarm and recalculates after system
+`WidgetMidnightScheduler` schedules the app timezone's *next civil midnight*,
+so DST and fixed zones work. It uses an inexact, non-wakeup RTC alarm and recalculates after app or system
 clock/zone changes and reboot. Android may defer date updates while asleep; no exact alarm permission
 is requested for widgets. TextClock/AnalogClock remain live in the host process with no application tick.
 
@@ -61,9 +75,11 @@ requests background permission. In-flight results are discarded after a city/lan
 adb install -r app\build\outputs\apk\ultimate\debug\app-ultimate-debug.apk
 adb install -r app\build\outputs\apk\androidTest\ultimate\debug\app-ultimate-debug-androidTest.apk
 adb shell am instrument -w com.clockmods.ultimate.test/com.clockmods.widget.WidgetAcceptanceInstrumentation
+# Optional integration check using the device's configured QWeather city and credentials:
+adb shell am instrument -w -e weather online com.clockmods.ultimate.test/com.clockmods.widget.WidgetAcceptanceInstrumentation
 ```
 
 The instrumentation uses a temporary host ID (9917), deletes its bindings, checks real RemoteViews
-reflection across all themes/sizes, and writes rendered previews only to the application's cache.
+reflection across all themes/sizes/fonts and the actual minimum pixel dimensions, and writes rendered previews only to the application's cache.
 Run on a backed-up test device; it temporarily reconfigures test instances. See the acceptance report
 for what was actually executed; pure-Java tests alone do not prove launcher compatibility.

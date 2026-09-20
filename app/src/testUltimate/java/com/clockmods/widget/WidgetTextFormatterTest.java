@@ -17,6 +17,9 @@ public class WidgetTextFormatterTest {
  assertEquals("h:mm a",WidgetTextFormatter.timePattern(java.util.Locale.ENGLISH,false,false));
  assertEquals("HH:mm:ss",WidgetTextFormatter.timePattern(java.util.Locale.CHINA,true,true));
  assertNotEquals(WidgetTextFormatter.formatLunar(now,sh,java.util.Locale.CHINA),WidgetTextFormatter.formatLunar(now,ny,java.util.Locale.CHINA));
+ assertEquals("国庆节 · 休",WidgetTextFormatter.withHolidayStatus("国庆节","国庆节","休"));
+ assertEquals("秋分 · 中秋节 · 休",WidgetTextFormatter.withHolidayStatus("秋分 · 中秋节","中秋节","休"));
+ assertEquals("",WidgetTextFormatter.withHolidayStatus("",null,""));
  assertEquals("A · B",WidgetTextFormatter.join("",null,"A","B","A"));
  assertEquals("",WidgetTextFormatter.formatWeatherSummary(null,true));
  com.clockmods.weather.WeatherModels.WeatherDisplayData data=new com.clockmods.weather.WeatherModels.WeatherDisplayData("1",null,null,"Clear","100","20",now);

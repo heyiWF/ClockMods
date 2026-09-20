@@ -20,14 +20,27 @@ import com.clockmods.widget.update.WidgetUpdateCoordinator;
  * recommended cell footprint for the widget kind.
  */
 public final class WidgetPreviewView extends FrameLayout {
-    private int generation;
+    private volatile int generation;
+    private WidgetConfig latest;
+    private final Runnable renderLatest = this::render;
 
     public WidgetPreviewView(Context context) {
         super(context);
     }
 
     public void show(WidgetConfig config) {
-        final int current = ++generation;
+        latest = config;
+        generation++;
+        removeCallbacks(renderLatest);
+        // A slider may emit dozens of drafts per second. Only enqueue its latest settled frame;
+        // widget updates and the Done transaction share the executor and must not queue behind it.
+        postDelayed(renderLatest, 48);
+    }
+
+    private void render() {
+        final WidgetConfig config = latest;
+        if (config == null) return;
+        final int current = generation;
         final float density = getResources().getDisplayMetrics().density;
         final float width = measuredPx(true) / density;
         final float height = measuredPx(false) / density;
@@ -35,10 +48,12 @@ public final class WidgetPreviewView extends FrameLayout {
         // ("view: androidx.appcompat.widget.AppCompatImageView can't use method with RemoteViews").
         // An Activity inflater always carries AppCompat's view factory, so the preview must be
         // inflated from the application context exactly like AppWidgetHostView does.
-        final Context inflationContext = getContext().getApplicationContext();
+        final Context inflationContext = getContext().getApplicationContext().createConfigurationContext(
+                new android.content.res.Configuration(getResources().getConfiguration()));
         WidgetUpdateCoordinator.execute(() -> {
+            if (current != generation) return;
             RemoteViews views = WidgetRemoteViewsFactory.create(
-                    getContext(), config, WidgetSizeClassResolver.resolve(width, height));
+                    inflationContext, config, WidgetSizeClassResolver.resolve(width, height));
             post(() -> {
                 if (current != generation) return;
                 removeAllViews();
@@ -72,6 +87,12 @@ public final class WidgetPreviewView extends FrameLayout {
 
     @Override protected void onDetachedFromWindow() {
         generation++;
+        removeCallbacks(renderLatest);
         super.onDetachedFromWindow();
+    }
+
+    @Override protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
+        super.onSizeChanged(width, height, oldWidth, oldHeight);
+        if (latest != null && (width != oldWidth || height != oldHeight)) show(latest);
     }
 }

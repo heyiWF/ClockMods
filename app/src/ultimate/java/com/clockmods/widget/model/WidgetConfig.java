@@ -31,6 +31,7 @@ public final class WidgetConfig {
     public final int appWidgetId;
     public final WidgetKind kind;
     public final String themeId;
+    /** Legacy persisted fields; rendering and scheduling now follow the app timezone. */
     public final String timeZoneId;
     public final boolean useSystemTimeZone;
     public final boolean useSystemTimeFormat;

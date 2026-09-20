@@ -36,9 +36,7 @@ import com.google.android.material.textfield.TextInputLayout;
 
 import java.util.ArrayList;
 import java.util.Arrays;
-import java.util.Collections;
 import java.util.List;
-import java.util.TimeZone;
 import java.util.function.Function;
 import java.util.function.IntConsumer;
 
@@ -75,7 +73,6 @@ public final class WidgetConfigActivity extends AppCompatActivity {
 
     private TextInputLayout timeFormatBox;
     private MaterialAutoCompleteTextView timeFormatField;
-    private MaterialAutoCompleteTextView zoneField;
     private MaterialAutoCompleteTextView tapField;
     private MaterialAutoCompleteTextView fontField;
     private String[] fontLabels;
@@ -86,7 +83,6 @@ public final class WidgetConfigActivity extends AppCompatActivity {
     private TextView scaleValue;
 
     private String[] timeFormatLabels;
-    private String[] zoneLabels;
     private String[] tapLabels;
     private boolean building;
 
@@ -98,7 +94,7 @@ public final class WidgetConfigActivity extends AppCompatActivity {
         WidgetKind kind = WidgetUpdateCoordinator.kindFor(this, id);
         if (kind == null) { finish(); return; }
         WidgetUpdateCoordinator.execute(() -> {
-            WidgetConfig loaded = state == null
+            WidgetConfig loaded = state == null || !state.containsKey("draft")
                     ? new WidgetConfigStore(this).getOrDefault(id, kind)
                     : WidgetConfigStore.decode(state.getString("draft"), id, kind);
             runOnUiThread(() -> { if (isFinishing() || isDestroyed()) return; draft = loaded; build(); });
@@ -114,6 +110,9 @@ public final class WidgetConfigActivity extends AppCompatActivity {
         building = true;
         setContentView(R.layout.activity_widget_config);
         content = findViewById(R.id.widget_config_content);
+        // The serialized draft is authoritative. Android must not restore stale child-view state
+        // over sync(), especially when the asynchronous load finishes during Activity restoration.
+        content.setSaveFromParentEnabled(false);
         MaterialToolbar toolbar = findViewById(R.id.widget_config_toolbar);
         toolbar.setNavigationOnClickListener(v -> finish());
         applySystemBarInsets(findViewById(R.id.widget_config_root));
@@ -176,7 +175,7 @@ public final class WidgetConfigActivity extends AppCompatActivity {
         secondsSwitch = toggle(R.string.widget_seconds, View.generateViewId(),
                 v -> draft.toBuilder().showSeconds(v).build());
 
-        // The three selectors below carry their own Material floating labels, so they are not given
+        // The selectors below carry their own Material floating labels, so they are not given
         // a section heading as well — that only duplicated the same word twice.
         timeFormatLabels = new String[]{
                 getString(R.string.widget_system), getString(R.string.widget_24h), getString(R.string.widget_12h)};
@@ -184,17 +183,6 @@ public final class WidgetConfigActivity extends AppCompatActivity {
                 draft = draft.toBuilder()
                         .useSystemTimeFormat(position == 0).use24Hour(position != 2).build());
         timeFormatField = (MaterialAutoCompleteTextView) timeFormatBox.getEditText();
-
-        List<String> zones = new ArrayList<>(Arrays.asList(TimeZone.getAvailableIDs()));
-        Collections.sort(zones);
-        zones.add(0, getString(R.string.widget_system));
-        zoneLabels = zones.toArray(new String[0]);
-        TextInputLayout zoneBox = drawer(zoneLabels, R.string.widget_zone, position ->
-                draft = draft.toBuilder()
-                        .useSystemTimeZone(position == 0)
-                        .timeZoneId(position == 0 ? TimeZone.getDefault().getID() : zoneLabels[position])
-                        .build());
-        zoneField = (MaterialAutoCompleteTextView) zoneBox.getEditText();
 
         tapLabels = new String[]{
                 getString(R.string.widget_open_clock), getString(R.string.widget_open_calendar),
@@ -246,8 +234,6 @@ public final class WidgetConfigActivity extends AppCompatActivity {
             darkTextSwitch.setChecked(draft.darkText);
 
             timeFormatField.setText(timeFormatLabels[timeFormatIndex()], false);
-            zoneField.setText(draft.useSystemTimeZone
-                    ? zoneLabels[0] : draft.timeZoneId.replace('_', ' '), false);
             tapField.setText(tapLabels[Math.max(0, Arrays.asList(TAP_ACTIONS).indexOf(draft.tapAction))], false);
             fontField.setText(fontLabels[WidgetFontRegistry.indexOf(draft.fontId)], false);
 
@@ -258,6 +244,7 @@ public final class WidgetConfigActivity extends AppCompatActivity {
 
             boolean clock = draft.kind == WidgetKind.DIGITAL || draft.kind == WidgetKind.WEATHER;
             setRowVisible(lunarSwitch, draft.kind != WidgetKind.ANALOG);
+            setRowVisible(locationSwitch, draft.kind == WidgetKind.WEATHER);
             setRowVisible(descriptionSwitch, draft.kind == WidgetKind.WEATHER);
             setRowVisible(secondsSwitch, clock);
             setRowVisible(timeFormatBox, clock);
@@ -334,6 +321,8 @@ public final class WidgetConfigActivity extends AppCompatActivity {
                 .inflate(R.layout.widget_config_dropdown, content, false);
         box.setHint(hintRes);
         MaterialAutoCompleteTextView field = box.findViewById(R.id.widget_config_dropdown_field);
+        // Each inflation starts with the same XML ID; keep accessibility/state lookup unambiguous.
+        field.setId(View.generateViewId());
         field.setThreshold(0);
         field.setSimpleItems(items);
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(MATCH, WRAP);
@@ -406,6 +395,7 @@ public final class WidgetConfigActivity extends AppCompatActivity {
         switch (draft.kind) {
             case DIGITAL: width = 340; height = 96; break;
             case WEATHER: width = 340; height = 156; break;
+            case CALENDAR: width = 220; height = 156; break;
             default: width = 176; height = 176; break;
         }
         int available = getResources().getConfiguration().screenWidthDp - 40;

@@ -6,9 +6,10 @@ import com.clockmods.R;
 import com.clockmods.background.FontCatalog;
 import com.clockmods.widget.model.WidgetConfig;
 
-import java.util.ArrayList;
 import java.util.Arrays;
 import java.util.List;
+import java.util.Collections;
+import static com.clockmods.background.ClockPreferences.*;
 
 /**
  * The typefaces a widget instance may be set to.
@@ -33,24 +34,19 @@ public final class WidgetFontRegistry {
     /** Structural columns: sans, serif, monospace. */
     private static final int STRUCTURAL_COLUMNS = 3;
 
-    private static final List<FontCatalog.FontOption> BUNDLED = bundled();
+    // Resource columns are a render contract, independent of the settings catalog's ordering.
+    private static final List<String> BUNDLED = Collections.unmodifiableList(Arrays.asList(
+            FONT_ROBOTO, FONT_GOOGLE_SANS_DISPLAY, FONT_GOOGLE_SANS_TEXT, FONT_SF_PRO_DISPLAY,
+            FONT_SF_PRO_ROUNDED, FONT_INTER, FONT_LATO, FONT_LORA, FONT_NOTO_SANS, FONT_BITCOUNT));
 
     /** One column per structural variant plus one per bundled family that needs its own file. */
     public static final int COLUMNS = STRUCTURAL_COLUMNS + BUNDLED.size();
-
-    private static List<FontCatalog.FontOption> bundled() {
-        List<FontCatalog.FontOption> bundled = new ArrayList<>();
-        for (FontCatalog.FontOption option : FontCatalog.options()) {
-            if (!option.isSystem()) bundled.add(option);
-        }
-        return bundled;
-    }
 
     private WidgetFontRegistry() {
     }
 
     public static List<String> ids() {
-        return Arrays.asList(WidgetConfig.FONT_IDS);
+        return Collections.unmodifiableList(Arrays.asList(WidgetConfig.FONT_IDS.clone()));
     }
 
     /** Stable id for {@code index}, clamped; unknown input falls back to {@link #THEME}. */
@@ -93,11 +89,9 @@ public final class WidgetFontRegistry {
      * for, used verbatim when the instance simply follows the theme.
      */
     public static int columnOf(String fontId, int themeColumn) {
-        if (THEME.equals(fontId)) return themeColumn;
-        if (FontCatalog.optionFor(fontId).isSystem()) return 0;
-        for (int i = 0; i < BUNDLED.size(); i++) {
-            if (BUNDLED.get(i).id.equals(fontId)) return STRUCTURAL_COLUMNS + i;
-        }
-        return themeColumn;
+        int fallback = Math.max(0, Math.min(STRUCTURAL_COLUMNS - 1, themeColumn));
+        if (FONT_SYSTEM.equals(fontId)) return 0;
+        int index = BUNDLED.indexOf(fontId);
+        return index < 0 ? fallback : STRUCTURAL_COLUMNS + index;
     }
 }
