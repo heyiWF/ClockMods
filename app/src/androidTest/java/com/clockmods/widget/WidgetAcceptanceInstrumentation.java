@@ -20,9 +20,11 @@ public final class WidgetAcceptanceInstrumentation extends Instrumentation {
     private int checks;
     private int rendered;
     private boolean onlineWeather;
+    private boolean fontProbe;
     private void check(boolean value,String message) { checks++; if(!value) throw new AssertionError(message); }
-    @Override public void onCreate(Bundle args) { super.onCreate(args); onlineWeather=args!=null && "online".equals(args.getString("weather")); start(); }
+    @Override public void onCreate(Bundle args) { super.onCreate(args); onlineWeather=args!=null && "online".equals(args.getString("weather")); fontProbe=args!=null && "true".equals(args.getString("fonts")); start(); }
     @Override public void onStart() {
+        if(fontProbe) { runFontProbe(); return; }
         Bundle report=new Bundle();
         AppWidgetHost host=null; int resultCode=Activity.RESULT_CANCELED;
         try {
@@ -33,8 +35,8 @@ public final class WidgetAcceptanceInstrumentation extends Instrumentation {
                 if(info.provider.getPackageName().equals(app.getPackageName())) providers.add(info);
             check(providers.size()==4,"four picker entries");
             getUiAutomation().adoptShellPermissionIdentity("android.permission.BIND_APPWIDGET");
+            host=new AppWidgetHost(app,9917);host.deleteHost();host.startListening();
             int baselineWeather=WidgetUpdateCoordinator.weatherCount(app);
-            host=new AppWidgetHost(app,9917);host.startListening();
             ArrayList<Integer> ids=new ArrayList<>();
             for(AppWidgetProviderInfo info:providers) {
                 check(info.configure!=null && info.previewLayout!=0,"picker configuration and preview");
@@ -142,6 +144,104 @@ public final class WidgetAcceptanceInstrumentation extends Instrumentation {
 
     private static com.clockmods.weather.WeatherModels.WeatherDisplayData weatherFixture() {
         return new com.clockmods.weather.WeatherModels.WeatherDisplayData("101010100","Beijing","Haidian","Light rain","305","23",java.time.Instant.parse("2026-10-01T07:30:00Z").toEpochMilli());
+    }
+
+    private void runFontProbe() {
+        Bundle report=new Bundle();
+        try {
+            app=getTargetContext();
+            Context foreign=app.createPackageContext("android",Context.CONTEXT_RESTRICTED);
+            final Throwable[] error={null};
+            runOnMainSync(()-> { try {
+                for(WidgetKind kind:WidgetKind.values()) for(WidgetSizeClass size:WidgetSizeClass.values())
+                for(WidgetThemeSpec theme:WidgetThemeRegistry.all(app)) for(String font:WidgetConfig.FONT_IDS) {
+                    WidgetConfig config=WidgetConfig.builder(1,kind).themeId(theme.id).fontId(font).build();
+                    RemoteViews views=WidgetRemoteViewsFactory.create(app,config,size);
+                    // Round-trip like the launcher receives over Binder, not an in-process preview.
+                    Parcel parcel=Parcel.obtain();
+                    try { views.writeToParcel(parcel,0);parcel.setDataPosition(0);views=RemoteViews.CREATOR.createFromParcel(parcel); }
+                    finally { parcel.recycle(); }
+                    View own=views.apply(app,new FrameLayout(app));
+                    View hosted=views.apply(foreign,new FrameLayout(foreign));
+                    int main=kind==WidgetKind.CALENDAR ? R.id.widget_day : kind==WidgetKind.ANALOG ? R.id.widget_date : R.id.widget_time;
+                    TextView expected=own.findViewById(main),actual=hosted.findViewById(main);
+                    check(actual.getContext().isRestricted(),"font check uses a restricted host context");
+                    check(expected.getTypeface().equals(actual.getTypeface()),"font differs between preview and restricted host: "+font);
+                    int themeColumn=theme.fontLayoutVariant==WidgetThemeSpec.Font.SERIF ? 1 : theme.fontLayoutVariant==WidgetThemeSpec.Font.MONOSPACE ? 2 : 0;
+                    String[] families={"sans-serif","serif","monospace","sans-serif-condensed","sans-serif-light"};
+                    check(Typeface.create(families[WidgetFontRegistry.columnOf(font,themeColumn)],Typeface.NORMAL).equals(actual.getTypeface()),"selected font is rendered: "+font);
+                }
+            } catch(Throwable e) { error[0]=e; } });
+            if(error[0]!=null) throw new AssertionError(error[0]);
+            verifyFontSelection();
+            report.putString("stream","PASS: "+checks+" restricted-host font checks, plus preview, save, host update and reopen\n");
+            finish(Activity.RESULT_OK,report);
+        } catch(Throwable e) {
+            StringWriter trace=new StringWriter();e.printStackTrace(new PrintWriter(trace));report.putString("stream",trace.toString());
+            finish(Activity.RESULT_CANCELED,report);
+        }
+    }
+
+    private void verifyFontSelection() throws Exception {
+        Context restricted=app.createPackageContext(app.getPackageName(),Context.CONTEXT_RESTRICTED);
+        getUiAutomation().adoptShellPermissionIdentity("android.permission.BIND_APPWIDGET");
+        AppWidgetHost host=new AppWidgetHost(app,9918);
+        host.deleteHost();
+        host.startListening();
+        Activity activity=null;
+        try {
+            for(AppWidgetProviderInfo info:AppWidgetManager.getInstance(app).getInstalledProviders()) {
+                if(!info.provider.getPackageName().equals(app.getPackageName())) continue;
+                int id=host.allocateAppWidgetId();
+                check(AppWidgetManager.getInstance(app).bindAppWidgetIdIfAllowed(id,info.provider),"font host bound");
+                WidgetKind kind=WidgetUpdateCoordinator.kindFor(app,id);
+                WidgetConfig initial=WidgetConfig.builder(id,kind).themeId("paper.warm").build();
+                new WidgetConfigStore(app).save(initial);
+                final AppWidgetHostView[] hosted={null};
+                runOnMainSync(()->hosted[0]=host.createView(restricted,id,info));
+                for(String font:new String[]{"monospace","serif","condensed","light","system","theme"}) {
+                    Bundle progress=new Bundle();progress.putString("stream","Checking font flow: "+kind+" "+font+"\n");sendStatus(0,progress);
+                    activity=startActivitySync(new Intent(app,WidgetConfigActivity.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                    waitForControl(activity,R.id.widget_config_font);
+                    final Activity current=activity;
+                    runOnMainSync(()-> {
+                        android.widget.AutoCompleteTextView field=current.findViewById(R.id.widget_config_font);
+                        field.getOnItemClickListener().onItemClick(null,null,WidgetFontRegistry.indexOf(font),0);
+                    });
+                    final int textId=kind==WidgetKind.CALENDAR ? R.id.widget_day : kind==WidgetKind.ANALOG ? R.id.widget_date : R.id.widget_time;
+                    final String[] families={"sans-serif","serif","monospace","sans-serif-condensed","sans-serif-light"};
+                    final Typeface expected=Typeface.create(families[WidgetFontRegistry.columnOf(font,1)],Typeface.NORMAL);
+                    awaitFont(current.findViewById(R.id.widget_config_preview),textId,expected,"preview "+kind+" "+font);
+                    runOnMainSync(()->current.findViewById(R.id.widget_config_done).performClick());
+                    awaitFont(hosted[0],textId,expected,"saved host "+kind+" "+font);
+                    check(font.equals(new WidgetConfigStore(app).getOrDefault(id,kind).fontId),"selected font persisted");
+                    long deadline=SystemClock.uptimeMillis()+5000;
+                    while(!current.isDestroyed() && SystemClock.uptimeMillis()<deadline) SystemClock.sleep(25);
+                    check(current.isDestroyed(),"configuration closes after saving");
+                }
+                activity=startActivitySync(new Intent(app,WidgetConfigActivity.class).putExtra(AppWidgetManager.EXTRA_APPWIDGET_ID,id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                waitForControl(activity,R.id.widget_config_font);
+                final Activity reopened=activity;
+                final String[] label={null};
+                runOnMainSync(()->label[0]=((TextView)reopened.findViewById(R.id.widget_config_font)).getText().toString());
+                check(WidgetFontRegistry.labels(activity)[0].equals(label[0]),"reopened selection matches saved font");
+                runOnMainSync(reopened::finish);
+            }
+        } finally {
+            if(activity!=null) { final Activity last=activity;runOnMainSync(last::finish); }
+            host.deleteHost();host.stopListening();WidgetUpdateCoordinator.reconcile(app);
+            getUiAutomation().dropShellPermissionIdentity();
+        }
+    }
+
+    private void awaitFont(View root,int id,Typeface expected,String description) {
+        long deadline=SystemClock.uptimeMillis()+7500;
+        final boolean[] matches={false};
+        do {
+            runOnMainSync(()-> { TextView view=root.findViewById(id);matches[0]=view!=null && expected.equals(view.getTypeface()); });
+            if(!matches[0]) SystemClock.sleep(25);
+        } while(!matches[0] && SystemClock.uptimeMillis()<deadline);
+        check(matches[0],description);
     }
 
     private void verifyAppTimeZone(AppWidgetHost host,int id,AppWidgetProviderInfo info) {

@@ -1,9 +1,6 @@
 package com.clockmods.widget.model;
-import com.clockmods.background.FontCatalog;
-
 import java.util.Arrays;
 import java.util.HashSet;
-import java.util.List;
 import java.util.Set;
 import java.util.TimeZone;
 /** Immutable, normalized per-instance contract. Persisted IDs must remain stable. */
@@ -11,21 +8,19 @@ public final class WidgetConfig {
     public static final String[] THEME_IDS = {"system.dynamic", "glass.light", "instrument.dark", "paper.warm", "neon.night", "transparent.clean"};
     /** Follow the selected theme's font structure — the default. */
     public static final String FONT_THEME = "theme";
-    /**
-     * Stable, persisted font ids: the follow-theme mode first, then exactly the families the app
-     * offers, in the app's own order. Derived from {@link FontCatalog} on purpose so the widget can
-     * never drift away from the list the app shows.
-     */
-    public static final String[] FONT_IDS = buildFontIds();
+    /** System families load in restricted launcher contexts; bundled app fonts do not. */
+    public static final String[] FONT_IDS = {FONT_THEME,"system","serif","monospace","condensed","light"};
     private static final Set<String> ZONES = new HashSet<>(Arrays.asList(TimeZone.getAvailableIDs()));
     private static final Set<String> FONTS = new HashSet<>(Arrays.asList(FONT_IDS));
 
-    private static String[] buildFontIds() {
-        List<FontCatalog.FontOption> families = FontCatalog.options();
-        String[] ids = new String[families.size() + 1];
-        ids[0] = FONT_THEME;
-        for (int i = 0; i < families.size(); i++) ids[i + 1] = families.get(i).id;
-        return ids;
+    private static String normalizeFont(String id) {
+        if(FONTS.contains(id)) return id;
+        // Migrate the former bundled choices to named families the host can actually render.
+        if("lora".equals(id)) return "serif";
+        if("bitcount_grid_double".equals(id)) return "monospace";
+        if(Arrays.asList("roboto","google_sans_display","google_sans_text","sf_pro_display",
+                "sf_pro_rounded","inter","lato","noto_sans").contains(id)) return "system";
+        return FONT_THEME;
     }
     public final int schemaVersion = 1;
     public final int appWidgetId;
@@ -64,7 +59,7 @@ public final class WidgetConfig {
         textScale = Float.isNaN(b.textScale) ? 1f : Math.max(.85f, Math.min(1.2f, b.textScale));
         tapAction = Arrays.asList("open_clock", "open_calendar", "open_weather", "open_config").contains(b.tapAction) ? b.tapAction : "open_clock";
         updatedAt = Math.max(0, b.updatedAt); darkText = b.darkText;
-        fontId = FONTS.contains(b.fontId) ? b.fontId : FONT_THEME;
+        fontId = normalizeFont(b.fontId);
     }
     public TimeZone zone() { return useSystemTimeZone ? TimeZone.getDefault() : TimeZone.getTimeZone(timeZoneId); }
     public Builder toBuilder() { return new Builder(this); }

@@ -47,4 +47,9 @@
     <string name="widget_theme">Theme</string>
     <string name="widget_font">Font</string>
     <string name="widget_font_theme">Follow theme</string>
+    <string name="widget_font_system">System</string>
+    <string name="widget_font_serif">Serif</string>
+    <string name="widget_font_monospace">Monospace</string>
+    <string name="widget_font_condensed">Condensed</string>
+    <string name="widget_font_light">Light</string>
 </resources>

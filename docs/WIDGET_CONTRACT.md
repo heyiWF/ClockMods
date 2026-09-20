@@ -18,9 +18,13 @@ Location visibility applies only to weather cities. Saving the app timezone send
 notification to refresh existing widgets and reschedule midnight updates.
 
 Theme IDs: `system.dynamic`, `glass.light`, `instrument.dark`, `paper.warm`, `neon.night`,
-`transparent.clean`. Font choices reuse the app catalog plus a follow-theme option. Bundled fonts are statically referenced
-from `res/font` in RemoteViews layouts; the stable ID-to-column map is independent of catalog order. Dynamic text/background
-colors use system resources with night variants. No asset Typeface is injected and no custom view is hosted by a launcher.
+`transparent.clean`. Widget font IDs are `theme`, `system`, `serif`, `monospace`, `condensed`, and
+`light`. Their layouts reference named Android system families. Restricted launcher contexts may
+refuse bundled `res/font` resources even when an in-app preview loads them successfully; do not
+derive this list from the full-screen app's font catalog. Old `lora` selections migrate to `serif`,
+`bitcount_grid_double` to `monospace`, and the other formerly bundled choices to `system`.
+Dynamic text/background colors use system resources with night variants. No asset Typeface is
+injected and no custom view is hosted by a launcher. The app's full-screen font catalog is unchanged.
 
 ## Adding a kind or module
 
@@ -32,14 +36,14 @@ colors use system resources with night variants. No asset Typeface is injected a
    and URI. Never reuse another instance's pending intent.
 6. Extend device acceptance tests to apply every theme and size and verify real host binding.
 
-The preview applies the actual RemoteViews from a draft, using a configuration context without the
-AppCompat inflater. Slider updates are coalesced before entering the shared executor; stale frames
+The preview applies the actual RemoteViews from a draft, using a restricted configuration context
+without the AppCompat inflater, matching launcher font-loading constraints. Slider updates are coalesced before entering the shared executor; stale frames
 are discarded before rendering. Child form state cannot override the serialized draft on recreation. It does not persist drafts or use the
 full-screen renderer. Cancel leaves saved configuration unchanged; Done validates the bound ID again.
 Weather cards use side-by-side information at wide sizes and a vertical variant at tall sizes.
 Small cards keep essential modules, while the calendar minimum still includes its lunar date.
 Single-row digital cards retain the full horizontal corner inset but use smaller vertical padding
-to accommodate taller bundled-font metrics. Responsive variants share one timestamp and weather
+to accommodate font metrics. Responsive variants share one timestamp and weather
 observation via `WidgetRemoteViewsFactory.createAt`, avoiding mixed dates across a midnight update.
 
 The calendar click opens the main app because no stable calendar-page route exists. Weather uses the
@@ -75,6 +79,8 @@ requests background permission. In-flight results are discarded after a city/lan
 adb install -r app\build\outputs\apk\ultimate\debug\app-ultimate-debug.apk
 adb install -r app\build\outputs\apk\androidTest\ultimate\debug\app-ultimate-debug-androidTest.apk
 adb shell am instrument -w com.clockmods.ultimate.test/com.clockmods.widget.WidgetAcceptanceInstrumentation
+# Restricted host font rendering and configuration save/reopen regression:
+adb shell am instrument -w -e fonts true com.clockmods.ultimate.test/com.clockmods.widget.WidgetAcceptanceInstrumentation
 # Optional integration check using the device's configured QWeather city and credentials:
 adb shell am instrument -w -e weather online com.clockmods.ultimate.test/com.clockmods.widget.WidgetAcceptanceInstrumentation
 ```

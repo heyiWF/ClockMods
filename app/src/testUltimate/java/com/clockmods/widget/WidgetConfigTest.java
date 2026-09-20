@@ -16,7 +16,7 @@ public class WidgetConfigTest {
   assertEquals(0,c.toBuilder().backgroundAlpha(-1).build().backgroundAlpha);
   assertEquals(1.2f,c.toBuilder().textScale(Float.POSITIVE_INFINITY).build().textScale,0f);
  }
- @Test public void fontIdIsValidatedAgainstTheCatalog() {
+ @Test public void fontIdIsValidatedAgainstHostFamilies() {
   WidgetConfig c=WidgetConfig.builder(1,WidgetKind.DIGITAL).fontId("no.such.font").build();
   assertEquals(WidgetConfig.FONT_THEME,c.fontId);
   for (String id : WidgetConfig.FONT_IDS) assertEquals(id,c.toBuilder().fontId(id).build().fontId);

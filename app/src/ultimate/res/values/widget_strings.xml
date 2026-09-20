@@ -47,4 +47,9 @@
     <string name="widget_theme">外观主题</string>
     <string name="widget_font">字体</string>
     <string name="widget_font_theme">跟随主题</string>
+    <string name="widget_font_system">系统字体</string>
+    <string name="widget_font_serif">衬线</string>
+    <string name="widget_font_monospace">等宽</string>
+    <string name="widget_font_condensed">窄体</string>
+    <string name="widget_font_light">细体</string>
 </resources>

@@ -46,14 +46,22 @@ public final class WidgetPreviewView extends FrameLayout {
         final float height = measuredPx(false) / density;
         // RemoteViews refuses to invoke framework methods on AppCompat subclasses
         // ("view: androidx.appcompat.widget.AppCompatImageView can't use method with RemoteViews").
-        // An Activity inflater always carries AppCompat's view factory, so the preview must be
-        // inflated from the application context exactly like AppWidgetHostView does.
-        final Context inflationContext = getContext().getApplicationContext().createConfigurationContext(
+        // Use a fresh restricted package context: no AppCompat inflater and no bundled-font
+        // loading privileges that a launcher does not have.
+        final Context renderContext = getContext().getApplicationContext().createConfigurationContext(
                 new android.content.res.Configuration(getResources().getConfiguration()));
+        final Context inflationContext;
+        try {
+            inflationContext = getContext().createPackageContext(getContext().getPackageName(),
+                    Context.CONTEXT_RESTRICTED).createConfigurationContext(
+                    new android.content.res.Configuration(getResources().getConfiguration()));
+        } catch (android.content.pm.PackageManager.NameNotFoundException impossible) {
+            throw new IllegalStateException("Widget package is unavailable", impossible);
+        }
         WidgetUpdateCoordinator.execute(() -> {
             if (current != generation) return;
             RemoteViews views = WidgetRemoteViewsFactory.create(
-                    inflationContext, config, WidgetSizeClassResolver.resolve(width, height));
+                    renderContext, config, WidgetSizeClassResolver.resolve(width, height));
             post(() -> {
                 if (current != generation) return;
                 removeAllViews();

@@ -160,6 +160,7 @@ public final class WidgetConfigActivity extends AppCompatActivity {
         TextInputLayout fontBox = drawer(fontLabels, R.string.widget_font, position ->
                 draft = draft.toBuilder().fontId(WidgetFontRegistry.idAt(position)).build());
         fontField = (MaterialAutoCompleteTextView) fontBox.getEditText();
+        fontField.setId(R.id.widget_config_font);
 
         section(R.string.widget_content);
         dateSwitch = toggle(R.string.widget_date, R.id.widget_config_date,
