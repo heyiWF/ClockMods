@@ -4,14 +4,25 @@ qweather.properties
 .codex*/
 .claude/
 .workbuddy/
-.tmp*/
+.tmp*
+.code-converter-temp/
+.intellij-*/
+.kj2k-temp/
+.kotlin-plugin/
+.kotlin-src-test/
+.kotlin-plugin.zip
 
 # Gradle
 .gradle/
+.gradle-local/
 **/build/
+.android/
+.kotlin/
+.kotlin-daemon/
 
 # Local Android SDK configuration
 local.properties
+.android-local/
 
 # Android Studio / IntelliJ IDEA
 .idea/caches/
@@ -28,7 +39,6 @@ local.properties
 # VS Code local settings
 .vscode/*
 !.vscode/extensions.json
-!.vscode/settings.json
 !.vscode/tasks.json
 !.vscode/launch.json
 

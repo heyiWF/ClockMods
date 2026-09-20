@@ -185,6 +185,13 @@
     <string name="ultimate_schedule_dialog_time">Time (optional)</string>
     <string name="ultimate_schedule_dialog_delete">Delete</string>
     <string name="ultimate_schedule_save">Save</string>
+    <string name="ultimate_schedule_limit_reached">A day can contain up to %1$d schedule items</string>
+    <string name="alarm_exact_access_required">Exact alarm access is disabled, so this alarm may be delayed.</string>
+    <string name="alarm_grant_exact_access">Allow exact alarms</string>
+    <string name="alarm_full_screen_access_required">Full-screen alarm access is disabled, so the alarm may not appear over the lock screen.</string>
+    <string name="alarm_grant_full_screen_access">Allow full-screen alarms</string>
+    <string name="alarm_notification_access_required">Notifications are disabled, so the ringing alarm cannot show a stop button.</string>
+    <string name="alarm_grant_notification_access">Enable notifications</string>
 
     <string name="ultimate_chime_title">Time cues</string>
     <string name="ultimate_chime_cues_section">Time cues</string>

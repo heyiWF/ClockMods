@@ -113,7 +113,7 @@ ClockMods 不含账号、广告、云同步或用户行为统计，所有数据�
 
 ## 构建
 
-环境要求：Android Studio 或 JDK 17+、Android SDK Platform 36.1、Build Tools 36.1.0、Gradle Wrapper 9.4.1。
+环境要求：Android Studio 或 JDK 17+、Android SDK Platform 37、Build Tools 37.0.0、Gradle Wrapper 9.4.1。本项目使用 Kotlin DSL、Jetpack Compose 与 Material 3；当前 `compileSdk` / `targetSdk` 均为 37，最低支持 Android 12（API 31）。
 
 ```powershell
 # 运行单元测试
@@ -131,8 +131,8 @@ ClockMods 不含账号、广告、云同步或用户行为统计，所有数据�
 ## 项目结构
 
 ```text
-app/src/main/    时钟、农历、时间、天气、背景、Material 平台能力与共享资源
-app/src/ultimate/ Ultimate 宿主、十二套内置时钟样式、二级设置、工具页面、提醒组件与离线资产
+app/src/main/    Kotlin 核心层、Compose Material 3 主题、农历、时间、天气、背景与共享资源
+app/src/ultimate/ Compose 宿主、十二套 Canvas 时钟样式、设置、工具页面、提醒组件、RemoteViews 小组件与离线资产
 app/src/main/java/com/clockmods/sdk/clock/ 公开的时钟样式 SDK 契约
 app/src/test/    核心逻辑单元测试
 app/src/testUltimate/ Ultimate 主题、SDK 与工具功能测试

@@ -9,21 +9,18 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <application android:name=".ultimate.UltimateApplication">
-        <property
-            android:name="android.window.PROPERTY_ACTIVITY_EMBEDDING_SPLITS_ENABLED"
-            android:value="true" />
         <activity
             android:name=".ultimate.SetupWizardActivity"
             android:exported="false"
             android:screenOrientation="unspecified"
             android:enableOnBackInvokedCallback="true" />
         <activity
-            android:name=".ultimate.settings.UltimateSubSettingsActivity"
+            android:name=".ultimate.settings.UltimateSettingsActivity"
             android:enableOnBackInvokedCallback="true"
             android:exported="false"
             android:screenOrientation="unspecified" />
         <activity
-            android:name=".ultimate.settings.UltimateSettingsActivity"
+            android:name=".ultimate.settings.UltimateSubSettingsActivity"
             android:enableOnBackInvokedCallback="true"
             android:exported="false"
             android:screenOrientation="unspecified" />
@@ -39,10 +36,27 @@
         <receiver
             android:name=".pro.timer.TimerReceiver"
             android:exported="false" />
+        <receiver
+            android:name=".pro.timer.TimerRescheduleReceiver"
+            android:enabled="true"
+            android:exported="true">
+            <intent-filter>
+                <action android:name="android.intent.action.BOOT_COMPLETED" />
+                <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
+                <action android:name="android.intent.action.TIME_SET" />
+                <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
+            </intent-filter>
+        </receiver>
         <service
             android:name=".pro.alarm.AlarmRingingService"
             android:exported="false"
-            android:foregroundServiceType="mediaPlayback" />
+            android:foregroundServiceType="mediaPlayback">
+            <intent-filter>
+                <!-- Lets the ringing notification's "stop" action reach the service. -->
+                <action android:name="com.clockmods.pro.alarm.action.STOP_RINGING" />
+            </intent-filter>
+        </service>
         <receiver
             android:name=".pro.alarm.AlarmRescheduleReceiver"
             android:enabled="true"
@@ -52,6 +66,7 @@
                 <action android:name="android.intent.action.MY_PACKAGE_REPLACED" />
                 <action android:name="android.intent.action.TIME_SET" />
                 <action android:name="android.intent.action.TIMEZONE_CHANGED" />
+                <action android:name="android.app.action.SCHEDULE_EXACT_ALARM_PERMISSION_STATE_CHANGED" />
             </intent-filter>
         </receiver>
         <activity

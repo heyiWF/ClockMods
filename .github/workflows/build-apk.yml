@@ -2,9 +2,9 @@ name: Build APK
 
 on:
   push:
-    branches: [main, ultimate]
+    branches: [main, ultimate, ultimate-compose]
   pull_request:
-    branches: [main, ultimate]
+    branches: [main, ultimate, ultimate-compose]
   workflow_dispatch:
 
 permissions:
@@ -16,7 +16,7 @@ concurrency:
 
 jobs:
   build:
-    name: Assemble debug APKs
+    name: Test and build debug APKs
     runs-on: ubuntu-latest
     timeout-minutes: 40
 
@@ -31,12 +31,12 @@ jobs:
           java-version: '21'
 
       # Installs cmdline-tools and accepts the SDK licences, then pre-fetches the
-      # exact platform and build-tools app/build.gradle pins (compileSdk 36.1,
-      # buildToolsVersion 36.1.0) so Gradle never has to download them mid-build.
+      # exact platform and build-tools app/build.gradle.kts pins (compileSdk 37,
+      # buildToolsVersion 37.0.0) so Gradle never has to download them mid-build.
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
-          packages: 'platforms;android-36.1 build-tools;36.1.0'
+          packages: 'platforms;android-37.0 build-tools;37.0.0'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
@@ -61,10 +61,10 @@ jobs:
             echo "privateKeyBase64=${QWEATHER_PRIVATE_KEY_BASE64}"
           } > qweather.properties
 
-      # assembleDebug picks up whichever flavors the checked-out branch defines:
-      # compat/modern/pro on `main`, `ultimate` on the ultimate branch.
-      - name: Assemble debug APKs
-        run: ./gradlew --no-daemon --stacktrace assembleDebug
+      # Aggregate tasks pick up whichever flavors the checked-out branch defines:
+      # compat/modern/pro on `main`, or `ultimate` on the Ultimate branches.
+      - name: Test, lint and assemble debug APKs
+        run: ./gradlew --no-daemon --stacktrace test lint assembleDebug
 
       # Secrets are not injected for PR builds, so nothing sensitive is uploaded there.
       - name: Upload APKs

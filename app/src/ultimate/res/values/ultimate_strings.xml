@@ -185,6 +185,13 @@
     <string name="ultimate_schedule_dialog_time">时间（可留空）</string>
     <string name="ultimate_schedule_dialog_delete">删除</string>
     <string name="ultimate_schedule_save">保存</string>
+    <string name="ultimate_schedule_limit_reached">每天最多可添加 %1$d 条日程</string>
+    <string name="alarm_exact_access_required">系统尚未允许精确闹钟；当前提醒可能延迟。</string>
+    <string name="alarm_grant_exact_access">允许精确闹钟</string>
+    <string name="alarm_full_screen_access_required">系统尚未允许全屏提醒；闹钟可能无法覆盖锁屏显示。</string>
+    <string name="alarm_grant_full_screen_access">允许全屏提醒</string>
+    <string name="alarm_notification_access_required">通知权限已关闭；闹钟响铃时将无法显示停止入口。</string>
+    <string name="alarm_grant_notification_access">开启通知权限</string>
 
     <string name="ultimate_chime_title">报时</string>
     <string name="ultimate_chime_cues_section">时间提示</string>
