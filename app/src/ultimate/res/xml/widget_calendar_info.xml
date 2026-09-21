@@ -1,14 +1,19 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  Two stacked lines: the day number (~55dp) and the date caption (~94dp in Chinese, ~120dp in
-  English). With the two 28dp corner insets the caption needs about 176dp, which is more than two
-  70dp cells can give, so the default is three cells wide. Height covers the 46sp day number plus
-  the caption, about 100dp, which is two rows.
+  Same rule as the digital clock: the default is the width the content needs.
+
+  The wide card is [day number] ... [caption stack], so the widest caption (~103dp for the lunar line
+  in Chinese) plus the 76dp day box, the gap and the two 28dp corner insets comes to roughly 250dp -
+  two cells. A third cell would only widen the gap between the two ends, and a caption that still
+  does not fit wraps to a second line before it ellipsises. A card below the row threshold keeps the
+  stacked arrangement.
+
+  Height keeps two rows: the 72sp day number plus a two-line caption needs about 100dp.
 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
- android:minWidth="180dp" android:minHeight="110dp"
- android:targetCellWidth="3" android:targetCellHeight="2"
+ android:minWidth="170dp" android:minHeight="110dp"
+ android:targetCellWidth="2" android:targetCellHeight="2"
  android:minResizeWidth="180dp" android:minResizeHeight="110dp" android:maxResizeWidth="600dp" android:maxResizeHeight="500dp"
  android:resizeMode="horizontal|vertical" android:widgetCategory="home_screen" android:widgetFeatures="reconfigurable|configuration_optional"
- android:updatePeriodMillis="0" android:initialLayout="@layout/widget_calendar_compact" android:previewLayout="@layout/widget_calendar_compact"
+ android:updatePeriodMillis="0" android:initialLayout="@layout/widget_calendar_compact" android:previewLayout="@layout/widget_calendar_wide"
  android:description="@string/widget_calendar_description" android:configure="com.clockmods.widget.config.WidgetConfigActivity"/>

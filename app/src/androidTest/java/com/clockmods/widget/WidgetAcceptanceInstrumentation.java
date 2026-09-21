@@ -46,8 +46,18 @@ public final class WidgetAcceptanceInstrumentation extends Instrumentation {
                 WidgetConfig saved=WidgetConfig.builder(id,kind).themeId("paper.warm").useSystemTimeZone(false).timeZoneId("Asia/Shanghai").build();
                 new WidgetConfigStore(app).save(saved);
                 WidgetUpdateCoordinator.updateOne(app,id);
+                // Render each size class at a realistic box derived from the widget's own declared
+                // minimum, so the test exercises the contract the Launcher honours rather than an
+                // arbitrary number. AppWidgetProviderInfo dimensions have already been resolved to px.
+                float density=app.getResources().getDisplayMetrics().density;
+                int minW=Math.round(info.minResizeWidth/density),minH=Math.round(info.minResizeHeight/density);
+                // A one-row card is the contract of a one-row widget. A widget that declares a taller
+                // minimum - the weather card needs its condition row - never renders this class, so
+                // there is no honest box to test it in.
+                boolean hasRowClass=minH<100;
                 for(WidgetThemeSpec theme:WidgetThemeRegistry.all(app)) {
                     for(WidgetSizeClass size:WidgetSizeClass.values()) {
+                      if(size==WidgetSizeClass.ROW && !hasRowClass) continue;
                       for(String font:WidgetConfig.FONT_IDS) {
                         WidgetConfig config=saved.toBuilder().themeId(theme.id).fontId(font).textScale(1.2f).useSystemTimeFormat(false).use24Hour(false).showSeconds(true).backgroundAlpha(theme.defaultBackgroundAlpha).build();
                         RemoteViews rv=WidgetRemoteViewsFactory.createAt(app,config,size,java.time.Instant.parse("2026-10-01T08:00:00Z").toEpochMilli(),weatherFixture());
@@ -55,12 +65,6 @@ public final class WidgetAcceptanceInstrumentation extends Instrumentation {
                         runOnMainSync(()-> { try {
                             FrameLayout parent=new FrameLayout(app);View view=rv.apply(app,parent);parent.addView(view);
                             int width,height;
-                            // Render each size class at a realistic box derived from the widget's own
-                            // declared minimum, so the test exercises the contract the Launcher honours
-                            // rather than an arbitrary number.
-                            float density=app.getResources().getDisplayMetrics().density;
-                            // AppWidgetProviderInfo dimensions have already been resolved to px.
-                            int minW=Math.round(info.minResizeWidth/density),minH=Math.round(info.minResizeHeight/density);
                             int compactW=minW,compactH=minH;
                             if(compactW>=180 && compactH>=100) compactW=179;
                             int smallW=Math.max(minW,180),smallH=Math.max(minH,110);
@@ -69,6 +73,7 @@ public final class WidgetAcceptanceInstrumentation extends Instrumentation {
                             else if(size==WidgetSizeClass.SMALL) { width=smallW;height=smallH; }
                             else if(size==WidgetSizeClass.WIDE) { width=wideW;height=100; }
                             else if(size==WidgetSizeClass.TALL) { width=smallW;height=largeH; }
+                            else if(size==WidgetSizeClass.ROW) { width=(int)WidgetSizeClassResolver.ROW_MIN_WIDTH;height=Math.min(minH,56); }
                             else { width=wideW;height=largeH; }
                             check(WidgetSizeClassResolver.resolve(width,height)==size,"test box matches requested size class");
                             int w=(int)(width*app.getResources().getDisplayMetrics().density),h=(int)(height*app.getResources().getDisplayMetrics().density);
@@ -130,7 +135,7 @@ public final class WidgetAcceptanceInstrumentation extends Instrumentation {
             if(baselineWeather==0)
             for(androidx.work.WorkInfo work:androidx.work.WorkManager.getInstance(app).getWorkInfosForUniqueWork(WidgetRefreshWorker.PERIODIC).get())
                 check(work.getState().isFinished(),"weather periodic work cancelled");
-            report.putString("stream","PASS: "+checks+" device checks; "+WidgetConfig.FONT_IDS.length+" fonts; "+rendered+" real RemoteViews layouts across 5 size classes and 6 themes, plus provider binding, preview and cancel isolation.\n");
+            report.putString("stream","PASS: "+checks+" device checks; "+WidgetConfig.FONT_IDS.length+" fonts; "+rendered+" real RemoteViews layouts across "+WidgetSizeClass.values().length+" size classes and 6 themes, plus provider binding, preview and cancel isolation.\n");
             resultCode=Activity.RESULT_OK;
         } catch(Throwable e) {
             StringWriter trace=new StringWriter();e.printStackTrace(new PrintWriter(trace));report.putString("stream",trace.toString());

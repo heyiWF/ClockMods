@@ -41,11 +41,44 @@
     -->
     <dimen name="widget_top_line_end_extra">20dp</dimen>
 
-    <!-- Gap between the weather condition icon and the temperature on the same row. -->
-    <!-- Single-row clocks keep the full horizontal corner inset, but need extra vertical space
-         for the taller metrics of bundled fonts at the declared 56dp resize floor. -->
+    <!--
+      Single-row cards that are wide enough put their lead value (the clock, or the day number) at the
+      start edge and the caption stack at the end edge, so both ends of the panel are occupied and the
+      card reads as one row instead of a left-hand cluster with empty space beside it. Both are
+      centred in the same box, so the insets stay symmetric: there is no stacked pair left to balance.
+    -->
+    <dimen name="widget_row_inset_top">8dp</dimen>
+    <dimen name="widget_row_inset_bottom">8dp</dimen>
+
+    <!--
+      Height of the clock box in a one-row card. It is a bound, not a target: the autosizing
+      TextClock shrinks within it, so the box has to be tall enough for the row's own insets - 40dp
+      plus the 8dp above and below still fits the declared 56dp resize floor. The caption column
+      then never has to give up width to a clock that grows with the card.
+    -->
+    <dimen name="widget_clock_row_height">40dp</dimen>
+
+    <!-- Smallest gap between the lead value and the right-aligned caption column. -->
+    <dimen name="widget_clock_gap">12dp</dimen>
+
+    <!--
+      Ceilings for the lead value of a row card. The caption column takes the slack, so a lead value
+      that grew with the card would push the caption off the panel on a narrow one; the cap keeps the
+      arrangement readable from the row threshold up to the widest resize. The clock ceiling is just
+      above a 12-hour clock with seconds at the largest text scale, and the day ceiling fits three
+      digits at the largest size the day number autosizes to.
+    -->
+    <dimen name="widget_row_lead_max_width">120dp</dimen>
+    <dimen name="widget_row_day_max_width">96dp</dimen>
+
+    <!--
+      The narrow one-row card still stacks its two lines at the start edge. The clock then owns the
+      leftover height, so it needs the extra vertical space for the taller metrics of bundled fonts
+      at the declared 56dp resize floor.
+    -->
     <dimen name="widget_clock_row_top">4dp</dimen>
     <dimen name="widget_clock_row_bottom">8dp</dimen>
 
+    <!-- Gap between the weather condition icon and the temperature on the same row. -->
     <dimen name="widget_icon_gap">8dp</dimen>
 </resources>

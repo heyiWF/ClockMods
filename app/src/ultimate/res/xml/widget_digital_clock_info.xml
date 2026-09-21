@@ -1,16 +1,21 @@
 <?xml version="1.0" encoding="utf-8"?>
 <!--
-  The default footprint follows the content rather than habit.
+  The default footprint is the width the clock and the caption actually need, not the widest the
+  panel could be.
 
-  The widest line the default configuration renders is the date caption: about 94dp of glyphs in
-  Chinese and about 120dp in English, plus the two 28dp corner insets, so roughly 150-176dp.
-  That is a little over two 70dp cells, hence three cells wide - the smallest width at which the
-  caption is never ellipsised in any locale. Two stacked lines need about 60dp, which is the
-  one-row minimum.
+  A wide one-row card renders as [clock] ... [date], so the two labels sit side by side: the clock
+  (~90dp of glyphs) plus the smallest gap plus the caption (~94dp in Chinese) plus the two 28dp
+  corner insets comes to roughly 250dp, which is two cells. A third cell would leave a third of the
+  panel empty between the two ends, and the caption wraps to a second line before it ellipsises for
+  the locales that need more room. A card narrower than that threshold keeps the stacked
+  arrangement, so a two-cell card on a narrow-cell device still reads.
+
+  Height stays at the one-row floor: the clock box plus the row insets, about 56dp - which is what
+  both minHeight and minResizeHeight declare.
 -->
 <appwidget-provider xmlns:android="http://schemas.android.com/apk/res/android"
- android:minWidth="180dp" android:minHeight="56dp"
- android:targetCellWidth="3" android:targetCellHeight="1"
+ android:minWidth="120dp" android:minHeight="56dp"
+ android:targetCellWidth="2" android:targetCellHeight="1"
  android:minResizeWidth="180dp" android:minResizeHeight="56dp" android:maxResizeWidth="600dp" android:maxResizeHeight="500dp"
  android:resizeMode="horizontal|vertical" android:widgetCategory="home_screen" android:widgetFeatures="reconfigurable|configuration_optional"
  android:updatePeriodMillis="0" android:initialLayout="@layout/widget_digital_wide" android:previewLayout="@layout/widget_digital_wide"

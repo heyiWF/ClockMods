@@ -22,7 +22,10 @@ public final class WidgetRemoteViewsFactory {
     private static final int[][] DIGITAL_LAYOUTS={
         {R.layout.widget_digital_compact,R.layout.widget_digital_compact_serif,R.layout.widget_digital_compact_mono,R.layout.widget_digital_compact_condensed,R.layout.widget_digital_compact_light},
         {R.layout.widget_digital_wide,R.layout.widget_digital_wide_serif,R.layout.widget_digital_wide_mono,R.layout.widget_digital_wide_condensed,R.layout.widget_digital_wide_light},
-        {R.layout.widget_digital_tall,R.layout.widget_digital_tall_serif,R.layout.widget_digital_tall_mono,R.layout.widget_digital_tall_condensed,R.layout.widget_digital_tall_light}};
+        {R.layout.widget_digital_tall,R.layout.widget_digital_tall_serif,R.layout.widget_digital_tall_mono,R.layout.widget_digital_tall_condensed,R.layout.widget_digital_tall_light},
+        {R.layout.widget_digital_small,R.layout.widget_digital_small_serif,R.layout.widget_digital_small_mono,R.layout.widget_digital_small_condensed,R.layout.widget_digital_small_light}};
+    /** Column of the stacked card a narrow-but-tall digital widget needs. */
+    private static final int DIGITAL_SMALL_COLUMN=3;
     private static final int[][] ANALOG_LAYOUTS={
         {R.layout.widget_analog_compact,R.layout.widget_analog_compact_serif,R.layout.widget_analog_compact_mono,R.layout.widget_analog_compact_condensed,R.layout.widget_analog_compact_light},
         {R.layout.widget_analog_medium,R.layout.widget_analog_medium_serif,R.layout.widget_analog_medium_mono,R.layout.widget_analog_medium_condensed,R.layout.widget_analog_medium_light},
@@ -49,7 +52,7 @@ public final class WidgetRemoteViewsFactory {
         long now=System.currentTimeMillis();
         WeatherModels.WeatherDisplayData observation=cachedWeather(c,kind);
         Map<SizeF,RemoteViews> sizes=new LinkedHashMap<>();
-        float[][] bounds={{80,56},{180,100},{260,100},{180,180},{260,180}};
+        float[][] bounds={{80,56},{220,56},{180,100},{260,100},{180,180},{260,180}};
         for(float[] b:bounds) sizes.put(new SizeF(b[0],b[1]),createAt(c,config,WidgetSizeClassResolver.resolve(b[0],b[1]),now,observation));
         return new RemoteViews(sizes);
     }
@@ -70,17 +73,21 @@ public final class WidgetRemoteViewsFactory {
     public static RemoteViews createAt(Context c,WidgetConfig config,WidgetSizeClass size,long now,
             WeatherModels.WeatherDisplayData observation) {
         WidgetThemeSpec theme=WidgetThemeRegistry.resolve(c,config.themeId);
-        boolean shortCard=size==WidgetSizeClass.COMPACT || size==WidgetSizeClass.SMALL;
+        boolean shortCard=size==WidgetSizeClass.COMPACT || size==WidgetSizeClass.ROW || size==WidgetSizeClass.SMALL;
         boolean minimalWeather=shortCard && config.kind==WidgetKind.WEATHER;
-        int tier=shortCard ? 0 : size==WidgetSizeClass.WIDE ? 1 : 2;
+        // A row card shares the wide card's resources: it is the same composition, just held to a
+        // single launcher row, so it renders the caption line without the lines that need height.
+        int tier=size==WidgetSizeClass.ROW ? 1 : shortCard ? 0 : size==WidgetSizeClass.WIDE ? 1 : 2;
         // The theme picks a structural variant; an explicit per-instance font overrides that column.
         int themeColumn=theme.fontLayoutVariant==WidgetThemeSpec.Font.SERIF ? 1 : theme.fontLayoutVariant==WidgetThemeSpec.Font.MONOSPACE ? 2 : 0;
         int column=WidgetFontRegistry.columnOf(config.fontId,themeColumn);
         int[][] layouts=config.kind==WidgetKind.DIGITAL ? DIGITAL_LAYOUTS : config.kind==WidgetKind.ANALOG ? ANALOG_LAYOUTS
                 : config.kind==WidgetKind.WEATHER ? WEATHER_LAYOUTS : CALENDAR_LAYOUTS;
-        // The compact digital resource uses layout_weight to fit a single launcher row. A taller
-        // SMALL card needs the fixed-height resource so the text-scale control remains effective.
-        int layoutTier=size==WidgetSizeClass.SMALL && config.kind==WidgetKind.DIGITAL ? 1 : tier;
+        // A one-row card that is too narrow for the row composition stacks its two lines: the clock
+        // owns the leftover height there, which keeps the caption visible at the 56dp floor. A taller
+        // SMALL card would rather have a bounded clock box, so it keeps the stacked card with a fixed
+        // clock height, and the text-scale control stays effective.
+        int layoutTier=size==WidgetSizeClass.SMALL && config.kind==WidgetKind.DIGITAL ? DIGITAL_SMALL_COLUMN : tier;
         RemoteViews v=new RemoteViews(c.getPackageName(),config.kind==WidgetKind.WEATHER && size==WidgetSizeClass.TALL ? WEATHER_TALL_LAYOUTS[column] : layouts[layoutTier][column]);
         int primary=config.themeId.equals("transparent.clean") && config.darkText ? 0xff16212c : theme.primaryTextColor;
         int secondary=config.themeId.equals("transparent.clean") ? primary : theme.secondaryTextColor;
@@ -112,11 +119,13 @@ public final class WidgetRemoteViewsFactory {
             v.setTextColor(R.id.widget_time,primary);
             // TextClock autosizes within this scaled box; RemoteViews textSize alone is ignored
             // by an autosizing TextView. The box also bounds long 12-hour/seconds strings.
-            float clockHeight=config.kind==WidgetKind.WEATHER ? (minimalWeather ? 28 : size==WidgetSizeClass.TALL ? 36 : tier==2 ? 40 : 36) : (compact ? 32 : tier==2 ? 54 : 40);
-            // The compact digital card is the only case where the clock keeps its layout weight, so
-            // it needs no explicit height. Insets always come from the layout resource now, which
-            // keeps every size class clear of the 28dp system corner radius.
-            if(!(compact && config.kind==WidgetKind.DIGITAL)) v.setViewLayoutHeight(R.id.widget_time,clockHeight*config.textScale,TypedValue.COMPLEX_UNIT_DIP);
+            float clockHeight=config.kind==WidgetKind.WEATHER ? (minimalWeather ? 28 : size==WidgetSizeClass.TALL ? 36 : tier==2 ? 40 : 36) : (tier==2 ? 54 : 40);
+            // This is a bound for the autosizing TextClock, not a target. The compact digital card
+            // keeps the weight-based box from its own resource, and a weighted child wins over this
+            // height, so its caption always fits however short the card is; every other class takes
+            // this bounded box, which is what the text-scale control scales. Insets always come from
+            // the layout resource, which keeps every size class clear of the 28dp corner radius.
+            v.setViewLayoutHeight(R.id.widget_time,clockHeight*config.textScale,TypedValue.COMPLEX_UNIT_DIP);
             v.setOnClickPendingIntent(R.id.widget_time,WidgetPendingIntentFactory.create(c,config.appWidgetId,CLOCK));
         } else if(config.kind==WidgetKind.ANALOG) {
             int dialIndex=config.themeId.equals("paper.warm") ? 2 : config.themeId.equals("neon.night") ? 3 : config.themeId.equals("instrument.dark") ? 1 : 0;
