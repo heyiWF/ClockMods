@@ -3,7 +3,7 @@ package com.clockmods.ultimate.settings
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
 import androidx.compose.foundation.layout.Arrangement
-import androidx.compose.foundation.layout.BoxWithConstraints
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
@@ -53,6 +53,7 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.dp
@@ -127,8 +128,15 @@ internal fun SettingsScreen(
     var page by rememberSaveable { mutableStateOf(pageFromId(initialPage)) }
     var generation by rememberSaveable { mutableIntStateOf(0) }
     var confirmRestore by remember { mutableStateOf(false) }
+    // In two-pane mode the detail column *is* the second level: the rail and the content sit side
+    // by side, so a selected page is not a deeper screen the user has to back out of. Back (and the
+    // top bar's arrow) therefore leaves settings in one step instead of first clearing the page.
+    val expanded = UltimateSettingsActivity.isTwoPaneWidth(
+        LocalConfiguration.current.screenWidthDp,
+    )
+    val closeOnBack = UltimateSettingsActivity.shouldCloseSettingsOnBack(expanded, page != null)
     BackHandler {
-        if (page == null) onDone() else page = null
+        if (closeOnBack) onDone() else page = null
     }
 
     Scaffold(
@@ -136,12 +144,20 @@ internal fun SettingsScreen(
             TopAppBar(
                 title = {
                     Text(
-                        page?.let { stringResource(it.title) }
-                            ?: stringResource(R.string.ultimate_settings_pane_title),
+                        if (expanded) {
+                            stringResource(R.string.ultimate_settings_pane_title)
+                        } else {
+                            page?.let { stringResource(it.title) }
+                                ?: stringResource(R.string.ultimate_settings_pane_title)
+                        },
                     )
                 },
                 navigationIcon = {
-                    IconButton(onClick = { if (page == null) onDone() else page = null }) {
+                    IconButton(
+                        onClick = {
+                            if (closeOnBack) onDone() else page = null
+                        },
+                    ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
                             contentDescription = stringResource(R.string.ultimate_back_to_settings),
@@ -151,8 +167,7 @@ internal fun SettingsScreen(
             )
         },
     ) { padding ->
-        BoxWithConstraints(Modifier.fillMaxSize().padding(padding)) {
-            val expanded = maxWidth >= 840.dp
+        Box(Modifier.fillMaxSize().padding(padding)) {
             if (expanded) {
                 Row(Modifier.fillMaxSize()) {
                     SettingsHome(

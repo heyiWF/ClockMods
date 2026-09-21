@@ -45,7 +45,7 @@ object FontCatalog {
     }
 
     private val OPTIONS: List<FontOption> = Collections.unmodifiableList(buildList {
-        add(FontOption.system(ClockPreferences.FONT_SYSTEM, "系统字体"))
+        add(FontOption.system(ClockPreferences.FONT_SYSTEM, "System"))
         add(FontOption.variable(ClockPreferences.FONT_ROBOTO, "Roboto", "fonts/Roboto-Variable.ttf", null, 100, 900))
         add(FontOption.statics(ClockPreferences.FONT_GOOGLE_SANS_DISPLAY, "Google Sans Display", intArrayOf(400, 500, 700), arrayOf("fonts/GoogleSansDisplay-Regular.ttf", "fonts/GoogleSansDisplay-Medium.ttf", "fonts/GoogleSansDisplay-Bold.ttf")))
         add(FontOption.statics(ClockPreferences.FONT_GOOGLE_SANS_TEXT, "Google Sans Text", intArrayOf(400, 500, 700), arrayOf("fonts/GoogleSansText-Regular.ttf", "fonts/GoogleSansText-Medium.ttf", "fonts/GoogleSansText-Bold.ttf")))
@@ -65,4 +65,13 @@ object FontCatalog {
     @JvmStatic fun isAvailable(id: String?): Boolean = OPTIONS.any { it.id == id }
     @JvmStatic fun displayNames(): Array<String> = OPTIONS.map { it.displayName }.toTypedArray()
     @JvmStatic fun displayNames(context: Context): Array<String> = displayNames().also { names -> OPTIONS.forEachIndexed { index, option -> if (option.isSystem()) names[index] = context.getString(R.string.font_system) } }
+
+    /**
+     * Localized label for a single family id. Only the system family is translated; the bundled
+     * families keep their Latin brand names in every language.
+     */
+    @JvmStatic fun displayName(context: Context, id: String?): String {
+        val option = optionFor(id)
+        return if (option.isSystem()) context.getString(R.string.font_system) else option.displayName
+    }
 }

@@ -7,7 +7,6 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
-import android.graphics.Paint
 import android.net.Uri
 import android.net.ConnectivityManager
 import android.net.NetworkCapabilities
@@ -17,7 +16,9 @@ import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
+import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
+import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.gestures.detectTapGestures
@@ -27,16 +28,16 @@ import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
-import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.BatteryFull
 import androidx.compose.material.icons.filled.Wifi
 import androidx.compose.material.icons.filled.WifiOff
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -50,10 +51,13 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
@@ -64,8 +68,11 @@ import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -87,7 +94,6 @@ import com.clockmods.sdk.clock.WorldClockEntry
 import com.clockmods.time.NetworkTimeProvider
 import com.clockmods.ui.DateFormatter
 import com.clockmods.ui.ClockTimeFormatter
-import com.clockmods.ui.WeatherIcon
 import com.clockmods.ultimate.clock.ClockPalette
 import com.clockmods.ultimate.clock.ClockMotionResolver
 import com.clockmods.ultimate.clock.ClockTypography
@@ -106,11 +112,155 @@ import kotlin.math.hypot
 private const val WEATHER_DETAIL_HOLD_MILLIS = 3_000L
 private const val QWEATHER_WEBSITE = "https://www.qweather.com"
 
+/** Preview geometry: a fixed mid-morning instant with the seconds hand parked at 30. */
+private const val PREVIEW_HOUR = 10
+private const val PREVIEW_MINUTE = 9
+private const val PREVIEW_SECOND = 30
+
+/** Ink/theme for a live preview: palette applied to the style's tokens, then the host typography. */
+@Composable
+internal fun previewClockTheme(
+    context: Context,
+    styleId: String,
+    palette: ClockPalette,
+): ClockThemeTokens {
+    val style = remember(styleId) {
+        UltimateClockStyles.sharedRegistry().resolveForApi(styleId, android.os.Build.VERSION.SDK_INT)
+    }
+    return remember(context, styleId, palette) {
+        ClockTypography().apply(context, palette.applyTo(style.getThemeTokens()), styleId)
+    }
+}
+
+/**
+ * Resolves the surface the preview clock is painted on from the user's real background preferences,
+ * so what the settings card shows matches the face: a parked image, a custom colour, or the theme
+ * gradient, with the same dimming schedule applied. This is also what lets [GaussianGlass] engage —
+ * it only blurs when the background actually carries an image.
+ */
+@Composable
+internal fun previewClockBackground(
+    repository: BackgroundRepository,
+    appearance: UltimateClockPreferences,
+    refreshGeneration: Int,
+): ClockBackground {
+    val context = LocalContext.current
+    val backgroundMode = remember(appearance, refreshGeneration) { appearance.getBackgroundMode() }
+    var bitmap by remember(backgroundMode, refreshGeneration) { mutableStateOf<Bitmap?>(null) }
+    LaunchedEffect(backgroundMode, refreshGeneration) {
+        bitmap = if (backgroundMode == UltimateClockPreferences.BACKGROUND_MODE_IMAGE) {
+            val metrics = context.resources.displayMetrics
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.IO) {
+                runCatching { repository.loadImage(metrics.widthPixels, metrics.heightPixels) }
+                    .getOrNull()
+            }
+        } else null
+    }
+    val dimmed = remember(repository, refreshGeneration) {
+        shouldDimBackground(repository, System.currentTimeMillis(), TimeZone.getDefault(), Locale.getDefault())
+    }
+    return when (backgroundMode) {
+        UltimateClockPreferences.BACKGROUND_MODE_IMAGE ->
+            ClockBackground.image(bitmap, repository.getCurrentColor(), dimmed)
+        UltimateClockPreferences.BACKGROUND_MODE_COLOR ->
+            ClockBackground.color(repository.getCurrentColor(), dimmed)
+        else -> ClockBackground.theme(dimmed)
+    }
+}
+
+/**
+ * Draws [styleId] straight onto the supplied canvas with a frozen clock, so the settings surface
+ * can show the theme reacting to a palette change while the user is still editing it. The clock is
+ * painted over the user's real [background] (image included) and the style's own renderer is used,
+ * so card gaussian blur behaves exactly as it does on the face.
+ *
+ * The face is composed at [hostWidth] x [hostHeight] — the real screen geometry — and then scaled
+ * into the destination box. That is what keeps the preview honest: the image-anchored blur samples
+ * the same pixels, the cards land in the same places, and the derived light/dark ink is identical
+ * to the running clock instead of drifting to whatever region a tiny preview box would cover.
+ */
+internal fun renderClockPreview(
+    canvas: android.graphics.Canvas,
+    styleId: String,
+    theme: ClockThemeTokens,
+    background: ClockBackground,
+    density: Float,
+    timeZone: TimeZone,
+    locale: Locale,
+    hostWidth: Float,
+    hostHeight: Float,
+) {
+    val area = canvas.clipBounds
+    val width = area.width().toFloat()
+    val height = area.height().toFloat()
+    if (width <= 0f || height <= 0f) return
+    val hostW = if (hostWidth > 0f) hostWidth else width
+    val hostH = if (hostHeight > 0f) hostHeight else height
+    // Fill the box while preserving the host aspect, so the preview reads as a windowed view of the
+    // real face rather than a stretched one.
+    val scale = maxOf(width / hostW, height / hostH)
+    val translateX = area.left + (width - hostW * scale) * .5f
+    val translateY = area.top + (height - hostH * scale) * .5f
+    val style = UltimateClockStyles.sharedRegistry()
+        .resolveForApi(styleId, android.os.Build.VERSION.SDK_INT)
+    val calendar = Calendar.getInstance(timeZone, locale).apply {
+        set(Calendar.HOUR_OF_DAY, PREVIEW_HOUR)
+        set(Calendar.MINUTE, PREVIEW_MINUTE)
+        set(Calendar.SECOND, PREVIEW_SECOND)
+        set(Calendar.MILLISECOND, 0)
+    }
+    val now = calendar.timeInMillis
+    val motion = ClockMotionResolver.resolve(style, true, ClockState.SecondHandMotion.TICK)
+    val state = ClockState.builder(now)
+        .timeZone(timeZone)
+        .locale(locale)
+        .use24Hour(false)
+        .showSeconds(true)
+        .blinkColon(false)
+        .smallSeconds(false)
+        .portraitStacked(false)
+        .dateLunarDualLine(false)
+        .secondHandMotion(motion)
+        .dateText(DateFormatter.format("MMM d", calendar, LocaleManager.dateLang(null)))
+        .timeZoneText(timeZone.getDisplayName(timeZone.inDaylightTime(Date(now)), TimeZone.SHORT, locale))
+        .weatherText("24°")
+        .worldClocks(emptyList())
+        .timeScale(1f)
+        .dateScale(1f)
+        .supportingScale(1f)
+        .build()
+    // Compose at the host geometry so blur samples the same image region and cards keep their real
+    // proportions; density is scaled so text stays proportional inside the shrunk face.
+    val renderContext = ClockRenderContext(
+        0f,
+        0f,
+        hostW,
+        hostH,
+        density,
+        density,
+        now,
+        background,
+        0f,
+        0f,
+        false,
+        null,
+    )
+    val save = canvas.save()
+    try {
+        canvas.translate(translateX, translateY)
+        canvas.scale(scale, scale)
+        style.getRenderer().render(canvas, renderContext, state, theme)
+    } finally {
+        canvas.restoreToCount(save)
+    }
+}
+
 @Composable
 internal fun ClockScreen(
     modifier: Modifier,
     refreshGeneration: Int,
     onOpenSettings: () -> Unit,
+    onToggleChrome: () -> Unit,
 ) {
     val context = LocalContext.current
     val repository = remember(context) { BackgroundRepository(context) }
@@ -119,6 +269,10 @@ internal fun ClockScreen(
     val worldClockRepository = remember(context) { WorldClockRepository(context) }
     val styleId = appearance.getStyleId()
     var tick by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    // A sweep second hand is interpolated by millisecond, so the canvas redraws it on every
+    // display frame and reads the clock directly rather than waiting for the 250 ms data tick
+    // that drives the text overlays.
+    val timeSource = remember { { networkTime.currentTimeMillis() } }
 
     DisposableEffect(Unit) { onDispose(networkTime::shutdown) }
     LaunchedEffect(refreshGeneration) {
@@ -179,16 +333,13 @@ internal fun ClockScreen(
         .joinToString(" / ")
     val deviceStatus = rememberDeviceStatus()
     val showStatusIcons = repository.isShowStatusIcons()
-    val statusText = if (showStatusIcons) {
-        buildString {
-            append(if (deviceStatus.connected) "Network" else "Offline")
-            if (deviceStatus.batteryPercent >= 0) append(" · ${deviceStatus.batteryPercent}%")
-        }
-    } else ""
+    var overlaySurface by remember { mutableStateOf(Color.Black) }
     val worldClocks = remember(refreshGeneration) {
         if (worldClockRepository.isEnabled()) worldClockRepository.getSelected() else emptyList()
     }
     var statusOverlay by remember { mutableStateOf<ClockOverlayBounds?>(null) }
+    var faceSize by remember { mutableStateOf(IntSize.Zero) }
+    var statusPillSize by remember { mutableStateOf(IntSize.Zero) }
     val density = LocalDensity.current
     val bottomOverlayInset = with(density) { 36.dp.toPx() }
     LaunchedEffect(showStatusIcons) {
@@ -199,14 +350,19 @@ internal fun ClockScreen(
         modifier
             .fillMaxSize()
             .background(MaterialTheme.colorScheme.background)
-            .pointerInput(onOpenSettings) {
-                detectTapGestures(onDoubleTap = { onOpenSettings() })
+            .onSizeChanged { faceSize = it }
+            .pointerInput(onOpenSettings, onToggleChrome) {
+                detectTapGestures(
+                    onTap = { onToggleChrome() },
+                    onDoubleTap = { onOpenSettings() },
+                )
             },
     ) {
         ClockCanvas(
             modifier = Modifier.fillMaxSize(),
             context = context,
             timeMillis = tick,
+            timeSource = timeSource,
             styleId = appearance.getStyleId(),
             showSeconds = repository.isShowSeconds(),
             use24Hour = repository.isUse24Hour(),
@@ -214,24 +370,55 @@ internal fun ClockScreen(
             timeZone = zone,
             dateText = dateText,
             weatherText = supportingText,
-            statusText = statusText,
             worldClocks = worldClocks,
             repository = repository,
             appearance = appearance,
             refreshGeneration = refreshGeneration,
             bottomOverlayInset = bottomOverlayInset,
             statusOverlay = statusOverlay,
+            onOverlaySurface = { overlaySurface = it },
         )
         if (showStatusIcons) {
+            // The pill is positioned from the same geometry the renderers use for their own
+            // top-right metadata, so every theme keeps the two aligned instead of guessing.
+            val faceWidth = faceSize.width.toFloat()
+            val faceHeight = faceSize.height.toFloat()
+            val placement = remember(styleId, faceWidth, faceHeight, statusPillSize, density.density) {
+                if (faceWidth <= 0f || faceHeight <= 0f ||
+                    statusPillSize.width <= 0 || statusPillSize.height <= 0
+                ) {
+                    null
+                } else {
+                    UltimateClockStyles.statusCapsuleBounds(
+                        styleId,
+                        faceWidth,
+                        faceHeight,
+                        density.density,
+                        faceWidth * if (faceWidth >= faceHeight) .029f else .055f,
+                        faceHeight * .037f,
+                        statusPillSize.width.toFloat(),
+                        statusPillSize.height.toFloat(),
+                    )
+                }
+            }
             DeviceStatusPill(
                 status = deviceStatus,
                 scale = repository.getStatusIconScale(),
                 transparent = styleId == UltimateClockStyles.STYLE_PRO_CLASSIC,
                 contentColor = Color(repository.getTimeColor()),
+                faceColor = overlaySurface,
                 modifier = Modifier
-                    .align(Alignment.TopEnd)
-                    .statusBarsPadding()
-                    .padding(12.dp)
+                    .onSizeChanged { statusPillSize = it }
+                    .then(
+                        if (placement == null) {
+                            Modifier
+                        } else {
+                            Modifier.offset {
+                                IntOffset(placement[0].toInt(), placement[1].toInt())
+                            }
+                        },
+                    )
+                    .alpha(if (placement == null) 0f else 1f)
                     .onGloballyPositioned { coordinates ->
                         val bounds = coordinates.boundsInParent()
                         statusOverlay = ClockOverlayBounds(
@@ -242,19 +429,82 @@ internal fun ClockScreen(
         }
         if (repository.isWeatherEnabled()) {
             WeatherAttribution(
-                state = weatherState,
-                fill = repository.isWeatherIconFill(),
-                dynamicColor = repository.isWeatherIconDynamicColor(),
+                faceColor = overlaySurface,
                 modifier = Modifier.align(Alignment.BottomStart).padding(12.dp),
             )
         }
-        Text(
-            text = stringResource(R.string.open_settings_accessibility),
-            modifier = Modifier.align(Alignment.BottomEnd).padding(12.dp).alpha(.42f),
-            color = MaterialTheme.colorScheme.onBackground,
-            fontSize = 10.sp,
-        )
         ChimeIndicator(repository = repository, calendar = calendar)
+    }
+}
+
+/**
+ * Live theme thumbnail for the settings surface. It renders through the very same
+ * [ClockRenderer] the face uses, over the user's real background, so a palette edit is visible here
+ * the moment it is made — no round trip into the clock and back. The aspect ratio follows the host
+ * bounds, so the preview keeps whatever orientation the clock is configured for.
+ */
+@Composable
+internal fun ClockPreviewCanvas(
+    styleId: String,
+    palette: ClockPalette,
+    background: ClockBackground,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val hostSize = LocalWindowInfo.current.containerSize
+    val locale = remember { Locale.SIMPLIFIED_CHINESE }
+    val timeZone = remember { TimeZone.getDefault() }
+    val theme = previewClockTheme(context, styleId, palette)
+    Canvas(modifier) {
+        val canvas = drawContext.canvas.nativeCanvas
+        renderClockPreview(
+            canvas = canvas,
+            styleId = styleId,
+            theme = theme,
+            background = background,
+            density = density.density,
+            timeZone = timeZone,
+            locale = locale,
+            hostWidth = hostSize.width.toFloat(),
+            hostHeight = hostSize.height.toFloat(),
+        )
+    }
+}
+
+/**
+ * A small self-contained clock face used by the style gallery tiles.
+ *
+ * Unlike the palette editor (which paints over the user's real photo so blur is visible), a gallery
+ * thumbnail is shown for every built-in style at once, so loading the wallpaper for each would be
+ * wasteful and would drown the one thing the tile needs to communicate — the face itself. The
+ * thumbnail therefore paints the style's own theme gradient with the saved palette applied, at a
+ * frozen preview instant, matching exactly what the live clock draws.
+ */
+@Composable
+internal fun ClockStyleThumbnail(
+    styleId: String,
+    palette: ClockPalette,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val hostSize = LocalWindowInfo.current.containerSize
+    val locale = remember { Locale.SIMPLIFIED_CHINESE }
+    val timeZone = remember { TimeZone.getDefault() }
+    val theme = previewClockTheme(context, styleId, palette)
+    Canvas(modifier) {
+        renderClockPreview(
+            canvas = drawContext.canvas.nativeCanvas,
+            styleId = styleId,
+            theme = theme,
+            background = ClockBackground.theme(dimmed = false),
+            density = density.density,
+            timeZone = timeZone,
+            locale = locale,
+            hostWidth = hostSize.width.toFloat(),
+            hostHeight = hostSize.height.toFloat(),
+        )
     }
 }
 
@@ -263,6 +513,7 @@ private fun ClockCanvas(
     modifier: Modifier,
     context: Context,
     timeMillis: Long,
+    timeSource: () -> Long,
     styleId: String,
     showSeconds: Boolean,
     use24Hour: Boolean,
@@ -270,13 +521,13 @@ private fun ClockCanvas(
     timeZone: TimeZone,
     dateText: String,
     weatherText: String,
-    statusText: String,
     worldClocks: List<WorldClockEntry>,
     repository: BackgroundRepository,
     appearance: UltimateClockPreferences,
     refreshGeneration: Int,
     bottomOverlayInset: Float,
     statusOverlay: ClockOverlayBounds?,
+    onOverlaySurface: (Color) -> Unit,
 ) {
     val registry = remember { UltimateClockStyles.sharedRegistry() }
     val style = remember(styleId) {
@@ -320,11 +571,37 @@ private fun ClockCanvas(
             ClockBackground.color(repository.getCurrentColor(), dimmed)
         else -> ClockBackground.theme(dimmed)
     }
+    // Host overlays sit on whatever the face is painted with, so they sample the same surface
+    // the renderer uses instead of assuming the host window scheme describes it.
+    val overlaySurface = remember(
+        styleId, refreshGeneration, backgroundMode, backgroundBitmap, dimmed, paletteTheme,
+    ) {
+        val image = backgroundBitmap
+        val surface = when {
+            image != null && clockBackground.hasImage() -> averageColor(image)
+            !clockBackground.usesThemeSurface() -> clockBackground.getColor()
+            ClockPalette.supports(styleId) -> paletteTheme.getBackgroundStartColor()
+            else -> theme.getBackgroundStartColor()
+        }
+        Color(if (dimmed) ClockPalette.mix(surface, 0xFF000000.toInt(), .4f) else surface)
+    }
+    LaunchedEffect(overlaySurface) { onOverlaySurface(overlaySurface) }
     val effectiveMotion = ClockMotionResolver.resolve(
         style,
         showSeconds,
         appearance.getSecondHandMotion(),
     )
+    // A sweep hand advances by milliseconds, so a 250 ms data tick would quantise it into four
+    // visible steps per second. Give the sweep path its own frame clock; every other motion keeps
+    // using the data tick, which leaves the canvas idle between ticks.
+    val smoothSeconds = effectiveMotion == ClockState.SecondHandMotion.SWEEP
+    var animatedTime by remember { mutableLongStateOf(timeMillis) }
+    LaunchedEffect(smoothSeconds, refreshGeneration) {
+        if (!smoothSeconds) return@LaunchedEffect
+        while (true) {
+            withFrameMillis { animatedTime = timeSource() }
+        }
+    }
     val worldClockSupported = style.getMetadata().getCapabilities().supports(
         ClockStyleCapabilities.Capability.WORLD_CLOCK,
     )
@@ -388,7 +665,10 @@ private fun ClockCanvas(
         }
 
     Canvas(canvasModifier) {
-        val state = ClockState.builder(timeMillis)
+        // Reading the frame clock inside the draw scope keeps the per-frame sweep redrawing to the
+        // draw phase instead of recomposing the whole screen sixty times a second.
+        val now = if (smoothSeconds) animatedTime else timeMillis
+        val state = ClockState.builder(now)
             .timeZone(timeZone)
             .locale(locale)
             .use24Hour(use24Hour)
@@ -401,13 +681,12 @@ private fun ClockCanvas(
             .dateText(dateText)
             .timeZoneText(
                 timeZone.getDisplayName(
-                    timeZone.inDaylightTime(Date(timeMillis)),
+                    timeZone.inDaylightTime(Date(now)),
                     TimeZone.SHORT,
                     locale,
                 ),
             )
             .weatherText(weatherText)
-            .statusText(statusText)
             .worldClocks(worldClocks)
             .timeScale(timeFontScaleForStyle(repository, styleId))
             .dateScale(dateFontScaleForStyle(repository, styleId))
@@ -422,7 +701,7 @@ private fun ClockCanvas(
             size.height,
             density.density,
             density.fontScale * density.density,
-            timeMillis,
+            now,
             clockBackground,
             bottomOverlayInset,
             worldClockScroll,
@@ -496,8 +775,39 @@ private fun shouldDimBackground(
     )
 }
 
+/** Coarse average of a bitmap, used to pick readable ink for host overlays drawn over it. */
+private fun averageColor(bitmap: Bitmap): Int {
+    val width = bitmap.width
+    val height = bitmap.height
+    if (width <= 0 || height <= 0) return 0xFF000000.toInt()
+    val stepX = maxOf(1, width / 24)
+    val stepY = maxOf(1, height / 24)
+    var red = 0L
+    var green = 0L
+    var blue = 0L
+    var samples = 0L
+    var y = stepY / 2
+    while (y < height) {
+        var x = stepX / 2
+        while (x < width) {
+            val pixel = bitmap.getPixel(x, y)
+            red += (pixel ushr 16) and 255
+            green += (pixel ushr 8) and 255
+            blue += pixel and 255
+            samples++
+            x += stepX
+        }
+        y += stepY
+    }
+    if (samples == 0L) return 0xFF000000.toInt()
+    return 0xFF000000.toInt() or
+        ((red / samples).toInt() shl 16) or
+        ((green / samples).toInt() shl 8) or
+        (blue / samples).toInt()
+}
+
 @Composable
-private fun rememberWeatherState(
+internal fun rememberWeatherState(
     repository: BackgroundRepository,
     refreshGeneration: Int,
 ): WeatherModels.WeatherState? {
@@ -572,17 +882,16 @@ internal fun formatWeatherState(
 }
 
 @Composable
-private fun WeatherAttribution(
-    state: WeatherModels.WeatherState?,
-    fill: Boolean,
-    dynamicColor: Boolean,
-    modifier: Modifier = Modifier,
-) {
+private fun WeatherAttribution(faceColor: Color, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val iconCode = state?.data?.icon
-    val icon = remember(context, iconCode, fill) { WeatherIcon.load(context, iconCode, fill) }
-    val attribution = stringResource(R.string.weather_attribution)
-    val iconColor = if (dynamicColor) MaterialTheme.colorScheme.primary else Color.White
+    val density = LocalDensity.current
+    // The bundled QWeather logotype already spells out the brand, so it replaces the plain text
+    // label and is scaled to the same optical height as the 10sp caption it used to sit on.
+    val logoHeight = with(density) { 11.dp }
+    val suffix = stringResource(R.string.weather_attribution_suffix)
+    // The caption sits on the live face, so its ink follows whatever the face is painted with
+    // instead of the host window scheme, which says nothing about a photo or a theme gradient.
+    val captionColor = Color(ClockPalette.foreground(faceColor.toArgb())).copy(alpha = .72f)
     Row(
         modifier.clickable {
             runCatching {
@@ -594,24 +903,24 @@ private fun WeatherAttribution(
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(5.dp),
     ) {
-        if (icon != null) {
-            Canvas(Modifier.size(16.dp)) {
-                drawIntoCanvas { target ->
-                    icon.draw(
-                        target.nativeCanvas,
-                        0f,
-                        0f,
-                        size.minDimension,
-                        Paint(Paint.ANTI_ALIAS_FLAG).apply { color = iconColor.toArgb() },
-                    )
-                }
-            }
-        }
         Text(
-            text = attribution,
-            color = MaterialTheme.colorScheme.onBackground.copy(alpha = .55f),
+            text = stringResource(R.string.weather_attribution_prefix),
+            color = captionColor,
             fontSize = 10.sp,
         )
+        Image(
+            painter = painterResource(R.drawable.qweather_logo),
+            contentDescription = stringResource(R.string.weather_attribution),
+            colorFilter = ColorFilter.tint(captionColor),
+            modifier = Modifier.height(logoHeight),
+        )
+        if (suffix.isNotBlank()) {
+            Text(
+                text = suffix,
+                color = captionColor,
+                fontSize = 10.sp,
+            )
+        }
     }
 }
 
@@ -659,45 +968,53 @@ private fun DeviceStatusPill(
     scale: Float,
     transparent: Boolean,
     contentColor: Color,
+    faceColor: Color,
     modifier: Modifier = Modifier,
 ) {
     val normalizedScale = ClockPreferences.normalizeStatusIconScale(scale)
-    Card(
-        modifier,
-        colors = CardDefaults.cardColors(
-            containerColor = if (transparent) {
-                Color.Transparent
-            } else {
-                MaterialTheme.colorScheme.surface.copy(alpha = .82f)
-            },
-            contentColor = if (transparent) contentColor else MaterialTheme.colorScheme.onSurface,
-        ),
-        elevation = CardDefaults.cardElevation(defaultElevation = if (transparent) 0.dp else 1.dp),
-    ) {
-        Row(
-            Modifier.padding(
+    // A shallow frosted pane over the face: a soft white wash plus a hairline highlight instead
+    // of an opaque card, so the clock stays visible underneath and the ink stays readable.
+    val face = faceColor.toArgb()
+    val container = if (transparent) {
+        Color.Transparent
+    } else {
+        Color(ClockPalette.mix(face, 0xFFF6F8FC.toInt(), .18f)).copy(alpha = .42f)
+    }
+    val ink = if (transparent) contentColor else Color(ClockPalette.foreground(face))
+    val hairline = Color(ClockPalette.mix(face, 0xFFFFFFFF.toInt(), .38f)).copy(alpha = .38f)
+    Row(
+        modifier
+            .clip(RoundedCornerShape(percent = 50))
+            .then(
+                if (transparent) Modifier else Modifier
+                    .background(container)
+                    .border(1.dp, hairline, RoundedCornerShape(percent = 50)),
+            )
+            .padding(
                 horizontal = 10.dp * normalizedScale,
                 vertical = 7.dp * normalizedScale,
             ),
-            horizontalArrangement = Arrangement.spacedBy(7.dp * normalizedScale),
-            verticalAlignment = Alignment.CenterVertically,
-        ) {
+        horizontalArrangement = Arrangement.spacedBy(7.dp * normalizedScale),
+        verticalAlignment = Alignment.CenterVertically,
+    ) {
+        Icon(
+            if (status.connected) Icons.Default.Wifi else Icons.Default.WifiOff,
+            contentDescription = null,
+            tint = ink,
+            modifier = Modifier.size(18.dp * normalizedScale),
+        )
+        if (status.batteryPercent >= 0) {
             Icon(
-                if (status.connected) Icons.Default.Wifi else Icons.Default.WifiOff,
+                Icons.Default.BatteryFull,
                 contentDescription = null,
+                tint = ink,
                 modifier = Modifier.size(18.dp * normalizedScale),
             )
-            if (status.batteryPercent >= 0) {
-                Icon(
-                    Icons.Default.BatteryFull,
-                    contentDescription = null,
-                    modifier = Modifier.size(18.dp * normalizedScale),
-                )
-                Text(
-                    "${status.batteryPercent}%",
-                    fontSize = MaterialTheme.typography.labelMedium.fontSize * normalizedScale,
-                )
-            }
+            Text(
+                "${status.batteryPercent}%",
+                color = ink,
+                fontSize = MaterialTheme.typography.labelMedium.fontSize * normalizedScale,
+            )
         }
     }
 }
@@ -769,7 +1086,9 @@ private fun ChimeIndicator(repository: BackgroundRepository, calendar: Calendar)
                 scaleX = scale
                 scaleY = scale
             },
-            color = Color.Black,
+            // The chime washes the whole face in gold, so its ink is picked against that gold
+            // rather than hard-coded black.
+            color = Color(ClockPalette.foreground(0xFFF4C430.toInt())),
             style = MaterialTheme.typography.displaySmall,
             textAlign = TextAlign.Center,
         )

@@ -85,6 +85,7 @@ import com.clockmods.ui.DateFormatter
 import com.clockmods.ultimate.AntiBurnPreferences
 import com.clockmods.ultimate.clock.UltimateClockPreferences
 import com.clockmods.ultimate.compose.CalendarThemeCatalog
+import com.clockmods.ultimate.compose.CalendarThemeThumbnail
 import com.clockmods.weather.WeatherLocationCatalog
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
@@ -261,18 +262,7 @@ private fun ColorDialog(
 ) {
     var draft by rememberSaveable(initialColor) { mutableStateOf(colorSummary(initialColor)) }
     val parsed = remember(draft) { parseColor(draft) }
-    val presets = remember {
-        listOf(
-            0xFF000000.toInt(),
-            0xFF171918.toInt(),
-            0xFF154974.toInt(),
-            0xFF5E35B1.toInt(),
-            0xFF00695C.toInt(),
-            0xFF7F1D1D.toInt(),
-            0xFFF5F1E6.toInt(),
-            0xFFFFFFFF.toInt(),
-        )
-    }
+    val presets = CLOCK_COLOR_PRESETS
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.ultimate_background_color)) },
@@ -1208,19 +1198,24 @@ internal fun CalendarSettingsPage(modifier: Modifier, generation: Int) {
                         verticalAlignment = Alignment.CenterVertically,
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
                     ) {
-                        Box(
-                            Modifier
-                                .size(42.dp)
-                                .clip(MaterialTheme.shapes.small)
-                                .background(Color(style.backgroundStart)),
-                            contentAlignment = Alignment.Center,
-                        ) {
+                        // A real mini-calendar preview (grid / week strip / month hero) instead of a
+                        // flat colour chip, so each theme's structure is visible before selection.
+                        Box(Modifier.size(width = 84.dp, height = 60.dp)) {
+                            CalendarThemeThumbnail(theme = style, modifier = Modifier.fillMaxSize())
                             if (selected) {
-                                Icon(
-                                    Icons.Default.Check,
-                                    contentDescription = null,
-                                    tint = Color(style.accent),
-                                )
+                                Box(
+                                    Modifier
+                                        .fillMaxSize()
+                                        .clip(MaterialTheme.shapes.small)
+                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)),
+                                    contentAlignment = Alignment.Center,
+                                ) {
+                                    Icon(
+                                        Icons.Default.Check,
+                                        contentDescription = null,
+                                        tint = MaterialTheme.colorScheme.primary,
+                                    )
+                                }
                             }
                         }
                         Column(Modifier.weight(1f)) {
@@ -1255,7 +1250,7 @@ internal fun CalendarSettingsPage(modifier: Modifier, generation: Int) {
                             weight = option.nearestWeight(weight)
                             preferences.setFontWeight(typographyScope, weight)
                         },
-                        label = { Text(option.displayName) },
+                        label = { Text(FontCatalog.displayName(context, option.id)) },
                     )
                 }
             }

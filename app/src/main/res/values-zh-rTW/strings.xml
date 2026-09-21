@@ -109,12 +109,6 @@
     <string name="status_icon_size_percent">%1$d%%</string>
     <string name="status_wifi_signal">Wi-Fi 訊號 %1$d，共 %2$d 級</string>
     <string name="status_mobile_signal">行動網路訊號 %1$d，共 %2$d 級</string>
-    <string name="status_ethernet">乙太網路已連接</string>
-    <string name="status_no_network">無網路連線</string>
-    <string name="status_battery">電量 %1$d%%</string>
-    <string name="status_battery_charging">正在充電，電量 %1$d%%</string>
-    <string name="status_battery_unknown">電量未知</string>
-    <string name="status_network_and_battery">%1$s，%2$s</string>
     <string name="display_settings_group">顯示</string>
     <string name="calendar_settings_group">月曆</string>
     <string name="time_settings_group">時間</string>
@@ -180,7 +174,7 @@
     <string name="weather_interval_12hour">每 12 小時</string>
     <string name="weather_attribution">天氣服務由和風天氣驅動</string>
     <string name="weather_attribution_prefix">天氣服務由</string>
-    <string name="weather_attribution_brand">和風天氣 驅動</string>
+    <string name="weather_attribution_suffix">驅動</string>
 
     <!-- Weather status & detail labels (extracted from Java for localization) -->
     <string name="weather_fetching">正在取得天氣…</string>

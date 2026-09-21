@@ -158,25 +158,30 @@
     <string name="ultimate_weather_dynamic_color_summary">Follow the current Material accent color.</string>
 
     <string name="ultimate_calendar_title">Calendar</string>
+    <string name="calendar_settings_accessibility">Calendar settings</string>
     <string name="ultimate_calendar_week_section">Week display</string>
     <string name="ultimate_calendar_sunday">Sunday first</string>
     <string name="ultimate_calendar_monday">Monday first</string>
     <string name="ultimate_calendar_highlight_weekends">Highlight weekends</string>
     <string name="ultimate_calendar_highlight_weekends_summary">Distinguish Saturdays and Sundays in the month calendar.</string>
 
-    <string name="ultimate_calendar_theme_graphite_name">Graphite</string>
-    <string name="ultimate_calendar_theme_graphite_summary">Default dark dashboard, keeps clock and weather</string>
-    <string name="ultimate_calendar_theme_paper_name">Rice Paper</string>
-    <string name="ultimate_calendar_theme_paper_summary">Warm paper white, full-screen calendar only</string>
-    <string name="ultimate_calendar_theme_poster_name">Ink Poster</string>
-    <string name="ultimate_calendar_theme_poster_summary">Oversized month wordmark, bare number grid, no cards</string>
-    <string name="ultimate_calendar_theme_agenda_name">Indigo Week</string>
-    <string name="ultimate_calendar_theme_agenda_summary">A seven-day strip above a detail card with weather</string>
-    <string name="ultimate_calendar_theme_carbon_name">Carbon Black</string>
-    <string name="ultimate_calendar_theme_carbon_summary">The original dashboard on a true-black canvas, for OLED</string>
+    <string name="ultimate_calendar_theme_graphite_name">Graphite dashboard</string>
+    <string name="ultimate_calendar_theme_graphite_summary">Dark dashboard: month grid with a side detail card</string>
+    <string name="ultimate_calendar_theme_paper_name">Paper cards</string>
+    <string name="ultimate_calendar_theme_paper_summary">Warm card grid, red today highlight, work/rest badges</string>
+    <string name="ultimate_calendar_theme_poster_name">Big month</string>
+    <string name="ultimate_calendar_theme_poster_summary">Oversized month word-mark over a borderless number grid</string>
+    <string name="ultimate_calendar_theme_agenda_name">Indigo week</string>
+    <string name="ultimate_calendar_theme_agenda_summary">Seven-day week strip with a weather and almanac day card</string>
+    <string name="ultimate_calendar_theme_carbon_name">Carbon split</string>
+    <string name="ultimate_calendar_theme_carbon_summary">Pure-black OLED split with an almanac marquee footer</string>
+
+    <string name="ultimate_calendar_almanac_suitable">Do</string>
+    <string name="ultimate_calendar_almanac_avoid">Avoid</string>
+    <string name="ultimate_calendar_weather_label">Weather</string>
 
     <string name="ultimate_schedule_title">Schedule</string>
-    <string name="ultimate_schedule_add">＋ Add</string>
+    <string name="ultimate_schedule_add">Add</string>
     <string name="ultimate_schedule_empty">No schedule yet — tap add in the corner</string>
     <string name="ultimate_schedule_all_day">All day</string>
     <string name="ultimate_schedule_dialog_add">New schedule</string>
@@ -273,4 +278,5 @@
     <string name="ultimate_palette_panel">Panels</string>
     <string name="ultimate_palette_accent">Accent</string>
     <string name="ultimate_palette_adaptive">Text adapts to each surface. Background color applies when using the theme background.</string>
+    <string name="ultimate_palette_preview">Live preview</string>
 </resources>

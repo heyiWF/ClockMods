@@ -1,5 +1,15 @@
 package com.clockmods.ultimate.compose
 
+import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.RepeatMode
+import androidx.compose.animation.core.animateFloat
+import androidx.compose.animation.core.infiniteRepeatable
+import androidx.compose.animation.core.rememberInfiniteTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.togetherWith
 import androidx.compose.foundation.BorderStroke
 import androidx.compose.foundation.background
 import androidx.compose.foundation.gestures.detectHorizontalDragGestures
@@ -13,10 +23,14 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
+import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.heightIn
+import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
+import androidx.compose.foundation.layout.statusBarsPadding
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.layout.wrapContentWidth
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -27,6 +41,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowForward
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Delete
 import androidx.compose.material.icons.filled.Edit
+import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Today
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Card
@@ -44,19 +59,26 @@ import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
+import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
+import androidx.compose.ui.draw.clipToBounds
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalConfiguration
+import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.res.stringArrayResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
@@ -65,10 +87,13 @@ import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.isSpecified
 import androidx.compose.ui.unit.sp
 import com.clockmods.LocaleManager
 import com.clockmods.R
+import com.clockmods.background.BackgroundRepository
 import com.clockmods.background.ClockPreferences
 import com.clockmods.background.FontCatalog
 import com.clockmods.calendar.CalendarMonth
@@ -77,6 +102,8 @@ import com.clockmods.pro.LunarAlmanac
 import com.clockmods.pro.schedule.ScheduleItem
 import com.clockmods.pro.schedule.ScheduleStore
 import com.clockmods.ui.ClockTypefaceResolver
+import com.clockmods.weather.WeatherModels
+import com.clockmods.weather.WeatherTemperatureFormatter
 import java.text.DateFormat
 import java.text.SimpleDateFormat
 import java.util.Calendar
@@ -145,7 +172,11 @@ private fun containsChinese(text: String): Boolean {
 private fun dayKey(year: Int, month: Int, day: Int): String = "$year-$month-$day"
 
 @Composable
-internal fun CalendarScreen(modifier: Modifier, refreshGeneration: Int) {
+internal fun CalendarScreen(
+    modifier: Modifier,
+    refreshGeneration: Int,
+    onOpenCalendarSettings: (() -> Unit)? = null,
+) {
     val context = LocalContext.current
     val preferences = remember(context, refreshGeneration) { ClockPreferences(context) }
     val scheduleStore = remember(context) { ScheduleStore(context) }
@@ -229,6 +260,34 @@ internal fun CalendarScreen(modifier: Modifier, refreshGeneration: Int) {
             todayMillis,
             preferences.getCalendarWeekStart(),
         )
+    }
+    val weatherRepository = remember(context) { BackgroundRepository(context) }
+    val weatherState = rememberWeatherState(weatherRepository, refreshGeneration)
+    val weatherDetailLabels = WeatherModels.WeatherDetail.DetailLabels(
+        stringResource(R.string.weather_feels_format),
+        stringResource(R.string.weather_humidity_format),
+        stringResource(R.string.weather_wind_scale_format),
+        stringResource(R.string.weather_precip_format),
+        stringResource(R.string.weather_air_format),
+        stringResource(R.string.weather_warning_suffix),
+    )
+    var clockTick by remember(todayMillis) { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(Unit) {
+        while (true) {
+            clockTick = System.currentTimeMillis()
+            kotlinx.coroutines.delay(1_000L)
+        }
+    }
+    val weatherText = if (weatherRepository.isWeatherEnabled()) {
+        formatWeatherState(
+            weatherState,
+            weatherRepository.getWeatherTemperatureUnit(),
+            weatherRepository.isWeatherDetailed(),
+            weatherDetailLabels,
+            clockTick,
+        )
+    } else {
+        ""
     }
     val scheduleByDay = remember(monthData, refreshGeneration, scheduleRevision) {
         monthData.days.associate { day ->
@@ -318,83 +377,238 @@ internal fun CalendarScreen(modifier: Modifier, refreshGeneration: Int) {
                 )
             },
     ) {
-        Column(Modifier.fillMaxSize().padding(horizontal = 12.dp)) {
-            CalendarMonthHeader(
-                monthTitle = monthTitle,
-                theme = theme,
-                typography = typography,
-                onPrevious = { moveMonth(-1) },
-                onToday = {
-                    val now = Calendar.getInstance(timeZone)
-                    year = now.get(Calendar.YEAR)
-                    month = now.get(Calendar.MONTH)
-                    selectedKey = dayKey(year, month, now.get(Calendar.DAY_OF_MONTH))
-                },
-                onNext = { moveMonth(1) },
-            )
+        Column(Modifier.fillMaxSize().statusBarsPadding().padding(horizontal = 12.dp)) {
+            // The paper theme carries the month toolbar inside its panel (like the reference
+            // "宣纸水墨" layout), so the shared screen header is skipped for it.
+            if (theme.layout != CalendarLayout.CARD_GRID) {
+                CalendarMonthHeader(
+                    monthTitle = monthTitle,
+                    theme = theme,
+                    typography = typography,
+                    onPrevious = { moveMonth(-1) },
+                    onToday = {
+                        val now = Calendar.getInstance(timeZone)
+                        year = now.get(Calendar.YEAR)
+                        month = now.get(Calendar.MONTH)
+                        selectedKey = dayKey(year, month, now.get(Calendar.DAY_OF_MONTH))
+                    },
+                    onNext = { moveMonth(1) },
+                    onOpenSettings = onOpenCalendarSettings,
+                )
+            }
             BoxWithConstraints(Modifier.fillMaxWidth().weight(1f)) {
+                // Resolved once here: reading maxWidth/maxHeight deeper inside the layout lambdas
+                // trips the implicit-receiver rule (several nested layout scopes are in play), and
+                // a single boolean also documents the real branching condition.
+                val isLandscape = maxWidth > maxHeight
                 val selectedKeyForCell: (CalendarCellInfo) -> Boolean = { cell ->
                     selectedKey == dayKey(cell.day.year, cell.day.month, cell.day.dayOfMonth)
                 }
                 val selectCell: (CalendarCellInfo) -> Unit = { cell ->
                     selectedKey = dayKey(cell.day.year, cell.day.month, cell.day.dayOfMonth)
                 }
+                val highlightWeekends = preferences.isCalendarHighlightWeekends()
                 val selectionCard: @Composable (Modifier) -> Unit = { cardModifier ->
                     CalendarSelectionCard(
                         selected,
                         theme,
                         selectedSchedule,
                         typography,
+                        weatherText = weatherText,
                         onAddSchedule = { editingItem = null; editorVisible = true },
                         onEditSchedule = { editingItem = it; editorVisible = true },
                         modifier = cardModifier,
                     )
                 }
-                when {
-                    theme.id == ComposeCalendarTheme.ID_AGENDA -> {
+                val grid: @Composable (Modifier) -> Unit = { gridModifier ->
+                    CalendarMonthGrid(
+                        cells = cells,
+                        weekdays = weekdays,
+                        theme = theme,
+                        typography = typography,
+                        highlightWeekends = highlightWeekends,
+                        isSelected = selectedKeyForCell,
+                        onSelect = selectCell,
+                        modifier = gridModifier,
+                    )
+                }
+                when (theme.layout) {
+                    CalendarLayout.WEEK_AGENDA -> {
                         Column(Modifier.fillMaxSize()) {
-                            AgendaMonthStrip(
+                            WeekAgendaStrip(
                                 cells = cells.filter { it.day.currentMonth },
                                 theme = theme,
                                 typography = typography,
-                                highlightWeekends = preferences.isCalendarHighlightWeekends(),
+                                highlightWeekends = highlightWeekends,
                                 isSelected = selectedKeyForCell,
                                 onSelect = selectCell,
-                                modifier = Modifier.fillMaxWidth().heightIn(min = 76.dp, max = 96.dp),
+                                modifier = Modifier.fillMaxWidth().heightIn(min = 82.dp, max = 104.dp),
                             )
                             selectionCard(Modifier.fillMaxWidth().weight(1f).padding(vertical = 8.dp))
                         }
                     }
-                    maxWidth > maxHeight -> {
-                        Row(Modifier.fillMaxSize()) {
-                            CalendarMonthGrid(
-                                cells = cells,
-                                weekdays = weekdays,
+                    CalendarLayout.SPLIT_PANEL -> {
+                        Column(Modifier.fillMaxSize()) {
+                            if (isLandscape) {
+                                Row(Modifier.fillMaxWidth().weight(1f)) {
+                                    grid(Modifier.weight(.64f).fillMaxHeight())
+                                    Column(
+                                        Modifier.weight(.36f).fillMaxHeight().padding(8.dp),
+                                        verticalArrangement = Arrangement.spacedBy(8.dp),
+                                    ) {
+                                        CalendarWeatherStrip(
+                                            theme = theme,
+                                            typography = typography,
+                                            weatherText = weatherText,
+                                            locationText = weatherLocationText(weatherState),
+                                            cityLabel = stringResource(R.string.ultimate_calendar_weather_label),
+                                        )
+                                        selectionCard(Modifier.fillMaxWidth().weight(1f))
+                                    }
+                                }
+                            } else {
+                                CalendarWeatherStrip(
+                                    theme = theme,
+                                    typography = typography,
+                                    weatherText = weatherText,
+                                    locationText = weatherLocationText(weatherState),
+                                    cityLabel = stringResource(R.string.ultimate_calendar_weather_label),
+                                )
+                                grid(Modifier.fillMaxWidth().weight(1f))
+                                selectionCard(
+                                    Modifier.fillMaxWidth().heightIn(max = 220.dp).padding(vertical = 8.dp),
+                                )
+                            }
+                            AlmanacMarquee(
                                 theme = theme,
                                 typography = typography,
-                                highlightWeekends = preferences.isCalendarHighlightWeekends(),
-                                isSelected = selectedKeyForCell,
-                                onSelect = selectCell,
-                                modifier = Modifier.weight(.62f).fillMaxHeight(),
+                                suitableLabel = stringResource(R.string.ultimate_calendar_almanac_suitable),
+                                avoidLabel = stringResource(R.string.ultimate_calendar_almanac_avoid),
+                                suitable = selected.suitable,
+                                avoid = selected.avoid,
+                                modifier = Modifier.fillMaxWidth().padding(top = 4.dp, bottom = 4.dp),
                             )
-                            selectionCard(Modifier.weight(.38f).fillMaxHeight().padding(8.dp))
                         }
                     }
-                    else -> {
-                        Column(Modifier.fillMaxSize()) {
-                            CalendarMonthGrid(
-                                cells = cells,
-                                weekdays = weekdays,
-                                theme = theme,
-                                typography = typography,
-                                highlightWeekends = preferences.isCalendarHighlightWeekends(),
-                                isSelected = selectedKeyForCell,
-                                onSelect = selectCell,
-                                modifier = Modifier.fillMaxWidth().weight(1f),
-                            )
-                            selectionCard(
-                                Modifier.fillMaxWidth().heightIn(max = 250.dp).padding(vertical = 8.dp),
-                            )
+                    CalendarLayout.HERO_MONTH -> {
+                        if (isLandscape) {
+                            Row(Modifier.fillMaxSize()) {
+                                MonthHero(
+                                    monthTitle = monthTitle,
+                                    theme = theme,
+                                    typography = typography,
+                                    weatherText = weatherText,
+                                    modifier = Modifier
+                                        .weight(.32f)
+                                        .fillMaxHeight()
+                                        .padding(end = 12.dp),
+                                )
+                                Column(Modifier.weight(.68f).fillMaxHeight()) {
+                                    grid(Modifier.fillMaxWidth().weight(1f))
+                                    selectionCard(Modifier.fillMaxWidth().heightIn(max = 190.dp).padding(top = 8.dp))
+                                }
+                            }
+                        } else {
+                            Column(Modifier.fillMaxSize()) {
+                                MonthHero(
+                                    monthTitle = monthTitle,
+                                    theme = theme,
+                                    typography = typography,
+                                    weatherText = weatherText,
+                                    modifier = Modifier.fillMaxWidth().heightIn(min = 92.dp, max = 132.dp),
+                                )
+                                grid(Modifier.fillMaxWidth().weight(1f))
+                                selectionCard(Modifier.fillMaxWidth().heightIn(max = 210.dp).padding(vertical = 8.dp))
+                            }
+                        }
+                    }
+                    CalendarLayout.CARD_GRID -> {
+                        // "宣纸水墨": the whole month lives on one warm cream paper panel
+                        // (toolbar + weekday header + 7x6 grid viewport + footer), mirroring
+                        // calendar_dashboard_month.xml.
+                        if (isLandscape) {
+                            Row(Modifier.fillMaxSize().padding(4.dp)) {
+                                CalendarPaperPanel(
+                                    monthTitle = monthTitle,
+                                    theme = theme,
+                                    typography = typography,
+                                    onPrevious = { moveMonth(-1) },
+                                    onToday = {
+                                        val now = Calendar.getInstance(timeZone)
+                                        year = now.get(Calendar.YEAR)
+                                        month = now.get(Calendar.MONTH)
+                                        selectedKey = dayKey(
+                                            year,
+                                            month,
+                                            now.get(Calendar.DAY_OF_MONTH),
+                                        )
+                                    },
+                                    onNext = { moveMonth(1) },
+                                    onOpenSettings = onOpenCalendarSettings,
+                                    modifier = Modifier.weight(.64f).fillMaxHeight(),
+                                ) {
+                                    Column(Modifier.fillMaxSize()) {
+                                        grid(Modifier.fillMaxWidth().weight(1f))
+                                        CalendarDateFooter(
+                                            day = selected.day,
+                                            theme = theme,
+                                            typography = typography,
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                    }
+                                }
+                                selectionCard(Modifier.weight(.36f).fillMaxHeight().padding(8.dp))
+                            }
+                        } else {
+                            Column(Modifier.fillMaxSize().padding(4.dp)) {
+                                CalendarPaperPanel(
+                                    monthTitle = monthTitle,
+                                    theme = theme,
+                                    typography = typography,
+                                    onPrevious = { moveMonth(-1) },
+                                    onToday = {
+                                        val now = Calendar.getInstance(timeZone)
+                                        year = now.get(Calendar.YEAR)
+                                        month = now.get(Calendar.MONTH)
+                                        selectedKey = dayKey(
+                                            year,
+                                            month,
+                                            now.get(Calendar.DAY_OF_MONTH),
+                                        )
+                                    },
+                                    onNext = { moveMonth(1) },
+                                    onOpenSettings = onOpenCalendarSettings,
+                                    modifier = Modifier.fillMaxWidth().weight(1f),
+                                ) {
+                                    Column(Modifier.fillMaxSize()) {
+                                        grid(Modifier.fillMaxWidth().weight(1f))
+                                        CalendarDateFooter(
+                                            day = selected.day,
+                                            theme = theme,
+                                            typography = typography,
+                                            modifier = Modifier.fillMaxWidth(),
+                                        )
+                                    }
+                                }
+                                selectionCard(
+                                    Modifier.fillMaxWidth().heightIn(max = 250.dp).padding(bottom = 8.dp),
+                                )
+                            }
+                        }
+                    }
+                    CalendarLayout.DASHBOARD -> {
+                        if (isLandscape) {
+                            Row(Modifier.fillMaxSize()) {
+                                grid(Modifier.weight(.62f).fillMaxHeight())
+                                selectionCard(Modifier.weight(.38f).fillMaxHeight().padding(8.dp))
+                            }
+                        } else {
+                            Column(Modifier.fillMaxSize()) {
+                                grid(Modifier.fillMaxWidth().weight(1f))
+                                selectionCard(
+                                    Modifier.fillMaxWidth().heightIn(max = 250.dp).padding(vertical = 8.dp),
+                                )
+                            }
                         }
                     }
                 }
@@ -434,6 +648,87 @@ internal fun CalendarScreen(modifier: Modifier, refreshGeneration: Int) {
     }
 }
 
+/**
+ * The "宣纸水墨" month panel: a single warm cream paper card that hosts the month toolbar,
+ * the 7x6 grid viewport and the footer almanac line, mirroring `calendar_dashboard_month.xml`
+ * (`@drawable/calendar_dashboard_panel` + toolbar + weekdays + grid viewport + footer carousel).
+ */
+@Composable
+private fun CalendarPaperPanel(
+    monthTitle: String,
+    theme: ComposeCalendarTheme,
+    typography: CalendarTypography,
+    onPrevious: () -> Unit,
+    onToday: () -> Unit,
+    onNext: () -> Unit,
+    onOpenSettings: (() -> Unit)?,
+    modifier: Modifier = Modifier,
+    content: @Composable () -> Unit,
+) {
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(theme.cornerRadiusDp.dp.coerceAtLeast(8.dp)),
+        color = Color(theme.panel),
+        border = if (theme.panelStroke != 0) BorderStroke(1.dp, Color(theme.panelStroke)) else null,
+    ) {
+        Column(Modifier.fillMaxSize().padding(10.dp)) {
+            Row(
+                Modifier.fillMaxWidth().height(48.dp),
+                verticalAlignment = Alignment.CenterVertically,
+                horizontalArrangement = Arrangement.SpaceBetween,
+            ) {
+                IconButton(onClick = onPrevious) {
+                    Icon(
+                        Icons.AutoMirrored.Filled.ArrowBack,
+                        stringResource(R.string.calendar_previous_month),
+                        tint = Color(theme.text),
+                    )
+                }
+                Text(
+                    monthTitle,
+                    style = typography.timeStyle(
+                        MaterialTheme.typography.headlineSmall,
+                        monthTitle,
+                        emphasized = true,
+                    ),
+                    color = Color(theme.text),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                )
+                Row {
+                    IconButton(onClick = onToday) {
+                        Icon(
+                            Icons.Default.Today,
+                            stringResource(R.string.calendar_today),
+                            tint = Color(theme.accent),
+                        )
+                    }
+                    IconButton(onClick = onNext) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowForward,
+                            stringResource(R.string.calendar_next_month),
+                            tint = Color(theme.text),
+                        )
+                    }
+                    if (onOpenSettings != null) {
+                        IconButton(onClick = onOpenSettings) {
+                            Icon(
+                                Icons.Default.Settings,
+                                stringResource(R.string.calendar_settings_accessibility),
+                                tint = Color(theme.text),
+                            )
+                        }
+                    }
+                }
+            }
+            Spacer(Modifier.height(4.dp))
+            Box(Modifier.fillMaxWidth().weight(1f).clipToBounds()) {
+                content()
+            }
+        }
+    }
+}
+
 @Composable
 private fun CalendarMonthHeader(
     monthTitle: String,
@@ -442,6 +737,7 @@ private fun CalendarMonthHeader(
     onPrevious: () -> Unit,
     onToday: () -> Unit,
     onNext: () -> Unit,
+    onOpenSettings: (() -> Unit)?,
 ) {
     Row(
         Modifier.fillMaxWidth(),
@@ -479,8 +775,44 @@ private fun CalendarMonthHeader(
                     tint = Color(theme.text),
                 )
             }
+            if (onOpenSettings != null) {
+                IconButton(onClick = onOpenSettings) {
+                    Icon(
+                        Icons.Default.Settings,
+                        stringResource(R.string.calendar_settings_accessibility),
+                        tint = Color(theme.text),
+                    )
+                }
+            }
         }
     }
+}
+
+@Composable
+private fun CalendarDateFooter(
+    day: CalendarMonth.Day,
+    theme: ComposeCalendarTheme,
+    typography: CalendarTypography,
+    modifier: Modifier = Modifier,
+) {
+    val calendar = remember(day) {
+        Calendar.getInstance().apply { clear(); set(day.year, day.month, day.dayOfMonth) }
+    }
+    val almanac = remember(day) { LunarAlmanac.of(day.year, day.month, day.dayOfMonth) }
+    val text = remember(day, calendar) {
+        val fullDate = DateFormat.getDateInstance(DateFormat.FULL).format(calendar.time)
+        val natural = almanac.naturalLabel()
+        if (natural.isBlank()) fullDate else "$fullDate $natural"
+    }
+    Text(
+        text,
+        modifier = modifier.padding(vertical = 10.dp),
+        textAlign = TextAlign.Center,
+        maxLines = 1,
+        overflow = TextOverflow.Ellipsis,
+        color = Color(theme.text),
+        style = typography.dateStyle(MaterialTheme.typography.bodyMedium, text),
+    )
 }
 
 @Composable
@@ -525,7 +857,7 @@ private fun CalendarMonthGrid(
 }
 
 @Composable
-private fun AgendaMonthStrip(
+private fun WeekAgendaStrip(
     cells: List<CalendarCellInfo>,
     theme: ComposeCalendarTheme,
     typography: CalendarTypography,
@@ -536,20 +868,67 @@ private fun AgendaMonthStrip(
 ) {
     Row(
         modifier.horizontalScroll(rememberScrollState()),
-        horizontalArrangement = Arrangement.spacedBy(4.dp),
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
     ) {
         cells.forEach { cell ->
-            CalendarDayCell(
-                cell = cell,
-                selected = isSelected(cell),
-                highlightWeekends = highlightWeekends,
-                theme = theme,
-                typography = typography,
-                onSelect = { onSelect(cell) },
-                modifier = Modifier.width(64.dp).heightIn(min = 72.dp, max = 92.dp).padding(2.dp),
-            )
+            val selected = isSelected(cell)
+            val weekdayLabel = remember(cell.day.dayOfWeek) {
+                weekdayShortLabel(cell.day.dayOfWeek)
+            }
+            Surface(
+                onClick = { onSelect(cell) },
+                shape = RoundedCornerShape(theme.cornerRadiusDp.dp.coerceAtLeast(8.dp)),
+                color = if (selected) Color(theme.selectionFill) else Color.Transparent,
+                border = if (selected) BorderStroke(1.5.dp, Color(theme.selectionStroke)) else null,
+                modifier = Modifier.width(58.dp).heightIn(min = 78.dp, max = 100.dp),
+            ) {
+                Column(
+                    Modifier.fillMaxSize().padding(vertical = 8.dp, horizontal = 2.dp),
+                    horizontalAlignment = Alignment.CenterHorizontally,
+                    verticalArrangement = Arrangement.spacedBy(2.dp),
+                ) {
+                    Text(
+                        weekdayLabel,
+                        style = typography.supportingStyle(
+                            MaterialTheme.typography.labelSmall.copy(fontSize = 10.sp),
+                            weekdayLabel,
+                        ),
+                        color = Color(theme.secondary),
+                    )
+                    val dayText = cell.day.dayOfMonth.toString()
+                    Text(
+                        dayText,
+                        style = typography.timeStyle(
+                            MaterialTheme.typography.titleMedium,
+                            dayText,
+                            emphasized = cell.day.today || selected,
+                        ),
+                        color = if (cell.day.today) Color(theme.today) else Color(theme.day),
+                    )
+                    val supporting = cell.festivals.firstOrNull() ?: cell.lunar
+                    Text(
+                        supporting,
+                        maxLines = 1,
+                        style = typography.supportingStyle(
+                            MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                            supporting,
+                        ),
+                        color = Color(theme.secondary),
+                    )
+                }
+            }
         }
     }
+}
+
+private fun weekdayShortLabel(dayOfWeek: Int): String = when (dayOfWeek) {
+    Calendar.SUNDAY -> "日"
+    Calendar.MONDAY -> "一"
+    Calendar.TUESDAY -> "二"
+    Calendar.WEDNESDAY -> "三"
+    Calendar.THURSDAY -> "四"
+    Calendar.FRIDAY -> "五"
+    else -> "六"
 }
 
 @Composable
@@ -574,9 +953,10 @@ private fun CalendarDayCell(
     )
     val weekend = cell.day.dayOfWeek == Calendar.SATURDAY || cell.day.dayOfWeek == Calendar.SUNDAY
     val shape = if (theme.flatGrid) RoundedCornerShape(0.dp) else RoundedCornerShape(theme.cornerRadiusDp.dp)
+    val todayFill = theme.todayFill.takeIf { it != 0 }
     val container = when {
         selected -> Color(theme.selectionFill)
-        cell.day.today -> Color(theme.todayFill.takeIf { it != 0 } ?: theme.panel)
+        cell.day.today -> todayFill?.let(::Color) ?: Color(theme.panel)
         theme.flatGrid -> Color.Transparent
         else -> Color(theme.panel)
     }
@@ -596,44 +976,59 @@ private fun CalendarDayCell(
     ) {
         Column(Modifier.fillMaxSize().padding(if (theme.flatGrid) 1.dp else 3.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             val dayText = cell.day.dayOfMonth.toString()
-            Text(
-                dayText,
-                color = when {
-                    !cell.day.currentMonth -> Color(theme.secondary).copy(alpha = .45f)
-                    weekend && highlightWeekends -> Color(theme.weekend)
-                    else -> Color(theme.day)
-                },
-                style = typography.timeStyle(
-                    MaterialTheme.typography.bodyLarge,
+            val holidayLabel = cell.holiday?.let {
+                stringResource(if (it.offDay) R.string.calendar_day_status_off else R.string.calendar_day_status_work)
+            }
+            // The 班/休 badge rides to the top-right of the day number, as in the reference card.
+            Row(verticalAlignment = Alignment.Top) {
+                Text(
                     dayText,
-                    emphasized = cell.day.today || selected,
-                ),
-            )
-            val supportingLabel = cell.festivals.firstOrNull() ?: cell.lunar
-            Text(
-                supportingLabel,
-                maxLines = 1,
-                style = typography.supportingStyle(
-                    MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
-                    supportingLabel,
-                ),
-                color = Color(theme.secondary),
-            )
-            Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(2.dp)) {
-                cell.holiday?.let {
-                    val holidayLabel = stringResource(if (it.offDay) R.string.calendar_day_status_off else R.string.calendar_day_status_work)
+                    color = when {
+                        selected || cell.day.today -> Color(theme.today)
+                        !cell.day.currentMonth -> Color(theme.secondary).copy(alpha = .45f)
+                        weekend && highlightWeekends -> Color(theme.weekend)
+                        else -> Color(theme.day)
+                    },
+                    style = typography.timeStyle(
+                        MaterialTheme.typography.bodyLarge,
+                        dayText,
+                        emphasized = cell.day.today || selected,
+                    ),
+                )
+                if (holidayLabel != null) {
                     Text(
                         holidayLabel,
-                        color = Color(if (it.offDay) theme.restBadge else theme.workBadge),
+                        color = Color(if (cell.holiday!!.offDay) theme.restBadge else theme.workBadge),
                         style = typography.supportingStyle(
-                            MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                            MaterialTheme.typography.labelSmall.copy(fontSize = 8.sp),
                             holidayLabel,
                             emphasized = true,
                         ),
+                        modifier = Modifier.padding(start = 1.dp, top = 1.dp),
                     )
                 }
-                if (cell.hasSchedule) Box(Modifier.size(4.dp).background(Color(theme.accent), CircleShape))
+                if (cell.hasSchedule) {
+                    Box(
+                        Modifier
+                            .padding(start = 1.dp, top = 3.dp)
+                            .size(4.dp)
+                            .background(Color(theme.accent), CircleShape),
+                    )
+                }
             }
+            val carouselLabels = buildList {
+                add(cell.lunar)
+                addAll(cell.festivals)
+            }
+            LunarCarouselText(
+                labels = carouselLabels,
+                color = if (selected || cell.day.today) Color(theme.today).copy(alpha = .9f)
+                    else Color(theme.secondary),
+                style = typography.supportingStyle(
+                    MaterialTheme.typography.labelSmall.copy(fontSize = 9.sp),
+                    carouselLabels.firstOrNull().orEmpty(),
+                ),
+            )
         }
     }
 }
@@ -644,6 +1039,7 @@ private fun CalendarSelectionCard(
     theme: ComposeCalendarTheme,
     scheduleItems: List<ScheduleItem>,
     typography: CalendarTypography,
+    weatherText: String,
     onAddSchedule: () -> Unit,
     onEditSchedule: (ScheduleItem) -> Unit,
     modifier: Modifier = Modifier,
@@ -680,6 +1076,17 @@ private fun CalendarSelectionCard(
                 style = typography.supportingStyle(MaterialTheme.typography.bodyMedium, naturalLabel),
                 color = Color(theme.secondary),
             )
+            if (theme.showWeather && weatherText.isNotBlank()) {
+                Text(
+                    weatherText,
+                    style = typography.supportingStyle(
+                        MaterialTheme.typography.bodyMedium,
+                        weatherText,
+                        emphasized = true,
+                    ),
+                    color = Color(theme.accent),
+                )
+            }
             val events = buildList {
                 addAll(info.festivals)
                 info.holiday?.name?.takeIf(String::isNotBlank)?.let(::add)
@@ -692,22 +1099,22 @@ private fun CalendarSelectionCard(
                     color = Color(theme.accent),
                 )
             }
-            if (info.suitable.isNotEmpty()) {
-                val suitableText = stringResource(R.string.calendar_suitable_prefix) +
-                    info.suitable.take(8).joinToString(" · ")
-                Text(
-                    suitableText,
-                    style = typography.supportingStyle(MaterialTheme.typography.bodyMedium, suitableText),
-                    color = Color(theme.suitable),
+            if (!theme.marqueeAlmanac && info.suitable.isNotEmpty()) {
+                AlmanacLine(
+                    label = stringResource(R.string.ultimate_calendar_almanac_suitable),
+                    items = info.suitable,
+                    theme = theme,
+                    typography = typography,
+                    emphasis = Color(theme.suitable),
                 )
             }
-            if (info.avoid.isNotEmpty()) {
-                val avoidText = stringResource(R.string.calendar_avoid_prefix) +
-                    info.avoid.take(8).joinToString(" · ")
-                Text(
-                    avoidText,
-                    style = typography.supportingStyle(MaterialTheme.typography.bodyMedium, avoidText),
-                    color = Color(theme.avoid),
+            if (!theme.marqueeAlmanac && info.avoid.isNotEmpty()) {
+                AlmanacLine(
+                    label = stringResource(R.string.ultimate_calendar_almanac_avoid),
+                    items = info.avoid,
+                    theme = theme,
+                    typography = typography,
+                    emphasis = Color(theme.avoid),
                 )
             }
             Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
@@ -778,6 +1185,375 @@ private fun CalendarSelectionCard(
          }
      }
  }
+}
+
+/** A single 宜/忌 row: a coloured label chip followed by items that scroll horizontally. */
+@Composable
+private fun AlmanacLine(
+    label: String,
+    items: List<String>,
+    theme: ComposeCalendarTheme,
+    typography: CalendarTypography,
+    emphasis: Color,
+    modifier: Modifier = Modifier,
+) {
+    Row(
+        modifier.fillMaxWidth(),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(6.dp),
+    ) {
+        Surface(
+            shape = CircleShape,
+            color = emphasis.copy(alpha = .16f),
+            modifier = Modifier.size(20.dp),
+        ) {
+            Box(contentAlignment = Alignment.Center, modifier = Modifier.fillMaxSize()) {
+                Text(
+                    label,
+                    color = emphasis,
+                    style = typography.supportingStyle(
+                        MaterialTheme.typography.labelSmall.copy(fontSize = 11.sp),
+                        label,
+                        emphasized = true,
+                    ),
+                )
+            }
+        }
+        val body = items.take(10).joinToString(" · ")
+        // The list itself is plain weight; when it overflows one line it scrolls horizontally
+        // instead of being ellipsised.
+        MarqueeText(
+            text = body,
+            color = emphasis,
+            style = typography.supportingStyle(
+                MaterialTheme.typography.bodyMedium,
+                body,
+            ),
+            modifier = Modifier.weight(1f),
+        )
+    }
+}
+
+/** A single-line 宜/忌 footer that scrolls its combined text horizontally. */
+@Composable
+private fun AlmanacMarquee(
+    theme: ComposeCalendarTheme,
+    typography: CalendarTypography,
+    suitableLabel: String,
+    avoidLabel: String,
+    suitable: List<String>,
+    avoid: List<String>,
+    modifier: Modifier = Modifier,
+) {
+    if (suitable.isEmpty() && avoid.isEmpty()) return
+    val text = buildString {
+        if (suitable.isNotEmpty()) {
+            append(suitableLabel).append(' ').append(suitable.take(10).joinToString(" · "))
+        }
+        if (suitable.isNotEmpty() && avoid.isNotEmpty()) append("      ")
+        if (avoid.isNotEmpty()) {
+            append(avoidLabel).append(' ').append(avoid.take(10).joinToString(" · "))
+        }
+    }
+    Surface(
+        modifier = modifier,
+        shape = RoundedCornerShape(theme.cornerRadiusDp.dp.coerceAtLeast(8.dp)),
+        color = Color(theme.panel),
+        border = if (theme.panelStroke != 0) BorderStroke(1.dp, Color(theme.panelStroke)) else null,
+    ) {
+        Box(Modifier.fillMaxWidth().padding(vertical = 6.dp)) {
+            MarqueeText(
+                text = text,
+                color = Color(theme.suitable),
+                style = typography.supportingStyle(
+                    MaterialTheme.typography.bodyMedium,
+                    text,
+                ),
+            )
+        }
+    }
+}
+
+/**
+ * Shared phase clock for every per-cell calendar label carousel, mirroring the Java
+ * `CalendarCarouselTimeline`: all cells advance on the same boundary so their vertical
+ * transitions share one frame phase.
+ */
+private object CalendarCarouselTimeline {
+    const val HOLD_MS = 3_000L
+    const val TRANSITION_MS = 200L
+    const val CYCLE_MS = HOLD_MS + TRANSITION_MS
+}
+
+/**
+ * The lunar line under a day number. When the day carries a solar term or festival the label
+ * rolls vertically between the lunar day and that festival, matching the reference 宣纸 card;
+ * a plain lunar day stays still.
+ *
+ * <p>Faithful port of the Java `CalendarLabelCarouselView`: the motion is a pure upward slide
+ * of one line height (never a horizontal shift), driven by the shared [CalendarCarouselTimeline].
+ * A label longer than [MAX_STATIC_CHARS] characters scrolls horizontally while it is shown;
+ * shorter labels stay centred (never scroll).</p>
+ */
+@Composable
+private fun LunarCarouselText(
+    labels: List<String>,
+    color: Color,
+    style: TextStyle,
+    modifier: Modifier = Modifier,
+) {
+    val distinct = remember(labels) { labels.distinct().filter { it.isNotEmpty() } }
+    if (distinct.isEmpty()) return
+    if (distinct.size == 1) {
+        LunarCarouselLine(distinct.first(), color, style, modifier)
+        return
+    }
+    val density = LocalDensity.current
+    val lineHeight = with(density) {
+        val fontSizePx = style.fontSize.toPx()
+        val multiplier = if (style.lineHeight.isSpecified && style.lineHeight.value > 0f) {
+            style.lineHeight.toPx() / fontSizePx
+        } else {
+            1.2f
+        }
+        (fontSizePx * multiplier).coerceAtLeast(1f)
+    }
+    var phase by remember { mutableFloatStateOf(0f) }
+    var cycle by remember { mutableIntStateOf(0) }
+    LaunchedEffect(distinct) {
+        val start = withFrameNanos { it }
+        while (true) {
+            val now = withFrameNanos { it }
+            val elapsed = (now - start) / 1_000_000L
+            // Keep the raw cycle count separately: phase is wrapped to [0, CYCLE_MS) so that the
+            // hold/slide math stays simple, but the label index must advance over the LONG-RUN
+            // total, otherwise it would stick on the first pair forever.
+            cycle = (elapsed / CalendarCarouselTimeline.CYCLE_MS).toInt()
+            phase = (elapsed % CalendarCarouselTimeline.CYCLE_MS).toFloat()
+        }
+    }
+    val index = ((cycle % distinct.size) + distinct.size) % distinct.size
+    val holding = phase < CalendarCarouselTimeline.HOLD_MS
+    val progress = if (holding) 0f else
+        ((phase - CalendarCarouselTimeline.HOLD_MS) / CalendarCarouselTimeline.TRANSITION_MS)
+            .coerceIn(0f, 1f)
+    val nextIndex = (index + 1) % distinct.size
+    val slide = progress * lineHeight
+    Box(
+        modifier
+            .height(with(density) { lineHeight.toDp() })
+            .clipToBounds(),
+    ) {
+        LunarCarouselLine(
+            distinct[index],
+            color,
+            style,
+            Modifier.graphicsLayer { translationY = -slide },
+        )
+        if (!holding) {
+            LunarCarouselLine(
+                distinct[nextIndex],
+                color,
+                style,
+                Modifier.graphicsLayer { translationY = lineHeight - slide },
+            )
+        }
+    }
+}
+
+/** One line of a [LunarCarouselText]: centred when short, marquee-scrolled when long. */
+@Composable
+private fun LunarCarouselLine(
+    text: String,
+    color: Color,
+    style: TextStyle,
+    modifier: Modifier = Modifier,
+) {
+    val scrollable = text.codePointCount(0, text.length) > MAX_STATIC_CHARS
+    if (!scrollable) {
+        Text(
+            text,
+            color = color,
+            maxLines = 1,
+            softWrap = false,
+            overflow = TextOverflow.Clip,
+            textAlign = TextAlign.Center,
+            style = style,
+            modifier = modifier.fillMaxWidth(),
+        )
+        return
+    }
+    Box(modifier.fillMaxWidth().clipToBounds()) {
+        MarqueeText(text, color, style, modifier = Modifier.fillMaxWidth())
+    }
+}
+
+/** A label scrolls horizontally only when it is longer than this many characters. */
+private const val MAX_STATIC_CHARS = 3
+
+/**
+ * A minimal single-line horizontal marquee with no external dependency.  When the text fits it
+ * sits still; when it overflows it scrolls left continuously and wraps seamlessly.
+ */
+@Composable
+private fun MarqueeText(
+    text: String,
+    color: Color,
+    style: TextStyle,
+    modifier: Modifier = Modifier,
+) {
+    val density = LocalDensity.current
+    var containerWidth by remember { mutableIntStateOf(0) }
+    var textWidth by remember { mutableIntStateOf(0) }
+    val overflow = textWidth > containerWidth && containerWidth > 0
+    val transition = rememberInfiniteTransition(label = "almanac-marquee")
+    val progress by transition.animateFloat(
+        initialValue = 0f,
+        targetValue = 1f,
+        animationSpec = infiniteRepeatable(
+            animation = tween(
+                durationMillis = ((textWidth + containerWidth).coerceAtLeast(1) * 18).coerceAtLeast(4_000),
+                easing = LinearEasing,
+            ),
+            repeatMode = RepeatMode.Restart,
+        ),
+        label = "almanac-marquee-progress",
+    )
+    val gapPx = with(density) { 48.dp.toPx() }
+    val offsetPx = if (overflow) {
+        val span = (textWidth + gapPx).toFloat()
+        -(progress * span)
+    } else {
+        0f
+    }
+    Box(
+        modifier
+            .fillMaxWidth()
+            .clipToBounds()
+            .onSizeChanged { containerWidth = it.width },
+    ) {
+        Row(Modifier.wrapContentWidth().graphicsLayer { translationX = offsetPx }) {
+            Text(
+                text,
+                color = color,
+                maxLines = 1,
+                softWrap = false,
+                style = style,
+                modifier = Modifier
+                    .padding(horizontal = 12.dp)
+                    .onSizeChanged { textWidth = it.width },
+            )
+            if (overflow) {
+                Text(
+                    text,
+                    color = color,
+                    maxLines = 1,
+                    softWrap = false,
+                    style = style,
+                    modifier = Modifier.padding(horizontal = 12.dp),
+                )
+            }
+        }
+    }
+}
+
+@Composable
+private fun CalendarWeatherStrip(
+    theme: ComposeCalendarTheme,
+    typography: CalendarTypography,
+    weatherText: String,
+    locationText: String,
+    cityLabel: String,
+    modifier: Modifier = Modifier,
+) {
+    Surface(
+        modifier = modifier.fillMaxWidth(),
+        shape = RoundedCornerShape(theme.cornerRadiusDp.dp.coerceAtLeast(8.dp)),
+        color = Color(theme.panel),
+        border = if (theme.panelStroke != 0) BorderStroke(1.dp, Color(theme.panelStroke)) else null,
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(8.dp),
+        ) {
+            Text(
+                cityLabel,
+                color = Color(theme.secondary),
+                style = typography.supportingStyle(
+                    MaterialTheme.typography.labelMedium,
+                    cityLabel,
+                ),
+            )
+            val body = when {
+                weatherText.isNotBlank() && locationText.isNotBlank() -> "$locationText $weatherText"
+                weatherText.isNotBlank() -> weatherText
+                else -> "—"
+            }
+            AnimatedContent(
+                targetState = body,
+                transitionSpec = { fadeIn() togetherWith fadeOut() },
+                label = "calendar-weather",
+            ) { value ->
+                Text(
+                    value,
+                    Modifier.weight(1f, fill = false),
+                    color = Color(theme.text),
+                    maxLines = 1,
+                    overflow = TextOverflow.Ellipsis,
+                    style = typography.supportingStyle(
+                        MaterialTheme.typography.bodyMedium,
+                        value,
+                        emphasized = true,
+                    ),
+                )
+            }
+        }
+    }
+}
+
+/** Oversized month word-mark panel used by the HERO_MONTH layout. */
+@Composable
+private fun MonthHero(
+    monthTitle: String,
+    theme: ComposeCalendarTheme,
+    typography: CalendarTypography,
+    weatherText: String,
+    modifier: Modifier = Modifier,
+) {
+    Box(modifier, contentAlignment = Alignment.CenterStart) {
+        Column(verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            Text(
+                monthTitle,
+                color = Color(theme.text),
+                maxLines = 3,
+                softWrap = true,
+                overflow = TextOverflow.Ellipsis,
+                style = typography.timeStyle(
+                    MaterialTheme.typography.displaySmall,
+                    monthTitle,
+                    emphasized = true,
+                ),
+            )
+            if (weatherText.isNotBlank()) {
+                Text(
+                    weatherText,
+                    color = Color(theme.accent),
+                    maxLines = 2,
+                    overflow = TextOverflow.Ellipsis,
+                    style = typography.supportingStyle(
+                        MaterialTheme.typography.bodyMedium,
+                        weatherText,
+                    ),
+                )
+            }
+        }
+    }
+}
+
+private fun weatherLocationText(state: WeatherModels.WeatherState?): String {
+    val data = state?.data ?: return ""
+    return WeatherModels.locationText(data.city, data.district)
 }
 
 @OptIn(ExperimentalMaterial3Api::class)

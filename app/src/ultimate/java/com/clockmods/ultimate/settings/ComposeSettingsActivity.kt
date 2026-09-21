@@ -130,6 +130,24 @@ open class UltimateSettingsActivity : ComponentActivity() {
         fun shouldShowSecondMotionControls(style: ClockStyle?): Boolean =
             style != null && style.getMetadata().getKind() != ClockStyleMetadata.Kind.DIGITAL &&
                 style.getMetadata().getCapabilities().supports(ClockStyleCapabilities.Capability.SECONDS)
+
+        /**
+         * Window width (dp) at which the settings surface switches to the side-by-side rail + page
+         * layout. Must stay in sync with the breakpoint used to pick the layout in `SettingsScreen`.
+         */
+        const val TWO_PANE_MIN_WIDTH_DP = 840
+
+        @JvmStatic
+        fun isTwoPaneWidth(widthDp: Int): Boolean = widthDp >= TWO_PANE_MIN_WIDTH_DP
+
+        /**
+         * True when a back press should leave settings outright. In two-pane mode the page shows
+         * next to the rail, so it is not a deeper screen: one back press always exits. In compact
+         * mode a selected page is a real second level, so the first back returns to the rail.
+         */
+        @JvmStatic
+        fun shouldCloseSettingsOnBack(twoPane: Boolean, pageSelected: Boolean): Boolean =
+            twoPane || !pageSelected
     }
 }
 

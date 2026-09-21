@@ -321,7 +321,6 @@ class UltimateClockRendererSmokeTest {
             .dateText("2026 年 8 月 25 日 星期二 / 丙午[马]年七月十三 处暑 长中文日期压力测试")
             .timeZoneText("GMT+08:00 中国标准时间")
             .weatherText("深圳宝安 30 阴 / 体感温度 34 摄氏度")
-            .statusText("Wi-Fi / 82%")
             .timeScale(1.5f)
             .dateScale(1.5f)
             .supportingScale(1.5f)

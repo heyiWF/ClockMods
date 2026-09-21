@@ -51,16 +51,23 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.clockmods.R
+import com.clockmods.LocaleManager
 import com.clockmods.background.ClockPreferences
+import com.clockmods.background.BackgroundRepository
 import com.clockmods.background.FontCatalog
 import com.clockmods.sdk.clock.ClockState
 import com.clockmods.sdk.clock.ClockStyleCapabilities
 import com.clockmods.sdk.clock.WorldClockEntry
 import com.clockmods.ultimate.clock.ClockPalette
+import com.clockmods.ultimate.compose.ClockPreviewCanvas
+import com.clockmods.ultimate.compose.ClockStyleThumbnail
+import com.clockmods.ultimate.compose.previewClockBackground
 import com.clockmods.ultimate.clock.UltimateClockPreferences
 import com.clockmods.ultimate.clock.UltimateClockStyles
 import com.clockmods.ultimate.clock.WorldClockCatalog
@@ -68,6 +75,36 @@ import com.clockmods.ultimate.clock.WorldClockRepository
 import java.util.Locale
 
 private enum class StyleDialog { TIME_COLOR, DATE_COLOR }
+
+/** Every gallery tile shares one size so the row reads as an even grid. */
+private val STYLE_CARD_WIDTH = 172.dp
+private val STYLE_CARD_HEIGHT = 136.dp
+
+/** Height of the live theme preview shown above the palette swatches. */
+private val PALETTE_PREVIEW_HEIGHT = 168.dp
+
+/**
+ * The one colour ramp offered by every picker, ordered dark to light so the swatches read as a
+ * gradient rather than a set of competing hues.
+ *
+ * Every entry stays muted: the saturated primaries that used to sit here (a bright red, a vivid
+ * purple, a strong teal) shouted over the clock face and clashed with the themes' own colourways.
+ * The three `ClockPalette.DEFAULT` values are included so a fresh install still shows a selection.
+ */
+internal val CLOCK_COLOR_PRESETS = listOf(
+    0xFF000000.toInt(), // black
+    0xFF171918.toInt(), // ink
+    0xFF154974.toInt(), // deep navy (palette default background)
+    0xFF23557F.toInt(), // panel blue (palette default panel)
+    0xFF55697A.toInt(), // slate
+    0xFF78838C.toInt(), // stone
+    0xFF5C6B57.toInt(), // sage
+    0xFF6E6252.toInt(), // umber
+    0xFF9ECAFC.toInt(), // pastel blue (palette default accent)
+    0xFFE7E2D6.toInt(), // sand
+    0xFFF5F1E6.toInt(), // cream
+    0xFFFFFFFF.toInt(), // white
+)
 
 @Composable
 internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
@@ -121,6 +158,7 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
     var palette by remember(generation, styleId) {
         mutableStateOf(stylePreferences.getPalette(styleId))
     }
+    val backgroundRepository = remember(context, generation) { BackgroundRepository(context) }
     val activeStyle = remember(styleId) {
         UltimateClockStyles.sharedRegistry().resolveForApi(styleId, android.os.Build.VERSION.SDK_INT)
     }
@@ -137,6 +175,7 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
                 items(UltimateClockStyles.builtIns(), key = { it.getMetadata().getId() }) { style ->
                     val metadata = style.getMetadata()
+                    val selected = metadata.getId() == styleId
                     Card(
                         onClick = {
                             styleId = metadata.getId()
@@ -156,19 +195,47 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
                             supportingScale = preferences.getSupportingFontScale(styleId)
                             palette = stylePreferences.getPalette(styleId)
                         },
-                        modifier = Modifier.width(180.dp),
+                        // Fixed card size keeps every tile in the gallery aligned regardless of
+                        // how long the localized name or summary happens to be.
+                        modifier = Modifier.width(STYLE_CARD_WIDTH).height(STYLE_CARD_HEIGHT),
                         colors = CardDefaults.cardColors(
-                            containerColor = if (metadata.getId() == styleId) {
+                            containerColor = if (selected) {
                                 MaterialTheme.colorScheme.primaryContainer
                             } else MaterialTheme.colorScheme.surfaceVariant,
                         ),
                     ) {
-                        Column(Modifier.padding(14.dp), verticalArrangement = Arrangement.spacedBy(5.dp)) {
-                            Text(metadata.getName(), fontWeight = FontWeight.SemiBold)
+                        Column(
+                            Modifier.fillMaxSize().padding(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            // A live thumbnail of the face, painted by the same renderer the clock
+                            // uses, so the gallery reads at a glance instead of describing styles
+                            // in words.
+                            Box(
+                                Modifier
+                                    .fillMaxWidth()
+                                    .height(52.dp)
+                                    .clip(MaterialTheme.shapes.small),
+                            ) {
+                                ClockStyleThumbnail(
+                                    styleId = metadata.getId(),
+                                    palette = stylePreferences.getPalette(metadata.getId()),
+                                    modifier = Modifier.fillMaxSize(),
+                                )
+                            }
                             Text(
-                                metadata.getDescription(),
-                                style = MaterialTheme.typography.bodySmall,
+                                stringResource(UltimateClockStyles.styleNameRes(metadata.getId())),
+                                fontWeight = FontWeight.SemiBold,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                style = MaterialTheme.typography.bodyMedium,
+                            )
+                            Text(
+                                stringResource(UltimateClockStyles.styleSummaryRes(metadata.getId())),
+                                style = MaterialTheme.typography.labelSmall,
                                 color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
                             )
                         }
                     }
@@ -217,7 +284,7 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
                             weight = option.nearestWeight(weight)
                             preferences.setFontWeight(styleId, weight)
                         },
-                        label = { Text(option.displayName) },
+                        label = { Text(FontCatalog.displayName(context, option.id)) },
                     )
                 }
             }
@@ -338,8 +405,17 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
 
         if (ClockPalette.supports(styleId)) {
             SettingSection(stringResource(R.string.ultimate_style_palette)) {
+                Text(
+                    stringResource(R.string.ultimate_palette_preview),
+                    style = MaterialTheme.typography.labelMedium,
+                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                )
                 PaletteEditor(
+                    styleId = styleId,
                     palette = palette,
+                    repository = backgroundRepository,
+                    appearance = stylePreferences,
+                    generation = generation,
                     onChange = {
                         palette = it
                         stylePreferences.setPalette(styleId, it)
@@ -436,13 +512,7 @@ private fun StyleColorDialog(
 ) {
     var draft by rememberSaveable(initialColor) { mutableStateOf(styleColorSummary(initialColor)) }
     val parsed = remember(draft) { parseStyleColor(draft) }
-    val presets = remember {
-        listOf(
-            0xFF000000.toInt(), 0xFF171918.toInt(), 0xFF154974.toInt(),
-            0xFF5E35B1.toInt(), 0xFF00695C.toInt(), 0xFF7F1D1D.toInt(),
-            0xFFF5F1E6.toInt(), 0xFFFFFFFF.toInt(),
-        )
-    }
+    val presets = CLOCK_COLOR_PRESETS
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(title) },
@@ -496,24 +566,50 @@ private fun parseStyleColor(value: String): Int? {
 }
 
 @Composable
-private fun PaletteEditor(palette: ClockPalette, onChange: (ClockPalette) -> Unit) {
-    val colors = listOf(
-        0xFF154974.toInt(), 0xFF23557F.toInt(), 0xFF9ECAFC.toInt(),
-        0xFF171918.toInt(), 0xFF5E35B1.toInt(), 0xFF00897B.toInt(),
-        0xFFC8362F.toInt(), 0xFFF5F1E6.toInt(), 0xFFFAFAF8.toInt(),
-    )
+private fun PaletteEditor(
+    styleId: String,
+    palette: ClockPalette,
+    repository: BackgroundRepository,
+    appearance: UltimateClockPreferences,
+    generation: Int,
+    onChange: (ClockPalette) -> Unit,
+) {
+    // The preview renders through the style's real renderer over the user's real background, so the
+    // swatch rows below are a live readout of the theme rather than a blind colour picker.
+    val background = previewClockBackground(repository, appearance, generation)
+    Box(
+        Modifier
+            .fillMaxWidth()
+            .height(PALETTE_PREVIEW_HEIGHT)
+            .clip(MaterialTheme.shapes.medium),
+    ) {
+        ClockPreviewCanvas(
+            styleId = styleId,
+            palette = palette,
+            background = background,
+            modifier = Modifier.fillMaxSize(),
+        )
+    }
     listOf(
         0 to R.string.ultimate_palette_background,
         1 to R.string.ultimate_palette_panel,
         2 to R.string.ultimate_palette_accent,
     ).forEach { (role, label) ->
         Text(stringResource(label))
+        // A palette saved by an older build can hold a colour this ramp no longer offers, so keep
+        // it in the row as the selected swatch instead of silently dropping the highlight.
+        val current = palette.color(role)
+        val swatches = if (current in CLOCK_COLOR_PRESETS) {
+            CLOCK_COLOR_PRESETS
+        } else {
+            listOf(current) + CLOCK_COLOR_PRESETS
+        }
         Row(
             Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()).padding(vertical = 6.dp),
             horizontalArrangement = Arrangement.spacedBy(9.dp),
         ) {
-            colors.forEach { color ->
-                val selected = palette.color(role) == color
+            swatches.forEach { color ->
+                val selected = current == color
                 Box(
                     Modifier
                         .size(if (selected) 38.dp else 34.dp)
@@ -557,6 +653,10 @@ private fun WorldClockDialog(
 ) {
     var query by rememberSaveable { mutableStateOf("") }
     var selected by remember { mutableStateOf(initial) }
+    val context = LocalContext.current
+    val language = remember(context) {
+        WorldClockCatalog.languageOf(LocaleManager.resolveLocale(context))
+    }
     val results = remember(query) { WorldClockCatalog.search(query).take(100) }
     AlertDialog(
         onDismissRequest = onDismiss,
@@ -584,9 +684,10 @@ private fun WorldClockDialog(
                         ) {
                             Text(entry.getFlagEmoji(), Modifier.padding(end = 8.dp))
                             Column(Modifier.weight(1f)) {
-                                Text(entry.getCity())
+                                Text(WorldClockCatalog.displayCity(entry, language))
                                 Text(
-                                    "${entry.getCountry()} · ${entry.getZoneId()}",
+                                    WorldClockCatalog.displayCountry(entry, language) +
+                                        " · " + entry.getZoneId(),
                                     style = MaterialTheme.typography.bodySmall,
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )

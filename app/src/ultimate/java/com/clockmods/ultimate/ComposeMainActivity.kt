@@ -86,6 +86,11 @@ open class ComposeMainActivity : ComponentActivity() {
                     onOpenSettings = {
                         settingsLauncher.launch(ComposeSettingsActivity.createIntent(this))
                     },
+                    onOpenCalendarSettings = {
+                        settingsLauncher.launch(
+                            ComposeSettingsActivity.createSubpageIntent(this, "calendar"),
+                        )
+                    },
                 )
             }
         }

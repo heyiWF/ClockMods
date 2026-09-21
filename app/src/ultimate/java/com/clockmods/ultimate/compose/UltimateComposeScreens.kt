@@ -1,10 +1,12 @@
 package com.clockmods.ultimate.compose
 
+import android.app.Activity
 import android.content.res.Configuration
 import android.os.SystemClock
 import androidx.annotation.StringRes
 import androidx.compose.foundation.background
 import androidx.compose.foundation.layout.Box
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
@@ -24,6 +26,7 @@ import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Text
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableLongStateOf
@@ -40,10 +43,14 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
+import androidx.core.view.WindowCompat
+import androidx.core.view.WindowInsetsCompat
+import androidx.core.view.WindowInsetsControllerCompat
 import com.clockmods.R
 import com.clockmods.ultimate.AntiBurnPreferences
 import com.clockmods.ultimate.ComposeMainActivity
@@ -71,8 +78,10 @@ fun UltimateApp(
     requestedDestination: String? = null,
     navigationRequestGeneration: Int = 0,
     onOpenSettings: () -> Unit,
+    onOpenCalendarSettings: () -> Unit = onOpenSettings,
 ) {
     var destination by rememberSaveable { mutableStateOf(Destination.CLOCK) }
+    var chromeVisible by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(navigationRequestGeneration) {
         destination = when (requestedDestination) {
             ComposeMainActivity.DESTINATION_CALENDAR -> Destination.CALENDAR
@@ -85,10 +94,35 @@ fun UltimateApp(
     val density = LocalDensity.current
     val useNavigationRail = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE ||
         with(density) { windowWidth.toDp() >= 600.dp }
-    val navigationType = if (useNavigationRail) {
-        NavigationSuiteType.NavigationRail
-    } else {
-        NavigationSuiteType.NavigationBar
+    // The clock face is the "always on" surface: its chrome (system bars + navigation suite) stays
+    // hidden until the user taps, so the face reads as a clean full-screen dial.
+    val immersive = destination == Destination.CLOCK && !chromeVisible
+    val navigationType = when {
+        immersive -> NavigationSuiteType.None
+        useNavigationRail -> NavigationSuiteType.NavigationRail
+        else -> NavigationSuiteType.NavigationBar
+    }
+    val view = LocalView.current
+    LaunchedEffect(immersive) {
+        val window = (view.context as? Activity)?.window ?: return@LaunchedEffect
+        val controller = WindowCompat.getInsetsController(window, view)
+        controller.systemBarsBehavior =
+            WindowInsetsControllerCompat.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE
+        if (immersive) {
+            controller.hide(WindowInsetsCompat.Type.systemBars())
+        } else {
+            controller.show(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+    DisposableEffect(Unit) {
+        onDispose {
+            val window = (view.context as? Activity)?.window ?: return@onDispose
+            WindowCompat.getInsetsController(window, view)
+                .show(WindowInsetsCompat.Type.systemBars())
+        }
+    }
+    LaunchedEffect(destination) {
+        if (destination == Destination.CLOCK) chromeVisible = false
     }
 
     NavigationSuiteScaffold(
@@ -115,7 +149,10 @@ fun UltimateApp(
             Scaffold(
                 modifier = antiBurnModifier,
                 topBar = {
-                    if (destination != Destination.CLOCK) {
+                    // The calendar owns its own header (month nav + a gear that jumps straight to
+                    // calendar settings), so the shell's generic bar is suppressed here — otherwise
+                    // the screen would show two settings icons.
+                    if (destination != Destination.CLOCK && destination != Destination.CALENDAR) {
                         TopAppBar(
                             title = { Text(stringResource(destination.labelRes)) },
                             actions = {
@@ -134,12 +171,17 @@ fun UltimateApp(
             ) { padding ->
                 when (destination) {
                     Destination.CLOCK -> ClockScreen(
-                        modifier = Modifier.padding(padding),
+                        modifier = Modifier.padding(if (immersive) PaddingValues(0.dp) else padding),
                         refreshGeneration = refreshGeneration,
                         onOpenSettings = onOpenSettings,
+                        onToggleChrome = { chromeVisible = !chromeVisible },
                     )
                     Destination.CALENDAR ->
-                        CalendarScreen(Modifier.padding(padding), refreshGeneration)
+                        CalendarScreen(
+                            Modifier.padding(padding),
+                            refreshGeneration,
+                            onOpenCalendarSettings = onOpenCalendarSettings,
+                        )
                     Destination.POMODORO ->
                         TimerScreen(Modifier.padding(padding), pomodoro = true)
                     Destination.COUNTDOWN ->

@@ -886,7 +886,12 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
             )
             text(
                 canvas,
-                ellipsize(entry.getCity(), contentWidth - flagWidth, citySize, supporting),
+                ellipsize(
+                    WorldClockCatalog.displayCity(
+                        entry, WorldClockCatalog.languageOf(state.getLocale()),
+                    ),
+                    contentWidth - flagWidth, citySize, supporting,
+                ),
                 padding + flagWidth, centeredBaseline(headerY, citySize, supporting), citySize,
                 colors.onPanel, Paint.Align.LEFT, supporting,
             )

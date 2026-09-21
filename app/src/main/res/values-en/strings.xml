@@ -109,12 +109,6 @@
     <string name="status_icon_size_percent">%1$d%%</string>
     <string name="status_wifi_signal">Wi-Fi signal %1$d of %2$d</string>
     <string name="status_mobile_signal">Mobile signal %1$d of %2$d</string>
-    <string name="status_ethernet">Ethernet connected</string>
-    <string name="status_no_network">No network</string>
-    <string name="status_battery">Battery %1$d%%</string>
-    <string name="status_battery_charging">Charging, battery %1$d%%</string>
-    <string name="status_battery_unknown">Battery unknown</string>
-    <string name="status_network_and_battery">%1$s, %2$s</string>
     <string name="display_settings_group">Display</string>
     <string name="calendar_settings_group">Calendar</string>
     <string name="time_settings_group">Time</string>
@@ -180,7 +174,7 @@
     <string name="weather_interval_12hour">Every 12 hours</string>
     <string name="weather_attribution">Weather powered by QWeather</string>
     <string name="weather_attribution_prefix">Weather powered by</string>
-    <string name="weather_attribution_brand">QWeather</string>
+    <string name="weather_attribution_suffix"></string>
 
     <!-- Weather status &amp; detail labels -->
     <string name="weather_fetching">Fetching weather…</string>

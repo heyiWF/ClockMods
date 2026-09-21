@@ -5,7 +5,9 @@ import com.clockmods.sdk.clock.ClockStyle
 import com.clockmods.ultimate.clock.UltimateClockStyles
 import org.junit.Assert.assertArrayEquals
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertNull
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class UltimateSettingsActivityTest {
@@ -59,5 +61,26 @@ class UltimateSettingsActivityTest {
                 UltimateSettingsActivity.shouldShowSecondMotionControls(style),
             )
         }
+    }
+
+    @Test
+    fun twoPaneThresholdMatchesTheLayoutBreakpoint() {
+        // Wide windows show the rail beside the page, so a selected page is not a second level
+        // and back leaves settings in one step. Narrow windows keep the push/pop behaviour.
+        assertEquals(840, UltimateSettingsActivity.TWO_PANE_MIN_WIDTH_DP)
+        assertTrue(UltimateSettingsActivity.isTwoPaneWidth(1024))
+        assertTrue(UltimateSettingsActivity.isTwoPaneWidth(840))
+        assertFalse(UltimateSettingsActivity.isTwoPaneWidth(839))
+        assertFalse(UltimateSettingsActivity.isTwoPaneWidth(411))
+    }
+
+    @Test
+    fun backLeavesSettingsInOneStepWheneverTheLayoutIsTwoPane() {
+        // expanded -> always close; the selected page must NOT consume the first back press.
+        assertTrue(UltimateSettingsActivity.shouldCloseSettingsOnBack(true, true))
+        assertTrue(UltimateSettingsActivity.shouldCloseSettingsOnBack(true, false))
+        // compact home -> close; compact detail -> first back returns to the rail.
+        assertTrue(UltimateSettingsActivity.shouldCloseSettingsOnBack(false, false))
+        assertFalse(UltimateSettingsActivity.shouldCloseSettingsOnBack(false, true))
     }
 }

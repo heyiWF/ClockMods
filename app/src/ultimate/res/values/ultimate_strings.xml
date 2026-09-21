@@ -158,25 +158,30 @@
     <string name="ultimate_weather_dynamic_color_summary">跟随当前 Material 主题的强调色。</string>
 
     <string name="ultimate_calendar_title">日历</string>
+    <string name="calendar_settings_accessibility">日历设置</string>
     <string name="ultimate_calendar_week_section">周显示</string>
     <string name="ultimate_calendar_sunday">周日开始</string>
     <string name="ultimate_calendar_monday">周一开始</string>
     <string name="ultimate_calendar_highlight_weekends">突出显示周末</string>
     <string name="ultimate_calendar_highlight_weekends_summary">在月历中区分周六与周日。</string>
 
-    <string name="ultimate_calendar_theme_graphite_name">石墨深空</string>
-    <string name="ultimate_calendar_theme_graphite_summary">默认深灰仪表盘，保留时钟与天气卡片</string>
-    <string name="ultimate_calendar_theme_paper_name">宣纸水墨</string>
-    <string name="ultimate_calendar_theme_paper_summary">宣纸暖白，整屏纯月历</string>
-    <string name="ultimate_calendar_theme_poster_name">墨白排版</string>
-    <string name="ultimate_calendar_theme_poster_summary">巨幅月份字标，裸数字网格，无卡片</string>
+    <string name="ultimate_calendar_theme_graphite_name">石墨仪表盘</string>
+    <string name="ultimate_calendar_theme_graphite_summary">深灰仪表盘：月历网格配右侧当日详情卡</string>
+    <string name="ultimate_calendar_theme_paper_name">宣纸卡片</string>
+    <string name="ultimate_calendar_theme_paper_summary">暖白卡片网格，红色高亮今日，班休徽标</string>
+    <string name="ultimate_calendar_theme_poster_name">巨幅月标</string>
+    <string name="ultimate_calendar_theme_poster_summary">超大月份字标，裸数字网格，无卡片边框</string>
     <string name="ultimate_calendar_theme_agenda_name">靛蓝周程</string>
     <string name="ultimate_calendar_theme_agenda_summary">一周七天横条，当日详情卡带天气与宜忌</string>
-    <string name="ultimate_calendar_theme_carbon_name">纯黑碳素</string>
-    <string name="ultimate_calendar_theme_carbon_summary">初始月历的纯黑背景版本，OLED 不发光</string>
+    <string name="ultimate_calendar_theme_carbon_name">碳素分屏</string>
+    <string name="ultimate_calendar_theme_carbon_summary">纯黑 OLED 分屏，底部宜忌跑马灯，省电不发光</string>
+
+    <string name="ultimate_calendar_almanac_suitable">宜</string>
+    <string name="ultimate_calendar_almanac_avoid">忌</string>
+    <string name="ultimate_calendar_weather_label">天气</string>
 
     <string name="ultimate_schedule_title">日程</string>
-    <string name="ultimate_schedule_add">＋ 添加</string>
+    <string name="ultimate_schedule_add">添加</string>
     <string name="ultimate_schedule_empty">这一天还没有日程，点右上角添加一条</string>
     <string name="ultimate_schedule_all_day">全天</string>
     <string name="ultimate_schedule_dialog_add">新建日程</string>
@@ -274,4 +279,5 @@
     <string name="ultimate_palette_panel">卡片</string>
     <string name="ultimate_palette_accent">强调</string>
     <string name="ultimate_palette_adaptive">文字自动适应底色。背景色在使用主题背景时生效。</string>
+    <string name="ultimate_palette_preview">实时预览</string>
 </resources>

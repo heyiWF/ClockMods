@@ -17,6 +17,7 @@ import com.clockmods.sdk.clock.ClockStyleCapabilities
 import com.clockmods.sdk.clock.ClockStyleMetadata
 import com.clockmods.sdk.clock.ClockStyleRegistry
 import com.clockmods.sdk.clock.ClockThemeTokens
+import com.clockmods.R
 import com.clockmods.ui.ClockTimeText
 import java.text.BreakIterator
 import java.util.Calendar
@@ -526,6 +527,9 @@ object UltimateClockStyles {
             return !value.usesThemeSurface()
         }
 
+        /** Readable ink for text painted on a known surface, honouring the WCAG contrast floor. */
+        protected fun inkOn(surface: Int): Int = ClockPalette.foreground(surface)
+
         protected fun customBackgroundVeil(canvas: Canvas, context: ClockRenderContext,
             color: Int) {
             if (!hasCustomBackground(context)) return
@@ -646,6 +650,45 @@ object UltimateClockStyles {
 
     @JvmStatic
     fun sharedRegistry(): ClockStyleRegistry = sharedRegistryHolder
+
+    /**
+     * Localized display name for a built-in style, so the settings gallery follows the app language
+     * instead of the English/Chinese literals stored on [ClockStyleMetadata].
+     */
+    @JvmStatic
+    fun styleNameRes(styleId: String?): Int = when (styleId) {
+        STYLE_PRO_CLASSIC -> R.string.ultimate_style_pro_classic_name
+        STYLE_GLASS_ATELIER -> R.string.ultimate_style_glass_name
+        STYLE_NOIR_INSTRUMENT -> R.string.ultimate_style_noir_name
+        STYLE_PAPER_STATION -> R.string.ultimate_style_paper_name
+        STYLE_ORBIT_NEON -> R.string.ultimate_style_orbit_name
+        STYLE_DIGITAL_GRID -> R.string.ultimate_style_grid_name
+        STYLE_TYPOGRAPHIC -> R.string.ultimate_style_typographic_name
+        STYLE_DUAL_BLOCKS -> R.string.ultimate_style_dual_blocks_name
+        STYLE_ORBIT -> R.string.ultimate_style_orbit_migrated_name
+        STYLE_BUBBLES -> R.string.ultimate_style_bubbles_name
+        STYLE_BLEND -> R.string.ultimate_style_blend_name
+        STYLE_RIBBON -> R.string.ultimate_style_ribbon_name
+        else -> R.string.ultimate_style_pro_classic_name
+    }
+
+    /** Localized one-line summary matching [styleNameRes]. */
+    @JvmStatic
+    fun styleSummaryRes(styleId: String?): Int = when (styleId) {
+        STYLE_PRO_CLASSIC -> R.string.ultimate_style_pro_classic_summary
+        STYLE_GLASS_ATELIER -> R.string.ultimate_style_glass_summary
+        STYLE_NOIR_INSTRUMENT -> R.string.ultimate_style_noir_summary
+        STYLE_PAPER_STATION -> R.string.ultimate_style_paper_summary
+        STYLE_ORBIT_NEON -> R.string.ultimate_style_orbit_summary
+        STYLE_DIGITAL_GRID -> R.string.ultimate_style_grid_summary
+        STYLE_TYPOGRAPHIC -> R.string.ultimate_style_typographic_summary
+        STYLE_DUAL_BLOCKS -> R.string.ultimate_style_dual_blocks_summary
+        STYLE_ORBIT -> R.string.ultimate_style_orbit_migrated_summary
+        STYLE_BUBBLES -> R.string.ultimate_style_bubbles_summary
+        STYLE_BLEND -> R.string.ultimate_style_blend_summary
+        STYLE_RIBBON -> R.string.ultimate_style_ribbon_summary
+        else -> R.string.ultimate_style_pro_classic_summary
+    }
 
     @JvmStatic
     fun builtIns(): List<ClockStyle> {
