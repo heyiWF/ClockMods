@@ -165,16 +165,16 @@
     <string name="ultimate_calendar_highlight_weekends">突出显示周末</string>
     <string name="ultimate_calendar_highlight_weekends_summary">在月历中区分周六与周日。</string>
 
-    <string name="ultimate_calendar_theme_graphite_name">石墨仪表盘</string>
-    <string name="ultimate_calendar_theme_graphite_summary">深灰仪表盘：月历网格配右侧当日详情卡</string>
-    <string name="ultimate_calendar_theme_paper_name">宣纸卡片</string>
-    <string name="ultimate_calendar_theme_paper_summary">暖白卡片网格，红色高亮今日，班休徽标</string>
-    <string name="ultimate_calendar_theme_poster_name">巨幅月标</string>
-    <string name="ultimate_calendar_theme_poster_summary">超大月份字标，裸数字网格，无卡片边框</string>
+    <string name="ultimate_calendar_theme_graphite_name">石墨深空</string>
+    <string name="ultimate_calendar_theme_graphite_summary">默认深灰仪表盘，保留时钟与天气卡片</string>
+    <string name="ultimate_calendar_theme_paper_name">宣纸水墨</string>
+    <string name="ultimate_calendar_theme_paper_summary">宣纸暖白，整屏纯月历</string>
+    <string name="ultimate_calendar_theme_poster_name">墨白排版</string>
+    <string name="ultimate_calendar_theme_poster_summary">巨幅月份字标，裸数字网格，无卡片</string>
     <string name="ultimate_calendar_theme_agenda_name">靛蓝周程</string>
     <string name="ultimate_calendar_theme_agenda_summary">一周七天横条，当日详情卡带天气与宜忌</string>
-    <string name="ultimate_calendar_theme_carbon_name">碳素分屏</string>
-    <string name="ultimate_calendar_theme_carbon_summary">纯黑 OLED 分屏，底部宜忌跑马灯，省电不发光</string>
+    <string name="ultimate_calendar_theme_carbon_name">纯黑碳素</string>
+    <string name="ultimate_calendar_theme_carbon_summary">初始月历的纯黑背景版本，OLED 不发光</string>
 
     <string name="ultimate_calendar_almanac_suitable">宜</string>
     <string name="ultimate_calendar_almanac_avoid">忌</string>

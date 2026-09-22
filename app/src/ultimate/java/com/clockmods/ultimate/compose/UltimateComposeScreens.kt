@@ -94,9 +94,8 @@ fun UltimateApp(
     val density = LocalDensity.current
     val useNavigationRail = configuration.orientation == Configuration.ORIENTATION_LANDSCAPE ||
         with(density) { windowWidth.toDp() >= 600.dp }
-    // The clock face is the "always on" surface: its chrome (system bars + navigation suite) stays
-    // hidden until the user taps, so the face reads as a clean full-screen dial.
-    val immersive = destination == Destination.CLOCK && !chromeVisible
+    // Clock and calendar share the original full-screen presentation; a background tap reveals navigation.
+    val immersive = (destination == Destination.CLOCK || destination == Destination.CALENDAR) && !chromeVisible
     val navigationType = when {
         immersive -> NavigationSuiteType.None
         useNavigationRail -> NavigationSuiteType.NavigationRail
@@ -149,14 +148,12 @@ fun UltimateApp(
             Scaffold(
                 modifier = antiBurnModifier,
                 topBar = {
-                    // The calendar owns its own header (month nav + a gear that jumps straight to
-                    // calendar settings), so the shell's generic bar is suppressed here — otherwise
-                    // the screen would show two settings icons.
-                    if (destination != Destination.CLOCK && destination != Destination.CALENDAR) {
+                    // Calendar settings remain available when the user reveals the navigation chrome.
+                    if (destination != Destination.CLOCK && (destination != Destination.CALENDAR || chromeVisible)) {
                         TopAppBar(
                             title = { Text(stringResource(destination.labelRes)) },
                             actions = {
-                                IconButton(onClick = onOpenSettings) {
+                                IconButton(onClick = if (destination == Destination.CALENDAR) onOpenCalendarSettings else onOpenSettings) {
                                     Icon(
                                         Icons.Default.Settings,
                                         contentDescription = stringResource(
@@ -178,9 +175,9 @@ fun UltimateApp(
                     )
                     Destination.CALENDAR ->
                         CalendarScreen(
-                            Modifier.padding(padding),
+                            Modifier.padding(if (immersive) PaddingValues(0.dp) else padding),
                             refreshGeneration,
-                            onOpenCalendarSettings = onOpenCalendarSettings,
+                            onToggleChrome = { chromeVisible = !chromeVisible },
                         )
                     Destination.POMODORO ->
                         TimerScreen(Modifier.padding(padding), pomodoro = true)

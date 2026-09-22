@@ -1,0 +1,7 @@
+<resources>
+    <string name="calendar_tomorrow">Tomorrow</string>
+    <string name="calendar_after_tomorrow">In two days</string>
+    <string name="calendar_month_picker_title">Choose month</string>
+    <string name="calendar_year">Year</string>
+    <string name="calendar_month">Month</string>
+</resources>

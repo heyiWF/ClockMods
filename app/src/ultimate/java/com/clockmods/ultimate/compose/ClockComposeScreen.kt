@@ -882,7 +882,7 @@ internal fun formatWeatherState(
 }
 
 @Composable
-private fun WeatherAttribution(faceColor: Color, modifier: Modifier = Modifier) {
+internal fun WeatherAttribution(faceColor: Color, modifier: Modifier = Modifier) {
     val context = LocalContext.current
     val density = LocalDensity.current
     // The bundled QWeather logotype already spells out the brand, so it replaces the plain text
@@ -924,10 +924,10 @@ private fun WeatherAttribution(faceColor: Color, modifier: Modifier = Modifier) 
     }
 }
 
-private data class DeviceStatus(val connected: Boolean, val batteryPercent: Int)
+internal data class DeviceStatus(val connected: Boolean, val batteryPercent: Int)
 
 @Composable
-private fun rememberDeviceStatus(): DeviceStatus {
+internal fun rememberDeviceStatus(): DeviceStatus {
     val context = LocalContext.current
     fun readStatus(batteryIntent: Intent? = null): DeviceStatus {
         val manager = context.getSystemService(ConnectivityManager::class.java)
@@ -963,7 +963,7 @@ private fun rememberDeviceStatus(): DeviceStatus {
 }
 
 @Composable
-private fun DeviceStatusPill(
+internal fun DeviceStatusPill(
     status: DeviceStatus,
     scale: Float,
     transparent: Boolean,

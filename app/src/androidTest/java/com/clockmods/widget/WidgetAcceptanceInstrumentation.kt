@@ -39,6 +39,8 @@ import java.io.StringWriter
 
 /** Device tests deliberately exercise real RemoteViews reflection and launcher binding APIs. */
 class WidgetAcceptanceInstrumentation : Instrumentation() {
+    private var calendarAcceptance = false
+    private var calendarWeather = false
     private lateinit var app: Context
     private var checks = 0
 
@@ -49,10 +51,16 @@ class WidgetAcceptanceInstrumentation : Instrumentation() {
 
     override fun onCreate(arguments: Bundle?) {
         super.onCreate(arguments)
+        calendarAcceptance = arguments?.getString("calendar") == "true"
+        calendarWeather = arguments?.getString("weather") == "true"
         start()
     }
 
     override fun onStart() {
+        if (calendarAcceptance) {
+            com.clockmods.calendar.CalendarAcceptance.run(this, calendarWeather)
+            return
+        }
         val report = Bundle()
         var host: AppWidgetHost? = null
         var resultCode = Activity.RESULT_CANCELED
