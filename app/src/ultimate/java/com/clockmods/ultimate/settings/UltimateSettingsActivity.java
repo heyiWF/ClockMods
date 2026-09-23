@@ -1700,6 +1700,14 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                         ClockPreferences.MAX_STATUS_ICON_SCALE,
                         repository::setStatusIconScale, "status_icon_scale"));
         setViewTreeEnabled(statusScale, repository.isShowStatusIcons());
+        View statusStyle = addActionRow(body, R.string.ultimate_status_icon_style,
+                getString(R.string.ultimate_status_icon_style_summary),
+                R.drawable.ultimate_ic_chevron_right,
+                () -> StatusIconStyleDialog.show(this, () -> {
+                    markChanged("status_symbol_style");
+                    showPage(Page.BACKGROUND);
+                }));
+        setViewTreeEnabled(statusStyle, repository.isShowStatusIcons());
 
         addSectionLabel(body, R.string.ultimate_dimming_section, 22);
         addSwitch(body, R.string.ultimate_dim_background,

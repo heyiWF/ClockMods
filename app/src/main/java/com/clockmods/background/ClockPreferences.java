@@ -5,6 +5,7 @@ import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 
 import com.clockmods.ui.DateFormatter;
+import com.clockmods.ui.StatusIconStyle;
 import com.clockmods.weather.WeatherTemperatureFormatter;
 
 import java.util.Calendar;
@@ -904,6 +905,7 @@ public class ClockPreferences {
     public void restoreDefaults() {
         SharedPreferences.Editor editor = preferences.edit();
         clearPerThemeTypography(editor);
+        StatusIconStyle.reset(editor);
         editor
                 .putString(KEY_BACKGROUND_MODE, MODE_COLOR)
                 .putInt(KEY_BACKGROUND_COLOR, DEFAULT_BACKGROUND_COLOR)

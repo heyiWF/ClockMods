@@ -39,8 +39,25 @@ public class StatusBarView extends View {
     private final Paint fillPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Paint textPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
     private final float density;
+    private static final int[] BATTERY_GLYPHS = {
+            StatusSymbolRenderer.BATTERY_0, StatusSymbolRenderer.BATTERY_1,
+            StatusSymbolRenderer.BATTERY_2, StatusSymbolRenderer.BATTERY_3,
+            StatusSymbolRenderer.BATTERY_4, StatusSymbolRenderer.BATTERY_5,
+            StatusSymbolRenderer.BATTERY_6, StatusSymbolRenderer.BATTERY_FULL
+    };
+    private static final int[] WIFI_GLYPHS = {
+            StatusSymbolRenderer.WIFI_0, StatusSymbolRenderer.WIFI_1,
+            StatusSymbolRenderer.WIFI_2, StatusSymbolRenderer.WIFI_3,
+            StatusSymbolRenderer.WIFI_4
+    };
+    private static final int[] CELLULAR_GLYPHS = {
+            StatusSymbolRenderer.CELLULAR_0, StatusSymbolRenderer.CELLULAR_1,
+            StatusSymbolRenderer.CELLULAR_2, StatusSymbolRenderer.CELLULAR_3,
+            StatusSymbolRenderer.CELLULAR_4
+    };
 
     private BackgroundRepository backgroundRepository;
+    private StatusIconStyle statusIconStyle;
 
     private int batteryLevel = -1;
     private boolean batteryCharging;
@@ -388,6 +405,7 @@ public class StatusBarView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
+        statusIconStyle = StatusIconStyle.read(getContext());
         if (batteryLevel < 0 && !hasNetworkInfo()) {
             return;
         }
@@ -486,40 +504,49 @@ public class StatusBarView extends View {
     }
 
     private void drawIcon(Canvas canvas, MaterialIcon icon, float left, float centerY, float size) {
-        fillPaint.setColor(resolveTint());
-        fillPaint.setAlpha(255);
-        icon.draw(canvas, left, centerY - size / 2f, size, fillPaint);
+        drawStyledIcon(canvas, icon, icon == MaterialIcon.ETHERNET
+                ? StatusSymbolRenderer.ETHERNET : StatusSymbolRenderer.GLOBE_CANCEL,
+                left, centerY, size);
     }
 
     private void drawBattery(Canvas canvas, float left, float centerY, float size) {
         MaterialIcon icon;
+        int codePoint;
         if (batteryCharging) {
             icon = MaterialIcon.BATTERY_BOLT;
+            codePoint = StatusSymbolRenderer.BATTERY_BOLT;
         } else {
             // Map 0..100% onto the eight Battery Android glyphs
             // (Battery Android 0..6 then Battery Android Full).
             int level = Math.round(batteryLevel / 100f * (MaterialIcon.BATTERY_LEVELS.length - 1));
             level = Math.max(0, Math.min(MaterialIcon.BATTERY_LEVELS.length - 1, level));
             icon = MaterialIcon.BATTERY_LEVELS[level];
+            codePoint = BATTERY_GLYPHS[level];
         }
-        fillPaint.setColor(resolveTint());
-        fillPaint.setAlpha(255);
-        icon.draw(canvas, left, centerY - size / 2f, size, fillPaint);
+        drawStyledIcon(canvas, icon, codePoint, left, centerY, size);
     }
 
     private void drawWifi(Canvas canvas, float left, float centerY, float size) {
         int bars = Math.max(0, Math.min(4, signalStrength));
         MaterialIcon icon = MaterialIcon.WIFI_BARS[bars];
-        fillPaint.setColor(resolveTint());
-        fillPaint.setAlpha(255);
-        icon.draw(canvas, left, centerY - size / 2f, size, fillPaint);
+        drawStyledIcon(canvas, icon, WIFI_GLYPHS[bars], left, centerY, size);
     }
 
     private void drawMobile(Canvas canvas, float left, float centerY, float size) {
         int bars = Math.max(0, Math.min(4, signalStrength));
         MaterialIcon icon = MaterialIcon.CELLULAR_BARS[bars];
+        drawStyledIcon(canvas, icon, CELLULAR_GLYPHS[bars], left, centerY, size);
+    }
+
+    private void drawStyledIcon(Canvas canvas, MaterialIcon icon, int codePoint,
+            float left, float centerY, float size) {
         fillPaint.setColor(resolveTint());
         fillPaint.setAlpha(255);
+        if (statusIconStyle != null && !statusIconStyle.isDefault()
+                && StatusSymbolRenderer.draw(canvas, getContext(), codePoint,
+                        statusIconStyle, left, centerY - size / 2f, size, fillPaint)) {
+            return;
+        }
         icon.draw(canvas, left, centerY - size / 2f, size, fillPaint);
     }
 
