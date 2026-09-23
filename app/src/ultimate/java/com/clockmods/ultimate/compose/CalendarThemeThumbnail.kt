@@ -26,6 +26,13 @@ internal fun CalendarThemeThumbnail(theme: ComposeCalendarTheme, modifier: Modif
             paint.color = color; paint.textSize = font * u
             drawContext.canvas.nativeCanvas.drawText(text, x, y, paint)
         }
+        fun almanacLabel(prefix: String, body: String, x: Float, baseline: Float, color: Int) {
+            val radius = 4.5f * u
+            drawCircle(Color(color).copy(alpha = ALMANAC_BADGE_BACKGROUND_ALPHA), radius,
+                Offset(x + radius, baseline - 2f * u))
+            label(prefix, x + 1.5f * u, baseline, 6f, color)
+            label(body, x + radius * 2 + 3f * u, baseline, 6f, color)
+        }
         fun grid(left: Float, top: Float, width: Float, height: Float, poster: Boolean = false) {
             if (!poster) { panel(left, top, width, height); label("‹     2026年9月      ›", left + 6*u, top + 10*u, 6f, theme.text) }
             val start = top + if (poster) 3*u else 17*u
@@ -67,8 +74,8 @@ internal fun CalendarThemeThumbnail(theme: ComposeCalendarTheme, modifier: Modif
                 }
                 panel(size.width*.39f, 5*u, size.width*.57f, h-10*u)
                 label("9月21日 星期一", size.width*.43f, 17*u, 7f, theme.text)
-                label("宜  出行 会友", size.width*.43f, h*.5f, 6f, theme.suitable)
-                label("忌  动土", size.width*.43f, h*.66f, 6f, theme.avoid)
+                almanacLabel("宜", "出行 · 会友", size.width*.43f, h*.5f, theme.suitable)
+                almanacLabel("忌", "动土", size.width*.43f, h*.66f, theme.avoid)
             }
         }
     }
