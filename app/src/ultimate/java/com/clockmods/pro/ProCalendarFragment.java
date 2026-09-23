@@ -412,7 +412,10 @@ public final class ProCalendarFragment extends Fragment implements CalendarLayou
                 suitable.isEmpty() ? "" : getString(R.string.calendar_suitable_prefix)
                         + android.text.TextUtils.join(" ", suitable),
                 avoid.isEmpty() ? "" : getString(R.string.calendar_avoid_prefix)
-                        + android.text.TextUtils.join(" ", avoid));
+                        + android.text.TextUtils.join(" ", avoid),
+                details.contains(CalendarPageState.DayDetail.LUNAR) ? almanac.naturalLabel() : "",
+                details.contains(CalendarPageState.DayDetail.FESTIVALS)
+                        ? android.text.TextUtils.join(" · ", almanac.festivals()) : "");
     }
 
     private CalendarPageState buildAdjacentPageState(int direction) {

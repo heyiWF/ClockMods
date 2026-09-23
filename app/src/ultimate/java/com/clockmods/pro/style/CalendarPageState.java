@@ -35,12 +35,21 @@ public final class CalendarPageState {
         public final String suitableLine;
         /** 忌 line, same convention as {@link #suitableLine}. */
         public final String avoidLine;
+        public final String lunarLine;
+        public final String festivalsLine;
 
         public Selection(int index, String dateLine, String suitableLine, String avoidLine) {
+            this(index, dateLine, suitableLine, avoidLine, "", "");
+        }
+
+        public Selection(int index, String dateLine, String suitableLine, String avoidLine,
+                String lunarLine, String festivalsLine) {
             this.index = index;
             this.dateLine = text(dateLine);
             this.suitableLine = text(suitableLine);
             this.avoidLine = text(avoidLine);
+            this.lunarLine = text(lunarLine);
+            this.festivalsLine = text(festivalsLine);
         }
     }
 

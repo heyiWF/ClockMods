@@ -25,10 +25,12 @@ public final class CalendarWordmarkView extends View {
 
     private final Paint monthPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
     private final Paint yearPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
+    private final Paint lunarPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
+    private final Paint festivalPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
     private String month = "";
     private String year = "";
-    private float monthBound = 1f;
-    private float yearBound = 1f;
+    private String lunar = "";
+    private String festivals = "";
 
     public CalendarWordmarkView(Context context) { this(context, null); }
 
@@ -36,33 +38,42 @@ public final class CalendarWordmarkView extends View {
         super(context, attrs);
         monthPaint.setTextAlign(Paint.Align.LEFT);
         yearPaint.setTextAlign(Paint.Align.LEFT);
+        lunarPaint.setTextAlign(Paint.Align.LEFT);
+        festivalPaint.setTextAlign(Paint.Align.LEFT);
     }
 
     public void setText(String month, String year) {
         this.month = month == null ? "" : month;
         this.year = year == null ? "" : year;
-        setContentDescription(this.month + " " + this.year);
+        updateDescription();
         invalidate();
+    }
+
+    public void setSelectedDetails(String lunar, String festivals) {
+        this.lunar = lunar == null ? "" : lunar;
+        this.festivals = festivals == null ? "" : festivals;
+        updateDescription();
+        invalidate();
+    }
+
+    private void updateDescription() {
+        setContentDescription(lunar + " " + festivals + " " + month + " " + year);
     }
 
     public void setColors(int monthColor, int yearColor) {
         monthPaint.setColor(monthColor);
         yearPaint.setColor(yearColor);
+        lunarPaint.setColor(yearColor);
+        festivalPaint.setColor(monthColor);
         invalidate();
     }
 
     public void setTypefaces(Typeface monthTypeface, Typeface yearTypeface) {
         monthPaint.setTypeface(monthTypeface);
         yearPaint.setTypeface(yearTypeface);
+        lunarPaint.setTypeface(yearTypeface);
+        festivalPaint.setTypeface(yearTypeface);
         invalidate();
-    }
-
-    @Override protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
-        super.onSizeChanged(width, height, oldWidth, oldHeight);
-        float density = getResources().getDisplayMetrics().density;
-        monthBound = CalendarDashboardSizing.posterWordmarkSize(usableWidth(), usableHeight(),
-                density);
-        yearBound = CalendarDashboardSizing.posterYearSize(monthBound, usableHeight(), density);
     }
 
     @Override protected void onDraw(Canvas canvas) {
@@ -70,16 +81,39 @@ public final class CalendarWordmarkView extends View {
         float boxWidth = usableWidth();
         float boxHeight = usableHeight();
         if (boxWidth <= 0f || boxHeight <= 0f) return;
-        monthPaint.setTextSize(shrinkToFit(monthPaint, month, monthBound,
+        float density = getResources().getDisplayMetrics().density;
+        float lunarSize = Math.min(16f * density, boxHeight * .09f);
+        float festivalSize = Math.min(13f * density, boxHeight * .075f);
+        lunarPaint.setTextSize(shrinkToFit(lunarPaint, lunar, lunarSize, boxWidth));
+        festivalPaint.setTextSize(shrinkToFit(festivalPaint, festivals, festivalSize, boxWidth));
+        float detailHeight = lunar.length() == 0 ? 0f : lunarPaint.descent() - lunarPaint.ascent();
+        float festivalHeight = festivals.length() == 0 ? 0f
+                : festivalPaint.descent() - festivalPaint.ascent();
+        float detailGap = detailHeight == 0f ? 0f : 3f * density;
+        float headingHeight = detailHeight + (festivalHeight == 0f ? 0f : detailGap + festivalHeight);
+        if (lunar.length() > 0) {
+            canvas.drawText(lunar, getPaddingLeft(), getPaddingTop() - lunarPaint.ascent(), lunarPaint);
+        }
+        if (festivals.length() > 0) {
+            canvas.drawText(festivals, getPaddingLeft(),
+                    getPaddingTop() + detailHeight + detailGap - festivalPaint.ascent(), festivalPaint);
+        }
+        float remainingHeight = Math.max(1f, boxHeight - headingHeight);
+        float fittedMonthBound = CalendarDashboardSizing.posterWordmarkSize(
+                boxWidth, remainingHeight, density);
+        monthPaint.setTextSize(shrinkToFit(monthPaint, month, fittedMonthBound,
                 boxWidth * MONTH_WIDTH_SHARE));
-        yearPaint.setTextSize(shrinkToFit(yearPaint, year, yearBound,
+        float fittedYearBound = CalendarDashboardSizing.posterYearSize(
+                monthPaint.getTextSize(), remainingHeight, density);
+        yearPaint.setTextSize(shrinkToFit(yearPaint, year, fittedYearBound,
                 boxWidth * YEAR_WIDTH_SHARE));
         // Ascent/descent rather than the full font height: the gap wants to track the visible
         // glyphs, not the line box, or the year drifts away from the word above it.
         float monthHeight = monthPaint.descent() - monthPaint.ascent();
         float yearHeight = year.length() == 0 ? 0f : yearPaint.descent() - yearPaint.ascent();
         float gap = year.length() == 0 ? 0f : monthPaint.getTextSize() * 0.12f;
-        float top = getPaddingTop() + (boxHeight - monthHeight - gap - yearHeight) / 2f;
+        float top = getPaddingTop() + headingHeight
+                + (remainingHeight - monthHeight - gap - yearHeight) / 2f;
         float left = getPaddingLeft();
         canvas.drawText(month, left, top - monthPaint.ascent(), monthPaint);
         if (year.length() > 0) {

@@ -275,6 +275,7 @@ public final class PosterCalendarLayout implements CalendarLayout, CalendarPager
     public void bind(CalendarPageState state) {
         pageState = state;
         wordmark.setText(state.title.month, state.title.year);
+        wordmark.setSelectedDetails(state.selection.lunarLine, state.selection.festivalsLine);
         grid.removeAllViews();
         dayCells.clear();
         for (int index = 0; index < state.days.size(); index++) {
@@ -289,6 +290,7 @@ public final class PosterCalendarLayout implements CalendarLayout, CalendarPager
     @Override
     public void updateSelection(CalendarPageState state) {
         pageState = state;
+        wordmark.setSelectedDetails(state.selection.lunarLine, state.selection.festivalsLine);
         int count = Math.min(dayCells.size(), state.days.size());
         for (int index = 0; index < count; index++) {
             dayCells.get(index).applySelection(index == state.selection.index);
@@ -308,10 +310,11 @@ public final class PosterCalendarLayout implements CalendarLayout, CalendarPager
         return Collections.emptySet();
     }
 
-    /** No footer either, so the selected day needs no almanac lines resolved for it. */
+    /** Only the selected day's lunar date and festivals appear above the month word. */
     @Override
     public Set<CalendarPageState.DayDetail> requiredSelectionDetails() {
-        return Collections.emptySet();
+        return Set.of(CalendarPageState.DayDetail.LUNAR,
+                CalendarPageState.DayDetail.FESTIVALS);
     }
 
     @Override public void bindClock(CalendarClockState clock) { }
