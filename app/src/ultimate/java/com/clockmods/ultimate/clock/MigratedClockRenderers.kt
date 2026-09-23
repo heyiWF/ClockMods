@@ -215,7 +215,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         drawContext(
             canvas, context, state, second.right - second.width() * .05f,
             second.top + second.height() * .078f, second.width() * .62f,
-            Paint.Align.RIGHT, colors.onAccent, supporting, unit * .028f,
+            Paint.Align.RIGHT, colors.onAccent, supporting, unit * .034f,
         )
         if (secondsVisible(state)) {
             val markerSize = readableSize(context, unit * .034f * state.getSupportingScale(), 16f)
@@ -274,7 +274,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         drawContext(
             canvas, context, state, context.getLeft() + width * .029f,
             context.getTop() + height * .072f, width * .40f, Paint.Align.LEFT,
-            colors.mutedBackground, supporting, min(width, height) * .027f,
+            colors.mutedBackground, supporting, min(width, height) * .032f,
         )
         if (secondsVisible(state)) {
             val bubbleRadius = height * .040f
@@ -384,7 +384,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         drawContext(
             canvas, context, state, context.getRight() - width * .029f,
             context.getTop() + height * .072f, width * .35f, Paint.Align.RIGHT,
-            colors.mutedBackground, supporting, unit * .027f,
+            colors.mutedBackground, supporting, unit * .032f,
         )
     }
 
@@ -464,7 +464,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         drawContext(
             canvas, context, state, context.getLeft() + width * .06f,
             context.getTop() + height * .965f, width * .88f, Paint.Align.LEFT,
-            colors.mutedBackground, supporting, width * .034f,
+            colors.mutedBackground, supporting, width * .040f,
         )
     }
 
@@ -525,7 +525,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         drawContext(
             canvas, context, state, digital.right - digital.width() * .045f,
             digital.top + digital.height() * .067f, digital.width() * .48f,
-            Paint.Align.RIGHT, colors.mutedAccent, supporting, unit * .027f,
+            Paint.Align.RIGHT, colors.mutedAccent, supporting, unit * .032f,
         )
         if (secondsVisible(state)) {
             val secondSize = readableSize(
@@ -685,7 +685,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         drawContext(
             canvas, context, state, context.getRight() - width * .029f, topRowY,
             width * .35f, Paint.Align.RIGHT, colors.mutedBackground, supporting,
-            min(width, height) * .027f,
+            min(width, height) * .032f,
         )
     }
 

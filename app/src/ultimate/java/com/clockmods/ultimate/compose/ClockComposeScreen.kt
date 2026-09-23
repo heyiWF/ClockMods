@@ -803,7 +803,8 @@ private fun dateFontScaleForStyle(repository: BackgroundRepository, styleId: Str
     } else {
         repository.getDateFontScale(styleId)
     }
-    return value / ClockPreferences.DEFAULT_DATE_FONT_SCALE
+    // Date and supporting text sliders use the same percentage scale in the renderers.
+    return value
 }
 
 private fun shouldDimBackground(

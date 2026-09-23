@@ -88,7 +88,7 @@ internal class ProClassicRenderer : UltimateClockStyles.RendererBase() {
         }
 
         val dateSize = readableSize(context, unit * .045f * state.getDateScale(), 12f)
-        val supportingSize = readableSize(context, unit * .040f * state.getSupportingScale(), 12f)
+        val supportingSize = readableSize(context, unit * .045f * state.getSupportingScale(), 12f)
         val supportingGap = max(context.getDensity() * 7f, max(dateSize, supportingSize) * .55f)
         readableDate(
             canvas, context, state, centerX, baseline + metrics.ascent - supportingGap,
@@ -98,7 +98,7 @@ internal class ProClassicRenderer : UltimateClockStyles.RendererBase() {
         readableText(
             canvas, context, contextText(state), centerX,
             baseline + metrics.descent + supportingGap + supportingSize,
-            width * .88f, unit * .040f * state.getSupportingScale(), 12f,
+            width * .88f, unit * .045f * state.getSupportingScale(), 12f,
             theme.getSecondaryTextColor(), Paint.Align.CENTER, supporting,
         )
     }
@@ -153,7 +153,7 @@ internal class ProClassicRenderer : UltimateClockStyles.RendererBase() {
         readableText(
             canvas, context, contextText(state), context.getCenterX(),
             context.getBottom() - height * .06f, width * .86f,
-            unit * .038f * state.getSupportingScale(), 11f,
+            unit * .042f * state.getSupportingScale(), 12f,
             theme.getSecondaryTextColor(), Paint.Align.CENTER, supporting,
         )
     }
@@ -197,7 +197,7 @@ internal class GlassAtelierRenderer : UltimateClockStyles.RendererBase() {
             infoRight - infoLeft, unit * if (landscape) .145f else .12f,
             theme.getPrimaryTextColor(), Paint.Align.LEFT, bold)
         readableText(canvas, context, contextText(state), infoLeft, contextY, infoRight - infoLeft,
-            unit * .030f * state.getSupportingScale(), 12f,
+            unit * .034f * state.getSupportingScale(), 12f,
             theme.getPrimaryTextColor(), Paint.Align.LEFT, sans)
 
         val cx = if (landscape) context.getLeft() + w * .69f else context.getCenterX()
@@ -327,7 +327,7 @@ internal class NoirInstrumentRenderer : UltimateClockStyles.RendererBase() {
         readableDate(canvas, context, state, infoLeft, dateY, infoRight - infoLeft, unit * .030f,
             theme.getSecondaryTextColor(), Paint.Align.LEFT, mono, !landscape)
         readableText(canvas, context, contextText(state), infoLeft, contextY, infoRight - infoLeft,
-            unit * .027f * state.getSupportingScale(), 12f, theme.getPrimaryTextColor(), Paint.Align.LEFT, mono)
+            unit * .030f * state.getSupportingScale(), 12f, theme.getPrimaryTextColor(), Paint.Align.LEFT, mono)
         if (landscape) {
             val subX = context.getLeft() + w * .86f
             val subY = context.getTop() + h * .77f
@@ -432,7 +432,7 @@ internal class PaperStationRenderer : UltimateClockStyles.RendererBase() {
             unit * if (landscape) .14f else .12f,
             theme.getPrimaryTextColor(), Paint.Align.LEFT, sansBold)
         readableText(canvas, context, contextText(state), infoLeft, contextY, infoRight - infoLeft,
-            unit * .027f * state.getSupportingScale(), 12f,
+            unit * .032f * state.getSupportingScale(), 12f,
             theme.getPrimaryTextColor(), Paint.Align.LEFT, sans)
     }
 }
@@ -505,7 +505,7 @@ internal class OrbitNeonRenderer : UltimateClockStyles.RendererBase() {
         readableDate(canvas, context, state, infoLeft, dateY, infoRight - infoLeft, unit * .031f,
             theme.getPrimaryTextColor(), Paint.Align.LEFT, display, !landscape)
         readableText(canvas, context, contextText(state), infoLeft, contextY, infoRight - infoLeft,
-            unit * .026f * state.getSupportingScale(), 12f, theme.getSecondaryTextColor(), Paint.Align.LEFT, mono)
+            unit * .031f * state.getSupportingScale(), 12f, theme.getSecondaryTextColor(), Paint.Align.LEFT, mono)
         var hourValue = c.get(Calendar.HOUR)
         if (hourValue == 0) hourValue = 12
         if (landscape) {
@@ -646,7 +646,7 @@ internal class DigitalGridRenderer : UltimateClockStyles.RendererBase() {
         readableDate(canvas, context, state, textLeft, dateY, textRight - textLeft, unit * .030f,
             theme.getPrimaryTextColor(), Paint.Align.LEFT, mono, !landscape)
         readableText(canvas, context, contextText(state), textLeft, contextY, textRight - textLeft,
-            unit * .025f * state.getSupportingScale(), 12f, theme.getAccentColor(), Paint.Align.LEFT, mono)
+            unit * .030f * state.getSupportingScale(), 12f, theme.getAccentColor(), Paint.Align.LEFT, mono)
     }
 
     private fun drawDigit(canvas: Canvas, digit: Int, box: RectF, theme: ClockThemeTokens,
@@ -763,7 +763,7 @@ internal class TypographicRenderer : UltimateClockStyles.RendererBase() {
         readableDate(canvas, context, state, infoLeft, dateY, infoRight - infoLeft, unit * .031f,
             theme.getPrimaryTextColor(), Paint.Align.LEFT, bold, !landscape)
         readableText(canvas, context, contextText(state), infoLeft, contextY, infoRight - infoLeft,
-            unit * .024f * state.getSupportingScale(), 12f,
+            unit * .031f * state.getSupportingScale(), 12f,
             theme.getSecondaryTextColor(), Paint.Align.LEFT, regular)
     }
 }
