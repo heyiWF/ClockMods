@@ -19,6 +19,7 @@ import android.widget.FrameLayout
 import android.widget.TextClock
 import android.widget.TextView
 import com.clockmods.R
+import com.clockmods.ui.StatusSymbolAcceptance
 import com.clockmods.background.ClockPreferences
 import com.clockmods.weather.QWeatherConfig
 import com.clockmods.weather.WeatherRefreshUseCase
@@ -41,6 +42,7 @@ import java.io.StringWriter
 class WidgetAcceptanceInstrumentation : Instrumentation() {
     private var calendarAcceptance = false
     private var calendarWeather = false
+    private var statusSymbols = false
     private lateinit var app: Context
     private var checks = 0
 
@@ -53,10 +55,15 @@ class WidgetAcceptanceInstrumentation : Instrumentation() {
         super.onCreate(arguments)
         calendarAcceptance = arguments?.getString("calendar") == "true"
         calendarWeather = arguments?.getString("weather") == "true"
+        statusSymbols = arguments?.getString("statusSymbols") == "true"
         start()
     }
 
     override fun onStart() {
+        if (statusSymbols) {
+            StatusSymbolAcceptance.run(this)
+            return
+        }
         if (calendarAcceptance) {
             com.clockmods.calendar.CalendarAcceptance.run(this, calendarWeather)
             return

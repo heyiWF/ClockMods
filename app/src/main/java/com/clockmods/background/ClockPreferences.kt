@@ -4,6 +4,7 @@ import android.content.Context
 import android.content.SharedPreferences
 import android.content.pm.ActivityInfo
 import com.clockmods.ui.DateFormatter
+import com.clockmods.ui.StatusIconStyle
 import com.clockmods.weather.WeatherTemperatureFormatter
 import java.util.Calendar
 
@@ -169,6 +170,7 @@ open class ClockPreferences(context: Context) {
     fun restoreDefaults() {
         val editor = preferences.edit()
         clearPerThemeTypography(editor)
+        StatusIconStyle.reset(editor)
         editor.putString(KEY_BACKGROUND_MODE, MODE_COLOR).putInt(KEY_BACKGROUND_COLOR, DEFAULT_BACKGROUND_COLOR)
             .putBoolean(KEY_DIM_BACKGROUND, DEFAULT_DIM_BACKGROUND).putBoolean(KEY_SCHEDULE_DIM_BACKGROUND, DEFAULT_SCHEDULE_DIM_BACKGROUND)
             .putInt(KEY_DIM_START_MINUTES, DEFAULT_DIM_START_MINUTES).putInt(KEY_DIM_END_MINUTES, DEFAULT_DIM_END_MINUTES)

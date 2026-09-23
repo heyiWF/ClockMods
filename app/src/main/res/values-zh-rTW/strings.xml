@@ -172,8 +172,9 @@
     <string name="weather_interval_3hour">每 3 小時</string>
     <string name="weather_interval_6hour">每 6 小時</string>
     <string name="weather_interval_12hour">每 12 小時</string>
-    <string name="weather_attribution">天氣服務由和風天氣驅動</string>
+    <string name="weather_attribution">天氣服務由 和風天氣 驅動</string>
     <string name="weather_attribution_prefix">天氣服務由</string>
+    <string name="weather_attribution_brand">和風天氣</string>
     <string name="weather_attribution_suffix">驅動</string>
 
     <!-- Weather status & detail labels (extracted from Java for localization) -->

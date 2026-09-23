@@ -82,10 +82,13 @@ import com.clockmods.background.ClockPreferences
 import com.clockmods.background.FontCatalog
 import com.clockmods.time.RegionTimeZones
 import com.clockmods.ui.DateFormatter
+import com.clockmods.ui.StatusIconStyle
+import com.clockmods.ui.StatusSymbolRenderer
 import com.clockmods.ultimate.AntiBurnPreferences
 import com.clockmods.ultimate.clock.UltimateClockPreferences
 import com.clockmods.ultimate.compose.CalendarThemeCatalog
 import com.clockmods.ultimate.compose.CalendarThemeThumbnail
+import com.clockmods.ultimate.compose.StatusSymbolIcon
 import com.clockmods.weather.WeatherLocationCatalog
 import java.util.Locale
 import kotlinx.coroutines.Dispatchers
@@ -334,6 +337,11 @@ internal fun BackgroundSettingsPage(modifier: Modifier, generation: Int) {
     var color by remember(generation) { mutableIntStateOf(repository.getCurrentColor()) }
     var showStatus by remember(generation) { mutableStateOf(repository.isShowStatusIcons()) }
     var statusScale by remember(generation) { mutableFloatStateOf(repository.getStatusIconScale()) }
+    var statusStyle by remember(generation) { mutableStateOf(StatusIconStyle.read(context)) }
+    val updateStatusStyle: (StatusIconStyle) -> Unit = { updated ->
+        statusStyle = updated
+        updated.save(context)
+    }
     var dim by remember(generation) { mutableStateOf(repository.isDimBackground()) }
     var scheduleDim by remember(generation) {
         mutableStateOf(repository.isScheduleDimBackground())
@@ -452,6 +460,76 @@ internal fun BackgroundSettingsPage(modifier: Modifier, generation: Int) {
                 statusScale = it
                 repository.setStatusIconScale(it)
             }
+        }
+
+        SettingSection(stringResource(R.string.ultimate_status_icon_style)) {
+            Row(
+                Modifier.fillMaxWidth().padding(vertical = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(16.dp),
+                verticalAlignment = Alignment.CenterVertically,
+            ) {
+                Text(stringResource(R.string.ultimate_status_icon_preview),
+                    color = MaterialTheme.colorScheme.onSurfaceVariant)
+                val previewColor = MaterialTheme.colorScheme.primary
+                StatusSymbolIcon(StatusSymbolRenderer.WIFI_FULL, statusStyle, previewColor,
+                    Modifier.size(28.dp), fallbackDrawable = R.drawable.ic_signal_wifi_4_bar)
+                StatusSymbolIcon(StatusSymbolRenderer.BATTERY_BOLT, statusStyle, previewColor,
+                    Modifier.size(28.dp), fallbackDrawable = R.drawable.ic_battery_android_bolt)
+            }
+            Text(stringResource(R.string.ultimate_status_icon_shape),
+                style = MaterialTheme.typography.titleSmall)
+            SettingChoices(
+                options = listOf(
+                    SettingOption(StatusIconStyle.OUTLINED, stringResource(R.string.ultimate_status_icon_outlined)),
+                    SettingOption(StatusIconStyle.ROUNDED, stringResource(R.string.ultimate_status_icon_rounded)),
+                    SettingOption(StatusIconStyle.SHARP, stringResource(R.string.ultimate_status_icon_sharp)),
+                ),
+                selected = statusStyle.family,
+                enabled = showStatus,
+            ) { updateStatusStyle(statusStyle.withFamily(it)) }
+            Text(stringResource(R.string.ultimate_status_icon_fill),
+                style = MaterialTheme.typography.titleSmall,
+                modifier = Modifier.padding(top = 12.dp))
+            SettingChoices(
+                options = listOf(
+                    SettingOption(StatusIconStyle.FILL_AUTO, stringResource(R.string.ultimate_status_icon_fill_auto)),
+                    SettingOption(StatusIconStyle.FILL_OUTLINE, stringResource(R.string.ultimate_status_icon_outlined)),
+                    SettingOption(StatusIconStyle.FILL_SOLID, stringResource(R.string.ultimate_status_icon_solid)),
+                ),
+                selected = statusStyle.fill,
+                enabled = showStatus,
+            ) { updateStatusStyle(statusStyle.withFill(it)) }
+            SettingSlider(
+                label = stringResource(R.string.ultimate_status_icon_weight),
+                value = statusStyle.weight.toFloat(),
+                range = 100f..700f,
+                valueLabel = statusStyle.weight.toString(),
+                enabled = showStatus,
+                steps = 5,
+            ) { updateStatusStyle(statusStyle.withWeight((it / 100f).roundToInt() * 100)) }
+            SettingSlider(
+                label = stringResource(R.string.ultimate_status_icon_grade),
+                value = statusStyle.grade.toFloat(),
+                range = -50f..200f,
+                valueLabel = statusStyle.grade.toString(),
+                enabled = showStatus,
+                steps = 9,
+            ) { updateStatusStyle(statusStyle.withGrade(((it + 50f) / 25f).roundToInt() * 25 - 50)) }
+            SettingSlider(
+                label = stringResource(R.string.ultimate_status_icon_optical_size),
+                value = statusStyle.opticalSize.toFloat(),
+                range = 20f..48f,
+                valueLabel = statusStyle.opticalSize.toString(),
+                enabled = showStatus,
+                steps = 6,
+            ) { updateStatusStyle(statusStyle.withOpticalSize(((it - 20f) / 4f).roundToInt() * 4 + 20)) }
+            Text(stringResource(R.string.ultimate_status_icon_optical_size_summary),
+                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                style = MaterialTheme.typography.bodySmall)
+            SettingAction(
+                stringResource(R.string.ultimate_status_icon_reset),
+                enabled = showStatus,
+            ) { updateStatusStyle(StatusIconStyle.defaults()) }
         }
 
         SettingSection(stringResource(R.string.ultimate_dimming_section)) {

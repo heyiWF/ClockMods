@@ -9,14 +9,21 @@ import android.content.pm.PackageManager
 import android.graphics.Bitmap
 import android.net.Uri
 import android.net.ConnectivityManager
+import android.net.Network
 import android.net.NetworkCapabilities
+import android.net.wifi.WifiInfo
+import android.net.wifi.WifiManager
 import android.os.BatteryManager
+import android.os.Handler
+import android.os.Looper
+import android.telephony.SignalStrength
+import android.telephony.TelephonyCallback
+import android.telephony.TelephonyManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
-import androidx.compose.foundation.Image
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
@@ -35,9 +42,9 @@ import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.BatteryFull
-import androidx.compose.material.icons.filled.Wifi
-import androidx.compose.material.icons.filled.WifiOff
+import androidx.compose.material.icons.outlined.Public
+import androidx.compose.material.icons.outlined.SettingsEthernet
+import androidx.compose.material.icons.outlined.CellTower
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.Text
@@ -58,7 +65,6 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
-import androidx.compose.ui.graphics.ColorFilter
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
@@ -95,6 +101,8 @@ import com.clockmods.sdk.clock.WorldClockEntry
 import com.clockmods.time.NetworkTimeProvider
 import com.clockmods.ui.DateFormatter
 import com.clockmods.ui.ClockTimeFormatter
+import com.clockmods.ui.StatusIconStyle
+import com.clockmods.ui.StatusSymbolRenderer
 import com.clockmods.ultimate.clock.ClockPalette
 import com.clockmods.ultimate.clock.ClockMotionResolver
 import com.clockmods.ultimate.clock.ClockTypography
@@ -287,6 +295,7 @@ internal fun ClockScreen(
 ) {
     val context = LocalContext.current
     val repository = remember(context) { BackgroundRepository(context) }
+    val statusIconStyle = remember(context, refreshGeneration) { StatusIconStyle.read(context) }
     val appearance = remember(context, refreshGeneration) { UltimateClockPreferences(context) }
     val networkTime = remember { NetworkTimeProvider() }
     val worldClockRepository = remember(context) { WorldClockRepository(context) }
@@ -427,6 +436,7 @@ internal fun ClockScreen(
             DeviceStatusPill(
                 status = deviceStatus,
                 scale = repository.getStatusIconScale(),
+                style = statusIconStyle,
                 transparent = styleId == UltimateClockStyles.STYLE_PRO_CLASSIC,
                 contentColor = Color(repository.getTimeColor()),
                 faceColor = overlaySurface,
@@ -932,10 +942,8 @@ internal fun formatWeatherState(
 @Composable
 internal fun WeatherAttribution(faceColor: Color, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val density = LocalDensity.current
-    // The bundled QWeather logotype already spells out the brand, so it replaces the plain text
-    // label and is scaled to the same optical height as the 10sp caption it used to sit on.
-    val logoHeight = with(density) { 11.dp }
+    val iconSize = with(LocalDensity.current) { 11.sp.toDp() }
+    val brand = stringResource(R.string.weather_attribution_brand)
     val suffix = stringResource(R.string.weather_attribution_suffix)
     // The caption sits on the live face, so its ink follows whatever the face is painted with
     // instead of the host window scheme, which says nothing about a photo or a theme gradient.
@@ -949,63 +957,162 @@ internal fun WeatherAttribution(faceColor: Color, modifier: Modifier = Modifier)
             }
         },
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(5.dp),
+        horizontalArrangement = Arrangement.spacedBy(0.dp),
     ) {
         Text(
-            text = stringResource(R.string.weather_attribution_prefix),
+            text = "${stringResource(R.string.weather_attribution_prefix)} ",
             color = captionColor,
             fontSize = 10.sp,
         )
-        Image(
-            painter = painterResource(R.drawable.qweather_logo),
-            contentDescription = stringResource(R.string.weather_attribution),
-            colorFilter = ColorFilter.tint(captionColor),
-            modifier = Modifier.height(logoHeight),
+        Icon(
+            painter = painterResource(R.drawable.ic_qweather_attribution),
+            contentDescription = null,
+            tint = captionColor,
+            modifier = Modifier.size(iconSize),
         )
-        if (suffix.isNotBlank()) {
-            Text(
-                text = suffix,
-                color = captionColor,
-                fontSize = 10.sp,
-            )
-        }
+        Text(
+            text = brand + if (suffix.isNotBlank()) " $suffix" else "",
+            color = captionColor,
+            fontSize = 10.sp,
+        )
     }
 }
 
-internal data class DeviceStatus(val connected: Boolean, val batteryPercent: Int)
+internal enum class DeviceNetwork { OFFLINE, WIFI, CELLULAR, ETHERNET, OTHER }
+
+internal data class DeviceStatus(
+    val network: DeviceNetwork,
+    val signalLevel: Int?,
+    val batteryPercent: Int,
+    val charging: Boolean,
+)
+
+internal fun batteryIcon(percent: Int, charging: Boolean): Int = when {
+    charging -> R.drawable.ic_battery_android_bolt
+    percent <= 0 -> R.drawable.ic_battery_android_0
+    percent <= 14 -> R.drawable.ic_battery_android_6
+    percent <= 28 -> R.drawable.ic_battery_android_5
+    percent <= 42 -> R.drawable.ic_battery_android_4
+    percent <= 56 -> R.drawable.ic_battery_android_3
+    percent <= 70 -> R.drawable.ic_battery_android_2
+    percent <= 85 -> R.drawable.ic_battery_android_1
+    else -> R.drawable.ic_battery_android_full
+}
+
+internal fun networkIcon(network: DeviceNetwork, level: Int?): Int? = when (network) {
+    DeviceNetwork.WIFI -> when (level) {
+        0 -> R.drawable.ic_signal_wifi_0_bar
+        1 -> R.drawable.ic_network_wifi_1_bar
+        2 -> R.drawable.ic_network_wifi_2_bar
+        3 -> R.drawable.ic_network_wifi_3_bar
+        4 -> R.drawable.ic_network_wifi
+        5 -> R.drawable.ic_signal_wifi_4_bar
+        else -> R.drawable.ic_network_wifi
+    }
+    DeviceNetwork.CELLULAR -> when (level) {
+        0 -> R.drawable.ic_signal_cellular_0_bar
+        1 -> R.drawable.ic_signal_cellular_1_bar
+        2 -> R.drawable.ic_signal_cellular_2_bar
+        3 -> R.drawable.ic_signal_cellular_3_bar
+        4 -> R.drawable.ic_signal_cellular_4_bar
+        else -> null
+    }
+    else -> null
+}
+
+private fun networkStatus(capabilities: NetworkCapabilities?, cellLevel: Int?): Pair<DeviceNetwork, Int?> {
+    if (capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_VALIDATED) != true) {
+        return DeviceNetwork.OFFLINE to null
+    }
+    return when {
+        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_ETHERNET) -> DeviceNetwork.ETHERNET to null
+        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_WIFI) -> {
+            val wifiRssi = (capabilities.transportInfo as? WifiInfo)?.rssi
+            val rssi = wifiRssi?.takeUnless { it <= -127 }
+                ?: capabilities.signalStrength
+            val level = if (rssi <= -127 || rssi == NetworkCapabilities.SIGNAL_STRENGTH_UNSPECIFIED) {
+                null
+            } else {
+                WifiManager.calculateSignalLevel(rssi, 6)
+            }
+            DeviceNetwork.WIFI to level
+        }
+        capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> DeviceNetwork.CELLULAR to cellLevel
+        else -> DeviceNetwork.OTHER to null
+    }
+}
 
 @Composable
 internal fun rememberDeviceStatus(): DeviceStatus {
     val context = LocalContext.current
-    fun readStatus(batteryIntent: Intent? = null): DeviceStatus {
-        val manager = context.getSystemService(ConnectivityManager::class.java)
-        val capabilities = manager?.getNetworkCapabilities(manager.activeNetwork)
-        val connected = capabilities?.hasCapability(NetworkCapabilities.NET_CAPABILITY_INTERNET) == true
-        val battery = batteryIntent
-            ?: context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
+    val connectivity = remember(context) { context.getSystemService(ConnectivityManager::class.java) }
+    val telephony = remember(context) { context.getSystemService(TelephonyManager::class.java) }
+    fun readStatus(cellLevel: Int? = null): DeviceStatus {
+        val capabilities = connectivity?.getNetworkCapabilities(connectivity.activeNetwork)
+        val (network, signalLevel) = networkStatus(capabilities, cellLevel)
+        val battery = context.registerReceiver(null, IntentFilter(Intent.ACTION_BATTERY_CHANGED))
         val level = battery?.getIntExtra(BatteryManager.EXTRA_LEVEL, -1) ?: -1
         val scale = battery?.getIntExtra(BatteryManager.EXTRA_SCALE, -1) ?: -1
-        val percent = if (level >= 0 && scale > 0) level * 100 / scale else -1
-        return DeviceStatus(connected, percent)
+        val percent = if (level >= 0 && scale > 0) (level * 100 / scale).coerceIn(0, 100) else -1
+        val charging = battery?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) == BatteryManager.BATTERY_STATUS_CHARGING
+        return DeviceStatus(network, signalLevel, percent, charging)
     }
-    var status by remember { mutableStateOf(readStatus()) }
+    var status by remember(context) { mutableStateOf(readStatus(cellLevel = runCatching { telephony?.signalStrength?.level }.getOrNull())) }
     DisposableEffect(context) {
+        var cellLevel = runCatching { telephony?.signalStrength?.level }.getOrNull()
+        var currentNetwork = connectivity?.activeNetwork
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(receiveContext: Context?, intent: Intent?) {
-                status = readStatus(intent.takeIf { it?.action == Intent.ACTION_BATTERY_CHANGED })
+                status = readStatus(cellLevel)
             }
         }
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_BATTERY_CHANGED)
-            addAction(ConnectivityManager.CONNECTIVITY_ACTION)
+            addAction(WifiManager.RSSI_CHANGED_ACTION)
         }
+        // Wi-Fi broadcasts may come from a privileged UID. Always re-read system state instead
+        // of trusting broadcast extras, since this receiver must be exported to receive them.
         ContextCompat.registerReceiver(
             context,
             receiver,
             filter,
-            ContextCompat.RECEIVER_NOT_EXPORTED,
+            ContextCompat.RECEIVER_EXPORTED,
         )
-        onDispose { runCatching { context.unregisterReceiver(receiver) } }
+        val networkCallback = object : ConnectivityManager.NetworkCallback() {
+            override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
+                currentNetwork = network
+                val (type, level) = networkStatus(capabilities, cellLevel)
+                status = status.copy(network = type, signalLevel = level)
+            }
+
+            override fun onLost(network: Network) {
+                if (network == currentNetwork) {
+                    currentNetwork = null
+                    status = status.copy(network = DeviceNetwork.OFFLINE, signalLevel = null)
+                }
+            }
+        }
+        val networkRegistered = runCatching {
+            connectivity?.registerDefaultNetworkCallback(networkCallback, Handler(Looper.getMainLooper()))
+            connectivity != null
+        }.getOrDefault(false)
+        val signalCallback = object : TelephonyCallback(), TelephonyCallback.SignalStrengthsListener {
+            override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
+                cellLevel = signalStrength.level
+                if (status.network == DeviceNetwork.CELLULAR) {
+                    status = status.copy(signalLevel = cellLevel)
+                }
+            }
+        }
+        val signalRegistered = runCatching {
+            telephony?.registerTelephonyCallback(context.mainExecutor, signalCallback)
+            telephony != null
+        }.getOrDefault(false)
+        onDispose {
+            runCatching { context.unregisterReceiver(receiver) }
+            if (networkRegistered) runCatching { connectivity?.unregisterNetworkCallback(networkCallback) }
+            if (signalRegistered) runCatching { telephony?.unregisterTelephonyCallback(signalCallback) }
+        }
     }
     return status
 }
@@ -1018,6 +1125,7 @@ internal fun DeviceStatusPill(
     contentColor: Color,
     faceColor: Color,
     modifier: Modifier = Modifier,
+    style: StatusIconStyle = StatusIconStyle.read(LocalContext.current),
 ) {
     val normalizedScale = ClockPreferences.normalizeStatusIconScale(scale)
     // A shallow frosted pane over the face: a soft white wash plus a hairline highlight instead
@@ -1045,18 +1153,33 @@ internal fun DeviceStatusPill(
         horizontalArrangement = Arrangement.spacedBy(7.dp * normalizedScale),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        Icon(
-            if (status.connected) Icons.Default.Wifi else Icons.Default.WifiOff,
-            contentDescription = null,
-            tint = ink,
-            modifier = Modifier.size(18.dp * normalizedScale),
-        )
+        val networkSize = Modifier.size(18.dp * normalizedScale)
+        when (status.network) {
+            DeviceNetwork.OFFLINE -> StatusSymbolIcon(
+                StatusSymbolRenderer.GLOBE_CANCEL, style, ink, networkSize,
+                fallbackDrawable = R.drawable.ic_globe_2_cancel,
+            )
+            DeviceNetwork.ETHERNET -> StatusSymbolIcon(
+                StatusSymbolRenderer.ETHERNET, style, ink, networkSize,
+                fallbackVector = Icons.Outlined.SettingsEthernet,
+            )
+            DeviceNetwork.OTHER -> StatusSymbolIcon(
+                StatusSymbolRenderer.PUBLIC, style, ink, networkSize,
+                fallbackVector = Icons.Outlined.Public,
+            )
+            else -> networkIcon(status.network, status.signalLevel)?.let { icon ->
+                StatusSymbolIcon(statusSymbolCodePoint(icon), style, ink, networkSize,
+                    fallbackDrawable = icon)
+            } ?: StatusSymbolIcon(
+                StatusSymbolRenderer.CELL_TOWER, style, ink, networkSize,
+                fallbackVector = Icons.Outlined.CellTower,
+            )
+        }
         if (status.batteryPercent >= 0) {
-            Icon(
-                Icons.Default.BatteryFull,
-                contentDescription = null,
-                tint = ink,
-                modifier = Modifier.size(18.dp * normalizedScale),
+            val icon = batteryIcon(status.batteryPercent, status.charging)
+            StatusSymbolIcon(
+                statusSymbolCodePoint(icon), style, ink, Modifier.size(18.dp * normalizedScale),
+                fallbackDrawable = icon,
             )
             Text(
                 "${status.batteryPercent}%",
@@ -1065,6 +1188,30 @@ internal fun DeviceStatusPill(
             )
         }
     }
+}
+
+internal fun statusSymbolCodePoint(drawable: Int): Int = when (drawable) {
+    R.drawable.ic_battery_android_0 -> StatusSymbolRenderer.BATTERY_0
+    R.drawable.ic_battery_android_1 -> StatusSymbolRenderer.BATTERY_1
+    R.drawable.ic_battery_android_2 -> StatusSymbolRenderer.BATTERY_2
+    R.drawable.ic_battery_android_3 -> StatusSymbolRenderer.BATTERY_3
+    R.drawable.ic_battery_android_4 -> StatusSymbolRenderer.BATTERY_4
+    R.drawable.ic_battery_android_5 -> StatusSymbolRenderer.BATTERY_5
+    R.drawable.ic_battery_android_6 -> StatusSymbolRenderer.BATTERY_6
+    R.drawable.ic_battery_android_full -> StatusSymbolRenderer.BATTERY_FULL
+    R.drawable.ic_battery_android_bolt -> StatusSymbolRenderer.BATTERY_BOLT
+    R.drawable.ic_signal_wifi_0_bar -> StatusSymbolRenderer.WIFI_0
+    R.drawable.ic_network_wifi_1_bar -> StatusSymbolRenderer.WIFI_1
+    R.drawable.ic_network_wifi_2_bar -> StatusSymbolRenderer.WIFI_2
+    R.drawable.ic_network_wifi_3_bar -> StatusSymbolRenderer.WIFI_3
+    R.drawable.ic_network_wifi -> StatusSymbolRenderer.WIFI_4
+    R.drawable.ic_signal_wifi_4_bar -> StatusSymbolRenderer.WIFI_FULL
+    R.drawable.ic_signal_cellular_0_bar -> StatusSymbolRenderer.CELLULAR_0
+    R.drawable.ic_signal_cellular_1_bar -> StatusSymbolRenderer.CELLULAR_1
+    R.drawable.ic_signal_cellular_2_bar -> StatusSymbolRenderer.CELLULAR_2
+    R.drawable.ic_signal_cellular_3_bar -> StatusSymbolRenderer.CELLULAR_3
+    R.drawable.ic_signal_cellular_4_bar -> StatusSymbolRenderer.CELLULAR_4
+    else -> StatusSymbolRenderer.PUBLIC
 }
 
 @Composable
