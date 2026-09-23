@@ -122,9 +122,7 @@ final class MaterialIcon {
                     + "85t-85 35H160Zm700-140v-200h20q17 0 28.5 11.5T920-540v120q0 17-11.5 28.5T880-380h-20Z");
 
     static final MaterialIcon BATTERY_BOLT = new MaterialIcon(
-            "M160-240q-50 0-85-35t-35-85v-240q0-50 35-85t85-35h562l-64 80H160q-17 0-28.5 "
-                    + "11.5T120-600v240q0 17 11.5 28.5T160-320h473l-15 80H160Zm-40-80v-320 320Zm587 "
-                    + "40 28-160H600l192-240h21l-28 160h135L728-280h-21Z");
+            "M160-240q-50 0-85-35t-35-85v-240q0-50 35-85t85-35h562L434-360h206l-22 120H160Zm547-40 28-160H600l192-240h21l-28 160h135L728-280h-21Z");
 
     /** Indexed 0..7 -> Battery Android 0..6 then Full. */
     static final MaterialIcon[] BATTERY_LEVELS = {
