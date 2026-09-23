@@ -6,7 +6,6 @@ import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
 import androidx.compose.foundation.border
 import androidx.compose.foundation.clickable
-import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
@@ -21,13 +20,11 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
-import androidx.compose.ui.composed
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.nativeCanvas
-import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
@@ -57,7 +54,6 @@ import java.text.SimpleDateFormat
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
-import kotlin.math.abs
 import kotlin.math.min
 
 private val LocalMonthPanelHeight = staticCompositionLocalOf { 0f }
@@ -67,6 +63,7 @@ private val LocalMonthPanelHeight = staticCompositionLocalOf { 0f }
 internal fun UltimateCalendarLayout(
     modifier: Modifier, theme: ComposeCalendarTheme, typography: CalendarTypography,
     preferences: ClockPreferences, cells: List<CalendarCellInfo>, selected: CalendarCellInfo,
+    adjacentCells: (Int) -> List<CalendarCellInfo>,
     weekdays: List<String>, monthTitle: String, timeZone: TimeZone, clockTick: Long,
     weatherState: WeatherModels.WeatherState?, refreshGeneration: Int,
     scheduleItems: List<ScheduleItem>, onPrevious: () -> Unit, onNext: () -> Unit,
@@ -89,9 +86,23 @@ internal fun UltimateCalendarLayout(
         val landscape = maxWidth > maxHeight
         val gutter = if (landscape) 8.dp else 5.dp
         val grid: @Composable (Modifier) -> Unit = { gridModifier ->
-            OriginalMonthGrid(cells, weekdays, selected, theme, typography,
-                preferences.isCalendarHighlightWeekends(), onSelect,
-                gridModifier.calendarSwipe(theme.id, onPrevious, onNext))
+            CalendarSwipePager("${theme.id}:${selected.day.year}-${selected.day.month}",
+                gridModifier, onPrevious, onNext,
+                adjacent = { direction ->
+                    val page = adjacentCells(direction)
+                    val targetDay = selected.day.dayOfMonth.coerceAtMost(
+                        page.last { it.day.currentMonth }.day.dayOfMonth)
+                    val selectedDay = page.firstOrNull {
+                        it.day.currentMonth && it.day.dayOfMonth == targetDay
+                    } ?: page.first { it.day.currentMonth }
+                    val preview: @Composable () -> Unit = {
+                        OriginalMonthGrid(page, weekdays, selectedDay, theme, typography,
+                            preferences.isCalendarHighlightWeekends(), {}, Modifier.fillMaxSize())
+                    }
+                    preview
+                },
+                current = { OriginalMonthGrid(cells, weekdays, selected, theme, typography,
+                    preferences.isCalendarHighlightWeekends(), onSelect, Modifier.fillMaxSize()) })
         }
         when (theme.layout) {
             CalendarLayout.DASHBOARD, CalendarLayout.WALL -> {
@@ -118,20 +129,10 @@ internal fun UltimateCalendarLayout(
             }
             CalendarLayout.POSTER -> PosterCalendar(theme, typography, selected, landscape, onToday, grid)
             CalendarLayout.AGENDA -> AgendaCalendar(theme, typography, preferences, cells, selected,
+                adjacentCells,
                 monthTitle, timeZone, landscape, weatherState, forecast, scheduleItems,
                 onPrevious, onNext, onToday, onSelect, onMonthPicker, onAddSchedule, onEditSchedule)
         }
-    }
-}
-
-private fun Modifier.calendarSwipe(key: String, previous: () -> Unit, next: () -> Unit): Modifier = composed {
-    val onPrevious by rememberUpdatedState(previous)
-    val onNext by rememberUpdatedState(next)
-    pointerInput(key) {
-        var distance = 0f
-        detectHorizontalDragGestures(onDragStart = { distance = 0f },
-            onHorizontalDrag = { change, amount -> change.consume(); distance += amount },
-            onDragEnd = { if (abs(distance) > 48.dp.toPx()) { if (distance < 0) onNext() else onPrevious() } })
     }
 }
 
@@ -487,7 +488,8 @@ private fun CalendarWeatherIcon(code: String?, color: Int, preferences: ClockPre
 
 @Composable
 private fun AgendaCalendar(theme: ComposeCalendarTheme, typography: CalendarTypography, preferences: ClockPreferences,
-    cells: List<CalendarCellInfo>, selection: CalendarCellInfo, title: String, zone: TimeZone, landscape: Boolean,
+    cells: List<CalendarCellInfo>, selection: CalendarCellInfo,
+    adjacentCells: (Int) -> List<CalendarCellInfo>, title: String, zone: TimeZone, landscape: Boolean,
     weather: WeatherModels.WeatherState?, forecast: WeatherModels.DailyForecastData?, schedule: List<ScheduleItem>,
     previous: () -> Unit, next: () -> Unit, today: () -> Unit, select: (CalendarCellInfo) -> Unit,
     picker: () -> Unit, add: () -> Unit, edit: (ScheduleItem) -> Unit) {
@@ -509,11 +511,28 @@ private fun AgendaCalendar(theme: ComposeCalendarTheme, typography: CalendarTypo
         }
     }
     val strip: @Composable (Modifier) -> Unit = { stripModifier ->
-        val swipe = stripModifier.calendarSwipe("agenda", previous, next).testTag("week-strip")
-        if (landscape) Column(swipe) { week.forEach { cell -> AgendaStripCell(cell, cell == selection, theme, typography, true,
-            preferences.isCalendarHighlightWeekends(), { select(cell) }, Modifier.weight(1f).fillMaxWidth()) } }
-        else Row(swipe) { week.forEach { cell -> AgendaStripCell(cell, cell == selection, theme, typography, false,
-            preferences.isCalendarHighlightWeekends(), { select(cell) }, Modifier.weight(1f).fillMaxHeight()) } }
+        val stripPage: @Composable (List<CalendarCellInfo>, CalendarCellInfo?, Boolean) -> Unit =
+            { page, selectedDay, interactive ->
+                val click: (CalendarCellInfo) -> Unit = if (interactive) select else { _ -> }
+                if (landscape) Column(Modifier.fillMaxSize()) {
+                    page.forEach { cell -> AgendaStripCell(cell, cell.day == selectedDay?.day,
+                        theme, typography, true, preferences.isCalendarHighlightWeekends(),
+                        { click(cell) }, Modifier.weight(1f).fillMaxWidth()) }
+                } else Row(Modifier.fillMaxSize()) {
+                    page.forEach { cell -> AgendaStripCell(cell, cell.day == selectedDay?.day,
+                        theme, typography, false, preferences.isCalendarHighlightWeekends(),
+                        { click(cell) }, Modifier.weight(1f).fillMaxHeight()) }
+                }
+            }
+        CalendarSwipePager("agenda:${week.first().day.year}-${week.first().day.month}-${week.first().day.dayOfMonth}",
+            stripModifier.testTag("week-strip"), previous, next,
+            adjacent = { direction ->
+                val page = adjacentCells(direction)
+                val selectedDay = page.firstOrNull { it.day.dayOfWeek == selection.day.dayOfWeek }
+                val preview: @Composable () -> Unit = { stripPage(page, selectedDay, false) }
+                preview
+            },
+            current = { stripPage(week, selection, true) })
     }
     if (landscape) Row(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
         Column(Modifier.weight(.36f).fillMaxHeight()) { header(); Spacer(Modifier.height(12.dp)); strip(Modifier.weight(1f).fillMaxWidth()) }

@@ -264,6 +264,33 @@ internal fun CalendarScreen(
     val selected = cells.firstOrNull {
         selectedKey == dayKey(it.day.year, it.day.month, it.day.dayOfMonth)
     } ?: cells.first { it.day.currentMonth }
+    val adjacentCells: (Int) -> List<CalendarCellInfo> = { direction ->
+        val cursor = Calendar.getInstance(timeZone).apply {
+            clear()
+            if (theme.layout == CalendarLayout.AGENDA) {
+                set(selected.day.year, selected.day.month, selected.day.dayOfMonth)
+                add(Calendar.DAY_OF_MONTH, direction * 7)
+            } else {
+                set(year, month, 1)
+                add(Calendar.MONTH, direction)
+            }
+        }
+        val page = if (theme.layout == CalendarLayout.AGENDA) {
+            CalendarMonth.createWeek(cursor.get(Calendar.YEAR), cursor.get(Calendar.MONTH),
+                cursor.get(Calendar.DAY_OF_MONTH), timeZone, todayMillis,
+                preferences.getCalendarWeekStart())
+        } else {
+            CalendarMonth.create(cursor.get(Calendar.YEAR), cursor.get(Calendar.MONTH), timeZone,
+                todayMillis, preferences.getCalendarWeekStart())
+        }
+        page.days.map { day ->
+            val almanac = LunarAlmanac.of(day.year, day.month, day.dayOfMonth)
+            val date = String.format(Locale.US, "%04d-%02d-%02d", day.year,
+                day.month + 1, day.dayOfMonth)
+            CalendarCellInfo(day, almanac.shortLabel(), almanac.festivals(),
+                holidayRepository.statusOn(date), almanac.suitable(), almanac.avoid(), false)
+        }
+    }
     var selectedSchedule by remember { mutableStateOf(emptyList<ScheduleItem>()) }
     var monthPickerVisible by rememberSaveable { mutableStateOf(false) }
     var editingItem by remember { mutableStateOf<ScheduleItem?>(null) }
@@ -330,6 +357,7 @@ internal fun CalendarScreen(
             detectTapGestures(onTap = { onToggleChrome() })
         }, theme = theme, typography = typography,
         preferences = preferences, cells = cells, selected = selected,
+        adjacentCells = adjacentCells,
         weekdays = weekdays, monthTitle = monthTitle, timeZone = timeZone,
         clockTick = clockTick, weatherState = weatherState,
         refreshGeneration = refreshGeneration, scheduleItems = selectedSchedule,
