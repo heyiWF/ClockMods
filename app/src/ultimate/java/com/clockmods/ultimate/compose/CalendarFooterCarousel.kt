@@ -1,6 +1,7 @@
 package com.clockmods.ultimate.compose
 
 import android.graphics.Paint
+import android.graphics.Rect
 import androidx.compose.foundation.Canvas
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
@@ -16,6 +17,15 @@ import kotlin.math.max
 import kotlin.math.min
 
 internal const val ALMANAC_BADGE_BACKGROUND_ALPHA = .18f
+
+/** Centers the visible ink, including fonts whose Chinese glyphs sit off their line box center. */
+internal fun drawCenteredAlmanacGlyph(
+    canvas: android.graphics.Canvas, glyph: String, centerX: Float, centerY: Float, paint: Paint,
+) {
+    val bounds = Rect()
+    paint.getTextBounds(glyph, 0, glyph.length, bounds)
+    canvas.drawText(glyph, centerX - bounds.exactCenterX(), centerY - bounds.exactCenterY(), paint)
+}
 
 /** Original footer timing: read, scroll to the end, pause, then slide to the next coloured line. */
 @Composable
@@ -77,8 +87,7 @@ internal fun CalendarFooterCarousel(cell: CalendarCellInfo, date: String, theme:
                     ((255 * ALMANAC_BADGE_BACKGROUND_ALPHA).toInt() shl 24)
                 canvas.drawCircle(x + radius, centerY, radius, badgePaint)
                 bold.textSize = paint.textSize * .74f
-                canvas.drawText(prefix, x + radius - bold.measureText(prefix) / 2f,
-                    centerY - (bold.ascent() + bold.descent()) / 2f, bold)
+                drawCenteredAlmanacGlyph(canvas, prefix, x + radius, centerY, bold)
             }
             canvas.save()
             canvas.clipRect(x + prefixWidth, top, size.width - if (excess > 0) padding else 0f, bottom)

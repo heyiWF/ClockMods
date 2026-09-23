@@ -9,7 +9,6 @@ import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
-import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -621,17 +620,28 @@ private fun AgendaCard(cell: CalendarCellInfo, theme: ComposeCalendarTheme, typo
 }
 
 @Composable
-private fun PinnedAlmanac(prefix: String, items: List<String>, color: Int, size: Float, typography: CalendarTypography) {
+private fun PinnedAlmanac(prefix: String, items: List<String>, color: Int, textSizeSp: Float, typography: CalendarTypography) {
     if (items.isEmpty()) return
+    val context = LocalContext.current
+    val glyphPaint = remember(typography, prefix) {
+        Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
+            typeface = ClockTypefaceResolver.resolve(context, typography.family, typography.emphasizedWeight)
+        }
+    }
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(Modifier.size((size * 1.55f).dp)
-            .background(Color(color).copy(alpha = ALMANAC_BADGE_BACKGROUND_ALPHA), CircleShape),
-            contentAlignment = Alignment.Center) {
-            Text(prefix, color = Color(color), maxLines = 1,
-                style = typography.supportingStyle(TextStyle(fontSize = (size * .85f).sp), prefix, true))
+        Canvas(Modifier.size((textSizeSp * 1.55f).dp)) {
+            val radius = minOf(this.size.width, this.size.height) / 2f
+            drawCircle(Color(color).copy(alpha = ALMANAC_BADGE_BACKGROUND_ALPHA), radius)
+            glyphPaint.color = color
+            glyphPaint.textSize = minOf(
+                textSizeSp * .85f * typography.supportingScale * density * fontScale,
+                radius * 1.25f,
+            )
+            drawCenteredAlmanacGlyph(drawContext.canvas.nativeCanvas, prefix,
+                this.size.width / 2f, this.size.height / 2f, glyphPaint)
         }
         MarqueeText(items.joinToString(" · "), Color(color),
-            typography.supportingStyle(TextStyle(fontSize = size.sp), items.first()), Modifier.weight(1f))
+            typography.supportingStyle(TextStyle(fontSize = textSizeSp.sp), items.first()), Modifier.weight(1f))
     }
 }
 

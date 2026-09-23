@@ -28,9 +28,12 @@ internal fun CalendarThemeThumbnail(theme: ComposeCalendarTheme, modifier: Modif
         }
         fun almanacLabel(prefix: String, body: String, x: Float, baseline: Float, color: Int) {
             val radius = 4.5f * u
-            drawCircle(Color(color).copy(alpha = ALMANAC_BADGE_BACKGROUND_ALPHA), radius,
-                Offset(x + radius, baseline - 2f * u))
-            label(prefix, x + 1.5f * u, baseline, 6f, color)
+            val center = Offset(x + radius, baseline - 2f * u)
+            drawCircle(Color(color).copy(alpha = ALMANAC_BADGE_BACKGROUND_ALPHA), radius, center)
+            paint.color = color
+            paint.textSize = 6f * u
+            drawCenteredAlmanacGlyph(drawContext.canvas.nativeCanvas, prefix,
+                center.x, center.y, paint)
             label(body, x + radius * 2 + 3f * u, baseline, 6f, color)
         }
         fun grid(left: Float, top: Float, width: Float, height: Float, poster: Boolean = false) {
