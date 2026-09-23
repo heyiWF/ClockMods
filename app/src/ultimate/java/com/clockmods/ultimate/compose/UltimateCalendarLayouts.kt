@@ -44,6 +44,7 @@ import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.clockmods.R
 import com.clockmods.background.ClockPreferences
+import com.clockmods.calendar.LunarCalendar
 import com.clockmods.pro.CalendarDashboardSizing as Sizing
 import com.clockmods.pro.LunarAlmanac
 import com.clockmods.pro.schedule.ScheduleItem
@@ -299,12 +300,24 @@ private fun calendarDateLine(cell: CalendarCellInfo): String {
 private fun PosterCalendar(theme: ComposeCalendarTheme, typography: CalendarTypography, selection: CalendarCellInfo,
     landscape: Boolean, today: () -> Unit, grid: @Composable (Modifier) -> Unit) {
     val masthead: @Composable (Modifier) -> Unit = { modifier ->
-        Box(modifier.testTag("poster-masthead")) {
-            PosterWordmark(selection.day.year, selection.day.month, theme, typography,
-                Modifier.fillMaxSize().padding(end = if (landscape) 18.dp else 0.dp))
-            Text(stringResource(R.string.calendar_today), Modifier.align(if (landscape) Alignment.BottomStart else Alignment.BottomEnd)
-                .clickable(onClick = today).padding(horizontal = 10.dp, vertical = 12.dp),
-                color = Color(theme.accent), fontSize = 11.sp, letterSpacing = 1.76.sp)
+        val date = remember(selection.day) { Calendar.getInstance().apply {
+            clear(); set(selection.day.year, selection.day.month, selection.day.dayOfMonth)
+        } }
+        val lunar = remember(selection.day) { LunarCalendar.formatNatural(date) }
+        Column(modifier.testTag("poster-masthead")) {
+            CalendarText(lunar, if (landscape) 17f else 15f, theme.secondary, typography,
+                Modifier.fillMaxWidth().testTag("poster-selected-lunar"))
+            if (selection.festivals.isNotEmpty()) {
+                CalendarText(selection.festivals.joinToString(" · "), if (landscape) 14f else 12f,
+                    theme.accent, typography, Modifier.fillMaxWidth().testTag("poster-selected-festivals"))
+            }
+            Box(Modifier.fillMaxWidth().weight(1f)) {
+                PosterWordmark(selection.day.year, selection.day.month, theme, typography,
+                    Modifier.fillMaxSize().padding(end = if (landscape) 18.dp else 0.dp))
+                Text(stringResource(R.string.calendar_today), Modifier.align(if (landscape) Alignment.BottomStart else Alignment.BottomEnd)
+                    .clickable(onClick = today).padding(horizontal = 10.dp, vertical = 12.dp),
+                    color = Color(theme.accent), fontSize = 11.sp, letterSpacing = 1.76.sp)
+            }
         }
     }
     if (landscape) Row(Modifier.fillMaxSize().padding(start = 30.dp, top = 18.dp, end = 30.dp, bottom = 16.dp)) {
