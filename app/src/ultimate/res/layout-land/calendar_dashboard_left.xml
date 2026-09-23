@@ -25,6 +25,7 @@
             android:layout_marginTop="-3dp" />
 
         <LinearLayout
+            android:id="@+id/calendar_clock_content"
             android:layout_width="match_parent"
             android:layout_height="0dp"
             android:layout_weight="1"

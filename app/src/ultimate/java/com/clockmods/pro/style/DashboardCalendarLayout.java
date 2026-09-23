@@ -245,6 +245,11 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
         currentWeatherCard.setVisibility(weatherEnabled ? View.VISIBLE : View.GONE);
         forecastCard.setVisibility(weatherEnabled ? View.VISIBLE : View.GONE);
         attribution.setVisibility(weatherEnabled ? View.VISIBLE : View.GONE);
+        LinearLayout clockContent = root.findViewById(R.id.calendar_clock_content);
+        if (clockContent != null) {
+            clockContent.setGravity(weatherEnabled
+                    ? Gravity.CENTER_HORIZONTAL | Gravity.BOTTOM : Gravity.CENTER);
+        }
     }
 
     private void applyTheme() {
