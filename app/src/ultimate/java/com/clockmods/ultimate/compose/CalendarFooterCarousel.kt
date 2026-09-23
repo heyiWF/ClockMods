@@ -82,7 +82,7 @@ internal fun CalendarFooterCarousel(cell: CalendarCellInfo, date: String, theme:
             canvas.clipRect(0f, top, size.width, bottom)
             if (prefix.isNotEmpty()) {
                 val radius = badgeDiameter / 2f
-                val centerY = baseline - (paint.ascent() + paint.descent()) / 2f
+                val centerY = size.height / 2f + offset
                 badgePaint.color = (color and 0x00FFFFFF) or
                     ((255 * ALMANAC_BADGE_BACKGROUND_ALPHA).toInt() shl 24)
                 canvas.drawCircle(x + radius, centerY, radius, badgePaint)
