@@ -359,7 +359,7 @@ private fun DashboardReadings(theme: ComposeCalendarTheme, typography: CalendarT
                     Color(preferences.getTimeColor()), Color(theme.panel), Modifier.height(25.dp))
                 val clock = Calendar.getInstance(zone).apply { timeInMillis = tick }
                 val time = SimpleDateFormat(if (preferences.isUse24Hour()) "HH:mm" else "hh:mm", Locale.US).apply { timeZone = zone }.format(clock.time)
-                Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = if (landscape) Alignment.BottomCenter else Alignment.Center) {
+                Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = if (landscape && preferences.isWeatherEnabled()) Alignment.BottomCenter else Alignment.Center) {
                 Row(horizontalArrangement = Arrangement.Center) {
                     Text(alignedClockText(time, typography), Modifier.alignByBaseline(), color = Color(preferences.getTimeColor()), maxLines = 1,
                         style = typography.timeStyle(TextStyle(fontSize = clockSize.sp), time, true))

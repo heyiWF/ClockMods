@@ -409,10 +409,6 @@ internal fun LunarCarouselText(
 ) {
     val distinct = remember(labels) { labels.distinct().filter { it.isNotEmpty() } }
     if (distinct.isEmpty()) return
-    if (distinct.size == 1) {
-        LunarCarouselLine(distinct.first(), color, style, modifier)
-        return
-    }
     val density = LocalDensity.current
     val lineHeight = with(density) {
         val fontSizePx = style.fontSize.toPx()
@@ -426,6 +422,9 @@ internal fun LunarCarouselText(
     var phase by remember { mutableFloatStateOf(0f) }
     var cycle by remember { mutableIntStateOf(0) }
     LaunchedEffect(distinct) {
+        phase = 0f
+        cycle = 0
+        if (distinct.size == 1) return@LaunchedEffect
         val start = withFrameNanos { it }
         while (true) {
             val now = withFrameNanos { it }
@@ -444,22 +443,25 @@ internal fun LunarCarouselText(
             .coerceIn(0f, 1f)
     val nextIndex = (index + 1) % distinct.size
     val slide = progress * lineHeight
+    // Static and cycling labels must share the same line box and baseline.
+    val lineStyle = style.copy(lineHeight = with(density) { lineHeight.toSp() })
     Box(
         modifier
             .height(with(density) { lineHeight.toDp() })
             .clipToBounds(),
+        contentAlignment = Alignment.Center,
     ) {
         LunarCarouselLine(
             distinct[index],
             color,
-            style,
+            lineStyle,
             Modifier.graphicsLayer { translationY = -slide },
         )
         if (!holding) {
             LunarCarouselLine(
                 distinct[nextIndex],
                 color,
-                style,
+                lineStyle,
                 Modifier.graphicsLayer { translationY = lineHeight - slide },
             )
         }

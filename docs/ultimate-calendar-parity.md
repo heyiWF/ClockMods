@@ -32,3 +32,10 @@ adb shell am instrument -w -e calendar true -e weather true com.clockmods.ultima
 截图与检查结果写入应用外部文件目录的 `calendar-acceptance/`。参考版与新版截图已拉取至本地忽略目录 `.tmp-calendar-validation/`，用于人工核对布局、配色、文字、标记与裁切。
 
 完整 Android Lint 未完成：运行停留在 `BidirectionalTextDetector` 的 Kotlin UAST 注释遍历中，线程栈显示 `KotlinUFile.getAllCommentsInFile` / `PsiWalkingState.next`。未通过修改项目检查配置来跳过该问题；上述构建、单元测试和设备验收独立执行。
+
+## 对齐修复复验
+
+- 两个分支的仪表盘在横屏关闭天气时改为垂直居中；天气开启时保留原来的底部对齐。
+- Compose 的静态农历与轮播文字共用相同行高和居中的容器，避免轮播与非轮播日期的文字出现高度差。
+- 两个分支均构建成功，并在同一 ADB 设备核对横竖屏截图。Compose 的 16 个设备场景与 199 项单元测试再次通过。
+- 连续截图确认轮播停留在农历和节日文字时，与同一行的静态文字基线一致；截图保存在本地忽略目录 `.tmp-center-validation/`。
