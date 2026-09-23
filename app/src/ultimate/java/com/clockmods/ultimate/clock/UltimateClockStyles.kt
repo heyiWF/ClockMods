@@ -451,6 +451,10 @@ object UltimateClockStyles {
             if (safeMaxWidth <= 0f) return
             val floor = readableSize(context, 0f, 12f)
             val requested = maxOf(floor, preferredSize * state.getDateScale())
+            val growth = (state.getDateScale() - 1f).coerceAtLeast(0f)
+            val raisedBaseline = if (lowerBaseline < context.getCenterY()) {
+                lowerBaseline - minOf(preferredSize * growth * .38f, context.getDensity() * 14f)
+            } else lowerBaseline
             val requestedPaint = fill(Color.WHITE)
             requestedPaint.typeface = face
             requestedPaint.textSize = requested
@@ -464,7 +468,7 @@ object UltimateClockStyles {
                 metricsPaint.typeface = face
                 metricsPaint.textSize = size
                 val metrics = metricsPaint.fontMetrics
-                var safeBaseline = maxOf(lowerBaseline, context.getTop() + inset - metrics.ascent)
+                var safeBaseline = maxOf(raisedBaseline, context.getTop() + inset - metrics.ascent)
                 safeBaseline = minOf(safeBaseline, context.getBottom() - inset - metrics.descent)
                 text(canvas, ellipsize(state.getDateText(), safeMaxWidth, size, face), safeX,
                     safeBaseline, size, color, align, face)
@@ -476,7 +480,7 @@ object UltimateClockStyles {
             ))
             val lineGap = size * 1.45f
             val designedStack = stackLunar && splitDateAndLunar(state.getDateText())[1].isNotEmpty()
-            var adjustedBaseline = lowerBaseline
+            var adjustedBaseline = raisedBaseline
             if (!designedStack && adjustedBaseline < context.getCenterY()) adjustedBaseline += lineGap
             val metricsPaint = fill(Color.WHITE)
             metricsPaint.typeface = face
