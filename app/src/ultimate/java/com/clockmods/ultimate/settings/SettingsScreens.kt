@@ -14,6 +14,7 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
@@ -56,6 +57,7 @@ import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.unit.dp
 import com.clockmods.R
 import com.clockmods.background.AutoStartManager
@@ -329,7 +331,9 @@ internal fun SettingSwitch(
     onChange: (Boolean) -> Unit,
 ) {
     Row(
-        Modifier.fillMaxWidth().alpha(if (enabled) 1f else 0.38f).padding(vertical = 5.dp),
+        Modifier.fillMaxWidth().alpha(if (enabled) 1f else 0.38f)
+            .toggleable(value = value, enabled = enabled, role = Role.Switch, onValueChange = onChange)
+            .padding(vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
@@ -343,7 +347,7 @@ internal fun SettingSwitch(
                 )
             }
         }
-        Switch(checked = value, onCheckedChange = onChange, enabled = enabled)
+        Switch(checked = value, onCheckedChange = null, enabled = enabled)
     }
 }
 
