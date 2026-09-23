@@ -419,23 +419,14 @@ object UltimateClockStyles {
             val previous = state?.getPreviousWeatherText().orEmpty()
             if (state != null && progress < 1f && previous.isNotEmpty() &&
                 value == contextText(state)) {
-                val save = canvas.save()
-                val left = if (align == Paint.Align.LEFT) x else x - maxWidth
-                val right = if (align == Paint.Align.RIGHT) x else x + maxWidth
-                canvas.clipRect(left, baseline - size * 1.2f, right, baseline + size * .4f)
+                val oldSize = maxOf(floor,
+                    fitText(previous, maxWidth, maxOf(floor, preferredSize), face))
                 val oldColor = alpha(color, (Color.alpha(color) * (1f - progress)).toInt())
                 val newColor = alpha(color, (Color.alpha(color) * progress).toInt())
-                canvas.save()
-                canvas.translate(0f, -size * progress)
-                text(canvas, ellipsize(previous, maxWidth, size, face), x, baseline, size,
+                text(canvas, ellipsize(previous, maxWidth, oldSize, face), x, baseline, oldSize,
                     oldColor, align, face)
-                canvas.restore()
-                canvas.save()
-                canvas.translate(0f, size * (1f - progress))
                 text(canvas, ellipsize(value, maxWidth, size, face), x, baseline, size,
                     newColor, align, face)
-                canvas.restore()
-                canvas.restoreToCount(save)
             } else {
                 text(canvas, ellipsize(value, maxWidth, size, face), x, baseline, size,
                     color, align, face)

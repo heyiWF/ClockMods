@@ -44,6 +44,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.SideEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -638,14 +639,16 @@ private fun ClockCanvas(
     LaunchedEffect(transitionProgress) {
         if (animateTime) transitionProgress.animateTo(1f, tween(durationMillis = 280))
     }
-    val weatherProgress = remember { Animatable(1f) }
-    var lastWeatherText by remember(styleId) { mutableStateOf(weatherText) }
-    var previousWeatherText by remember(styleId) { mutableStateOf("") }
-    LaunchedEffect(weatherText, styleId) {
-        if (weatherText != lastWeatherText) {
-            previousWeatherText = lastWeatherText
-            lastWeatherText = weatherText
-            weatherProgress.snapTo(0f)
+    // Capture the outgoing line during composition. Starting the animation later in an effect
+    // briefly paints the new line at full opacity before snapping back to the old one.
+    val committedWeatherText = remember(styleId) { arrayOf(weatherText) }
+    val previousWeatherText = remember(styleId, weatherText) { committedWeatherText[0] }
+    val weatherProgress = remember(styleId, weatherText) {
+        Animatable(if (previousWeatherText.isNotEmpty() && previousWeatherText != weatherText) 0f else 1f)
+    }
+    SideEffect { committedWeatherText[0] = weatherText }
+    LaunchedEffect(weatherProgress) {
+        if (weatherProgress.value < 1f) {
             weatherProgress.animateTo(1f, tween(durationMillis = 300))
         }
     }
