@@ -598,7 +598,6 @@ private fun AgendaCard(cell: CalendarCellInfo, theme: ComposeCalendarTheme, typo
                     if (data != null) CalendarText(temperature(data.temperature, preferences), 22f, theme.text, typography, emphasized = true)
                     CalendarText(if (entry == null) data?.text.orEmpty() else "${entry.textDay.orEmpty()} ${temperatureRange(entry, preferences)}", body, theme.secondary, typography, Modifier.weight(1f), maxLines = 2)
                 }
-                Spacer(Modifier.height(24.dp))
             }
             Spacer(Modifier.height(14.dp))
             PinnedAlmanac(stringResource(R.string.calendar_suitable_prefix), cell.suitable, theme.suitable, body, typography)
@@ -625,8 +624,10 @@ private fun AgendaCard(cell: CalendarCellInfo, theme: ComposeCalendarTheme, typo
 private fun PinnedAlmanac(prefix: String, items: List<String>, color: Int, size: Float, typography: CalendarTypography) {
     if (items.isEmpty()) return
     Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-        Box(Modifier.size((size * 1.55f).dp).background(Color(color), CircleShape), contentAlignment = Alignment.Center) {
-            Text(prefix, color = Color.White, maxLines = 1,
+        Box(Modifier.size((size * 1.55f).dp)
+            .background(Color(color).copy(alpha = ALMANAC_BADGE_BACKGROUND_ALPHA), CircleShape),
+            contentAlignment = Alignment.Center) {
+            Text(prefix, color = Color(color), maxLines = 1,
                 style = typography.supportingStyle(TextStyle(fontSize = (size * .85f).sp), prefix, true))
         }
         MarqueeText(items.joinToString(" · "), Color(color),

@@ -15,6 +15,8 @@ import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 
+internal const val ALMANAC_BADGE_BACKGROUND_ALPHA = .18f
+
 /** Original footer timing: read, scroll to the end, pause, then slide to the next coloured line. */
 @Composable
 internal fun CalendarFooterCarousel(cell: CalendarCellInfo, date: String, theme: ComposeCalendarTheme,
@@ -23,12 +25,13 @@ internal fun CalendarFooterCarousel(cell: CalendarCellInfo, date: String, theme:
     val good = stringResource(R.string.calendar_suitable_prefix)
     val bad = stringResource(R.string.calendar_avoid_prefix)
     val lines = listOf(Triple("", date, theme.text)) +
-        (if (cell.suitable.isNotEmpty()) listOf(Triple(good, cell.suitable.joinToString(" "), theme.suitable)) else emptyList()) +
-        (if (cell.avoid.isNotEmpty()) listOf(Triple(bad, cell.avoid.joinToString(" "), theme.avoid)) else emptyList())
+        (if (cell.suitable.isNotEmpty()) listOf(Triple(good, cell.suitable.joinToString(" · "), theme.suitable)) else emptyList()) +
+        (if (cell.avoid.isNotEmpty()) listOf(Triple(bad, cell.avoid.joinToString(" · "), theme.avoid)) else emptyList())
     val paint = remember(typography) { Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
         typeface = ClockTypefaceResolver.resolve(context, typography.family, typography.weight) } }
     val bold = remember(typography) { Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
         typeface = ClockTypefaceResolver.resolve(context, typography.family, typography.emphasizedWeight) } }
+    val badgePaint = remember { Paint(Paint.ANTI_ALIAS_FLAG) }
     var elapsed by remember(cell.day) { mutableLongStateOf(0L) }
     LaunchedEffect(cell.day) {
         val start = withFrameNanos { it }
@@ -39,9 +42,13 @@ internal fun CalendarFooterCarousel(cell: CalendarCellInfo, date: String, theme:
             typography.dateScale / ClockPreferences.DEFAULT_DATE_FONT_SCALE
         bold.textSize = paint.textSize
         val padding = 8 * density
+        val lineHeight = paint.descent() - paint.ascent()
+        val badgeDiameter = lineHeight * .94f
+        val badgeGap = lineHeight * .30f
+        fun prefixWidth(prefix: String) = if (prefix.isEmpty()) 0f else badgeDiameter + badgeGap
         fun overflow(index: Int): Float {
             val line = lines[index]
-            return max(0f, paint.measureText(line.second) - (size.width - padding * 2 - bold.measureText(line.first)))
+            return max(0f, paint.measureText(line.second) - (size.width - padding * 2 - prefixWidth(line.first)))
         }
         fun scrollTime(index: Int) = ceil(overflow(index) / (40 * density) * 1000).toLong()
         fun hold(index: Int) = max(3000L, if (overflow(index) > 0) 2000L + scrollTime(index) else 0L)
@@ -49,13 +56,12 @@ internal fun CalendarFooterCarousel(cell: CalendarCellInfo, date: String, theme:
         var phase = elapsed % total
         var index = 0
         while (phase >= hold(index) + 200) { phase -= hold(index) + 200; index++ }
-        val lineHeight = paint.descent() - paint.ascent()
         val travel = if (phase <= hold(index)) 0f else (phase - hold(index)) / 200f * lineHeight
         val canvas = drawContext.canvas.nativeCanvas
         fun drawLine(i: Int, offset: Float, time: Long) {
             val (prefix, body, color) = lines[i]
             paint.color = color; bold.color = color
-            val prefixWidth = bold.measureText(prefix)
+            val prefixWidth = prefixWidth(prefix)
             val width = paint.measureText(body)
             val excess = overflow(i)
             val baseline = size.height / 2 - (paint.ascent() + paint.descent()) / 2 + offset
@@ -64,7 +70,16 @@ internal fun CalendarFooterCarousel(cell: CalendarCellInfo, date: String, theme:
             val x = if (excess == 0f) (size.width - prefixWidth - width) / 2 else padding
             canvas.save()
             canvas.clipRect(0f, top, size.width, bottom)
-            canvas.drawText(prefix, x, baseline, bold)
+            if (prefix.isNotEmpty()) {
+                val radius = badgeDiameter / 2f
+                val centerY = baseline - (paint.ascent() + paint.descent()) / 2f
+                badgePaint.color = (color and 0x00FFFFFF) or
+                    ((255 * ALMANAC_BADGE_BACKGROUND_ALPHA).toInt() shl 24)
+                canvas.drawCircle(x + radius, centerY, radius, badgePaint)
+                bold.textSize = paint.textSize * .74f
+                canvas.drawText(prefix, x + radius - bold.measureText(prefix) / 2f,
+                    centerY - (bold.ascent() + bold.descent()) / 2f, bold)
+            }
             canvas.save()
             canvas.clipRect(x + prefixWidth, top, size.width - if (excess > 0) padding else 0f, bottom)
             val scroll = if (excess == 0f) 0f else excess * ((time - 1000f) / scrollTime(i).coerceAtLeast(1)).coerceIn(0f, 1f)
