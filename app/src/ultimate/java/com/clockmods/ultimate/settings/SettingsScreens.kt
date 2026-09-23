@@ -76,6 +76,11 @@ internal enum class SettingsPage(
         R.string.ultimate_category_clock_style_summary,
         Icons.Default.Palette,
     ),
+    CALENDAR(
+        R.string.ultimate_category_calendar,
+        R.string.ultimate_category_calendar_summary,
+        Icons.Default.CalendarMonth,
+    ),
     BACKGROUND(
         R.string.ultimate_category_background,
         R.string.ultimate_category_background_summary,
@@ -90,11 +95,6 @@ internal enum class SettingsPage(
         R.string.ultimate_category_weather,
         R.string.ultimate_category_weather_summary,
         Icons.Default.Cloud,
-    ),
-    CALENDAR(
-        R.string.ultimate_category_calendar,
-        R.string.ultimate_category_calendar_summary,
-        Icons.Default.CalendarMonth,
     ),
     CHIME(
         R.string.ultimate_category_chime,
