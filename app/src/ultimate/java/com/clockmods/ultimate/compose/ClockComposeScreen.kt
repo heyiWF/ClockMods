@@ -628,14 +628,26 @@ private fun ClockCanvas(
 
     val transitionProgress = remember { Animatable(1f) }
     val transitionKey = if (showSeconds) timeMillis / 1_000L else timeMillis / 60_000L
-    val animateTime = styleId == UltimateClockStyles.STYLE_PRO_CLASSIC &&
-        repository.isAnimateTimeChanges()
+    val animateTime = repository.isAnimateTimeChanges()
+    var lastTransitionKey by remember(styleId, showSeconds) { mutableLongStateOf(transitionKey) }
     LaunchedEffect(transitionKey, animateTime, refreshGeneration) {
-        if (animateTime) {
+        if (animateTime && transitionKey != lastTransitionKey) {
             transitionProgress.snapTo(0f)
-            transitionProgress.animateTo(1f, tween(durationMillis = 220))
+            transitionProgress.animateTo(1f, tween(durationMillis = 280))
         } else {
             transitionProgress.snapTo(1f)
+        }
+        lastTransitionKey = transitionKey
+    }
+    val weatherProgress = remember { Animatable(1f) }
+    var lastWeatherText by remember(styleId) { mutableStateOf(weatherText) }
+    var previousWeatherText by remember(styleId) { mutableStateOf("") }
+    LaunchedEffect(weatherText, styleId) {
+        if (weatherText != lastWeatherText) {
+            previousWeatherText = lastWeatherText
+            lastWeatherText = weatherText
+            weatherProgress.snapTo(0f)
+            weatherProgress.animateTo(1f, tween(durationMillis = 300))
         }
     }
     val transitionType = repository.getTimeTransition()
@@ -692,6 +704,8 @@ private fun ClockCanvas(
             .supportingScale(repository.getSupportingFontScale(styleId))
             .timeTransition(clockTimeTransition(transitionType))
             .timeTransitionProgress(if (animateTime) transitionProgress.value else 1f)
+            .previousWeatherText(previousWeatherText)
+            .weatherTransitionProgress(weatherProgress.value)
             .build()
         val renderContext = ClockRenderContext(
             0f,

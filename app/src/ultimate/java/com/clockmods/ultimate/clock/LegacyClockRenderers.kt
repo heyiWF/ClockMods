@@ -168,7 +168,7 @@ internal class ProClassicRenderer : UltimateClockStyles.RendererBase() {
         if (state.getTimeTransition() != ClockState.TimeTransition.FADE) return color
         val progress = state.getTimeTransitionProgress()
         if (progress >= 1f) return color
-        return alpha(color, (255f * (.88f + .12f * progress)).toInt())
+        return alpha(color, (255f * progress).toInt())
     }
 
     private fun beginTimeTransition(
@@ -184,15 +184,15 @@ internal class ProClassicRenderer : UltimateClockStyles.RendererBase() {
         val remaining = 1f - progress
         when (state.getTimeTransition()) {
             ClockState.TimeTransition.SLIDE_UP ->
-                canvas.translate(0f, context.getHeight() * .025f * remaining)
+                canvas.translate(0f, context.getHeight() * .07f * remaining)
             ClockState.TimeTransition.SLIDE_DOWN ->
-                canvas.translate(0f, -context.getHeight() * .025f * remaining)
+                canvas.translate(0f, -context.getHeight() * .07f * remaining)
             ClockState.TimeTransition.SCALE -> {
-                val scale = .94f + .06f * progress
+                val scale = .80f + .20f * progress
                 canvas.scale(scale, scale, pivotX, pivotY)
             }
             ClockState.TimeTransition.FLIP ->
-                canvas.scale(1f, .05f + .95f * progress, pivotX, pivotY)
+                canvas.scale(1f, .12f + .88f * progress, pivotX, pivotY)
             ClockState.TimeTransition.FADE -> Unit
         }
         return saveCount

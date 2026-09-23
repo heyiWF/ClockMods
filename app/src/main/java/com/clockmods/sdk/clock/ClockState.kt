@@ -27,6 +27,8 @@ class ClockState private constructor(
     supportingScale: Float,
     timeTransition: TimeTransition,
     timeTransitionProgress: Float,
+    previousWeatherText: String?,
+    weatherTransitionProgress: Float,
 ) {
     enum class SecondHandMotion { OFF, TICK, SWEEP }
     enum class TimeTransition { FADE, SLIDE_UP, SLIDE_DOWN, SCALE, FLIP }
@@ -51,6 +53,8 @@ class ClockState private constructor(
     private val supportingScale = positiveScale(supportingScale)
     private val timeTransition = timeTransition
     private val timeTransitionProgress = transitionProgress(timeTransitionProgress)
+    private val previousWeatherText = clean(previousWeatherText)
+    private val weatherTransitionProgress = transitionProgress(weatherTransitionProgress)
 
     fun getTimeMillis() = timeMillis
     fun getTimeZone() = timeZone.clone() as TimeZone
@@ -72,6 +76,8 @@ class ClockState private constructor(
     fun getSupportingScale() = supportingScale
     fun getTimeTransition() = timeTransition
     fun getTimeTransitionProgress() = timeTransitionProgress
+    fun getPreviousWeatherText() = previousWeatherText
+    fun getWeatherTransitionProgress() = weatherTransitionProgress
 
     fun newCalendar(): Calendar = Calendar.getInstance(timeZone, locale).also {
         it.timeInMillis = timeMillis
@@ -97,6 +103,8 @@ class ClockState private constructor(
         private var supportingScale = 1f
         private var timeTransition = TimeTransition.FADE
         private var timeTransitionProgress = 1f
+        private var previousWeatherText = ""
+        private var weatherTransitionProgress = 1f
 
         fun timeZone(value: TimeZone?): Builder = apply {
             requireNotNull(value) { "timeZone must not be null" }
@@ -136,6 +144,8 @@ class ClockState private constructor(
         }
 
         fun timeTransitionProgress(value: Float) = apply { timeTransitionProgress = value }
+        fun previousWeatherText(value: String?) = apply { previousWeatherText = value.orEmpty() }
+        fun weatherTransitionProgress(value: Float) = apply { weatherTransitionProgress = value }
 
         fun build() = ClockState(
             timeMillis,
@@ -158,6 +168,8 @@ class ClockState private constructor(
             supportingScale,
             timeTransition,
             timeTransitionProgress,
+            previousWeatherText,
+            weatherTransitionProgress,
         )
 
         internal companion object {

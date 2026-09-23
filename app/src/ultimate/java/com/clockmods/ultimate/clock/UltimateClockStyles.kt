@@ -238,6 +238,8 @@ object UltimateClockStyles {
     internal abstract class RendererBase : ClockRenderer {
         internal class PaintPool {
             internal var photoText = false
+            internal var motionState: ClockState? = null
+            internal var animateDigits = false
             private val paints = ArrayList<Paint>()
             private var nextIndex = 0
             private var frameDepth = 0
@@ -368,15 +370,17 @@ object UltimateClockStyles {
         }
 
         private fun photoTextOutline(paint: Paint, size: Float) {
+            val inkAlpha = Color.alpha(paint.color)
             paint.style = Paint.Style.STROKE
             paint.strokeWidth = maxOf(1f, minOf(2f, size * .012f))
-            paint.color = 0xE6000000.toInt()
+            paint.color = Color.argb(inkAlpha * 230 / 255, 0, 0, 0)
         }
 
         private fun photoTextFill(paint: Paint, color: Int, size: Float) {
             paint.style = Paint.Style.FILL
             paint.color = color
-            paint.setShadowLayer(maxOf(2f, size * .035f), 0f, 1f, 0x99000000.toInt())
+            paint.setShadowLayer(maxOf(2f, size * .035f), 0f, 1f,
+                Color.argb(Color.alpha(color) * 153 / 255, 0, 0, 0))
         }
 
         protected fun fitText(value: String?, maxWidth: Float, size: Float, face: Typeface?): Float {
@@ -410,8 +414,32 @@ object UltimateClockStyles {
             if (maxWidth <= 0f) return
             val floor = readableSize(context, 0f, minimumSp)
             val size = maxOf(floor, fitText(value, maxWidth, maxOf(floor, preferredSize), face))
-            text(canvas, ellipsize(value, maxWidth, size, face), x, baseline, size,
-                color, align, face)
+            val state = PAINT_POOL.get().motionState
+            val progress = state?.getWeatherTransitionProgress() ?: 1f
+            val previous = state?.getPreviousWeatherText().orEmpty()
+            if (state != null && progress < 1f && previous.isNotEmpty() &&
+                value == contextText(state)) {
+                val save = canvas.save()
+                val left = if (align == Paint.Align.LEFT) x else x - maxWidth
+                val right = if (align == Paint.Align.RIGHT) x else x + maxWidth
+                canvas.clipRect(left, baseline - size * 1.2f, right, baseline + size * .4f)
+                val oldColor = alpha(color, (Color.alpha(color) * (1f - progress)).toInt())
+                val newColor = alpha(color, (Color.alpha(color) * progress).toInt())
+                canvas.save()
+                canvas.translate(0f, -size * progress)
+                text(canvas, ellipsize(previous, maxWidth, size, face), x, baseline, size,
+                    oldColor, align, face)
+                canvas.restore()
+                canvas.save()
+                canvas.translate(0f, size * (1f - progress))
+                text(canvas, ellipsize(value, maxWidth, size, face), x, baseline, size,
+                    newColor, align, face)
+                canvas.restore()
+                canvas.restoreToCount(save)
+            } else {
+                text(canvas, ellipsize(value, maxWidth, size, face), x, baseline, size,
+                    color, align, face)
+            }
         }
 
         protected fun readableDate(canvas: Canvas, context: ClockRenderContext,
@@ -476,16 +504,35 @@ object UltimateClockStyles {
         protected fun drawTime(canvas: Canvas, value: String?, x: Float, baseline: Float,
             size: Float, color: Int, align: Paint.Align, face: Typeface?) {
             if (value.isNullOrEmpty() || size <= 0f) return
-            val paint = fill(color)
+            val pool = PAINT_POOL.get()
+            val state = pool.motionState
+            val progress = if (pool.animateDigits) state?.getTimeTransitionProgress() ?: 1f else 1f
+            val save = if (progress < 1f) canvas.save() else -1
+            if (progress < 1f) {
+                val remaining = 1f - progress
+                when (state?.getTimeTransition()) {
+                    ClockState.TimeTransition.SLIDE_UP -> canvas.translate(0f, size * .45f * remaining)
+                    ClockState.TimeTransition.SLIDE_DOWN -> canvas.translate(0f, -size * .45f * remaining)
+                    ClockState.TimeTransition.SCALE -> {
+                        val scale = .78f + .22f * progress
+                        canvas.scale(scale, scale, x, baseline - size * .35f)
+                    }
+                    ClockState.TimeTransition.FLIP -> canvas.scale(1f, .12f + .88f * progress, x, baseline - size * .35f)
+                    else -> Unit
+                }
+            }
+            val ink = if (progress < 1f) alpha(color, (Color.alpha(color) * progress).toInt()) else color
+            val paint = fill(ink)
             paint.textSize = size
             paint.textAlign = align
             paint.typeface = face
             if (PAINT_POOL.get().photoText) {
                 photoTextOutline(paint, size)
                 ClockTimeText.draw(canvas, value, x, baseline, paint)
-                photoTextFill(paint, color, size)
+                photoTextFill(paint, ink, size)
             }
             ClockTimeText.draw(canvas, value, x, baseline, paint)
+            if (save >= 0) canvas.restoreToCount(save)
         }
 
         protected fun fittedTime(canvas: Canvas, value: String?, x: Float, baseline: Float,
@@ -617,20 +664,25 @@ object UltimateClockStyles {
         private val tokens: ClockThemeTokens,
         renderer: ClockRenderer,
     ) : ClockStyle {
-        private val renderer = IsolatedRenderer(renderer)
+        private val renderer = IsolatedRenderer(renderer, metadata.getId())
 
         override fun getMetadata() = metadata
         override fun getThemeTokens() = tokens
         override fun getRenderer() = renderer
     }
 
-    private class IsolatedRenderer(private val delegate: ClockRenderer) : ClockRenderer {
+    private class IsolatedRenderer(private val delegate: ClockRenderer,
+        private val styleId: String) : ClockRenderer {
         override fun render(canvas: Canvas, context: ClockRenderContext, state: ClockState,
             theme: ClockThemeTokens) {
             val marker = RendererBase.beginPaintFrame()
             val paintPool = RendererBase.PAINT_POOL.get()
             val previousPhotoText = paintPool.photoText
+            val previousMotionState = paintPool.motionState
+            val previousAnimateDigits = paintPool.animateDigits
             paintPool.photoText = false
+            paintPool.motionState = state
+            paintPool.animateDigits = styleId != STYLE_PRO_CLASSIC
             val saveCount = canvas.save()
             try {
                 delegate.render(canvas, context, state, theme)
@@ -638,6 +690,8 @@ object UltimateClockStyles {
                 canvas.restoreToCount(saveCount)
                 RendererBase.endPaintFrame(marker)
                 paintPool.photoText = previousPhotoText
+                paintPool.motionState = previousMotionState
+                paintPool.animateDigits = previousAnimateDigits
             }
         }
     }
