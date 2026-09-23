@@ -222,6 +222,7 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
                                     styleId = metadata.getId(),
                                     palette = stylePreferences.getPalette(metadata.getId()),
                                     background = galleryBackground,
+                                    repository = backgroundRepository,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             }
@@ -589,6 +590,7 @@ private fun PaletteEditor(
             styleId = styleId,
             palette = palette,
             background = background,
+            repository = repository,
             modifier = Modifier.fillMaxSize(),
         )
     }

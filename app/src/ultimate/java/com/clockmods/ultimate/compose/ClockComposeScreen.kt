@@ -125,12 +125,18 @@ internal fun previewClockTheme(
     context: Context,
     styleId: String,
     palette: ClockPalette,
+    repository: BackgroundRepository,
 ): ClockThemeTokens {
     val style = remember(styleId) {
         UltimateClockStyles.sharedRegistry().resolveForApi(styleId, android.os.Build.VERSION.SDK_INT)
     }
-    return remember(context, styleId, palette) {
-        ClockTypography().apply(context, palette.applyTo(style.getThemeTokens()), styleId)
+    val timeColor = repository.getTimeColor()
+    val dateColor = repository.getDateColor()
+    return remember(context, styleId, palette, timeColor, dateColor) {
+        val tokens = style.getThemeTokens()
+        val themed = if (ClockPalette.supports(styleId)) palette.applyTo(tokens) else tokens
+        ClockTypography().apply(context,
+            applyProClassicPreferenceColors(styleId, themed, timeColor, dateColor), styleId)
     }
 }
 
@@ -186,11 +192,13 @@ internal fun renderClockPreview(
     styleId: String,
     theme: ClockThemeTokens,
     background: ClockBackground,
+    repository: BackgroundRepository,
     density: Float,
     timeZone: TimeZone,
     locale: Locale,
     hostWidth: Float,
     hostHeight: Float,
+    fitToBounds: Boolean = false,
 ) {
     val area = canvas.clipBounds
     val width = area.width().toFloat()
@@ -198,9 +206,8 @@ internal fun renderClockPreview(
     if (width <= 0f || height <= 0f) return
     val hostW = if (hostWidth > 0f) hostWidth else width
     val hostH = if (hostHeight > 0f) hostHeight else height
-    // Fill the box while preserving the host aspect, so the preview reads as a windowed view of the
-    // real face rather than a stretched one.
-    val scale = maxOf(width / hostW, height / hostH)
+    val scale = if (fitToBounds) minOf(width / hostW, height / hostH)
+        else maxOf(width / hostW, height / hostH)
     val translateX = area.left + (width - hostW * scale) * .5f
     val translateY = area.top + (height - hostH * scale) * .5f
     val style = UltimateClockStyles.sharedRegistry()
@@ -212,24 +219,34 @@ internal fun renderClockPreview(
         set(Calendar.MILLISECOND, 0)
     }
     val now = calendar.timeInMillis
-    val motion = ClockMotionResolver.resolve(style, true, ClockState.SecondHandMotion.TICK)
+    val showSeconds = repository.isShowSeconds()
+    val motion = ClockMotionResolver.resolve(style, showSeconds, ClockState.SecondHandMotion.TICK)
+    val datePattern = if (repository.isClockUseEnglish()) repository.getDatePatternEn()
+        else repository.getDatePatternCn()
+    val solarDate = DateFormatter.format(
+        datePattern, calendar, LocaleManager.dateLang(repository.getClockLanguage()),
+    )
+    val dateText = if (repository.isShowLunar()) {
+        LunarCalendar.format(calendar).takeIf(String::isNotBlank)?.let { "$solarDate / $it" }
+            ?: solarDate
+    } else solarDate
     val state = ClockState.builder(now)
         .timeZone(timeZone)
         .locale(locale)
-        .use24Hour(false)
-        .showSeconds(true)
-        .blinkColon(false)
-        .smallSeconds(false)
-        .portraitStacked(false)
-        .dateLunarDualLine(false)
+        .use24Hour(repository.isUse24Hour())
+        .showSeconds(showSeconds)
+        .blinkColon(repository.isBlinkColon())
+        .smallSeconds(repository.isSmallSeconds())
+        .portraitStacked(repository.isPortraitStacked())
+        .dateLunarDualLine(repository.isDateLunarDualLine())
         .secondHandMotion(motion)
-        .dateText(DateFormatter.format("MMM d", calendar, LocaleManager.dateLang(null)))
+        .dateText(dateText)
         .timeZoneText(timeZone.getDisplayName(timeZone.inDaylightTime(Date(now)), TimeZone.SHORT, locale))
         .weatherText("24°")
         .worldClocks(emptyList())
-        .timeScale(1f)
-        .dateScale(1f)
-        .supportingScale(1f)
+        .timeScale(timeFontScaleForStyle(repository, styleId))
+        .dateScale(dateFontScaleForStyle(repository, styleId))
+        .supportingScale(repository.getSupportingFontScale(styleId))
         .build()
     // Compose at the host geometry so blur samples the same image region and cards keep their real
     // proportions; density is scaled so text stays proportional inside the shrunk face.
@@ -249,6 +266,10 @@ internal fun renderClockPreview(
     )
     val save = canvas.save()
     try {
+        if (fitToBounds) {
+            canvas.drawColor(if (background.usesThemeSurface()) theme.getBackgroundStartColor()
+                else background.getColor())
+        }
         canvas.translate(translateX, translateY)
         canvas.scale(scale, scale)
         style.getRenderer().render(canvas, renderContext, state, theme)
@@ -450,6 +471,7 @@ internal fun ClockPreviewCanvas(
     styleId: String,
     palette: ClockPalette,
     background: ClockBackground,
+    repository: BackgroundRepository,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -457,7 +479,7 @@ internal fun ClockPreviewCanvas(
     val hostSize = LocalWindowInfo.current.containerSize
     val locale = remember { Locale.SIMPLIFIED_CHINESE }
     val timeZone = remember { TimeZone.getDefault() }
-    val theme = previewClockTheme(context, styleId, palette)
+    val theme = previewClockTheme(context, styleId, palette, repository)
     Canvas(modifier) {
         val canvas = drawContext.canvas.nativeCanvas
         renderClockPreview(
@@ -465,6 +487,7 @@ internal fun ClockPreviewCanvas(
             styleId = styleId,
             theme = theme,
             background = background,
+            repository = repository,
             density = density.density,
             timeZone = timeZone,
             locale = locale,
@@ -479,31 +502,35 @@ internal fun ClockPreviewCanvas(
  *
  * The gallery uses the same resolved surface as the running clock. The caller shares one loaded
  * background across all thumbnails, so image mode does not load the wallpaper once per style.
- * A landscape viewport fits the face inside each gallery card.
+ * The real host geometry keeps each miniature's proportions aligned with the clock face.
  */
 @Composable
 internal fun ClockStyleThumbnail(
     styleId: String,
     palette: ClockPalette,
     background: ClockBackground,
+    repository: BackgroundRepository,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
+    val hostSize = LocalWindowInfo.current.containerSize
     val locale = remember { Locale.SIMPLIFIED_CHINESE }
     val timeZone = remember { TimeZone.getDefault() }
-    val theme = previewClockTheme(context, styleId, palette)
+    val theme = previewClockTheme(context, styleId, palette, repository)
     Canvas(modifier) {
         renderClockPreview(
             canvas = drawContext.canvas.nativeCanvas,
             styleId = styleId,
             theme = theme,
             background = background,
-            density = density.density * 2f,
+            repository = repository,
+            density = density.density,
             timeZone = timeZone,
             locale = locale,
-            hostWidth = size.width * 2f,
-            hostHeight = size.height * 2f,
+            hostWidth = hostSize.width.toFloat(),
+            hostHeight = hostSize.height.toFloat(),
+            fitToBounds = true,
         )
     }
 }
