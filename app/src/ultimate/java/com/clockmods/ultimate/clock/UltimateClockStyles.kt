@@ -462,6 +462,18 @@ object UltimateClockStyles {
                 state.getDateText(), requestedPaint, safeMaxWidth,
                 stackLunar || state.isDateLunarDualLine(), state.getLocale(),
             )
+            fun clearStatusOverlay(firstTop: Float, lastBottom: Float, size: Float): Float {
+                val overlay = context.getStatusOverlay() ?: return 0f
+                val rowLeft = when (align) {
+                    Paint.Align.RIGHT -> safeX - safeMaxWidth
+                    Paint.Align.CENTER -> safeX - safeMaxWidth * .5f
+                    else -> safeX
+                }
+                if (!overlay.spansHorizontally(rowLeft, rowLeft + safeMaxWidth) ||
+                    !overlay.spansVertically(firstTop, lastBottom)
+                ) return 0f
+                return overlay.getBottom() + maxOf(context.getDensity() * 4f, size * .25f) - firstTop
+            }
             if (lines[1].isEmpty()) {
                 val size = maxOf(floor, fitText(state.getDateText(), safeMaxWidth, requested, face))
                 val metricsPaint = fill(Color.WHITE)
@@ -469,6 +481,9 @@ object UltimateClockStyles {
                 metricsPaint.textSize = size
                 val metrics = metricsPaint.fontMetrics
                 var safeBaseline = maxOf(raisedBaseline, context.getTop() + inset - metrics.ascent)
+                safeBaseline = minOf(safeBaseline, context.getBottom() - inset - metrics.descent)
+                safeBaseline += clearStatusOverlay(safeBaseline + metrics.ascent,
+                    safeBaseline + metrics.descent, size)
                 safeBaseline = minOf(safeBaseline, context.getBottom() - inset - metrics.descent)
                 text(canvas, ellipsize(state.getDateText(), safeMaxWidth, size, face), safeX,
                     safeBaseline, size, color, align, face)
@@ -485,6 +500,10 @@ object UltimateClockStyles {
             val metrics = metricsPaint.fontMetrics
             var safeLowerBaseline = maxOf(raisedBaseline,
                 context.getTop() + inset + lineGap - metrics.ascent)
+            safeLowerBaseline = minOf(safeLowerBaseline,
+                context.getBottom() - inset - metrics.descent)
+            safeLowerBaseline += clearStatusOverlay(safeLowerBaseline - lineGap + metrics.ascent,
+                safeLowerBaseline + metrics.descent, size)
             safeLowerBaseline = minOf(safeLowerBaseline,
                 context.getBottom() - inset - metrics.descent)
             text(canvas, ellipsize(lines[0], safeMaxWidth, size, face), safeX,

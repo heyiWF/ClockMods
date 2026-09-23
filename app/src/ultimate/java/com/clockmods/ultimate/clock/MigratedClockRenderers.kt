@@ -703,11 +703,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
     ) {
         withPhotoText(glass != null && mode in PHOTO_TEXT_MODES) {
             readableDate(
-                canvas, context, state, x,
-                clearOfStatusOverlay(
-                    context, x, align, baseline, maxWidth,
-                    size * max(1f, state.getDateScale()),
-                ),
+                canvas, context, state, x, baseline,
                 maxWidth, size, color, align, face,
                 context.getHeight() > context.getWidth(),
             )
