@@ -10,6 +10,7 @@ import androidx.compose.foundation.gestures.detectHorizontalDragGestures
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CircleShape
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.KeyboardArrowLeft
@@ -591,9 +592,13 @@ private fun AgendaCard(cell: CalendarCellInfo, theme: ComposeCalendarTheme, typo
 @Composable
 private fun PinnedAlmanac(prefix: String, items: List<String>, color: Int, size: Float, typography: CalendarTypography) {
     if (items.isEmpty()) return
-    Row(verticalAlignment = Alignment.CenterVertically) {
-        CalendarText(prefix, size, color, typography, emphasized = true)
-        MarqueeText(items.joinToString(" "), Color(color), typography.supportingStyle(TextStyle(fontSize = size.sp), prefix), Modifier.weight(1f))
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+        Box(Modifier.size((size * 1.55f).dp).background(Color(color), CircleShape), contentAlignment = Alignment.Center) {
+            Text(prefix, color = Color.White, maxLines = 1,
+                style = typography.supportingStyle(TextStyle(fontSize = (size * .85f).sp), prefix, true))
+        }
+        MarqueeText(items.joinToString(" · "), Color(color),
+            typography.supportingStyle(TextStyle(fontSize = size.sp), items.first()), Modifier.weight(1f))
     }
 }
 
