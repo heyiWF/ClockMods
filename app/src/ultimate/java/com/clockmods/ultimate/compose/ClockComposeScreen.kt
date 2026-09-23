@@ -476,16 +476,15 @@ internal fun ClockPreviewCanvas(
 /**
  * A small self-contained clock face used by the style gallery tiles.
  *
- * Unlike the palette editor (which paints over the user's real photo so blur is visible), a gallery
- * thumbnail is shown for every built-in style at once, so loading the wallpaper for each would be
- * wasteful and would drown the one thing the tile needs to communicate — the face itself. The
- * thumbnail therefore paints the style's own theme gradient with the saved palette applied, at a
- * frozen preview instant. A landscape viewport fits the entire face inside the gallery card.
+ * The gallery uses the same resolved surface as the running clock. The caller shares one loaded
+ * background across all thumbnails, so image mode does not load the wallpaper once per style.
+ * A landscape viewport fits the face inside each gallery card.
  */
 @Composable
 internal fun ClockStyleThumbnail(
     styleId: String,
     palette: ClockPalette,
+    background: ClockBackground,
     modifier: Modifier = Modifier,
 ) {
     val context = LocalContext.current
@@ -498,7 +497,7 @@ internal fun ClockStyleThumbnail(
             canvas = drawContext.canvas.nativeCanvas,
             styleId = styleId,
             theme = theme,
-            background = ClockBackground.theme(dimmed = false),
+            background = background,
             density = density.density * 2f,
             timeZone = timeZone,
             locale = locale,

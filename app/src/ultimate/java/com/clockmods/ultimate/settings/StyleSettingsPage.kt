@@ -169,6 +169,7 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
     val supportsSupportingScale = capabilities.supports(ClockStyleCapabilities.Capability.WEATHER) ||
         capabilities.supports(ClockStyleCapabilities.Capability.STATUS)
     val supportsWorldClock = capabilities.supports(ClockStyleCapabilities.Capability.WORLD_CLOCK)
+    val galleryBackground = previewClockBackground(backgroundRepository, stylePreferences, generation)
 
     SettingsColumn(modifier) {
         SettingSection(stringResource(R.string.ultimate_style_gallery)) {
@@ -220,6 +221,7 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
                                 ClockStyleThumbnail(
                                     styleId = metadata.getId(),
                                     palette = stylePreferences.getPalette(metadata.getId()),
+                                    background = galleryBackground,
                                     modifier = Modifier.fillMaxSize(),
                                 )
                             }
