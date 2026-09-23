@@ -479,14 +479,11 @@ object UltimateClockStyles {
                 fitText(lines[1], safeMaxWidth, requested, face),
             ))
             val lineGap = size * 1.45f
-            val designedStack = stackLunar && splitDateAndLunar(state.getDateText())[1].isNotEmpty()
-            var adjustedBaseline = raisedBaseline
-            if (!designedStack && adjustedBaseline < context.getCenterY()) adjustedBaseline += lineGap
             val metricsPaint = fill(Color.WHITE)
             metricsPaint.typeface = face
             metricsPaint.textSize = size
             val metrics = metricsPaint.fontMetrics
-            var safeLowerBaseline = maxOf(adjustedBaseline,
+            var safeLowerBaseline = maxOf(raisedBaseline,
                 context.getTop() + inset + lineGap - metrics.ascent)
             safeLowerBaseline = minOf(safeLowerBaseline,
                 context.getBottom() - inset - metrics.descent)
