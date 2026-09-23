@@ -479,7 +479,7 @@ internal fun ClockPreviewCanvas(
  * thumbnail is shown for every built-in style at once, so loading the wallpaper for each would be
  * wasteful and would drown the one thing the tile needs to communicate — the face itself. The
  * thumbnail therefore paints the style's own theme gradient with the saved palette applied, at a
- * frozen preview instant, matching exactly what the live clock draws.
+ * frozen preview instant. A landscape viewport fits the entire face inside the gallery card.
  */
 @Composable
 internal fun ClockStyleThumbnail(
@@ -489,7 +489,6 @@ internal fun ClockStyleThumbnail(
 ) {
     val context = LocalContext.current
     val density = LocalDensity.current
-    val hostSize = LocalWindowInfo.current.containerSize
     val locale = remember { Locale.SIMPLIFIED_CHINESE }
     val timeZone = remember { TimeZone.getDefault() }
     val theme = previewClockTheme(context, styleId, palette)
@@ -499,11 +498,11 @@ internal fun ClockStyleThumbnail(
             styleId = styleId,
             theme = theme,
             background = ClockBackground.theme(dimmed = false),
-            density = density.density,
+            density = density.density * 2f,
             timeZone = timeZone,
             locale = locale,
-            hostWidth = hostSize.width.toFloat(),
-            hostHeight = hostSize.height.toFloat(),
+            hostWidth = size.width * 2f,
+            hostHeight = size.height * 2f,
         )
     }
 }

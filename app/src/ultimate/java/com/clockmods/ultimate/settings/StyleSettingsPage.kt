@@ -77,8 +77,8 @@ import java.util.Locale
 private enum class StyleDialog { TIME_COLOR, DATE_COLOR }
 
 /** Every gallery tile shares one size so the row reads as an even grid. */
-private val STYLE_CARD_WIDTH = 172.dp
-private val STYLE_CARD_HEIGHT = 136.dp
+private val STYLE_CARD_WIDTH = 190.dp
+private val STYLE_CARD_HEIGHT = 172.dp
 
 /** Height of the live theme preview shown above the palette swatches. */
 private val PALETTE_PREVIEW_HEIGHT = 168.dp
@@ -214,7 +214,7 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
                             Box(
                                 Modifier
                                     .fillMaxWidth()
-                                    .height(52.dp)
+                                    .height(88.dp)
                                     .clip(MaterialTheme.shapes.small),
                             ) {
                                 ClockStyleThumbnail(
