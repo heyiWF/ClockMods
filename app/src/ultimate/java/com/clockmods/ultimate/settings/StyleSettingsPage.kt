@@ -319,7 +319,7 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
                 SettingSlider(
                     stringResource(R.string.ultimate_date_size),
                     dateScale,
-                    ClockPreferences.MIN_FONT_SCALE..ClockPreferences.MAX_FONT_SCALE,
+                    ClockPreferences.MIN_FONT_SCALE..ClockPreferences.MAX_DATE_FONT_SCALE,
                     stringResource(R.string.ultimate_percent_value, (dateScale * 100).toInt()),
                 ) {
                     dateScale = it

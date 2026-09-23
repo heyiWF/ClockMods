@@ -1283,7 +1283,7 @@ internal fun CalendarSettingsPage(modifier: Modifier, generation: Int) {
             SettingSlider(
                 label = stringResource(R.string.ultimate_date_size),
                 value = dateScale,
-                range = ClockPreferences.MIN_FONT_SCALE..ClockPreferences.MAX_FONT_SCALE,
+                range = ClockPreferences.MIN_FONT_SCALE..ClockPreferences.MAX_DATE_FONT_SCALE,
                 valueLabel = stringResource(
                     R.string.ultimate_percent_value,
                     (dateScale * 100).roundToInt(),
