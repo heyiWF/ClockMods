@@ -99,6 +99,7 @@ import com.clockmods.ultimate.clock.ClockMotionResolver
 import com.clockmods.ultimate.clock.ClockTypography
 import com.clockmods.ultimate.clock.UltimateClockPreferences
 import com.clockmods.ultimate.clock.UltimateClockStyles
+import com.clockmods.ultimate.clock.ClockDigitTransitionTracker
 import com.clockmods.ultimate.clock.WorldClockRepository
 import com.clockmods.weather.WeatherController
 import com.clockmods.weather.WeatherModels
@@ -626,18 +627,17 @@ private fun ClockCanvas(
         worldClockScroll = worldClockScroll.coerceIn(0f, scrollMaximum)
     }
 
-    val transitionProgress = remember { Animatable(1f) }
     val transitionKey = if (showSeconds) timeMillis / 1_000L else timeMillis / 60_000L
     val animateTime = repository.isAnimateTimeChanges()
-    var lastTransitionKey by remember(styleId, showSeconds) { mutableLongStateOf(transitionKey) }
-    LaunchedEffect(transitionKey, animateTime, refreshGeneration) {
-        if (animateTime && transitionKey != lastTransitionKey) {
-            transitionProgress.snapTo(0f)
-            transitionProgress.animateTo(1f, tween(durationMillis = 280))
-        } else {
-            transitionProgress.snapTo(1f)
-        }
-        lastTransitionKey = transitionKey
+    val transitionProgress = remember(styleId, transitionKey, animateTime) {
+        Animatable(if (animateTime) 0f else 1f)
+    }
+    val digitTracker = remember(
+        styleId, showSeconds, repository.isSmallSeconds(), repository.isPortraitStacked(),
+        canvasSize.width >= canvasSize.height, animateTime,
+    ) { ClockDigitTransitionTracker() }
+    LaunchedEffect(transitionProgress) {
+        if (animateTime) transitionProgress.animateTo(1f, tween(durationMillis = 280))
     }
     val weatherProgress = remember { Animatable(1f) }
     var lastWeatherText by remember(styleId) { mutableStateOf(weatherText) }
@@ -724,9 +724,14 @@ private fun ClockCanvas(
         drawIntoCanvas { composeCanvas ->
             val canvas = composeCanvas.nativeCanvas
             val save = canvas.save()
+            val paintPool = UltimateClockStyles.RendererBase.PAINT_POOL.get()
+            val previousTracker = paintPool.digitTracker
+            digitTracker.beginFrame()
+            paintPool.digitTracker = if (animateTime) digitTracker else null
             try {
                 style.getRenderer().render(canvas, renderContext, state, theme)
             } finally {
+                paintPool.digitTracker = previousTracker
                 canvas.restoreToCount(save)
             }
         }

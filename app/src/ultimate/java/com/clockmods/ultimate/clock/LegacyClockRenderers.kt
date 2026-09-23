@@ -11,7 +11,6 @@ import android.graphics.Typeface
 import com.clockmods.sdk.clock.ClockRenderContext
 import com.clockmods.sdk.clock.ClockState
 import com.clockmods.sdk.clock.ClockThemeTokens
-import com.clockmods.ui.ClockTimeText
 import com.clockmods.ui.ClockTimeFormatter
 import java.util.Calendar
 import java.util.Locale
@@ -53,15 +52,14 @@ internal class ProClassicRenderer : UltimateClockStyles.RendererBase() {
             unit * .42f * state.getTimeScale(),
             display,
         )
-        val animatedTimeColor = transitionColor(theme.getPrimaryTextColor(), state)
-        val timePaint = fill(animatedTimeColor).apply {
+        val timePaint = fill(theme.getPrimaryTextColor()).apply {
             typeface = display
             textSize = timeSize
             textAlign = Paint.Align.CENTER
             setShadowLayer(max(2f, unit * .035f), 0f, max(1f, unit * .012f), 0x66000000)
         }
         val accessorySize = timeSize * .42f
-        val accessoryPaint = fill(animatedTimeColor).apply {
+        val accessoryPaint = fill(theme.getPrimaryTextColor()).apply {
             typeface = supporting
             textSize = accessorySize
         }
@@ -79,14 +77,15 @@ internal class ProClassicRenderer : UltimateClockStyles.RendererBase() {
         val mainCenter = mainLeft + mainWidth * .5f
         val metrics = timePaint.fontMetrics
         val baseline = centerY - (metrics.ascent + metrics.descent) * .5f
-        val transitionSave = beginTimeTransition(canvas, context, state, centerX, centerY)
-        ClockTimeText.draw(canvas, time, mainCenter, baseline, timePaint)
+        drawTimeWithPaint(canvas, time, mainCenter, baseline, timePaint)
         val accessoryBaseline = baseline + metrics.descent - accessoryPaint.fontMetrics.descent
         if (leftWidth > 0f) text(canvas, formatted.periodText, mainLeft - gap, accessoryBaseline,
-            accessorySize, animatedTimeColor, Paint.Align.RIGHT, supporting)
-        if (rightWidth > 0f) text(canvas, formatted.secondsText, mainLeft + mainWidth + gap,
-            accessoryBaseline, accessorySize, animatedTimeColor, Paint.Align.LEFT, supporting)
-        if (transitionSave >= 0) canvas.restoreToCount(transitionSave)
+            accessorySize, theme.getPrimaryTextColor(), Paint.Align.RIGHT, supporting)
+        if (rightWidth > 0f) {
+            accessoryPaint.textAlign = Paint.Align.LEFT
+            drawTimeWithPaint(canvas, formatted.secondsText, mainLeft + mainWidth + gap,
+                accessoryBaseline, accessoryPaint)
+        }
 
         val dateSize = readableSize(context, unit * .045f * state.getDateScale(), 12f)
         val supportingSize = readableSize(context, unit * .040f * state.getSupportingScale(), 12f)
@@ -131,15 +130,11 @@ internal class ProClassicRenderer : UltimateClockStyles.RendererBase() {
         val step = if (lines.size == 1) 0f else (bottom - top) / (lines.size - 1)
         val preferredSize = min(unit * .34f * state.getTimeScale(), height * .20f)
         val timeSize = fitText("00", width * .72f, preferredSize, display)
-        val animatedTimeColor = transitionColor(theme.getPrimaryTextColor(), state)
-        val transitionSave = beginTimeTransition(
-            canvas, context, state, context.getCenterX(), (top + bottom) * .5f,
-        )
         lines.forEachIndexed { index, value ->
             drawTime(
                 canvas, value, context.getCenterX(),
                 centeredBaseline(top + step * index, timeSize, display),
-                timeSize, animatedTimeColor, Paint.Align.CENTER, display,
+                timeSize, theme.getPrimaryTextColor(), Paint.Align.CENTER, display,
             )
         }
         if (!state.isUse24Hour()) {
@@ -148,9 +143,8 @@ internal class ProClassicRenderer : UltimateClockStyles.RendererBase() {
             )
             text(canvas, period, context.getRight() - width * .10f,
                 context.getTop() + height * .13f, unit * .055f,
-                animatedTimeColor, Paint.Align.RIGHT, supporting)
+                theme.getPrimaryTextColor(), Paint.Align.RIGHT, supporting)
         }
-        if (transitionSave >= 0) canvas.restoreToCount(transitionSave)
         readableDate(
             canvas, context, state, context.getCenterX(), context.getTop() + height * .10f,
             width * .86f, unit * .042f, theme.getSecondaryTextColor(), Paint.Align.CENTER,
@@ -164,39 +158,6 @@ internal class ProClassicRenderer : UltimateClockStyles.RendererBase() {
         )
     }
 
-    private fun transitionColor(color: Int, state: ClockState): Int {
-        if (state.getTimeTransition() != ClockState.TimeTransition.FADE) return color
-        val progress = state.getTimeTransitionProgress()
-        if (progress >= 1f) return color
-        return alpha(color, (255f * progress).toInt())
-    }
-
-    private fun beginTimeTransition(
-        canvas: Canvas,
-        context: ClockRenderContext,
-        state: ClockState,
-        pivotX: Float,
-        pivotY: Float,
-    ): Int {
-        val progress = state.getTimeTransitionProgress()
-        if (progress >= 1f || state.getTimeTransition() == ClockState.TimeTransition.FADE) return -1
-        val saveCount = canvas.save()
-        val remaining = 1f - progress
-        when (state.getTimeTransition()) {
-            ClockState.TimeTransition.SLIDE_UP ->
-                canvas.translate(0f, context.getHeight() * .07f * remaining)
-            ClockState.TimeTransition.SLIDE_DOWN ->
-                canvas.translate(0f, -context.getHeight() * .07f * remaining)
-            ClockState.TimeTransition.SCALE -> {
-                val scale = .80f + .20f * progress
-                canvas.scale(scale, scale, pivotX, pivotY)
-            }
-            ClockState.TimeTransition.FLIP ->
-                canvas.scale(1f, .12f + .88f * progress, pivotX, pivotY)
-            ClockState.TimeTransition.FADE -> Unit
-        }
-        return saveCount
-    }
 }
 
 internal class GlassAtelierRenderer : UltimateClockStyles.RendererBase() {
