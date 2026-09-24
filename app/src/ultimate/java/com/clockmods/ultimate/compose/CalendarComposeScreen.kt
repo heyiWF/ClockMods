@@ -1,6 +1,7 @@
 package com.clockmods.ultimate.compose
 
 import androidx.compose.animation.core.LinearEasing
+import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.RepeatMode
 import androidx.compose.animation.core.animateFloat
 import androidx.compose.animation.core.infiniteRepeatable
@@ -13,7 +14,6 @@ import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
-import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
@@ -33,13 +33,11 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
-import androidx.compose.runtime.withFrameNanos
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clipToBounds
@@ -74,6 +72,9 @@ import com.clockmods.ui.ClockTypefaceResolver
 import java.util.Calendar
 import java.util.Locale
 import java.util.TimeZone
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 internal data class CalendarCellInfo(
     val day: CalendarMonth.Day,
@@ -215,14 +216,8 @@ internal fun CalendarScreen(
             kotlinx.coroutines.delay(1_000L)
         }
     }
-    val scheduleByDay = remember(monthData, refreshGeneration, scheduleRevision) {
-        monthData.days.associate { day ->
-            dayKey(day.year, day.month, day.dayOfMonth) to
-                scheduleStore.itemsFor(day.year, day.month, day.dayOfMonth).isNotEmpty()
-        }
-    }
-    val cells = remember(monthData, scheduleByDay, refreshGeneration) {
-        monthData.days.map { day ->
+    val cellCache = remember(holidayRepository, scheduleStore, refreshGeneration, scheduleRevision) {
+        CalendarCellCache { day ->
             val almanac = LunarAlmanac.of(day.year, day.month, day.dayOfMonth)
             val date = String.format(
                 Locale.US,
@@ -238,38 +233,46 @@ internal fun CalendarScreen(
                 holiday = holidayRepository.statusOn(date),
                 suitable = almanac.suitable(),
                 avoid = almanac.avoid(),
-                hasSchedule = scheduleByDay[dayKey(day.year, day.month, day.dayOfMonth)] == true,
+                hasSchedule = scheduleStore.itemsFor(day.year, day.month, day.dayOfMonth).isNotEmpty(),
             )
         }
     }
+    val cells = remember(monthData, cellCache) { cellCache.cells(monthData) }
     val selected = cells.firstOrNull {
         selectedKey == dayKey(it.day.year, it.day.month, it.day.dayOfMonth)
     } ?: cells.first { it.day.currentMonth }
-    val adjacentCells: (Int) -> List<CalendarCellInfo> = { direction ->
+    val weekStart = preferences.getCalendarWeekStart()
+    // Capture values before launching prefetch; a worker must not read a changing UI cursor.
+    val pageYear = year
+    val pageMonth = month
+    val pageTodayMillis = todayMillis
+    val adjacentCells: (Int) -> List<CalendarCellInfo> = remember(
+        year, month, selectedKey, theme.layout, timeZone, todayKey, weekStart, cellCache,
+    ) { { direction ->
         val cursor = Calendar.getInstance(timeZone).apply {
             clear()
             if (theme.layout == CalendarLayout.AGENDA) {
                 set(selected.day.year, selected.day.month, selected.day.dayOfMonth)
                 add(Calendar.DAY_OF_MONTH, direction * 7)
             } else {
-                set(year, month, 1)
+                set(pageYear, pageMonth, 1)
                 add(Calendar.MONTH, direction)
             }
         }
         val page = if (theme.layout == CalendarLayout.AGENDA) {
             CalendarMonth.createWeek(cursor.get(Calendar.YEAR), cursor.get(Calendar.MONTH),
-                cursor.get(Calendar.DAY_OF_MONTH), timeZone, todayMillis,
-                preferences.getCalendarWeekStart())
+                cursor.get(Calendar.DAY_OF_MONTH), timeZone, pageTodayMillis,
+                weekStart)
         } else {
             CalendarMonth.create(cursor.get(Calendar.YEAR), cursor.get(Calendar.MONTH), timeZone,
-                todayMillis, preferences.getCalendarWeekStart())
+                pageTodayMillis, weekStart)
         }
-        page.days.map { day ->
-            val almanac = LunarAlmanac.of(day.year, day.month, day.dayOfMonth)
-            val date = String.format(Locale.US, "%04d-%02d-%02d", day.year,
-                day.month + 1, day.dayOfMonth)
-            CalendarCellInfo(day, almanac.shortLabel(), almanac.festivals(),
-                holidayRepository.statusOn(date), almanac.suitable(), almanac.avoid(), false)
+        cellCache.cells(page)
+    } }
+    LaunchedEffect(adjacentCells) {
+        withContext(Dispatchers.Default) {
+            adjacentCells(-1)
+            adjacentCells(1)
         }
     }
     var selectedSchedule by remember { mutableStateOf(emptyList<ScheduleItem>()) }
@@ -340,7 +343,7 @@ internal fun CalendarScreen(
         preferences = preferences, cells = cells, selected = selected,
         adjacentCells = adjacentCells,
         weekdays = weekdays, monthTitle = monthTitle, timeZone = timeZone,
-        clockTick = clockTick, weatherState = weatherState,
+        clockTick = { clockTick }, weatherState = weatherState,
         refreshGeneration = refreshGeneration, scheduleItems = selectedSchedule,
         onPrevious = { movePage(-1) }, onNext = { movePage(1) },
         onToday = ::goToday, onSelect = ::selectDay,
@@ -389,14 +392,12 @@ internal fun CalendarScreen(
 }
 
 /**
- * Shared phase clock for every per-cell calendar label carousel, mirroring the Java
- * `CalendarCarouselTimeline`: all cells advance on the same boundary so their vertical
- * transitions share one frame phase.
+ * Shared timing for the per-cell label carousels. Hold periods sleep instead of
+ * invalidating every label on every display frame.
  */
 private object CalendarCarouselTimeline {
     const val HOLD_MS = 3_000L
     const val TRANSITION_MS = 200L
-    const val CYCLE_MS = HOLD_MS + TRANSITION_MS
 }
 
 /**
@@ -428,30 +429,25 @@ internal fun LunarCarouselText(
         }
         (fontSizePx * multiplier).coerceAtLeast(1f)
     }
-    var phase by remember { mutableFloatStateOf(0f) }
+    val progress = remember { Animatable(0f) }
     var cycle by remember { mutableIntStateOf(0) }
+    var transitioning by remember { mutableStateOf(false) }
     LaunchedEffect(distinct) {
-        phase = 0f
+        progress.snapTo(0f)
         cycle = 0
+        transitioning = false
         if (distinct.size == 1) return@LaunchedEffect
-        val start = withFrameNanos { it }
         while (true) {
-            val now = withFrameNanos { it }
-            val elapsed = (now - start) / 1_000_000L
-            // Keep the raw cycle count separately: phase is wrapped to [0, CYCLE_MS) so that the
-            // hold/slide math stays simple, but the label index must advance over the LONG-RUN
-            // total, otherwise it would stick on the first pair forever.
-            cycle = (elapsed / CalendarCarouselTimeline.CYCLE_MS).toInt()
-            phase = (elapsed % CalendarCarouselTimeline.CYCLE_MS).toFloat()
+            delay(CalendarCarouselTimeline.HOLD_MS)
+            transitioning = true
+            progress.animateTo(1f, tween(CalendarCarouselTimeline.TRANSITION_MS.toInt(), easing = LinearEasing))
+            cycle = (cycle + 1) % distinct.size
+            transitioning = false
+            progress.snapTo(0f)
         }
     }
     val index = ((cycle % distinct.size) + distinct.size) % distinct.size
-    val holding = phase < CalendarCarouselTimeline.HOLD_MS
-    val progress = if (holding) 0f else
-        ((phase - CalendarCarouselTimeline.HOLD_MS) / CalendarCarouselTimeline.TRANSITION_MS)
-            .coerceIn(0f, 1f)
     val nextIndex = (index + 1) % distinct.size
-    val slide = progress * lineHeight
     // Static and cycling labels must share the same line box and baseline.
     val lineStyle = style.copy(lineHeight = with(density) { lineHeight.toSp() })
     Box(
@@ -464,14 +460,14 @@ internal fun LunarCarouselText(
             distinct[index],
             color,
             lineStyle,
-            Modifier.graphicsLayer { translationY = -slide },
+            Modifier.graphicsLayer { translationY = -progress.value * lineHeight },
         )
-        if (!holding) {
+        if (transitioning) {
             LunarCarouselLine(
                 distinct[nextIndex],
                 color,
                 lineStyle,
-                Modifier.graphicsLayer { translationY = lineHeight - slide },
+                Modifier.graphicsLayer { translationY = (1f - progress.value) * lineHeight },
             )
         }
     }
@@ -522,8 +518,9 @@ internal fun MarqueeText(
     var containerWidth by remember { mutableIntStateOf(0) }
     var textWidth by remember { mutableIntStateOf(0) }
     val overflow = textWidth > containerWidth && containerWidth > 0
-    val transition = rememberInfiniteTransition(label = "almanac-marquee")
-    val progress by transition.animateFloat(
+    val progress = if (overflow) {
+        val transition = rememberInfiniteTransition(label = "almanac-marquee")
+        transition.animateFloat(
         initialValue = 0f,
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
@@ -534,21 +531,18 @@ internal fun MarqueeText(
             repeatMode = RepeatMode.Restart,
         ),
         label = "almanac-marquee-progress",
-    )
+        )
+    } else null
     val gapPx = with(density) { 48.dp.toPx() }
-    val offsetPx = if (overflow) {
-        val span = (textWidth + gapPx).toFloat()
-        -(progress * span)
-    } else {
-        0f
-    }
     Box(
         modifier
             .fillMaxWidth()
             .clipToBounds()
             .onSizeChanged { containerWidth = it.width },
     ) {
-        Row(Modifier.wrapContentWidth().graphicsLayer { translationX = offsetPx }) {
+        Row(Modifier.wrapContentWidth().graphicsLayer {
+            translationX = -(progress?.value ?: 0f) * (textWidth + gapPx)
+        }) {
             Text(
                 text,
                 color = color,

@@ -9,6 +9,10 @@ import android.graphics.Bitmap
 import android.graphics.Rect
 import android.os.Bundle
 import android.os.SystemClock
+import android.os.Handler
+import android.os.HandlerThread
+import android.view.FrameMetrics
+import android.view.Window
 import android.view.MotionEvent
 import android.view.accessibility.AccessibilityNodeInfo
 import com.clockmods.background.ClockPreferences
@@ -118,16 +122,48 @@ object CalendarAcceptance {
                     fun dates() = nodes(instrumentation).mapNotNull { it.viewIdResourceName }.filter { it.startsWith(prefix) }.toSet()
                     val before = dates()
                     val grid = nodes(instrumentation).first { it.viewIdResourceName == if (id == "agenda") "week-strip" else "month-grid" }
-                    swipe(instrumentation, grid)
-                    await("$id page swipe") { dates() != before }
+                    val frameThread = HandlerThread("calendar-frame-metrics").apply { start() }
+                    val frameTimes = java.util.Collections.synchronizedList(mutableListOf<Long>())
+                    val listener = Window.OnFrameMetricsAvailableListener { _, metrics, _ ->
+                        frameTimes.add(metrics.getMetric(FrameMetrics.TOTAL_DURATION))
+                    }
+                    val window = activity!!.window
+                    instrumentation.runOnMainSync { window.addOnFrameMetricsAvailableListener(listener, Handler(frameThread.looper)) }
+                    try {
+                        swipe(instrumentation, grid)
+                        // The neighbouring page is already exposed during the drag. Wait for the
+                        // transition to settle before testing Today or collecting its date set.
+                        SystemClock.sleep(700)
+                        await("$id page swipe") { dates().let { it.size == before.size && it != before } }
+                    } finally {
+                        instrumentation.runOnMainSync { window.removeOnFrameMetricsAvailableListener(listener) }
+                        frameThread.quitSafely()
+                        frameThread.join()
+                    }
+                    val durations = frameTimes.sorted().map { it / 1_000_000.0 }
+                    if (durations.isNotEmpty()) results += String.format(Locale.US,
+                        "%s/%d swipe: frames=%d p95=%.1fms max=%.1fms over32ms=%d", id, orientation,
+                        durations.size, durations[((durations.size - 1) * .95).toInt()], durations.last(), durations.count { it > 32 })
                     click(nodes(instrumentation).first { it.contentDescription?.toString() == todayLabel || (it.isClickable && it.text?.toString() == todayLabel) })
                     await("$id today after swipe") { dates() == before }
+                    fun currentGrid() = nodes(instrumentation).first {
+                        it.viewIdResourceName == if (id == "agenda") "week-strip" else "month-grid"
+                    }
+                    swipe(instrumentation, currentGrid(), travel = -.7f)
+                    SystemClock.sleep(700)
+                    await("$id previous page") { dates().let { it.size == before.size && it != before } }
+                    swipe(instrumentation, currentGrid())
+                    SystemClock.sleep(700)
+                    await("$id forward to original page") { dates() == before }
+                    swipe(instrumentation, currentGrid(), travel = .10f)
+                    SystemClock.sleep(500)
+                    check(dates() == before) { "$id short drag should snap back" }
                     if (id != "poster") {
                         click(nodes(instrumentation).first { it.viewIdResourceName == "month-title" })
                         await("month picker") { nodes(instrumentation).any { it.text?.toString() == context.getString(com.clockmods.R.string.calendar_month_picker_title) } }
                         click(nodes(instrumentation).first { it.text?.toString() == context.getString(com.clockmods.R.string.ultimate_cancel) })
                     }
-                    results += "$id/$orientation: layout, date count, selection, today, swipe, picker and screenshot passed"
+                    results += "$id/$orientation: layout, date count, selection, today, bidirectional swipe, snap-back, picker and screenshot passed"
                 }
             }
             File(out, if (weatherEnabled) "weather-results.txt" else "results.txt").writeText(results.joinToString("\n"))
@@ -168,13 +204,13 @@ object CalendarAcceptance {
         check(target?.performAction(AccessibilityNodeInfo.ACTION_CLICK) == true) { "No clickable ancestor: ${node.text ?: node.contentDescription}" }
     }
 
-    private fun swipe(instrumentation: Instrumentation, node: AccessibilityNodeInfo) {
+    private fun swipe(instrumentation: Instrumentation, node: AccessibilityNodeInfo, travel: Float = .7f) {
         val bounds = android.graphics.Rect().also(node::getBoundsInScreen)
         val start = SystemClock.uptimeMillis()
         for (step in 0..12) {
             val action = when (step) { 0 -> MotionEvent.ACTION_DOWN; 12 -> MotionEvent.ACTION_UP; else -> MotionEvent.ACTION_MOVE }
             val event = MotionEvent.obtain(start, SystemClock.uptimeMillis(), action,
-                bounds.left + bounds.width() * (.85f - .7f * step / 12), bounds.exactCenterY(), 0)
+                bounds.left + bounds.width() * ((if (travel < 0) .15f else .85f) - travel * step / 12), bounds.exactCenterY(), 0)
             event.source = android.view.InputDevice.SOURCE_TOUCHSCREEN
             check(instrumentation.uiAutomation.injectInputEvent(event, true))
             event.recycle()

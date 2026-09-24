@@ -7,6 +7,8 @@ import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
+import androidx.compose.runtime.derivedStateOf
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -22,7 +24,7 @@ import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.unit.dp
 import kotlinx.coroutines.launch
-import kotlin.math.abs
+import kotlinx.coroutines.Job
 import kotlin.math.max
 
 /** Three-page viewport: the neighbouring page is revealed at the exact distance of the drag. */
@@ -40,8 +42,18 @@ internal fun CalendarSwipePager(
     val scope = rememberCoroutineScope()
     var offset by remember(pageKey) { mutableFloatStateOf(0f) }
     var settling by remember(pageKey) { mutableStateOf(false) }
+    var settleJob by remember { mutableStateOf<Job?>(null) }
+    // Observe only a direction change in composition; pixel updates belong to graphicsLayer.
+    val revealedDirection by remember(pageKey) {
+        derivedStateOf { when { offset > 0f -> -1; offset < 0f -> 1; else -> 0 } }
+    }
     BoxWithConstraints(modifier.clipToBounds()) {
         val width = with(LocalDensity.current) { maxWidth.toPx() }
+        DisposableEffect(pageKey, width) {
+            offset = 0f
+            settling = false
+            onDispose { settleJob?.cancel() }
+        }
         val threshold = max(with(LocalDensity.current) { 48.dp.toPx() }, width * .20f)
         val gesture = Modifier.pointerInput(pageKey, width) {
             detectHorizontalDragGestures(
@@ -53,14 +65,14 @@ internal fun CalendarSwipePager(
                     }
                 },
                 onDragCancel = {
-                    scope.launch {
+                    if (!settling) settleJob = scope.launch {
                         settling = true
                         animate(offset, 0f, animationSpec = tween(180)) { value, _ -> offset = value }
                         settling = false
                     }
                 },
                 onDragEnd = {
-                    if (!settling) scope.launch {
+                    if (!settling) settleJob = scope.launch {
                         settling = true
                         val direction = when {
                             offset <= -threshold -> 1
@@ -79,12 +91,10 @@ internal fun CalendarSwipePager(
             )
         }
         Box(Modifier.fillMaxSize().then(gesture)) {
-            if (offset > 0f) {
-                val page = remember(pageKey, -1) { adjacent(-1) }
-                Box(Modifier.fillMaxSize().graphicsLayer { translationX = offset - width }) { page() }
-            } else if (offset < 0f) {
-                val page = remember(pageKey, 1) { adjacent(1) }
-                Box(Modifier.fillMaxSize().graphicsLayer { translationX = offset + width }) { page() }
+            if (revealedDirection != 0) {
+                val direction = revealedDirection
+                val page = adjacent(direction)
+                Box(Modifier.fillMaxSize().graphicsLayer { translationX = offset + direction * width }) { page() }
             }
             Box(Modifier.fillMaxSize().graphicsLayer { translationX = offset }) { current() }
         }

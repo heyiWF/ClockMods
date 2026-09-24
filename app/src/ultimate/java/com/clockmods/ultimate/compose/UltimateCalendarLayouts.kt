@@ -63,7 +63,7 @@ internal fun UltimateCalendarLayout(
     modifier: Modifier, theme: ComposeCalendarTheme, typography: CalendarTypography,
     preferences: ClockPreferences, cells: List<CalendarCellInfo>, selected: CalendarCellInfo,
     adjacentCells: (Int) -> List<CalendarCellInfo>,
-    weekdays: List<String>, monthTitle: String, timeZone: TimeZone, clockTick: Long,
+    weekdays: List<String>, monthTitle: String, timeZone: TimeZone, clockTick: () -> Long,
     weatherState: WeatherModels.WeatherState?, refreshGeneration: Int,
     scheduleItems: List<ScheduleItem>, onPrevious: () -> Unit, onNext: () -> Unit,
     onToday: () -> Unit, onSelect: (CalendarCellInfo) -> Unit, onMonthPicker: () -> Unit,
@@ -388,7 +388,7 @@ private fun PosterWordmark(year: Int, month: Int, theme: ComposeCalendarTheme,
 @Composable
 private fun DashboardReadings(theme: ComposeCalendarTheme, typography: CalendarTypography,
     preferences: ClockPreferences, weather: WeatherModels.WeatherState?, forecast: WeatherModels.DailyForecastData?,
-    tick: Long, zone: TimeZone, landscape: Boolean, gutter: Float, modifier: Modifier) {
+    tick: () -> Long, zone: TimeZone, landscape: Boolean, gutter: Float, modifier: Modifier) {
     Column(modifier.testTag("dashboard-readings"), verticalArrangement = Arrangement.spacedBy(gutter.dp)) {
         BoxWithConstraints(Modifier.fillMaxWidth().weight(if (landscape) 1.06f else .98f).calendarPanel(theme)) {
             val statusScale = minOf(
@@ -404,7 +404,7 @@ private fun DashboardReadings(theme: ComposeCalendarTheme, typography: CalendarT
             Column(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 5.dp)) {
                 if (preferences.isShowStatusIcons()) DeviceStatusPill(rememberDeviceStatus(), statusScale, true,
                     Color(preferences.getTimeColor()), Color(theme.panel))
-                val clock = Calendar.getInstance(zone).apply { timeInMillis = tick }
+                val clock = Calendar.getInstance(zone).apply { timeInMillis = tick() }
                 val time = SimpleDateFormat(if (preferences.isUse24Hour()) "HH:mm" else "hh:mm", Locale.US).apply { timeZone = zone }.format(clock.time)
                 Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 Row(horizontalArrangement = Arrangement.Center) {
@@ -459,7 +459,7 @@ private fun DashboardReadings(theme: ComposeCalendarTheme, typography: CalendarT
             val headings = listOf(R.string.calendar_today, R.string.calendar_tomorrow, R.string.calendar_after_tomorrow)
             Row(Modifier.fillMaxSize().padding(horizontal = side.dp)) {
                 repeat(3) { index ->
-                    val date = Calendar.getInstance(zone).apply { timeInMillis = tick; add(Calendar.DAY_OF_MONTH, index) }
+                    val date = Calendar.getInstance(zone).apply { timeInMillis = tick(); add(Calendar.DAY_OF_MONTH, index) }
                     val key = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = zone }.format(date.time)
                     val entry = forecast?.findByDate(key)
                     Column(Modifier.weight(1f).fillMaxHeight(), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
