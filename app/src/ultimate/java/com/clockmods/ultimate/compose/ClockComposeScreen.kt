@@ -1131,7 +1131,6 @@ internal fun rememberDeviceStatus(): DeviceStatus {
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_BATTERY_CHANGED)
             addAction(WifiManager.RSSI_CHANGED_ACTION)
-            addAction(SubscriptionManager.ACTION_DEFAULT_DATA_SUBSCRIPTION_CHANGED)
         }
         // Wi-Fi broadcasts may come from a privileged UID. Always re-read system state instead
         // of trusting broadcast extras, since this receiver must be exported to receive them.

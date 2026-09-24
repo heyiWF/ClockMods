@@ -214,7 +214,8 @@ object UltimateClockStyles {
     private const val DIGITAL_GRID_SECONDS_INSET = .07f
 
     private fun topMetadataTop(styleId: String?, width: Float, height: Float, density: Float,
-        marginY: Float): Float = if (styleId == STYLE_BUBBLES && width < height) {
+        marginY: Float): Float = if (width < height &&
+        (styleId == STYLE_BUBBLES || styleId == STYLE_RIBBON)) {
         minOf(minOf(width, height) * .045f, density * 20f)
     } else {
         marginY
@@ -448,9 +449,27 @@ object UltimateClockStyles {
                 Paint.Align.RIGHT -> safeX - safeLeft
                 else -> 2f * minOf(safeX - safeLeft, safeRight - safeX)
             }
-            val safeMaxWidth = minOf(maxWidth, availableWidth)
+            val overlay = context.getStatusOverlay()
+            fun usableSideWidth(width: Float): Float =
+                width.takeIf { it >= context.getDensity() * 80f } ?: Float.MAX_VALUE
+            val overlayWidth = if (overlay != null &&
+                overlay.getBottom() > lowerBaseline - preferredSize * 3f &&
+                overlay.getTop() < lowerBaseline + preferredSize) when (align) {
+                Paint.Align.LEFT -> if (overlay.getLeft() > safeX) {
+                    usableSideWidth(overlay.getLeft() - safeX - context.getDensity() * 4f)
+                } else Float.MAX_VALUE
+                Paint.Align.RIGHT -> if (overlay.getRight() < safeX) {
+                    usableSideWidth(safeX - overlay.getRight() - context.getDensity() * 4f)
+                } else Float.MAX_VALUE
+                else -> Float.MAX_VALUE
+            } else Float.MAX_VALUE
+            val safeMaxWidth = minOf(maxWidth, availableWidth, overlayWidth)
             if (safeMaxWidth <= 0f) return
+            val constrainedByOverlay = overlayWidth <= minOf(maxWidth, availableWidth)
+            val fittingWidth = if (constrainedByOverlay) safeMaxWidth * .92f else safeMaxWidth
             val floor = readableSize(context, 0f, 12f)
+            val minimumSize = if (constrainedByOverlay)
+                minOf(floor, context.getScaledDensity() * 10f) else floor
             val requested = maxOf(floor, preferredSize * state.getDateScale())
             val growth = (state.getDateScale() - 1f).coerceAtLeast(0f)
             val raisedBaseline = if (lowerBaseline < context.getCenterY()) {
@@ -463,53 +482,58 @@ object UltimateClockStyles {
                 state.getDateText(), requestedPaint, safeMaxWidth,
                 stackLunar || state.isDateLunarDualLine(), state.getLocale(),
             )
-            fun clearStatusOverlay(firstTop: Float, lastBottom: Float, size: Float): Float {
+            fun clearStatusOverlay(firstTop: Float, lastBottom: Float, size: Float,
+                textWidth: Float): Float {
                 val overlay = context.getStatusOverlay() ?: return 0f
                 val rowLeft = when (align) {
-                    Paint.Align.RIGHT -> safeX - safeMaxWidth
-                    Paint.Align.CENTER -> safeX - safeMaxWidth * .5f
+                    Paint.Align.RIGHT -> safeX - textWidth
+                    Paint.Align.CENTER -> safeX - textWidth * .5f
                     else -> safeX
                 }
-                if (!overlay.spansHorizontally(rowLeft, rowLeft + safeMaxWidth) ||
+                if (!overlay.spansHorizontally(rowLeft, rowLeft + textWidth) ||
                     !overlay.spansVertically(firstTop, lastBottom)
                 ) return 0f
                 return overlay.getBottom() + maxOf(context.getDensity() * 4f, size * .25f) - firstTop
             }
             if (lines[1].isEmpty()) {
-                val size = maxOf(floor, fitText(state.getDateText(), safeMaxWidth, requested, face))
+                val size = maxOf(minimumSize, fitText(state.getDateText(), fittingWidth, requested, face))
                 val metricsPaint = fill(Color.WHITE)
                 metricsPaint.typeface = face
                 metricsPaint.textSize = size
                 val metrics = metricsPaint.fontMetrics
+                val visibleText = ellipsize(state.getDateText(), safeMaxWidth, size, face)
                 var safeBaseline = maxOf(raisedBaseline, context.getTop() + inset - metrics.ascent)
                 safeBaseline = minOf(safeBaseline, context.getBottom() - inset - metrics.descent)
                 safeBaseline += clearStatusOverlay(safeBaseline + metrics.ascent,
-                    safeBaseline + metrics.descent, size)
+                    safeBaseline + metrics.descent, size, metricsPaint.measureText(visibleText))
                 safeBaseline = minOf(safeBaseline, context.getBottom() - inset - metrics.descent)
-                text(canvas, ellipsize(state.getDateText(), safeMaxWidth, size, face), safeX,
+                text(canvas, visibleText, safeX,
                     safeBaseline, size, color, align, face)
                 return
             }
-            val size = maxOf(floor, minOf(
-                fitText(lines[0], safeMaxWidth, requested, face),
-                fitText(lines[1], safeMaxWidth, requested, face),
+            val size = maxOf(minimumSize, minOf(
+                fitText(lines[0], fittingWidth, requested, face),
+                fitText(lines[1], fittingWidth, requested, face),
             ))
             val lineGap = size * 1.45f
             val metricsPaint = fill(Color.WHITE)
             metricsPaint.typeface = face
             metricsPaint.textSize = size
             val metrics = metricsPaint.fontMetrics
+            val firstText = ellipsize(lines[0], safeMaxWidth, size, face)
+            val secondText = ellipsize(lines[1], safeMaxWidth, size, face)
+            val textWidth = maxOf(metricsPaint.measureText(firstText), metricsPaint.measureText(secondText))
             var safeLowerBaseline = maxOf(raisedBaseline,
                 context.getTop() + inset + lineGap - metrics.ascent)
             safeLowerBaseline = minOf(safeLowerBaseline,
                 context.getBottom() - inset - metrics.descent)
             safeLowerBaseline += clearStatusOverlay(safeLowerBaseline - lineGap + metrics.ascent,
-                safeLowerBaseline + metrics.descent, size)
+                safeLowerBaseline + metrics.descent, size, textWidth)
             safeLowerBaseline = minOf(safeLowerBaseline,
                 context.getBottom() - inset - metrics.descent)
-            text(canvas, ellipsize(lines[0], safeMaxWidth, size, face), safeX,
+            text(canvas, firstText, safeX,
                 safeLowerBaseline - lineGap, size, color, align, face)
-            text(canvas, ellipsize(lines[1], safeMaxWidth, size, face), safeX,
+            text(canvas, secondText, safeX,
                 safeLowerBaseline, size, color, align, face)
         }
 

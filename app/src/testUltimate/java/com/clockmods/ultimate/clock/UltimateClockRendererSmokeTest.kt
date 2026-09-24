@@ -187,6 +187,81 @@ class UltimateClockRendererSmokeTest {
         ClockOverlayBounds(CORNER_MARGIN_X, CORNER_MARGIN_Y, CORNER_MARGIN_X + CAPSULE_WIDTH, CORNER_MARGIN_Y + CAPSULE_HEIGHT)
 
     @Test
+    fun portraitDateStaysLevelWithNearbyStatusCapsule() {
+        val width = 920f
+        val height = 2048f
+        val density = 2f
+        val state = ClockState.builder(1787633430123L)
+            .locale(Locale.SIMPLIFIED_CHINESE)
+            .dateText("2026 年 9 月 24 日 星期四 / 丙午[马]年八月十四")
+            .dateScale(1.15f)
+            .build()
+        val paints = PaintPoolFixture.install()
+        try {
+            for (styleId in arrayOf(UltimateClockStyles.STYLE_BUBBLES,
+                UltimateClockStyles.STYLE_RIBBON, UltimateClockStyles.STYLE_ORBIT)) {
+                val style = UltimateClockStyles.createRegistry().find(styleId)!!
+                val placement = UltimateClockStyles.statusCapsuleBounds(
+                    styleId, width, height, density, width * .055f, height * .037f, 210f, 76f,
+                )
+                val overlay = ClockOverlayBounds(placement[0], placement[1], placement[2], placement[3])
+                fun dateTop(status: ClockOverlayBounds?): Float {
+                    val canvas = RecordingCanvas(width, height)
+                    val context = ClockRenderContext(
+                        0f, 0f, width, height, density, density, state.getTimeMillis(),
+                        ClockBackground.theme(false), 0f, 0f, true, status,
+                    )
+                    style.getRenderer().render(canvas, context, state, style.getThemeTokens())
+                    return canvas.textBounds.first { it.text.startsWith("2026") }.top
+                }
+                val plainTop = dateTop(null)
+                val statusTop = dateTop(overlay)
+                assertEquals("$styleId must not push a date that ends before the capsule",
+                    plainTop, statusTop, .01f)
+                assertTrue("$styleId date and capsule should start on the same row",
+                    kotlin.math.abs(statusTop - overlay.getTop()) < 12f)
+            }
+        } finally {
+            paints.restore()
+        }
+    }
+
+    @Test
+    fun wideStatusCapsuleLeavesRoomForBubbleDateOnItsOwnRow() {
+        val width = 920f
+        val height = 2048f
+        val density = 2f
+        val style = UltimateClockStyles.createRegistry().find(UltimateClockStyles.STYLE_BUBBLES)!!
+        val state = ClockState.builder(1787633430123L)
+            .locale(Locale.SIMPLIFIED_CHINESE)
+            .dateText("2026 年 9 月 24 日 星期四 / 丙午[马]年八月十四")
+            .dateScale(1.15f)
+            .build()
+        val placement = UltimateClockStyles.statusCapsuleBounds(
+            UltimateClockStyles.STYLE_BUBBLES, width, height, density,
+            width * .055f, height * .037f, 410f, 120f,
+        )
+        val overlay = ClockOverlayBounds(placement[0], placement[1], placement[2], placement[3])
+        val paints = PaintPoolFixture.install()
+        try {
+            val canvas = RecordingCanvas(width, height)
+            val context = ClockRenderContext(
+                0f, 0f, width, height, density, density, state.getTimeMillis(),
+                ClockBackground.theme(false), 0f, 0f, true, overlay,
+            )
+            style.getRenderer().render(canvas, context, state, style.getThemeTokens())
+            val date = canvas.textBounds.first { it.text.startsWith("2026") }
+            assertTrue("the solar date should remain complete", date.text.endsWith("星期四"))
+            assertTrue("the date should remain level with the wide capsule",
+                kotlin.math.abs(date.top - overlay.getTop()) < 12f)
+            assertTrue("the date should end before the wide capsule",
+                date.right <= overlay.getLeft() - density * 4f + 1f)
+        } finally {
+            paints.restore()
+        }
+    }
+
+    @Test
     fun topRightMetadataClearsTheHostStatusCapsule() {
         val styleIds = arrayOf(UltimateClockStyles.STYLE_ORBIT, UltimateClockStyles.STYLE_BUBBLES, UltimateClockStyles.STYLE_RIBBON)
         val paints = PaintPoolFixture.install()
