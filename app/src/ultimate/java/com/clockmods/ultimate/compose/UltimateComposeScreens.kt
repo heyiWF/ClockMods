@@ -10,7 +10,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessAlarm
 import androidx.compose.material.icons.filled.AccessTime
 import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.CalendarMonth
@@ -45,6 +44,7 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalView
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -67,14 +67,15 @@ import kotlinx.coroutines.delay
 
 private enum class Destination(
     @StringRes val labelRes: Int,
-    val icon: ImageVector,
+    val icon: ImageVector? = null,
+    val iconRes: Int? = null,
 ) {
-    CLOCK(R.string.pro_page_clock, Icons.Default.AccessTime),
+    CLOCK(R.string.pro_page_clock, iconRes = R.drawable.ic_nest_clock_farsight_digital),
     CALENDAR(R.string.pro_page_calendar, Icons.Default.CalendarMonth),
-    POMODORO(R.string.pro_page_pomodoro, Icons.Default.Timer),
+    POMODORO(R.string.pro_page_pomodoro, Icons.Default.AccessTime),
     ALARM(R.string.pro_page_alarm, Icons.Default.Alarm),
     COUNTDOWN(R.string.pro_page_countdown, Icons.Default.HourglassBottom),
-    STOPWATCH(R.string.pro_page_stopwatch, Icons.Default.AccessAlarm),
+    STOPWATCH(R.string.pro_page_stopwatch, Icons.Default.Timer),
 }
 
 /** Compose-native application shell shared by every Ultimate destination. */
@@ -141,10 +142,10 @@ fun UltimateApp(
                         selected = destination == item,
                         onClick = { destination = item },
                         icon = {
-                            Icon(
-                                item.icon,
-                                contentDescription = stringResource(item.labelRes),
-                            )
+                            val description = stringResource(item.labelRes)
+                            val vector = item.icon
+                            if (vector != null) Icon(vector, contentDescription = description)
+                            else Icon(painterResource(requireNotNull(item.iconRes)), contentDescription = description)
                         },
                         label = { Text(stringResource(item.labelRes), maxLines = 1) },
                         alwaysShowLabel = false,
