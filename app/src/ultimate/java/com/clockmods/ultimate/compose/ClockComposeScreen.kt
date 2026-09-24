@@ -18,6 +18,7 @@ import android.os.BatteryManager
 import android.os.Handler
 import android.os.Looper
 import android.telephony.SignalStrength
+import android.telephony.SubscriptionManager
 import android.telephony.TelephonyCallback
 import android.telephony.TelephonyManager
 import androidx.activity.compose.rememberLauncherForActivityResult
@@ -1011,12 +1012,12 @@ internal data class DeviceStatus(
 internal fun batteryIcon(percent: Int, charging: Boolean): Int = when {
     charging -> R.drawable.ic_battery_android_bolt
     percent <= 0 -> R.drawable.ic_battery_android_0
-    percent <= 14 -> R.drawable.ic_battery_android_6
-    percent <= 28 -> R.drawable.ic_battery_android_5
-    percent <= 42 -> R.drawable.ic_battery_android_4
-    percent <= 56 -> R.drawable.ic_battery_android_3
-    percent <= 70 -> R.drawable.ic_battery_android_2
-    percent <= 85 -> R.drawable.ic_battery_android_1
+    percent <= 14 -> R.drawable.ic_battery_android_1
+    percent <= 28 -> R.drawable.ic_battery_android_2
+    percent <= 42 -> R.drawable.ic_battery_android_3
+    percent <= 56 -> R.drawable.ic_battery_android_4
+    percent <= 70 -> R.drawable.ic_battery_android_5
+    percent <= 85 -> R.drawable.ic_battery_android_6
     else -> R.drawable.ic_battery_android_full
 }
 
@@ -1063,6 +1064,16 @@ private fun networkStatus(capabilities: NetworkCapabilities?, cellLevel: Int?): 
     }
 }
 
+// An unbound TelephonyManager can follow the voice SIM on dual-SIM devices.
+private fun activeDataSubscriptionId(): Int =
+    SubscriptionManager.getActiveDataSubscriptionId().takeIf {
+        it != SubscriptionManager.INVALID_SUBSCRIPTION_ID
+    } ?: SubscriptionManager.getDefaultDataSubscriptionId()
+
+private fun dataTelephonyManager(telephony: TelephonyManager?, subscriptionId: Int): TelephonyManager? =
+    if (subscriptionId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) telephony
+    else telephony?.createForSubscriptionId(subscriptionId)
+
 @Composable
 internal fun rememberDeviceStatus(): DeviceStatus {
     val context = LocalContext.current
@@ -1078,18 +1089,49 @@ internal fun rememberDeviceStatus(): DeviceStatus {
         val charging = battery?.getIntExtra(BatteryManager.EXTRA_STATUS, -1) == BatteryManager.BATTERY_STATUS_CHARGING
         return DeviceStatus(network, signalLevel, percent, charging)
     }
-    var status by remember(context) { mutableStateOf(readStatus(cellLevel = runCatching { telephony?.signalStrength?.level }.getOrNull())) }
+    var status by remember(context) { mutableStateOf(readStatus(cellLevel = runCatching {
+        dataTelephonyManager(telephony, activeDataSubscriptionId())?.signalStrength?.level
+    }.getOrNull())) }
     DisposableEffect(context) {
-        var cellLevel = runCatching { telephony?.signalStrength?.level }.getOrNull()
+        var subscriptionId = activeDataSubscriptionId()
+        var signalTelephony = dataTelephonyManager(telephony, subscriptionId)
+        var cellLevel = runCatching { signalTelephony?.signalStrength?.level }.getOrNull()
         var currentNetwork = connectivity?.activeNetwork
+        val signalCallback = object : TelephonyCallback(), TelephonyCallback.SignalStrengthsListener {
+            override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
+                cellLevel = signalStrength.level
+                if (status.network == DeviceNetwork.CELLULAR) {
+                    status = status.copy(signalLevel = cellLevel)
+                }
+            }
+        }
+        var signalRegistered = runCatching {
+            signalTelephony?.registerTelephonyCallback(context.mainExecutor, signalCallback)
+            signalTelephony != null
+        }.getOrDefault(false)
+        fun refreshDataSubscription() {
+            val currentId = activeDataSubscriptionId()
+            if (currentId == subscriptionId) return
+            if (signalRegistered) runCatching { signalTelephony?.unregisterTelephonyCallback(signalCallback) }
+            subscriptionId = currentId
+            signalTelephony = dataTelephonyManager(telephony, currentId)
+            cellLevel = runCatching { signalTelephony?.signalStrength?.level }.getOrNull()
+            signalRegistered = runCatching {
+                signalTelephony?.registerTelephonyCallback(context.mainExecutor, signalCallback)
+                signalTelephony != null
+            }.getOrDefault(false)
+            status = readStatus(cellLevel)
+        }
         val receiver = object : BroadcastReceiver() {
             override fun onReceive(receiveContext: Context?, intent: Intent?) {
+                refreshDataSubscription()
                 status = readStatus(cellLevel)
             }
         }
         val filter = IntentFilter().apply {
             addAction(Intent.ACTION_BATTERY_CHANGED)
             addAction(WifiManager.RSSI_CHANGED_ACTION)
+            addAction(SubscriptionManager.ACTION_DEFAULT_DATA_SUBSCRIPTION_CHANGED)
         }
         // Wi-Fi broadcasts may come from a privileged UID. Always re-read system state instead
         // of trusting broadcast extras, since this receiver must be exported to receive them.
@@ -1102,6 +1144,7 @@ internal fun rememberDeviceStatus(): DeviceStatus {
         val networkCallback = object : ConnectivityManager.NetworkCallback() {
             override fun onCapabilitiesChanged(network: Network, capabilities: NetworkCapabilities) {
                 currentNetwork = network
+                refreshDataSubscription()
                 val (type, level) = networkStatus(capabilities, cellLevel)
                 status = status.copy(network = type, signalLevel = level)
             }
@@ -1117,22 +1160,10 @@ internal fun rememberDeviceStatus(): DeviceStatus {
             connectivity?.registerDefaultNetworkCallback(networkCallback, Handler(Looper.getMainLooper()))
             connectivity != null
         }.getOrDefault(false)
-        val signalCallback = object : TelephonyCallback(), TelephonyCallback.SignalStrengthsListener {
-            override fun onSignalStrengthsChanged(signalStrength: SignalStrength) {
-                cellLevel = signalStrength.level
-                if (status.network == DeviceNetwork.CELLULAR) {
-                    status = status.copy(signalLevel = cellLevel)
-                }
-            }
-        }
-        val signalRegistered = runCatching {
-            telephony?.registerTelephonyCallback(context.mainExecutor, signalCallback)
-            telephony != null
-        }.getOrDefault(false)
         onDispose {
             runCatching { context.unregisterReceiver(receiver) }
             if (networkRegistered) runCatching { connectivity?.unregisterNetworkCallback(networkCallback) }
-            if (signalRegistered) runCatching { telephony?.unregisterTelephonyCallback(signalCallback) }
+            if (signalRegistered) runCatching { signalTelephony?.unregisterTelephonyCallback(signalCallback) }
         }
     }
     return status
