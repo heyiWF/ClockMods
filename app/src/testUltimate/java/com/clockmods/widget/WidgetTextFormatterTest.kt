@@ -20,8 +20,8 @@ class WidgetTextFormatterTest {
         assertEquals("Sep 18", WidgetTextFormatter.formatGregorianDate(now, newYork, Locale.ENGLISH))
         assertEquals("星期六", WidgetTextFormatter.formatWeekday(now, shanghai, Locale.TAIWAN))
         assertEquals("HH:mm:ss", WidgetTextFormatter.timePattern(true, true))
-        assertEquals("h:mm a", WidgetTextFormatter.timePattern(false, false))
-        assertEquals("h:mm a", WidgetTextFormatter.timePattern(Locale.ENGLISH, false, false))
+        assertEquals("hh:mm a", WidgetTextFormatter.timePattern(false, false))
+        assertEquals("hh:mm a", WidgetTextFormatter.timePattern(Locale.ENGLISH, false, false))
         assertEquals("HH:mm:ss", WidgetTextFormatter.timePattern(Locale.CHINA, true, true))
         assertNotEquals(
             WidgetTextFormatter.formatLunar(now, shanghai, Locale.CHINA),

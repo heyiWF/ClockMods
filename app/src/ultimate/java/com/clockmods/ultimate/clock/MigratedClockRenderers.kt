@@ -158,12 +158,12 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         val hours = String.format(Locale.US, "%02d", hourValue)
         val minutes = String.format(Locale.US, "%02d", calendar.get(Calendar.MINUTE))
         var size = min(first.height() * .40f, first.width() * .59f) * state.getTimeScale()
-        size = fitText(hours, first.width() * .76f, size, face)
+        size = fitTime(hours, first.width() * .76f, size, face)
         drawTime(
             canvas, hours, first.centerX(), centeredBaseline(first.centerY(), size, face),
             size, colors.onPanel, Paint.Align.CENTER, face,
         )
-        size = fitText(minutes, second.width() * .76f, size, face)
+        size = fitTime(minutes, second.width() * .76f, size, face)
         drawTime(
             canvas, minutes, second.centerX(), centeredBaseline(second.centerY(), size, face),
             size, colors.onAccent, Paint.Align.CENTER, face,
@@ -223,7 +223,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
             val markerX = second.left + second.width() * .10f
             val markerY = second.bottom - max(second.height() * .079f, markerRadius * 1.25f)
             drawScallopedCircle(canvas, markerX, markerY, markerRadius, colors.badge)
-            text(
+            drawTime(
                 canvas, String.format(Locale.US, "%02d", calendar.get(Calendar.SECOND)),
                 markerX, centeredBaseline(markerY, markerSize, supporting), markerSize,
                 colors.onBadge, Paint.Align.CENTER, supporting,
@@ -259,7 +259,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
                 colors.accent,
             )
         }
-        val dialSize = fitText(time, outer * 1.90f, height * .278f * state.getTimeScale(), face)
+        val dialSize = fitTime(time, outer * 1.90f, height * .278f * state.getTimeScale(), face)
         withPhotoText(glass != null) {
             drawTime(
                 canvas, time, centerX, centeredBaseline(centerY, dialSize, face), dialSize,
@@ -292,8 +292,8 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
             }
             val glyphBounds = Rect()
             secondsPaint.getTextBounds(seconds, 0, seconds.length, glyphBounds)
-            canvas.drawText(
-                seconds, centerX,
+            ClockTimeText.draw(
+                canvas, seconds, centerX,
                 y - (glyphBounds.top + glyphBounds.bottom) * .5f,
                 secondsPaint,
             )
@@ -341,8 +341,8 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         bubble(canvas, secondX, secondY, secondRadius, colors.panelAlt)
 
         val preferred = height * .235f * state.getTimeScale()
-        val hourSize = fitText(hours, hourPanel.width() * .68f, preferred, face)
-        val minuteSize = fitText(minutes, minuteRadius * 1.25f, preferred, face)
+        val hourSize = fitTime(hours, hourPanel.width() * .68f, preferred, face)
+        val minuteSize = fitTime(minutes, minuteRadius * 1.25f, preferred, face)
         drawTime(
             canvas, hours, hourPanel.centerX(), centeredBaseline(hourPanel.centerY(), hourSize, face),
             hourSize, colors.onPanel, Paint.Align.CENTER, face,
@@ -352,11 +352,11 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
             minuteSize, colors.onAccent, Paint.Align.CENTER, face,
         )
         if (secondsVisible(state)) {
-            val secondSize = fitText(
+            val secondSize = fitTime(
                 "00", secondRadius * 1.15f,
                 height * .075f * state.getSupportingScale(), supporting,
             )
-            text(
+            drawTime(
                 canvas, String.format(Locale.US, "%02d", calendar.get(Calendar.SECOND)),
                 secondX, centeredBaseline(secondY, secondSize, supporting), secondSize,
                 colors.onPanelAlt, Paint.Align.CENTER, supporting,
@@ -422,9 +422,9 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         drawScallopedCircle(canvas, minuteX, minuteY, minuteRadius, colors.accent)
 
         val hourPreferred = min(hourPanel.height() * .44f, width * .24f) * state.getTimeScale()
-        val hourSize = fitText(hours, hourPanel.width() * .72f, hourPreferred, face)
+        val hourSize = fitTime(hours, hourPanel.width() * .72f, hourPreferred, face)
         val minutePreferred = min(minuteRadius * .72f, width * .24f) * state.getTimeScale()
-        val minuteSize = fitText(minutes, minuteRadius * 1.30f, minutePreferred, face)
+        val minuteSize = fitTime(minutes, minuteRadius * 1.30f, minutePreferred, face)
         drawTime(
             canvas, hours, hourPanel.centerX(), centeredBaseline(hourPanel.centerY(), hourSize, face),
             hourSize, colors.onPanel, Paint.Align.CENTER, face,
@@ -454,8 +454,8 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
             val secondX = min(context.getRight() - width * .03f - secondRadius, desiredX)
             val secondY = minuteY + minuteRadius * .32f
             bubble(canvas, secondX, secondY, secondRadius, colors.panelAlt)
-            val secondSize = fitText("00", secondRadius * 1.28f, secondRadius * .76f, supporting)
-            text(
+            val secondSize = fitTime("00", secondRadius * 1.28f, secondRadius * .76f, supporting)
+            drawTime(
                 canvas, String.format(Locale.US, "%02d", calendar.get(Calendar.SECOND)),
                 secondX, centeredBaseline(secondY, secondSize, supporting), secondSize,
                 colors.onPanelAlt, Paint.Align.CENTER, supporting,
@@ -507,7 +507,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         panel(canvas, digital, radius, radius, colors.accent)
         drawAnalog(canvas, context, state, calendar, analog, colors)
 
-        val timeSize = fitText(
+        val timeSize = fitTime(
             time, digital.width() * .88f,
             min(digital.height() * .30f, digital.width() * .29f) * state.getTimeScale(), face,
         )
@@ -535,7 +535,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
             val secondX = digital.right - digital.width() * .09f
             val secondY = digital.bottom - digital.height() * .050f - secondRadius
             drawScallopedCircle(canvas, secondX, secondY, secondRadius, colors.badge)
-            text(
+            drawTime(
                 canvas, String.format(Locale.US, "%02d", calendar.get(Calendar.SECOND)),
                 secondX, centeredBaseline(secondY, secondSize, supporting), secondSize,
                 colors.onBadge, Paint.Align.CENTER, supporting,
@@ -645,7 +645,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         panel(canvas, ribbon, ribbon.height() * .5f, ribbon.height() * .5f, colors.accent)
 
         val timeX = ribbon.left + ribbon.width() * .055f
-        var timeSize = fitText(
+        var timeSize = fitTime(
             time, ribbon.width() * if (secondsVisible(state)) .58f else .86f,
             min(ribbon.height() * .56f, width * .30f) * state.getTimeScale(), face,
         )
@@ -657,7 +657,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
                 1f,
                 secondsX - secondsRadius - ribbon.width() * .035f - timeX,
             )
-            timeSize = fitText(time, timeMaxWidth, timeSize, face)
+            timeSize = fitTime(time, timeMaxWidth, timeSize, face)
             secondsSize = UltimateClockStyles.ribbonSecondsTextSize(timeSize)
             secondsRadius = max(secondsSize * .76f, min(width, height) * .042f)
             secondsX = ribbon.right - ribbon.width() * .055f - secondsRadius
@@ -669,7 +669,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         if (secondsVisible(state)) {
             val secondY = ribbon.centerY()
             drawScallopedCircle(canvas, secondsX, secondY, secondsRadius, colors.badge)
-            text(
+            drawTime(
                 canvas, String.format(Locale.US, "%02d", calendar.get(Calendar.SECOND)),
                 secondsX, centeredBaseline(secondY, secondsSize, supporting), secondsSize,
                 colors.onBadge, Paint.Align.CENTER, supporting,
@@ -896,7 +896,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
                 TimeZone.getTimeZone(entry.getZoneId()), state.getLocale(),
             ).apply { timeInMillis = state.getTimeMillis() }
             val localTime = timeText(local, state, false)
-            val timeSize = fitText(
+            val timeSize = fitTime(
                 localTime, contentWidth,
                 min(
                     card.height() * .30f,

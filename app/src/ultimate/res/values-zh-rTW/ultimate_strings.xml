@@ -2,7 +2,7 @@
 <resources>
     <string name="ultimate_settings_title">ClockMods Ultimate 設定</string>
     <string name="ultimate_settings_pane_title">設定</string>
-    <string name="ultimate_category_clock_style">時鐘樣式</string>
+    <string name="ultimate_category_clock_style">時鐘</string>
     <string name="ultimate_category_clock_style_summary">完整主題、鐘面、數位排版與動態效果</string>
     <string name="ultimate_category_background">背景與顯示</string>
     <string name="ultimate_category_background_summary">背景來源、夜間調暗與狀態圖示</string>
@@ -15,7 +15,6 @@
     <string name="ultimate_category_calendar_style">月曆樣式</string>
     <string name="ultimate_category_calendar_style_summary">月曆頁的版式與配色</string>
     <string name="ultimate_calendar_style_title">月曆樣式</string>
-    <string name="ultimate_calendar_style_section">版式</string>
     <string name="ultimate_category_chime">報時</string>
     <string name="ultimate_category_chime_summary">整點、半點提示與勿擾時段</string>
     <string name="ultimate_category_system">系統與語言</string>

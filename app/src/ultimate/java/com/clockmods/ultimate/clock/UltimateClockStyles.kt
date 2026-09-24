@@ -550,7 +550,7 @@ object UltimateClockStyles {
             val changed = changedDigitPositions(previous, current).toSet()
             val originalAlpha = paint.alpha
             val originalAlign = paint.textAlign
-            val characterWidths = current.map { paint.measureText(it.toString()) }
+            val characterWidths = current.indices.map { ClockTimeText.slotWidth(current, it, paint) }
             val totalWidth = characterWidths.sum()
             var cursor = when (originalAlign) {
                 Paint.Align.CENTER -> x - totalWidth / 2f
@@ -614,8 +614,15 @@ object UltimateClockStyles {
             maxWidth: Float, preferredSize: Float, color: Int, align: Paint.Align,
             face: Typeface?) {
             if (maxWidth <= 0f) return
-            drawTime(canvas, value, x, baseline, fitText(value, maxWidth, preferredSize, face),
+            drawTime(canvas, value, x, baseline, fitTime(value, maxWidth, preferredSize, face),
                 color, align, face)
+        }
+
+        protected fun fitTime(value: String?, maxWidth: Float, size: Float, face: Typeface?): Float {
+            if (value.isNullOrEmpty()) return size
+            val paint = fill(Color.WHITE).apply { typeface = face; textSize = size }
+            val measured = ClockTimeText.stableWidth(value, paint)
+            return if (measured > maxWidth && measured > 0f) size * maxWidth / measured else size
         }
 
         protected fun contextText(state: ClockState): String = when {

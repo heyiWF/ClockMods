@@ -12,6 +12,7 @@ import com.clockmods.sdk.clock.ClockRenderContext
 import com.clockmods.sdk.clock.ClockState
 import com.clockmods.sdk.clock.ClockThemeTokens
 import com.clockmods.ui.ClockTimeFormatter
+import com.clockmods.ui.ClockTimeText
 import java.util.Calendar
 import java.util.Locale
 import kotlin.math.cos
@@ -46,7 +47,7 @@ internal class ProClassicRenderer : UltimateClockStyles.RendererBase() {
             formatted.hasSmallSeconds() || formatted.hasPeriod() -> unit * .14f
             else -> 0f
         }
-        val timeSize = fitText(
+        val timeSize = fitTime(
             time,
             width * .94f - accessorySpace,
             unit * .42f * state.getTimeScale(),
@@ -63,12 +64,16 @@ internal class ProClassicRenderer : UltimateClockStyles.RendererBase() {
             typeface = supporting
             textSize = accessorySize
         }
-        val mainWidth = timePaint.measureText(time)
+        val mainWidth = ClockTimeText.stableWidth(time, timePaint)
         val gap = max(context.getDensity() * 6f, timeSize * .06f)
-        val leftWidth = formatted.periodText.takeIf(String::isNotEmpty)
-            ?.let(accessoryPaint::measureText) ?: 0f
+        val leftWidth = if (formatted.periodText.isNotEmpty()) maxOf(
+            accessoryPaint.measureText(formatted.periodText),
+            accessoryPaint.measureText(ClockTimeFormatter.periodText(
+                if (calendar.get(Calendar.HOUR_OF_DAY) < 12) 12 else 0,
+                state.getLocale().language == "en")),
+        ) else 0f
         val rightWidth = formatted.secondsText.takeIf(String::isNotEmpty)
-            ?.let(accessoryPaint::measureText) ?: 0f
+            ?.let { ClockTimeText.stableWidth(it, accessoryPaint) } ?: 0f
         val totalWidth = mainWidth +
             (if (leftWidth > 0f) leftWidth + gap else 0f) +
             (if (rightWidth > 0f) rightWidth + gap else 0f)
@@ -129,7 +134,7 @@ internal class ProClassicRenderer : UltimateClockStyles.RendererBase() {
         val bottom = context.getTop() + height * .78f
         val step = if (lines.size == 1) 0f else (bottom - top) / (lines.size - 1)
         val preferredSize = min(unit * .34f * state.getTimeScale(), height * .20f)
-        val timeSize = fitText("00", width * .72f, preferredSize, display)
+        val timeSize = fitTime("00", width * .72f, preferredSize, display)
         lines.forEachIndexed { index, value ->
             drawTime(
                 canvas, value, context.getCenterX(),
@@ -346,7 +351,7 @@ internal class NoirInstrumentRenderer : UltimateClockStyles.RendererBase() {
                 String.format(Locale.US, "%02d", c.get(Calendar.SECOND))
             } else "--"
             val subSecondsSize = min(subR * .55f, readableSize(context, subR * .31f, 10f))
-            text(canvas, seconds, subX, centeredBaseline(subY, subSecondsSize, mono), subSecondsSize,
+            drawTime(canvas, seconds, subX, centeredBaseline(subY, subSecondsSize, mono), subSecondsSize,
                 theme.getPrimaryTextColor(), Paint.Align.CENTER, mono)
         }
     }
@@ -481,13 +486,13 @@ internal class OrbitNeonRenderer : UltimateClockStyles.RendererBase() {
         val time = timeText(c, state, false)
         val display = displayTypeface(theme, Typeface.NORMAL)
         val mono = supportingTypeface(theme, Typeface.NORMAL)
-        val timeSize = fitText(time, inner * 1.62f, unit * .105f, display)
+        val timeSize = fitTime(time, inner * 1.62f, unit * .105f, display)
         drawTime(canvas, time, cx, centeredBaseline(cy, timeSize, display), timeSize,
             theme.getPrimaryTextColor(), Paint.Align.CENTER, display)
         val seconds = if (state.isShowSeconds() && state.getSecondHandMotion() != ClockState.SecondHandMotion.OFF) {
             String.format(Locale.US, "%02d", c.get(Calendar.SECOND))
         } else "--"
-        text(canvas, seconds, cx, cy + inner * .46f, readableSize(context, unit * .023f, 12f),
+        drawTime(canvas, seconds, cx, cy + inner * .46f, readableSize(context, unit * .023f, 12f),
             0xFFFF725E.toInt(), Paint.Align.CENTER, mono)
 
         val infoLeft = context.getLeft() + w * if (landscape) .65f else .10f
@@ -706,23 +711,23 @@ internal class TypographicRenderer : UltimateClockStyles.RendererBase() {
             val hourCenterX = (context.getLeft() + divider) * .5f
             val minuteCenterX = divider + (context.getRight() - divider) * .50f
             val centerY = context.getTop() + h * .47f
-            val hourSize = fitText(hours, (divider - context.getLeft()) * .78f, unit * .34f, display)
-            val minuteSize = fitText(minutes, (context.getRight() - divider) * .72f, unit * .34f, display)
-            text(canvas, hours, hourCenterX, centeredBaseline(centerY, hourSize, display), hourSize,
+            val hourSize = fitTime(hours, (divider - context.getLeft()) * .78f, unit * .34f, display)
+            val minuteSize = fitTime(minutes, (context.getRight() - divider) * .72f, unit * .34f, display)
+            drawTime(canvas, hours, hourCenterX, centeredBaseline(centerY, hourSize, display), hourSize,
                 panelInk, Paint.Align.CENTER, display)
-            text(canvas, minutes, minuteCenterX, centeredBaseline(centerY, minuteSize, display), minuteSize,
+            drawTime(canvas, minutes, minuteCenterX, centeredBaseline(centerY, minuteSize, display), minuteSize,
                 theme.getPrimaryTextColor(), Paint.Align.CENTER, display)
         } else {
             divider = context.getTop() + h * .48f
             canvas.drawRect(context.getLeft(), context.getTop(), context.getRight(), divider, fill(theme.getSurfaceColor()))
             canvas.drawRect(context.getLeft(), divider, context.getRight(), divider + unit * .008f, fill(theme.getAccentColor()))
-            val hourSize = fitText(hours, w * .76f, unit * .34f, display)
-            val minuteSize = fitText(minutes, w * .76f, unit * .34f, display)
+            val hourSize = fitTime(hours, w * .76f, unit * .34f, display)
+            val minuteSize = fitTime(minutes, w * .76f, unit * .34f, display)
             val hourCenterY = context.getTop() + h * .27f
             val minuteCenterY = context.getTop() + h * .64f
-            text(canvas, hours, context.getCenterX(), centeredBaseline(hourCenterY, hourSize, display), hourSize,
+            drawTime(canvas, hours, context.getCenterX(), centeredBaseline(hourCenterY, hourSize, display), hourSize,
                 panelInk, Paint.Align.CENTER, display)
-            text(canvas, minutes, context.getCenterX(), centeredBaseline(minuteCenterY, minuteSize, display), minuteSize,
+            drawTime(canvas, minutes, context.getCenterX(), centeredBaseline(minuteCenterY, minuteSize, display), minuteSize,
                 theme.getPrimaryTextColor(), Paint.Align.CENTER, display)
         }
         val titleX = context.getLeft() + w * .07f
@@ -733,7 +738,7 @@ internal class TypographicRenderer : UltimateClockStyles.RendererBase() {
         } else "--"
         val secondsX = context.getRight() - w * .07f
         val secondsY = context.getTop() + h * .16f
-        text(canvas, seconds, secondsX, secondsY, unit * .065f, theme.getAccentColor(), Paint.Align.RIGHT, bold)
+        drawTime(canvas, seconds, secondsX, secondsY, unit * .065f, theme.getAccentColor(), Paint.Align.RIGHT, bold)
         val secondsLabelY = secondsY + max(small * 1.15f, unit * .045f)
         text(canvas, "SEC", secondsX, secondsLabelY, small,
             if (landscape) theme.getSecondaryTextColor() else faceInk, Paint.Align.RIGHT, regular)

@@ -30,6 +30,7 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.clearAndSetSemantics
 import androidx.compose.ui.semantics.selected
 import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.semantics.testTagsAsResourceId
@@ -45,6 +46,7 @@ import com.clockmods.pro.CalendarDashboardSizing as Sizing
 import com.clockmods.pro.LunarAlmanac
 import com.clockmods.pro.schedule.ScheduleItem
 import com.clockmods.ui.ClockTypefaceResolver
+import com.clockmods.ui.ClockTimeText
 import com.clockmods.ui.WeatherIcon
 import com.clockmods.weather.DailyForecastController
 import com.clockmods.weather.WeatherModels
@@ -408,14 +410,12 @@ private fun DashboardReadings(theme: ComposeCalendarTheme, typography: CalendarT
                 val time = SimpleDateFormat(if (preferences.isUse24Hour()) "HH:mm" else "hh:mm", Locale.US).apply { timeZone = zone }.format(clock.time)
                 Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 Row(horizontalArrangement = Arrangement.Center) {
-                    Text(alignedClockText(time, typography), Modifier.alignByBaseline(), color = Color(preferences.getTimeColor()), maxLines = 1,
-                        style = typography.timeStyle(TextStyle(fontSize = clockSize.sp), time, true))
+                    StableCalendarTime(time, clockSize, Color(preferences.getTimeColor()), typography,
+                        Modifier.alignByBaseline())
                     if (preferences.isShowSeconds()) Column(Modifier.alignBy(androidx.compose.ui.layout.LastBaseline)) {
                         if (!preferences.isUse24Hour()) CalendarText(SimpleDateFormat("a", LocalConfiguration.current.locales[0]).format(clock.time), clockSize * .25f, theme.secondary, typography)
                         val seconds = String.format(Locale.US, ":%02d", clock.get(Calendar.SECOND))
-                        Text(alignedClockText(seconds, typography), color = Color(theme.accent),
-                            maxLines = 1, softWrap = false,
-                            style = typography.timeStyle(TextStyle(fontSize = (clockSize * .46f).sp), seconds, true))
+                        StableCalendarTime(seconds, clockSize * .46f, Color(theme.accent), typography)
                     }
                 }
                 }
@@ -503,6 +503,36 @@ private fun alignedClockText(text: String, typography: CalendarTypography): andr
         append(text)
         text.forEachIndexed { index, char -> if (char == ':') addStyle(
             androidx.compose.ui.text.SpanStyle(baselineShift = androidx.compose.ui.text.style.BaselineShift(shift)), index, index + 1) }
+    }
+}
+
+@Composable
+private fun StableCalendarTime(
+    time: String, size: Float, color: Color, typography: CalendarTypography,
+    modifier: Modifier = Modifier,
+) {
+    val context = LocalContext.current
+    val density = LocalDensity.current
+    val style = typography.timeStyle(TextStyle(fontSize = size.sp), time, true)
+    val paint = remember(context, typography, style.fontSize, density) {
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = ClockTypefaceResolver.resolve(context, typography.family, typography.emphasizedWeight)
+            textSize = with(density) { style.fontSize.toPx() }
+        }
+    }
+    Row(modifier.clearAndSetSemantics { contentDescription = time }) {
+        time.forEachIndexed { index, character ->
+            val width = (ClockTimeText.slotWidth(time, index, paint) / density.density).dp
+            Text(
+                alignedClockText(character.toString(), typography),
+                Modifier.width(width).alignByBaseline(),
+                color = color,
+                style = style,
+                textAlign = TextAlign.Center,
+                maxLines = 1,
+                softWrap = false,
+            )
+        }
     }
 }
 

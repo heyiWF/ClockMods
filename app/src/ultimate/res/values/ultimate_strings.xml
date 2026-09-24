@@ -2,7 +2,7 @@
 <resources xmlns:tools="http://schemas.android.com/tools" tools:ignore="MissingTranslation">
     <string name="ultimate_settings_title">ClockMods Ultimate 设置</string>
     <string name="ultimate_settings_pane_title">设置</string>
-    <string name="ultimate_category_clock_style">时钟样式</string>
+    <string name="ultimate_category_clock_style">时钟</string>
     <string name="ultimate_category_clock_style_summary">完整主题、表盘、数字排版与动态效果</string>
     <string name="ultimate_category_background">背景与显示</string>
     <string name="ultimate_category_background_summary">背景来源、夜间压暗与状态图标</string>
@@ -15,7 +15,6 @@
     <string name="ultimate_category_calendar_style">月历样式</string>
     <string name="ultimate_category_calendar_style_summary">月历页的版式与配色</string>
     <string name="ultimate_calendar_style_title">月历样式</string>
-    <string name="ultimate_calendar_style_section">版式</string>
     <string name="ultimate_category_chime">报时</string>
     <string name="ultimate_category_chime_summary">整点、半点提示与勿扰时段</string>
     <string name="ultimate_category_system">系统与语言</string>

@@ -1,9 +1,26 @@
 package com.clockmods.ui
 
+import android.graphics.Paint
 import org.junit.Assert
 import org.junit.Test
 
 class ClockTimeTextTest {
+    @Test
+    fun numericSlotsKeepTimeWidthConstantAcrossDigitAndColonChanges() {
+        val paint = object : Paint() {
+            override fun measureText(text: String): Float = when (text) {
+                "1" -> 5f
+                "8" -> 12f
+                ":" -> 4f
+                else -> 10f
+            }
+        }
+        Assert.assertEquals(ClockTimeText.stableWidth("11:11", paint),
+            ClockTimeText.stableWidth("88:88", paint), 0f)
+        Assert.assertEquals(ClockTimeText.stableWidth("11:11", paint),
+            ClockTimeText.stableWidth("11 11", paint), 0f)
+    }
+
     @Test
     fun colonRisesToTheOpticalCentreOfTheDigits() {
         Assert.assertEquals(-10f, ClockTimeText.colonBaselineOffset(-70, 0, -50, 0), 0f)

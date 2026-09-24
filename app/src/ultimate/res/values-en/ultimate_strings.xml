@@ -2,7 +2,7 @@
 <resources>
     <string name="ultimate_settings_title">ClockMods Ultimate Settings</string>
     <string name="ultimate_settings_pane_title">Settings</string>
-    <string name="ultimate_category_clock_style">Clock styles</string>
+    <string name="ultimate_category_clock_style">Clock</string>
     <string name="ultimate_category_clock_style_summary">Complete themes, faces, digital layouts, and motion</string>
     <string name="ultimate_category_background">Background &amp; display</string>
     <string name="ultimate_category_background_summary">Background sources, nighttime dimming, and status icons</string>
@@ -15,7 +15,6 @@
     <string name="ultimate_category_calendar_style">Calendar style</string>
     <string name="ultimate_category_calendar_style_summary">Layout and palette of the calendar page</string>
     <string name="ultimate_calendar_style_title">Calendar style</string>
-    <string name="ultimate_calendar_style_section">Layouts</string>
     <string name="ultimate_category_chime">Time cues</string>
     <string name="ultimate_category_chime_summary">Hourly and half-hour cues with quiet hours</string>
     <string name="ultimate_category_system">System &amp; language</string>

@@ -22,6 +22,7 @@ import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
+import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
@@ -37,6 +38,8 @@ import androidx.compose.material3.Button
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
+import androidx.compose.material3.Card
+import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.Icon
 import androidx.compose.material3.IconButton
 import androidx.compose.material3.MaterialTheme
@@ -44,7 +47,6 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.RadioButton
 import androidx.compose.material3.Slider
-import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimeInput
@@ -1223,6 +1225,40 @@ internal fun CalendarSettingsPage(modifier: Modifier, generation: Int) {
     }
 
     SettingsColumn(modifier) {
+        SettingSection(stringResource(R.string.ultimate_style_gallery)) {
+            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
+                items(styles, key = { it.id }) { style ->
+                    val selected = style.id == themeId
+                    Card(
+                        onClick = {
+                            themeId = style.id
+                            preferences.setCalendarTheme(themeId)
+                        },
+                        modifier = Modifier.width(190.dp).height(172.dp),
+                        colors = CardDefaults.cardColors(
+                            containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer
+                                else MaterialTheme.colorScheme.surfaceVariant,
+                        ),
+                    ) {
+                        Column(
+                            Modifier.fillMaxSize().padding(10.dp),
+                            verticalArrangement = Arrangement.spacedBy(6.dp),
+                        ) {
+                            Box(Modifier.fillMaxWidth().height(88.dp).clip(MaterialTheme.shapes.small)) {
+                                CalendarThemeThumbnail(theme = style, modifier = Modifier.fillMaxSize())
+                            }
+                            Text(stringResource(style.nameRes), maxLines = 1,
+                                overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
+                            Text(stringResource(style.summaryRes), maxLines = 1,
+                                overflow = TextOverflow.Ellipsis,
+                                color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                style = MaterialTheme.typography.labelSmall)
+                        }
+                    }
+                }
+            }
+        }
+
         SettingSection(stringResource(R.string.ultimate_calendar_week_section)) {
             SettingChoices(
                 options = listOf(
@@ -1250,74 +1286,11 @@ internal fun CalendarSettingsPage(modifier: Modifier, generation: Int) {
             }
         }
 
-        SettingSection(stringResource(R.string.ultimate_calendar_style_section)) {
-            styles.forEach { style ->
-                val selected = style.id == themeId
-                Surface(
-                    color = if (selected) {
-                        MaterialTheme.colorScheme.secondaryContainer
-                    } else {
-                        Color.Transparent
-                    },
-                    shape = MaterialTheme.shapes.small,
-                    modifier = Modifier
-                        .fillMaxWidth()
-                        .selectable(
-                            selected = selected,
-                            role = Role.RadioButton,
-                            onClick = {
-                                themeId = style.id
-                                preferences.setCalendarTheme(themeId)
-                            },
-                        ),
-                ) {
-                    Row(
-                        Modifier.fillMaxWidth().padding(10.dp),
-                        verticalAlignment = Alignment.CenterVertically,
-                        horizontalArrangement = Arrangement.spacedBy(12.dp),
-                    ) {
-                        // A real mini-calendar preview (grid / week strip / month hero) instead of a
-                        // flat colour chip, so each theme's structure is visible before selection.
-                        Box(Modifier.size(width = 84.dp, height = 60.dp)) {
-                            CalendarThemeThumbnail(theme = style, modifier = Modifier.fillMaxSize())
-                            if (selected) {
-                                Box(
-                                    Modifier
-                                        .fillMaxSize()
-                                        .clip(MaterialTheme.shapes.small)
-                                        .background(MaterialTheme.colorScheme.primary.copy(alpha = 0.18f)),
-                                    contentAlignment = Alignment.Center,
-                                ) {
-                                    Icon(
-                                        Icons.Default.Check,
-                                        contentDescription = null,
-                                        tint = MaterialTheme.colorScheme.primary,
-                                    )
-                                }
-                            }
-                        }
-                        Column(Modifier.weight(1f)) {
-                            Text(
-                                stringResource(style.nameRes),
-                                style = MaterialTheme.typography.titleSmall,
-                            )
-                            Text(
-                                stringResource(style.summaryRes),
-                                style = MaterialTheme.typography.bodySmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            )
-                        }
-                        RadioButton(selected = selected, onClick = null)
-                    }
-                }
-            }
-        }
-
         SettingSection(stringResource(R.string.ultimate_typography_section)) {
             Text(stringResource(R.string.ultimate_font_family))
-            FlowRow(
+            Row(
+                Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
-                verticalArrangement = Arrangement.spacedBy(4.dp),
             ) {
                 FontCatalog.options().forEach { option ->
                     FilterChip(

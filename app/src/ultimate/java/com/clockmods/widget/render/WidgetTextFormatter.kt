@@ -21,10 +21,10 @@ object WidgetTextFormatter {
         format(now, zone, locale, "EEEE")
 
     @JvmStatic fun timePattern(use24: Boolean, seconds: Boolean): String =
-        (if (use24) "HH:mm" else "h:mm") + (if (seconds) ":ss" else "") + (if (use24) "" else " a")
+        (if (use24) "HH:mm" else "hh:mm") + (if (seconds) ":ss" else "") + (if (use24) "" else " a")
 
     @JvmStatic fun timePattern(locale: Locale, use24: Boolean, seconds: Boolean): String {
-        val skeleton = (if (use24) "H" else "h") + "m" + (if (seconds) "s" else "")
+        val skeleton = (if (use24) "HH" else "hh") + "mm" + (if (seconds) "ss" else "")
         return DateFormat.getBestDateTimePattern(locale, skeleton).takeUnless { it.isNullOrBlank() }
             ?: timePattern(use24, seconds)
     }
