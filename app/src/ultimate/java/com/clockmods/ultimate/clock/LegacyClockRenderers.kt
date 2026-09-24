@@ -5,6 +5,7 @@ import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
 import android.graphics.RadialGradient
+import android.graphics.Rect
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
@@ -83,13 +84,19 @@ internal class ProClassicRenderer : UltimateClockStyles.RendererBase() {
         val metrics = timePaint.fontMetrics
         val baseline = centerY - (metrics.ascent + metrics.descent) * .5f
         drawTimeWithPaint(canvas, time, mainCenter, baseline, timePaint)
-        val accessoryBaseline = baseline + metrics.descent - accessoryPaint.fontMetrics.descent
-        if (leftWidth > 0f) text(canvas, formatted.periodText, mainLeft - gap, accessoryBaseline,
-            accessorySize, theme.getPrimaryTextColor(), Paint.Align.RIGHT, supporting)
+        val glyphBounds = Rect()
+        timePaint.getTextBounds("0123456789", 0, 10, glyphBounds)
+        val timeInkBottom = baseline + glyphBounds.bottom
+        if (leftWidth > 0f) {
+            accessoryPaint.getTextBounds(formatted.periodText, 0, formatted.periodText.length, glyphBounds)
+            text(canvas, formatted.periodText, mainLeft - gap, timeInkBottom - glyphBounds.bottom,
+                accessorySize, theme.getPrimaryTextColor(), Paint.Align.RIGHT, supporting)
+        }
         if (rightWidth > 0f) {
+            accessoryPaint.getTextBounds("0123456789", 0, 10, glyphBounds)
             accessoryPaint.textAlign = Paint.Align.LEFT
             drawTimeWithPaint(canvas, formatted.secondsText, mainLeft + mainWidth + gap,
-                accessoryBaseline, accessoryPaint)
+                timeInkBottom - glyphBounds.bottom, accessoryPaint)
         }
 
         val dateSize = readableSize(context, unit * .045f * state.getDateScale(), 12f)
