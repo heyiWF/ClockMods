@@ -217,6 +217,13 @@
     <string name="ultimate_hourly_chime_summary">每逢整點顯示一次提示。</string>
     <string name="ultimate_half_hour_chime">半點視覺提示</string>
     <string name="ultimate_half_hour_chime_summary">每逢半點顯示一次提示。</string>
+    <string name="ultimate_chime_animation">報時動畫</string>
+    <string name="ultimate_chime_radial">經典擴散</string>
+    <string name="ultimate_chime_ripple">金色漣漪</string>
+    <string name="ultimate_chime_pulse">柔和脈衝</string>
+    <string name="ultimate_chime_aurora">極光光幕</string>
+    <string name="ultimate_chime_orbit">星軌光環</string>
+    <string name="ultimate_chime_comet">流星掠影</string>
     <string name="ultimate_chime_quiet_section">勿擾時段</string>
     <string name="ultimate_chime_quiet_hours">啟用勿擾時段</string>
     <string name="ultimate_chime_quiet_hours_summary">在指定時段暫停整點與半點提示。</string>

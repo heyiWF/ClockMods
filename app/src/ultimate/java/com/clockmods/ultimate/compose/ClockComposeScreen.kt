@@ -7,6 +7,7 @@ import android.content.Intent
 import android.content.IntentFilter
 import android.content.pm.PackageManager
 import android.graphics.Bitmap
+import android.graphics.Paint
 import android.net.Uri
 import android.net.ConnectivityManager
 import android.net.Network
@@ -64,7 +65,12 @@ import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.draw.clip
+import androidx.compose.ui.geometry.CornerRadius
+import androidx.compose.ui.geometry.Offset
+import androidx.compose.ui.geometry.Size
+import androidx.compose.ui.graphics.Brush
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.drawscope.Stroke
 import androidx.compose.ui.graphics.drawscope.drawIntoCanvas
 import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
@@ -104,6 +110,8 @@ import com.clockmods.sdk.clock.WorldClockEntry
 import com.clockmods.time.NetworkTimeProvider
 import com.clockmods.ui.DateFormatter
 import com.clockmods.ui.ClockTimeFormatter
+import com.clockmods.ui.ClockTimeText
+import com.clockmods.ui.ClockTypefaceResolver
 import com.clockmods.ui.StatusIconStyle
 import com.clockmods.ui.StatusSymbolRenderer
 import com.clockmods.ultimate.clock.ClockPalette
@@ -472,7 +480,6 @@ internal fun ClockScreen(
                 modifier = Modifier.align(Alignment.BottomStart).padding(12.dp),
             )
         }
-        ChimeIndicator(repository = repository, calendar = calendar)
     }
 }
 
@@ -805,13 +812,16 @@ internal fun applyProClassicPreferenceColors(
 }
 
 private fun timeFontScaleForStyle(repository: BackgroundRepository, styleId: String): Float {
-    val value = if (styleId == UltimateClockStyles.STYLE_PRO_CLASSIC) {
+    return configuredTimeFontScaleForStyle(repository, styleId) /
+        ClockPreferences.DEFAULT_TIME_FONT_SCALE
+}
+
+private fun configuredTimeFontScaleForStyle(repository: BackgroundRepository, styleId: String): Float =
+    if (styleId == UltimateClockStyles.STYLE_PRO_CLASSIC) {
         repository.getTimeFontScale()
     } else {
         repository.getTimeFontScale(styleId)
     }
-    return value / ClockPreferences.DEFAULT_TIME_FONT_SCALE
-}
 
 private fun dateFontScaleForStyle(repository: BackgroundRepository, styleId: String): Float {
     val value = if (styleId == UltimateClockStyles.STYLE_PRO_CLASSIC) {
@@ -1237,22 +1247,30 @@ internal fun statusSymbolCodePoint(drawable: Int): Int = when (drawable) {
 }
 
 @Composable
-private fun ChimeIndicator(repository: BackgroundRepository, calendar: Calendar) {
-    val candidateChimeAt = HourlyChimeController.upcomingChimeAtMillis(
+internal fun ChimeIndicator(
+    repository: BackgroundRepository,
+    calendar: Calendar,
+    active: Boolean,
+    styleId: String,
+) {
+    val candidateChimeAt = if (active) HourlyChimeController.upcomingChimeAtMillis(
         calendar,
         repository.isHourlyChimeEnabled(),
         repository.isHalfHourChimeEnabled(),
-    )
+    ) else Long.MIN_VALUE
     var chimeAtMillis by remember { mutableLongStateOf(Long.MIN_VALUE) }
-    val progress = remember { Animatable(1f) }
+    var progress by remember { mutableFloatStateOf(0f) }
     var visible by remember { mutableStateOf(false) }
+    LaunchedEffect(active) {
+        if (!active) visible = false
+    }
     LaunchedEffect(candidateChimeAt) {
         if (candidateChimeAt != Long.MIN_VALUE && candidateChimeAt != chimeAtMillis) {
             chimeAtMillis = candidateChimeAt
         }
     }
-    LaunchedEffect(chimeAtMillis) {
-        if (chimeAtMillis == Long.MIN_VALUE) return@LaunchedEffect
+    LaunchedEffect(chimeAtMillis, active) {
+        if (!active || chimeAtMillis == Long.MIN_VALUE) return@LaunchedEffect
         val chimeAt = Calendar.getInstance(calendar.timeZone).apply {
             timeInMillis = chimeAtMillis
         }
@@ -1263,16 +1281,24 @@ private fun ChimeIndicator(repository: BackgroundRepository, calendar: Calendar)
             repository.getHourlyChimeQuietEnd(),
         )
         if (quiet) return@LaunchedEffect
+        val initial = HourlyChimeController.progressAtMillis(
+            System.currentTimeMillis(), chimeAtMillis,
+        ) ?: return@LaunchedEffect
+        progress = initial
         visible = true
-        progress.snapTo(0f)
-        progress.animateTo(1f, animationSpec = tween(durationMillis = 5_000))
+        while (visible) {
+            val current = HourlyChimeController.progressAtMillis(
+                System.currentTimeMillis(), chimeAtMillis,
+            ) ?: break
+            progress = current
+            withFrameMillis { }
+        }
         visible = false
     }
     if (!visible) return
 
-    val expansion = easeOutQuint((progress.value / 0.52f).coerceIn(0f, 1f))
-    val textProgress = smoothStep(0.28f, 0.48f, progress.value)
-    val opacity = 1f - smoothStep(0.82f, 1f, progress.value)
+    val expansion = easeOutQuint((progress / 0.52f).coerceIn(0f, 1f))
+    val opacity = 1f - smoothStep(0.82f, 1f, progress)
     val chimeAt = Calendar.getInstance(calendar.timeZone).apply { timeInMillis = chimeAtMillis }
     val text = ClockTimeFormatter.formatHourlyChime(
         chimeAt.get(Calendar.HOUR_OF_DAY),
@@ -1280,36 +1306,227 @@ private fun ChimeIndicator(repository: BackgroundRepository, calendar: Calendar)
         repository.isUse24Hour(),
         repository.isClockUseEnglish(),
     )
+    val context = LocalContext.current
+    val animation = repository.getChimeAnimation()
+    val alternative = animation == ClockPreferences.CHIME_AURORA ||
+        animation == ClockPreferences.CHIME_ORBIT || animation == ClockPreferences.CHIME_COMET
+    val textProgress = smoothStep(if (alternative) .13f else .28f,
+        if (alternative) .31f else .48f, progress)
+    val family = repository.getFontFamily(styleId)
+    val weight = repository.getFontWeight(styleId)
+    val timeFontScale = configuredTimeFontScaleForStyle(repository, styleId)
+    val clockTime = ClockTimeFormatter.format(
+        chimeAt.get(Calendar.HOUR_OF_DAY), chimeAt.get(Calendar.MINUTE),
+        chimeAt.get(Calendar.SECOND), repository.isShowSeconds(), repository.isBlinkColon(),
+        repository.isSmallSeconds(), repository.isUse24Hour(), repository.isClockUseEnglish(),
+    )
+    val textPaint = remember(chimeAtMillis, context, family, weight) {
+        Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
+            color = android.graphics.Color.BLACK
+            textAlign = Paint.Align.CENTER
+            typeface = ClockTypefaceResolver.resolve(context, family, weight)
+        }
+    }
+    var overlaySize by remember { mutableStateOf(IntSize.Zero) }
+    val themeTimeSize = remember(chimeAtMillis, styleId, overlaySize, family, weight, timeFontScale) {
+        if (overlaySize == IntSize.Zero) null else measureThemeTimeTextSize(
+            context, repository, styleId, chimeAtMillis, calendar.timeZone,
+            overlaySize.width, overlaySize.height,
+        )
+    }
     Box(
         Modifier
             .fillMaxSize()
+            .onSizeChanged { overlaySize = it }
             .pointerInput(chimeAtMillis) {
                 detectTapGestures(onTap = { visible = false })
             },
-        contentAlignment = Alignment.Center,
     ) {
         Canvas(Modifier.fillMaxSize()) {
-            drawCircle(
-                color = Color(0xFFF4C430).copy(alpha = opacity),
-                radius = hypot(size.width.toDouble(), size.height.toDouble()).toFloat() / 2f * expansion,
-                center = center,
-            )
+            val maxRadius = hypot(size.width.toDouble(), size.height.toDouble()).toFloat() / 2f
+            val gold = Color(0xFFF4C430)
+            when (animation) {
+                ClockPreferences.CHIME_AURORA,
+                ClockPreferences.CHIME_ORBIT,
+                ClockPreferences.CHIME_COMET -> drawAlternativeChimeEffect(animation, progress, opacity)
+                ClockPreferences.CHIME_RIPPLE -> {
+                    drawRect(gold.copy(alpha = opacity))
+                    repeat(3) { index ->
+                        val wave = easeOutQuint(
+                            (progress * 1.36f - index * .25f).coerceIn(0f, 1f),
+                        )
+                        drawCircle(
+                            Color.Black.copy(alpha = (1f - wave) * .24f * opacity),
+                            radius = maxRadius * wave,
+                            style = androidx.compose.ui.graphics.drawscope.Stroke(
+                                width = 3.dp.toPx(),
+                            ),
+                        )
+                    }
+                }
+                ClockPreferences.CHIME_PULSE -> {
+                    val pulse = kotlin.math.abs(
+                        kotlin.math.sin(progress * Math.PI * 4),
+                    ).toFloat()
+                    drawRect(gold.copy(alpha = opacity))
+                    drawCircle(
+                        Color.Black.copy(alpha = (.045f + .035f * pulse) * opacity),
+                        radius = maxRadius * (.54f + .20f * pulse),
+                    )
+                }
+                else -> drawCircle(
+                    color = gold.copy(alpha = opacity),
+                    radius = maxRadius * expansion,
+                    center = center,
+                )
+            }
+            if (textProgress > 0f) {
+                val width = size.width.toInt()
+                val height = size.height.toInt()
+                val baseSize = themeTimeSize?.let { fitChimeTextToWidth(width, it, text, textPaint) }
+                    ?: measureLegacyChimeTextSize(
+                        width, height, timeFontScale, clockTime, text, textPaint,
+                    )
+                val textScale = .94f + .06f * easeOutQuint(textProgress)
+                textPaint.textSize = baseSize * textScale
+                textPaint.color = if (alternative) android.graphics.Color.WHITE
+                    else android.graphics.Color.BLACK
+                textPaint.alpha = (255f * textProgress * opacity).toInt().coerceIn(0, 255)
+                val metrics = textPaint.fontMetrics
+                val baseline = size.height / 2f - (metrics.ascent + metrics.descent) / 2f +
+                    if (alternative) (1f - chimeEase(textProgress)) * 12.dp.toPx() else 0f
+                if (alternative) {
+                    val plateWidth = minOf(
+                        maxOf(ClockTimeText.stableWidth(text, textPaint) + 48.dp.toPx(),
+                            size.width * .86f),
+                        size.width * .98f,
+                    )
+                    val plateHeight = metrics.descent - metrics.ascent + 28.dp.toPx()
+                    val topLeft = Offset(center.x - plateWidth / 2f,
+                        baseline + metrics.ascent - 14.dp.toPx())
+                    val plateSize = Size(plateWidth, plateHeight)
+                    val radius = CornerRadius(minOf(plateHeight * .29f, 28.dp.toPx()))
+                    drawRoundRect(
+                        color = Color(0xFF071224).copy(alpha = textProgress * opacity),
+                        topLeft = topLeft,
+                        size = plateSize,
+                        cornerRadius = radius,
+                    )
+                    drawRoundRect(
+                        brush = Brush.horizontalGradient(listOf(
+                            Color(0xFF4DE4F2).copy(alpha = textProgress * opacity * .75f),
+                            Color(0xFFA78BFA).copy(alpha = textProgress * opacity * .65f),
+                            Color(0xFFFF7FB0).copy(alpha = textProgress * opacity * .75f),
+                        ), startX = topLeft.x, endX = topLeft.x + plateWidth),
+                        topLeft = topLeft,
+                        size = plateSize,
+                        cornerRadius = radius,
+                        style = Stroke(width = 1.5.dp.toPx()),
+                    )
+                }
+                drawIntoCanvas { ClockTimeText.draw(it.nativeCanvas, text, center.x, baseline, textPaint) }
+            }
         }
-        Text(
-            text = text,
-            modifier = Modifier.graphicsLayer {
-                alpha = textProgress * opacity
-                val scale = 0.94f + 0.06f * easeOutQuint(textProgress)
-                scaleX = scale
-                scaleY = scale
-            },
-            // The chime washes the whole face in gold, so its ink is picked against that gold
-            // rather than hard-coded black.
-            color = Color(ClockPalette.foreground(0xFFF4C430.toInt())),
-            style = MaterialTheme.typography.displaySmall,
-            textAlign = TextAlign.Center,
-        )
     }
+}
+
+/** Reads the time size selected by the active renderer at the cue's host geometry. */
+private fun measureThemeTimeTextSize(
+    context: Context,
+    repository: BackgroundRepository,
+    styleId: String,
+    atMillis: Long,
+    timeZone: TimeZone,
+    width: Int,
+    height: Int,
+): Float? {
+    val style = UltimateClockStyles.sharedRegistry()
+        .resolveForApi(styleId, android.os.Build.VERSION.SDK_INT)
+    val appearance = UltimateClockPreferences(context)
+    val tokens = style.getThemeTokens()
+    val paletteTokens = if (ClockPalette.supports(styleId)) {
+        appearance.getPalette(styleId).applyTo(tokens)
+    } else tokens
+    val theme = ClockTypography().apply(
+        context,
+        applyProClassicPreferenceColors(
+            styleId, paletteTokens, repository.getTimeColor(), repository.getDateColor(),
+        ),
+        styleId,
+    )
+    val locale = when (repository.getClockLanguage()) {
+        ClockPreferences.LANGUAGE_ENGLISH -> Locale.ENGLISH
+        ClockPreferences.LANGUAGE_TRADITIONAL -> Locale.TRADITIONAL_CHINESE
+        else -> Locale.SIMPLIFIED_CHINESE
+    }
+    val state = ClockState.builder(atMillis)
+        .timeZone(timeZone)
+        .locale(locale)
+        .use24Hour(repository.isUse24Hour())
+        .showSeconds(repository.isShowSeconds())
+        .blinkColon(repository.isBlinkColon())
+        .smallSeconds(repository.isSmallSeconds())
+        .portraitStacked(repository.isPortraitStacked())
+        .dateLunarDualLine(repository.isDateLunarDualLine())
+        .dateText(" ")
+        .timeZoneText(" ")
+        .weatherText(" ")
+        .worldClocks(emptyList())
+        .timeScale(timeFontScaleForStyle(repository, styleId))
+        .dateScale(dateFontScaleForStyle(repository, styleId))
+        .supportingScale(repository.getSupportingFontScale(styleId))
+        .build()
+    val metrics = context.resources.displayMetrics
+    val renderContext = ClockRenderContext(
+        0f, 0f, width.toFloat(), height.toFloat(), metrics.density, metrics.scaledDensity,
+        atMillis, ClockBackground.theme(false), metrics.density * 36f,
+    )
+    val paintPool = UltimateClockStyles.RendererBase.PAINT_POOL.get()
+    val previousObserver = paintPool.timeTextSizeObserver
+    var largest = 0f
+    val bitmap = Bitmap.createBitmap(1, 1, Bitmap.Config.ARGB_8888)
+    try {
+        paintPool.timeTextSizeObserver = { size -> largest = maxOf(largest, size) }
+        style.getRenderer().render(android.graphics.Canvas(bitmap), renderContext, state, theme)
+    } finally {
+        paintPool.timeTextSizeObserver = previousObserver
+        bitmap.recycle()
+    }
+    return largest.takeIf { it > 0f }
+}
+
+private fun fitChimeTextToWidth(width: Int, themeSize: Float, text: String, paint: Paint): Float {
+    paint.textSize = themeSize
+    val measured = ClockTimeText.stableWidth(text, paint)
+    return if (measured > width * .98f) themeSize * width * .98f / measured else themeSize
+}
+
+/** Mirrors ultimate's ClockView.measureTimeTextSize and RadialChimeView width cap. */
+private fun measureLegacyChimeTextSize(
+    width: Int,
+    height: Int,
+    fontScale: Float,
+    clockTime: ClockTimeFormatter.DisplayTime,
+    chimeText: String,
+    paint: Paint,
+): Float {
+    paint.textSize = 1f
+    val mainWidth = ClockTimeText.stableWidth(clockTime.mainText, paint)
+    val gap = paint.measureText(" ") * .35f
+    val secondsWidth = if (clockTime.hasSmallSeconds()) {
+        paint.textSize = .6f
+        gap + ClockTimeText.stableWidth(clockTime.secondsText, paint)
+    } else 0f
+    val periodWidth = if (clockTime.hasPeriod()) {
+        paint.textSize = .3f
+        gap + paint.measureText(clockTime.periodText)
+    } else 0f
+    val groupWidth = mainWidth + secondsWidth + periodWidth
+    val size = if (groupWidth <= 0f) 1f else
+        (minOf(width * .98f / groupWidth, height * .55f) * fontScale).coerceAtLeast(1f)
+    paint.textSize = size
+    val measured = ClockTimeText.stableWidth(chimeText, paint)
+    return if (measured > width * .98f) size * width * .98f / measured else size
 }
 
 private fun smoothStep(start: Float, end: Float, value: Float): Float {

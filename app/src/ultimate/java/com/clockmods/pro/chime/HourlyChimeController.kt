@@ -5,6 +5,17 @@ import java.util.TimeZone
 
 /** Pure scheduling rules used by the Compose chime indicator and tests. */
 object HourlyChimeController {
+    const val START_BEFORE_MILLIS = 2_000L
+    const val DURATION_MILLIS = 5_000L
+
+    /** The cue is anchored to the clock boundary, even if a frame is delivered late. */
+    @JvmStatic
+    fun progressAtMillis(nowMillis: Long, chimeAtMillis: Long): Float? {
+        if (chimeAtMillis == Long.MIN_VALUE) return null
+        val elapsed = nowMillis - (chimeAtMillis - START_BEFORE_MILLIS)
+        return if (elapsed in 0 until DURATION_MILLIS) elapsed.toFloat() / DURATION_MILLIS else null
+    }
+
     @JvmStatic
     fun upcomingChimeAtMillis(
         now: Calendar,

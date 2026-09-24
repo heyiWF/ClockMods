@@ -57,6 +57,8 @@ open class BackgroundRepository(context: Context) {
     fun setHourlyChimeEnabled(value: Boolean) = preferences.setHourlyChimeEnabled(value)
     fun isHalfHourChimeEnabled() = preferences.isHalfHourChimeEnabled()
     fun setHalfHourChimeEnabled(value: Boolean) = preferences.setHalfHourChimeEnabled(value)
+    fun getChimeAnimation() = preferences.getChimeAnimation()
+    fun setChimeAnimation(value: String?) = preferences.setChimeAnimation(value)
     fun isHourlyChimeQuietEnabled() = preferences.isHourlyChimeQuietEnabled()
     fun setHourlyChimeQuietEnabled(value: Boolean) = preferences.setHourlyChimeQuietEnabled(value)
     fun getHourlyChimeQuietStart() = preferences.getHourlyChimeQuietStart()

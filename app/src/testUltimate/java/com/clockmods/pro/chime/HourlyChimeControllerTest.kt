@@ -69,6 +69,24 @@ class HourlyChimeControllerTest {
     }
 
     @Test
+    fun hourlyCueRunsFromMinute58ToMinute03Exactly() {
+        val target = timeAt(14, 0, 0, 0).timeInMillis
+        assertEquals(null, HourlyChimeController.progressAtMillis(target - 2_001, target))
+        assertEquals(0f, HourlyChimeController.progressAtMillis(target - 2_000, target))
+        assertEquals(.4f, HourlyChimeController.progressAtMillis(target, target))
+        assertTrue(HourlyChimeController.progressAtMillis(target + 2_999, target)!! < 1f)
+        assertEquals(null, HourlyChimeController.progressAtMillis(target + 3_000, target))
+    }
+
+    @Test
+    fun halfHourCueHasTheSameWallClockWindow() {
+        val target = timeAt(13, 30, 0, 0).timeInMillis
+        assertEquals(0f, HourlyChimeController.progressAtMillis(target - 2_000, target))
+        assertEquals(.4f, HourlyChimeController.progressAtMillis(target, target))
+        assertEquals(null, HourlyChimeController.progressAtMillis(target + 3_000, target))
+    }
+
+    @Test
     fun quietHoursHandleNormalAndOvernightBoundaries() {
         assertTrue(HourlyChimeController.isQuietAtMinute(22 * 60, 22 * 60, 7 * 60))
         assertTrue(HourlyChimeController.isQuietAtMinute(6 * 60 + 59, 22 * 60, 7 * 60))

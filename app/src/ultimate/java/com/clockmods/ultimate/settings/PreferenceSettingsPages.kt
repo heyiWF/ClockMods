@@ -1372,6 +1372,9 @@ internal fun ChimeSettingsPage(modifier: Modifier, generation: Int) {
     var halfHour by remember(generation) {
         mutableStateOf(repository.isHalfHourChimeEnabled())
     }
+    var chimeAnimation by remember(generation) {
+        mutableStateOf(repository.getChimeAnimation())
+    }
     var quietHours by remember(generation) {
         mutableStateOf(repository.isHourlyChimeQuietEnabled())
     }
@@ -1400,6 +1403,22 @@ internal fun ChimeSettingsPage(modifier: Modifier, generation: Int) {
             ) {
                 halfHour = it
                 repository.setHalfHourChimeEnabled(it)
+            }
+            Text(stringResource(R.string.ultimate_chime_animation))
+            SettingChoices(
+                options = listOf(
+                    SettingOption(ClockPreferences.CHIME_RADIAL, stringResource(R.string.ultimate_chime_radial)),
+                    SettingOption(ClockPreferences.CHIME_RIPPLE, stringResource(R.string.ultimate_chime_ripple)),
+                    SettingOption(ClockPreferences.CHIME_PULSE, stringResource(R.string.ultimate_chime_pulse)),
+                    SettingOption(ClockPreferences.CHIME_AURORA, stringResource(R.string.ultimate_chime_aurora)),
+                    SettingOption(ClockPreferences.CHIME_ORBIT, stringResource(R.string.ultimate_chime_orbit)),
+                    SettingOption(ClockPreferences.CHIME_COMET, stringResource(R.string.ultimate_chime_comet)),
+                ),
+                selected = chimeAnimation,
+                enabled = hourly || halfHour,
+            ) {
+                chimeAnimation = it
+                repository.setChimeAnimation(it)
             }
         }
 

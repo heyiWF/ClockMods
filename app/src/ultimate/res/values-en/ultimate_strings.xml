@@ -217,6 +217,13 @@
     <string name="ultimate_hourly_chime_summary">Show a cue at the start of every hour.</string>
     <string name="ultimate_half_hour_chime">Half-hour visual cue</string>
     <string name="ultimate_half_hour_chime_summary">Show a cue at every half hour.</string>
+    <string name="ultimate_chime_animation">Time cue animation</string>
+    <string name="ultimate_chime_radial">Classic burst</string>
+    <string name="ultimate_chime_ripple">Golden ripples</string>
+    <string name="ultimate_chime_pulse">Soft pulse</string>
+    <string name="ultimate_chime_aurora">Aurora veil</string>
+    <string name="ultimate_chime_orbit">Celestial orbit</string>
+    <string name="ultimate_chime_comet">Comet trail</string>
     <string name="ultimate_chime_quiet_section">Quiet hours</string>
     <string name="ultimate_chime_quiet_hours">Enable quiet hours</string>
     <string name="ultimate_chime_quiet_hours_summary">Pause hourly and half-hour cues during the selected period.</string>

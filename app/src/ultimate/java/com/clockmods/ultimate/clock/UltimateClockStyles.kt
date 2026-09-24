@@ -240,6 +240,7 @@ object UltimateClockStyles {
             internal var photoText = false
             internal var motionState: ClockState? = null
             internal var digitTracker: ClockDigitTransitionTracker? = null
+            internal var timeTextSizeObserver: ((Float) -> Unit)? = null
             private val paints = ArrayList<Paint>()
             private var nextIndex = 0
             private var frameDepth = 0
@@ -525,6 +526,7 @@ object UltimateClockStyles {
         protected fun drawTimeWithPaint(canvas: Canvas, value: String, x: Float,
             baseline: Float, paint: Paint) {
             val pool = PAINT_POOL.get()
+            pool.timeTextSizeObserver?.invoke(paint.textSize)
             val previous = pool.digitTracker?.previousFor(value)
             val state = pool.motionState
             val progress = state?.getTimeTransitionProgress() ?: 1f

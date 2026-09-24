@@ -52,8 +52,15 @@ import androidx.core.view.WindowCompat
 import androidx.core.view.WindowInsetsCompat
 import androidx.core.view.WindowInsetsControllerCompat
 import com.clockmods.R
+import com.clockmods.background.BackgroundRepository
+import com.clockmods.pro.chime.HourlyChimeController
 import com.clockmods.ultimate.AntiBurnPreferences
 import com.clockmods.ultimate.ComposeMainActivity
+import com.clockmods.ultimate.clock.UltimateClockPreferences
+import androidx.lifecycle.Lifecycle
+import androidx.lifecycle.LifecycleEventObserver
+import androidx.lifecycle.compose.LocalLifecycleOwner
+import java.util.Calendar
 import kotlin.math.PI
 import kotlin.math.sin
 import kotlinx.coroutines.delay
@@ -124,71 +131,107 @@ fun UltimateApp(
         if (destination == Destination.CLOCK) chromeVisible = false
     }
 
-    NavigationSuiteScaffold(
-        modifier = Modifier.fillMaxSize(),
-        layoutType = navigationType,
-        navigationSuiteItems = {
-            Destination.entries.forEach { item ->
-                item(
-                    selected = destination == item,
-                    onClick = { destination = item },
-                    icon = {
-                        Icon(
-                            item.icon,
-                            contentDescription = stringResource(item.labelRes),
-                        )
-                    },
-                    label = { Text(stringResource(item.labelRes), maxLines = 1) },
-                    alwaysShowLabel = false,
-                )
-            }
-        },
-    ) {
-        AntiBurnSurface(refreshGeneration = refreshGeneration) { antiBurnModifier ->
-            Scaffold(
-                modifier = antiBurnModifier,
-                topBar = {
-                    // Calendar settings remain available when the user reveals the navigation chrome.
-                    if (destination != Destination.CLOCK && (destination != Destination.CALENDAR || chromeVisible)) {
-                        TopAppBar(
-                            title = { Text(stringResource(destination.labelRes)) },
-                            actions = {
-                                IconButton(onClick = if (destination == Destination.CALENDAR) onOpenCalendarSettings else onOpenSettings) {
-                                    Icon(
-                                        Icons.Default.Settings,
-                                        contentDescription = stringResource(
-                                            R.string.open_settings_accessibility,
-                                        ),
-                                    )
-                                }
-                            },
-                        )
-                    }
-                },
-            ) { padding ->
-                when (destination) {
-                    Destination.CLOCK -> ClockScreen(
-                        modifier = Modifier.padding(if (immersive) PaddingValues(0.dp) else padding),
-                        refreshGeneration = refreshGeneration,
-                        onOpenSettings = onOpenSettings,
-                        onToggleChrome = { chromeVisible = !chromeVisible },
+    Box(Modifier.fillMaxSize()) {
+        NavigationSuiteScaffold(
+            modifier = Modifier.fillMaxSize(),
+            layoutType = navigationType,
+            navigationSuiteItems = {
+                Destination.entries.forEach { item ->
+                    item(
+                        selected = destination == item,
+                        onClick = { destination = item },
+                        icon = {
+                            Icon(
+                                item.icon,
+                                contentDescription = stringResource(item.labelRes),
+                            )
+                        },
+                        label = { Text(stringResource(item.labelRes), maxLines = 1) },
+                        alwaysShowLabel = false,
                     )
-                    Destination.CALENDAR ->
-                        CalendarScreen(
-                            Modifier.padding(if (immersive) PaddingValues(0.dp) else padding),
-                            refreshGeneration,
+                }
+            },
+        ) {
+            AntiBurnSurface(refreshGeneration = refreshGeneration) { antiBurnModifier ->
+                Scaffold(
+                    modifier = antiBurnModifier,
+                    topBar = {
+                        // Calendar settings remain available when the user reveals the navigation chrome.
+                        if (destination != Destination.CLOCK && (destination != Destination.CALENDAR || chromeVisible)) {
+                            TopAppBar(
+                                title = { Text(stringResource(destination.labelRes)) },
+                                actions = {
+                                    IconButton(onClick = if (destination == Destination.CALENDAR) onOpenCalendarSettings else onOpenSettings) {
+                                        Icon(
+                                            Icons.Default.Settings,
+                                            contentDescription = stringResource(
+                                                R.string.open_settings_accessibility,
+                                            ),
+                                        )
+                                    }
+                                },
+                            )
+                        }
+                    },
+                ) { padding ->
+                    when (destination) {
+                        Destination.CLOCK -> ClockScreen(
+                            modifier = Modifier.padding(if (immersive) PaddingValues(0.dp) else padding),
+                            refreshGeneration = refreshGeneration,
+                            onOpenSettings = onOpenSettings,
                             onToggleChrome = { chromeVisible = !chromeVisible },
                         )
-                    Destination.POMODORO ->
-                        TimerScreen(Modifier.padding(padding), pomodoro = true)
-                    Destination.COUNTDOWN ->
-                        TimerScreen(Modifier.padding(padding), pomodoro = false)
-                    Destination.ALARM -> AlarmScreen(Modifier.padding(padding))
-                    Destination.STOPWATCH -> StopwatchScreen(Modifier.padding(padding))
+                        Destination.CALENDAR ->
+                            CalendarScreen(
+                                Modifier.padding(if (immersive) PaddingValues(0.dp) else padding),
+                                refreshGeneration,
+                                onToggleChrome = { chromeVisible = !chromeVisible },
+                            )
+                        Destination.POMODORO ->
+                            TimerScreen(Modifier.padding(padding), pomodoro = true)
+                        Destination.COUNTDOWN ->
+                            TimerScreen(Modifier.padding(padding), pomodoro = false)
+                        Destination.ALARM -> AlarmScreen(Modifier.padding(padding))
+                        Destination.STOPWATCH -> StopwatchScreen(Modifier.padding(padding))
+                    }
                 }
             }
         }
+        ChimeHost(refreshGeneration)
     }
+}
+
+/** Activity-wide cue layer. Its fast ticker only recomposes this overlay. */
+@Composable
+private fun ChimeHost(refreshGeneration: Int) {
+    val context = LocalContext.current
+    val repository = remember(context) { BackgroundRepository(context) }
+    val styleId = remember(context, refreshGeneration) {
+        UltimateClockPreferences(context).getStyleId()
+    }
+    val lifecycleOwner = LocalLifecycleOwner.current
+    var resumed by remember(lifecycleOwner) {
+        mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED))
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = LifecycleEventObserver { _, _ ->
+            resumed = lifecycleOwner.lifecycle.currentState.isAtLeast(Lifecycle.State.RESUMED)
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
+    var tick by remember { mutableLongStateOf(System.currentTimeMillis()) }
+    LaunchedEffect(resumed) {
+        while (resumed) {
+            tick = System.currentTimeMillis()
+            delay(1_000L - tick % 1_000L)
+        }
+    }
+    val calendar = remember(tick, refreshGeneration) {
+        Calendar.getInstance(HourlyChimeController.resolveTimeZone(repository.getTimeZoneId()))
+            .apply { timeInMillis = tick }
+    }
+    ChimeIndicator(repository, calendar, resumed, styleId)
 }
 
 /** Mirrors the old View controller while keeping the navigation chrome stationary and usable. */
