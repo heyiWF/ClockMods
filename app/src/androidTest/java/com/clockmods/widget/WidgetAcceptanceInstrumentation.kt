@@ -42,6 +42,7 @@ import java.io.StringWriter
 class WidgetAcceptanceInstrumentation : Instrumentation() {
     private var calendarAcceptance = false
     private var calendarWeather = false
+    private var calendarDashboardOnly = false
     private var statusSymbols = false
     private lateinit var app: Context
     private var checks = 0
@@ -55,6 +56,7 @@ class WidgetAcceptanceInstrumentation : Instrumentation() {
         super.onCreate(arguments)
         calendarAcceptance = arguments?.getString("calendar") == "true"
         calendarWeather = arguments?.getString("weather") == "true"
+        calendarDashboardOnly = arguments?.getString("dashboard") == "true"
         statusSymbols = arguments?.getString("statusSymbols") == "true"
         start()
     }
@@ -65,7 +67,9 @@ class WidgetAcceptanceInstrumentation : Instrumentation() {
             return
         }
         if (calendarAcceptance) {
-            com.clockmods.calendar.CalendarAcceptance.run(this, calendarWeather)
+            com.clockmods.calendar.CalendarAcceptance.run(
+                this, calendarWeather, calendarDashboardOnly,
+            )
             return
         }
         val report = Bundle()

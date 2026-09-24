@@ -227,7 +227,9 @@ internal fun CalendarScreen(
     }
     val weatherRepository = remember(context) { BackgroundRepository(context) }
     val weatherState = if (theme.showWeather) rememberWeatherState(weatherRepository, refreshGeneration) else null
-    var clockTick by remember(todayMillis) { mutableLongStateOf(System.currentTimeMillis()) }
+    // Keep the same state instance when todayMillis is refreshed on entry or at midnight.
+    // The effect below must keep writing to the state observed by the dashboard clock.
+    var clockTick by remember { mutableLongStateOf(System.currentTimeMillis()) }
     LaunchedEffect(Unit) {
         while (true) {
             clockTick = System.currentTimeMillis()

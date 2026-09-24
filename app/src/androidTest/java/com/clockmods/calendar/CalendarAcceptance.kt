@@ -6,6 +6,7 @@ import android.content.Context
 import android.content.Intent
 import android.content.res.Configuration
 import android.graphics.Bitmap
+import android.graphics.Rect
 import android.os.Bundle
 import android.os.SystemClock
 import android.view.MotionEvent
@@ -22,7 +23,7 @@ import java.util.Locale
 
 /** adb shell am instrument -w -e calendar true .../WidgetAcceptanceInstrumentation */
 object CalendarAcceptance {
-    fun run(instrumentation: Instrumentation, weatherEnabled: Boolean = false) {
+    fun run(instrumentation: Instrumentation, weatherEnabled: Boolean = false, dashboardOnly: Boolean = false) {
         val context = instrumentation.targetContext
         val prefs = context.getSharedPreferences("clock_prefs", Context.MODE_PRIVATE)
         val original = prefs.all.toMap()
@@ -47,12 +48,18 @@ object CalendarAcceptance {
                 }
                 DailyForecastRepository(context).save(WeatherModels.DailyForecastData("101010100", "北京", "北京", now, entries), "manual")
             }
-            for (id in if (weatherEnabled) listOf("graphite", "carbon", "agenda") else listOf("graphite", "carbon", "paper", "poster", "agenda")) {
+            val themes = when {
+                dashboardOnly -> listOf("graphite", "carbon")
+                weatherEnabled -> listOf("graphite", "carbon", "agenda")
+                else -> listOf("graphite", "carbon", "paper", "poster", "agenda")
+            }
+            for (id in themes) {
                 for (orientation in listOf(1, 2)) {
                     instrumentation.runOnMainSync {
                         activity?.finish()
                         prefs.edit().putString("calendar_theme", "calendar.$id")
                             .putInt("screen_orientation", orientation).putBoolean("weather_enabled", weatherEnabled)
+                            .putBoolean("show_seconds", true).putBoolean("show_status_icons", false)
                             .putString("weather_location_mode", "manual").putString("weather_location_id", "101010100").commit()
                     }
                     // Finish the previous configuration before rotating; otherwise its recreation
@@ -75,6 +82,21 @@ object CalendarAcceptance {
                     val dayNodes = tree.filter { it.viewIdResourceName?.startsWith(if (id == "agenda") "week-day:" else "day:") == true }
                     check(dayNodes.size == if (id == "agenda") 7 else 42) { "$id: day count ${dayNodes.size}" }
                     check(tree.any { it.viewIdResourceName == "dashboard-readings" } == (id in listOf("graphite", "carbon"))) { "$id: clock capability" }
+                    if (id == "graphite") {
+                        val dashboard = tree.first { it.viewIdResourceName == "dashboard-readings" }
+                        val clockCard = Rect().also { dashboard.getChild(0).getBoundsInScreen(it) }
+                        val timeNode = tree.first { it.text?.toString()?.matches(Regex("\\d{2}:\\d{2}")) == true }
+                        val timeBounds = Rect().also { timeNode.getBoundsInScreen(it) }
+                        check(kotlin.math.abs(timeBounds.exactCenterY() - clockCard.exactCenterY()) < clockCard.height() * .08f) {
+                            "dashboard clock is not vertically centered: time=$timeBounds card=$clockCard"
+                        }
+                        val seconds = tree.first { it.text?.toString()?.matches(Regex(":\\d{2}")) == true }.text.toString()
+                        await("dashboard clock advances") {
+                            nodes(instrumentation).any {
+                                it.text?.toString()?.matches(Regex(":\\d{2}")) == true && it.text.toString() != seconds
+                            }
+                        }
+                    }
                     check(tree.any { it.viewIdResourceName == "month-panel" } == (id in listOf("graphite", "carbon", "paper"))) { "$id: month panel capability" }
                     check(tree.none { it.viewIdResourceName == "agenda-card" } || id == "agenda")
                     if (weatherEnabled) check(tree.any { it.text?.contains("26℃") == true }) { "$id: cached weather not displayed" }
