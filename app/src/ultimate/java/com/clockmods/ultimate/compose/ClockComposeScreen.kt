@@ -76,9 +76,12 @@ import androidx.compose.ui.layout.onSizeChanged
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
+import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
+import androidx.compose.ui.text.PlatformTextStyle
+import androidx.compose.ui.text.TextStyle
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -435,7 +438,10 @@ internal fun ClockScreen(
             }
             DeviceStatusPill(
                 status = deviceStatus,
-                scale = repository.getStatusIconScale(),
+                scale = fitStatusPillScale(
+                    repository.getStatusIconScale(),
+                    faceWidth / density.density - 32f,
+                ),
                 style = statusIconStyle,
                 transparent = styleId == UltimateClockStyles.STYLE_PRO_CLASSIC,
                 contentColor = Color(repository.getTimeColor()),
@@ -1128,6 +1134,7 @@ internal fun DeviceStatusPill(
     style: StatusIconStyle = StatusIconStyle.read(LocalContext.current),
 ) {
     val normalizedScale = ClockPreferences.normalizeStatusIconScale(scale)
+    val iconSize = 20.dp * normalizedScale
     // A shallow frosted pane over the face: a soft white wash plus a hairline highlight instead
     // of an opaque card, so the clock stays visible underneath and the ink stays readable.
     val face = faceColor.toArgb()
@@ -1140,6 +1147,7 @@ internal fun DeviceStatusPill(
     val hairline = Color(ClockPalette.mix(face, 0xFFFFFFFF.toInt(), .38f)).copy(alpha = .38f)
     Row(
         modifier
+            .testTag("device-status-pill")
             .clip(RoundedCornerShape(percent = 50))
             .then(
                 if (transparent) Modifier else Modifier
@@ -1153,7 +1161,7 @@ internal fun DeviceStatusPill(
         horizontalArrangement = Arrangement.spacedBy(7.dp * normalizedScale),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        val networkSize = Modifier.size(18.dp * normalizedScale)
+        val networkSize = Modifier.size(iconSize).testTag("status-network-icon")
         when (status.network) {
             DeviceNetwork.OFFLINE -> StatusSymbolIcon(
                 StatusSymbolRenderer.GLOBE_CANCEL, style, ink, networkSize,
@@ -1178,17 +1186,31 @@ internal fun DeviceStatusPill(
         if (status.batteryPercent >= 0) {
             val icon = batteryIcon(status.batteryPercent, status.charging)
             StatusSymbolIcon(
-                statusSymbolCodePoint(icon), style, ink, Modifier.size(18.dp * normalizedScale),
+                statusSymbolCodePoint(icon), style, ink,
+                Modifier.size(iconSize).testTag("status-battery-icon"),
                 fallbackDrawable = icon,
             )
-            Text(
-                "${status.batteryPercent}%",
-                color = ink,
-                fontSize = MaterialTheme.typography.labelMedium.fontSize * normalizedScale,
-            )
+            Box(Modifier.height(iconSize),
+                contentAlignment = Alignment.CenterStart) {
+                Text(
+                    "${status.batteryPercent}%",
+                    modifier = Modifier.testTag("status-battery-percent"),
+                    color = ink,
+                    style = TextStyle(
+                        fontSize = MaterialTheme.typography.labelMedium.fontSize * normalizedScale,
+                        platformStyle = PlatformTextStyle(includeFontPadding = false),
+                    ),
+                    maxLines = 1,
+                )
+            }
         }
     }
 }
+
+/** Keep the whole status row within narrow clock and calendar panels. */
+internal fun fitStatusPillScale(requested: Float, availableWidthDp: Float): Float =
+    minOf(ClockPreferences.normalizeStatusIconScale(requested),
+        (availableWidthDp / 134f).coerceAtLeast(ClockPreferences.MIN_STATUS_ICON_SCALE))
 
 internal fun statusSymbolCodePoint(drawable: Int): Int = when (drawable) {
     R.drawable.ic_battery_android_0 -> StatusSymbolRenderer.BATTERY_0
