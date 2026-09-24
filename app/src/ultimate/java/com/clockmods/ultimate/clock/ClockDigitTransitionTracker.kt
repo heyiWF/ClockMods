@@ -11,7 +11,7 @@ internal class ClockDigitTransitionTracker {
         index = 0
     }
 
-    fun previousFor(value: String): String? {
+    fun previousFor(value: String, transitionInProgress: Boolean): String? {
         val slotIndex = index++
         if (slotIndex >= slots.size) {
             slots.add(Slot(value))
@@ -19,8 +19,10 @@ internal class ClockDigitTransitionTracker {
         }
         val slot = slots[slotIndex]
         if (slot.current != value) {
-            slot.previous = slot.current
+            slot.previous = if (transitionInProgress) slot.current else null
             slot.current = value
+        } else if (!transitionInProgress) {
+            slot.previous = null
         }
         return slot.previous
     }

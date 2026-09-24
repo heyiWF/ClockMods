@@ -527,9 +527,9 @@ object UltimateClockStyles {
             baseline: Float, paint: Paint) {
             val pool = PAINT_POOL.get()
             pool.timeTextSizeObserver?.invoke(paint.textSize)
-            val previous = pool.digitTracker?.previousFor(value)
             val state = pool.motionState
             val progress = state?.getTimeTransitionProgress() ?: 1f
+            val previous = pool.digitTracker?.previousFor(value, progress < 1f)
             val color = paint.color
             if (pool.photoText) {
                 photoTextOutline(paint, paint.textSize)
