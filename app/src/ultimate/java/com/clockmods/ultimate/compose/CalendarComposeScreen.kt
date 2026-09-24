@@ -91,8 +91,6 @@ internal data class CalendarTypography(
     val emphasizedWeight: Int,
     val displayFamily: FontFamily,
     val emphasizedDisplayFamily: FontFamily,
-    val chineseFamily: FontFamily,
-    val emphasizedChineseFamily: FontFamily,
     val timeScale: Float,
     val dateScale: Float,
     val supportingScale: Float,
@@ -113,24 +111,11 @@ internal data class CalendarTypography(
         emphasized: Boolean,
     ): TextStyle = base.copy(
         fontSize = base.fontSize * scale,
-        fontFamily = when {
-            containsChinese(text) && emphasized -> emphasizedChineseFamily
-            containsChinese(text) -> chineseFamily
-            emphasized -> emphasizedDisplayFamily
-            else -> displayFamily
-        },
+        // Let Android fall back per missing glyph. A Chinese character in a mixed string must
+        // not force its year, temperature, Latin labels and digits back to the system face.
+        fontFamily = if (emphasized) emphasizedDisplayFamily else displayFamily,
         fontWeight = FontWeight(if (emphasized) emphasizedWeight else weight),
     )
-}
-
-private fun containsChinese(text: String): Boolean {
-    var offset = 0
-    while (offset < text.length) {
-        val codePoint = text.codePointAt(offset)
-        if (ClockTypefaceResolver.isChinese(codePoint)) return true
-        offset += Character.charCount(codePoint)
-    }
-    return false
 }
 
 private fun dayKey(year: Int, month: Int, day: Int): String = "$year-$month-$day"
@@ -204,12 +189,6 @@ internal fun CalendarScreen(
             displayFamily = FontFamily(ClockTypefaceResolver.resolve(context, family, weight)),
             emphasizedDisplayFamily = FontFamily(
                 ClockTypefaceResolver.resolve(context, family, emphasizedWeight),
-            ),
-            chineseFamily = FontFamily(
-                ClockTypefaceResolver.resolveSupporting(context, family, weight, true),
-            ),
-            emphasizedChineseFamily = FontFamily(
-                ClockTypefaceResolver.resolveSupporting(context, family, emphasizedWeight, true),
             ),
             timeScale = preferences.getTimeFontScale(typographyScope),
             dateScale = preferences.getDateFontScale(typographyScope),

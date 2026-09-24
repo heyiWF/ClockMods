@@ -48,8 +48,13 @@ internal fun CalendarFooterCarousel(cell: CalendarCellInfo, date: String, theme:
         while (true) withFrameNanos { elapsed = (it - start) / 1_000_000 }
     }
     Canvas(modifier) {
-        paint.textSize = CalendarDashboardSizing.monthFooterSize(height * density, density) *
-            typography.dateScale / ClockPreferences.DEFAULT_DATE_FONT_SCALE
+        paint.textSize = min(
+            CalendarDashboardSizing.monthFooterSize(height * density, density) *
+                typography.dateScale / ClockPreferences.DEFAULT_DATE_FONT_SCALE,
+            size.height * .78f,
+        )
+        paint.textSize *= min(1f,
+            size.height * .55f / (paint.descent() - paint.ascent()).coerceAtLeast(1f))
         bold.textSize = paint.textSize
         val padding = 8 * density
         val lineHeight = paint.descent() - paint.ascent()

@@ -143,10 +143,12 @@ private fun Modifier.calendarPanel(theme: ComposeCalendarTheme): Modifier {
 
 @Composable
 private fun CalendarText(text: String, size: Float, color: Int, typography: CalendarTypography,
-    modifier: Modifier = Modifier, emphasized: Boolean = false, maxLines: Int = 1) {
+    modifier: Modifier = Modifier, emphasized: Boolean = false, maxLines: Int = 1,
+    date: Boolean = false) {
     Text(text, modifier, color = Color(color), maxLines = maxLines, overflow = TextOverflow.Ellipsis,
-        style = typography.supportingStyle(TextStyle(fontSize = size.sp, lineHeight = (size * 1.18f).sp),
-            text, emphasized))
+        style = if (date) typography.dateStyle(TextStyle(fontSize = size.sp), text, emphasized)
+            else typography.supportingStyle(TextStyle(fontSize = size.sp, lineHeight = (size * 1.18f).sp),
+                text, emphasized))
 }
 
 @Composable
@@ -158,6 +160,8 @@ private fun OriginalMonthPanel(theme: ComposeCalendarTheme, typography: Calendar
         val h = maxHeight.value
         val toolbar = Sizing.monthToolbarHeight(h, 1f)
         val footer = Sizing.monthFooterHeight(h, 1f)
+        val dateFactor = typography.dateScale / ClockPreferences.DEFAULT_DATE_FONT_SCALE
+        val titleSize = min(Sizing.monthTitleSize(toolbar, 1f), toolbar * .68f / dateFactor)
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().height(toolbar.dp), verticalAlignment = Alignment.CenterVertically) {
                 IconButton(previous, Modifier.size(toolbar.dp)) {
@@ -165,7 +169,7 @@ private fun OriginalMonthPanel(theme: ComposeCalendarTheme, typography: Calendar
                 }
                 Text(monthTitle, Modifier.weight(1f).clickable(onClick = picker).testTag("month-title"), textAlign = TextAlign.Center,
                     color = Color(theme.text), maxLines = 1,
-                    style = typography.dateStyle(TextStyle(fontSize = Sizing.monthTitleSize(toolbar, 1f).sp), monthTitle))
+                    style = typography.dateStyle(TextStyle(fontSize = titleSize.sp), monthTitle))
                 IconButton(today, Modifier.size(toolbar.dp)) {
                     Icon(Icons.Default.CalendarMonth, stringResource(R.string.calendar_today), tint = Color(theme.accent))
                 }
@@ -187,8 +191,10 @@ private fun OriginalMonthGrid(cells: List<CalendarCellInfo>, weekdays: List<Stri
     onSelect: (CalendarCellInfo) -> Unit, modifier: Modifier) {
     BoxWithConstraints(modifier.testTag("month-grid")) {
         val header = if (theme.flatGrid) 22f else Sizing.monthWeekdayHeight(LocalMonthPanelHeight.current, 1f)
-        val weekdaySize = if (theme.flatGrid) Sizing.posterWeekdaySize(maxWidth.value / 7, header, 1f)
+        val weekdayBase = if (theme.flatGrid) Sizing.posterWeekdaySize(maxWidth.value / 7, header, 1f)
             else Sizing.monthWeekdaySize(maxWidth.value / 7, header, 1f)
+        val weekdaySize = min(weekdayBase,
+            header * .8f / (typography.dateScale / ClockPreferences.DEFAULT_DATE_FONT_SCALE))
         Column(Modifier.fillMaxSize()) {
             Row(Modifier.fillMaxWidth().height(header.dp), verticalAlignment = Alignment.CenterVertically) {
                 weekdays.forEachIndexed { index, label ->
@@ -263,7 +269,19 @@ private fun CalendarNumber(cell: CalendarCellInfo, color: Int, theme: ComposeCal
         paint.typeface = face
         paint.textAlign = Paint.Align.CENTER
         paint.textSize = (if (pinnedSize > 0) pinnedSize * density else Sizing.monthDaySize(size.width, size.height, density)) *
-            typography.timeScale / ClockPreferences.DEFAULT_TIME_FONT_SCALE
+            typography.dateScale / ClockPreferences.DEFAULT_DATE_FONT_SCALE
+        paint.getTextBounds(day, 0, day.length, rect)
+        val heightFit = size.height * .72f / rect.height().coerceAtLeast(1)
+        val widthFit = size.width * .72f / paint.measureText(day).coerceAtLeast(1f)
+        paint.textSize *= minOf(1f, heightFit, widthFit)
+        if (badge.isNotEmpty()) {
+            badgePaint.typeface = face
+            badgePaint.textSize = paint.textSize * .48f
+            val rightExtent = paint.measureText(day) / 2f + 2.dp.toPx() +
+                badgePaint.measureText(badge)
+            paint.textSize *= min(1f, (size.width / 2f - 1.dp.toPx()).coerceAtLeast(1f) /
+                rightExtent.coerceAtLeast(1f))
+        }
         paint.getTextBounds(day, 0, day.length, rect)
         val baseline = size.height / 2 - (rect.top + rect.bottom) / 2f
         if (cell.day.today && theme.todayFill != 0 && !theme.flatGrid && theme.layout != CalendarLayout.AGENDA) {
@@ -342,15 +360,21 @@ private fun PosterWordmark(year: Int, month: Int, theme: ComposeCalendarTheme,
     val monthText = if (locale.language == "zh") listOf("一月", "二月", "三月", "四月", "五月", "六月", "七月", "八月", "九月", "十月", "十一月", "十二月")[month]
         else SimpleDateFormat("MMMM", locale).format(Calendar.getInstance().apply { clear(); set(year, month, 1) }.time)
     val monthPaint = remember(typography) { Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
-        typeface = ClockTypefaceResolver.resolveSupporting(context, typography.family, typography.emphasizedWeight, locale.language == "zh") } }
+        typeface = ClockTypefaceResolver.resolve(context, typography.family, typography.emphasizedWeight) } }
     val yearPaint = remember(typography) { Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
         typeface = ClockTypefaceResolver.resolve(context, typography.family, typography.weight) } }
     Canvas(modifier.semantics { contentDescription = "$monthText $year" }) {
+        val dateFactor = typography.dateScale / ClockPreferences.DEFAULT_DATE_FONT_SCALE
         val monthBound = Sizing.posterWordmarkSize(size.width, size.height, density)
-        monthPaint.textSize = monthBound
+        monthPaint.textSize = monthBound * dateFactor
         monthPaint.textSize *= min(1f, size.width * .94f / monthPaint.measureText(monthText))
-        yearPaint.textSize = Sizing.posterYearSize(monthBound, size.height, density)
+        yearPaint.textSize = Sizing.posterYearSize(monthBound, size.height, density) * dateFactor
         yearPaint.textSize *= min(1f, size.width * .30f / yearPaint.measureText(year.toString()))
+        val initialHeight = monthPaint.descent() - monthPaint.ascent() +
+            monthPaint.textSize * .12f + yearPaint.descent() - yearPaint.ascent()
+        val heightFit = min(1f, size.height * .94f / initialHeight.coerceAtLeast(1f))
+        monthPaint.textSize *= heightFit
+        yearPaint.textSize *= heightFit
         monthPaint.color = theme.text; yearPaint.color = theme.secondary
         val mh = monthPaint.descent() - monthPaint.ascent()
         val yh = yearPaint.descent() - yearPaint.ascent()
@@ -510,7 +534,9 @@ private fun AgendaCalendar(theme: ComposeCalendarTheme, typography: CalendarTypo
     val chromeSize = Sizing.monthTitleSize(Sizing.monthToolbarHeight(panelHeight, 1f), 1f)
     val supportSize = Sizing.agendaSubheadingSize(Sizing.monthFooterHeight(panelHeight, 1f), 1f)
     val header: @Composable () -> Unit = {
-        Column { CalendarText(title, chromeSize, theme.text, typography, Modifier.clickable(onClick = picker).testTag("month-title"), true)
+        Column { CalendarText(title, min(chromeSize, 36f * ClockPreferences.DEFAULT_DATE_FONT_SCALE / typography.dateScale),
+                theme.text, typography, Modifier.clickable(onClick = picker).testTag("month-title"),
+                emphasized = true, date = true)
             CalendarText(subtitle, supportSize, theme.secondary, typography, Modifier.padding(top = 3.dp)) }
     }
     val actions: @Composable (Float) -> Unit = { statusScale ->
@@ -618,7 +644,10 @@ private fun AgendaCard(cell: CalendarCellInfo, theme: ComposeCalendarTheme, typo
         val entry = forecast?.findByDate(dateKey)
         val data = if (cell.day.today) weather?.data else null
         Column(Modifier.fillMaxSize()) {
-            CalendarText(calendarDateLine(cell), titleSize, theme.text, typography, emphasized = true, maxLines = 2)
+            CalendarText(calendarDateLine(cell),
+                min(titleSize, 36f * ClockPreferences.DEFAULT_DATE_FONT_SCALE / typography.dateScale),
+                theme.text, typography,
+                emphasized = true, maxLines = 2, date = true)
             if (cell.festivals.isNotEmpty()) CalendarText(cell.festivals.joinToString(" · "), body, theme.accent, typography, Modifier.padding(top = 10.dp), maxLines = 2)
             if (data != null || entry != null) {
                 Spacer(Modifier.height(14.dp)); HorizontalDivider(color = Color(theme.panelStroke)); Spacer(Modifier.height(14.dp))
