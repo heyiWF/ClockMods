@@ -516,8 +516,9 @@ internal fun MarqueeText(
 ) {
     val density = LocalDensity.current
     var containerWidth by remember { mutableIntStateOf(0) }
-    var textWidth by remember { mutableIntStateOf(0) }
+    var textWidth by remember(text, style) { mutableIntStateOf(0) }
     val overflow = textWidth > containerWidth && containerWidth > 0
+    val gapPx = with(density) { 48.dp.toPx() }
     val progress = if (overflow) {
         val transition = rememberInfiniteTransition(label = "almanac-marquee")
         transition.animateFloat(
@@ -525,7 +526,7 @@ internal fun MarqueeText(
         targetValue = 1f,
         animationSpec = infiniteRepeatable(
             animation = tween(
-                durationMillis = ((textWidth + containerWidth).coerceAtLeast(1) * 18).coerceAtLeast(4_000),
+                durationMillis = ((textWidth + gapPx).toInt() * 18).coerceAtLeast(4_000),
                 easing = LinearEasing,
             ),
             repeatMode = RepeatMode.Restart,
@@ -533,14 +534,13 @@ internal fun MarqueeText(
         label = "almanac-marquee-progress",
         )
     } else null
-    val gapPx = with(density) { 48.dp.toPx() }
     Box(
         modifier
             .fillMaxWidth()
             .clipToBounds()
             .onSizeChanged { containerWidth = it.width },
     ) {
-        Row(Modifier.wrapContentWidth().graphicsLayer {
+        Row(Modifier.wrapContentWidth(align = Alignment.Start, unbounded = true).graphicsLayer {
             translationX = -(progress?.value ?: 0f) * (textWidth + gapPx)
         }) {
             Text(
@@ -549,9 +549,7 @@ internal fun MarqueeText(
                 maxLines = 1,
                 softWrap = false,
                 style = style,
-                modifier = Modifier
-                    .padding(horizontal = 12.dp)
-                    .onSizeChanged { textWidth = it.width },
+                modifier = Modifier.onSizeChanged { textWidth = it.width },
             )
             if (overflow) {
                 Text(
@@ -560,7 +558,7 @@ internal fun MarqueeText(
                     maxLines = 1,
                     softWrap = false,
                     style = style,
-                    modifier = Modifier.padding(horizontal = 12.dp),
+                    modifier = Modifier.padding(start = 48.dp),
                 )
             }
         }

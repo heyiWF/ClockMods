@@ -724,7 +724,7 @@ private fun PinnedAlmanac(prefix: String, items: List<String>, color: Int, textS
             typeface = ClockTypefaceResolver.resolve(context, typography.family, typography.emphasizedWeight)
         }
     }
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
         Canvas(Modifier.size((textSizeSp * 1.55f).dp)) {
             val radius = minOf(this.size.width, this.size.height) / 2f
             drawCircle(Color(color).copy(alpha = ALMANAC_BADGE_BACKGROUND_ALPHA), radius)
