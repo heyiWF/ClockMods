@@ -105,34 +105,43 @@ internal fun UltimateCalendarLayout(
                 current = { OriginalMonthGrid(cells, weekdays, selected, theme, typography,
                     preferences.isCalendarHighlightWeekends(), onSelect, Modifier.fillMaxSize()) })
         }
-        when (theme.layout) {
-            CalendarLayout.DASHBOARD, CalendarLayout.WALL -> {
-                val panel: @Composable (Modifier) -> Unit = { panelModifier ->
-                    OriginalMonthPanel(theme, typography, selected, monthTitle,
-                        onPrevious, onNext, onToday, onMonthPicker, panelModifier, grid)
-                }
-                if (theme.layout == CalendarLayout.WALL) panel(Modifier.fillMaxSize().padding(gutter))
-                else if (landscape) {
-                    Row(Modifier.fillMaxSize().padding(gutter), horizontalArrangement = Arrangement.spacedBy(gutter)) {
-                        DashboardReadings(theme, typography, preferences, weatherState, forecast,
-                            clockTick, timeZone, true, gutter.value,
-                            Modifier.weight(1f).fillMaxHeight())
-                        panel(Modifier.weight(1f).fillMaxHeight())
+        val showAttribution = theme.showWeather && preferences.isWeatherEnabled()
+        Box(Modifier.fillMaxSize().padding(bottom = if (showAttribution) 20.dp else 0.dp)) {
+            when (theme.layout) {
+                CalendarLayout.DASHBOARD, CalendarLayout.WALL -> {
+                    val panel: @Composable (Modifier) -> Unit = { panelModifier ->
+                        OriginalMonthPanel(theme, typography, selected, monthTitle,
+                            onPrevious, onNext, onToday, onMonthPicker, panelModifier, grid)
                     }
-                } else {
-                    Column(Modifier.fillMaxSize().padding(gutter), verticalArrangement = Arrangement.spacedBy(gutter)) {
-                        DashboardReadings(theme, typography, preferences, weatherState, forecast,
-                            clockTick, timeZone, false, gutter.value,
-                            Modifier.weight(.46f).fillMaxWidth())
-                        panel(Modifier.weight(.54f).fillMaxWidth())
+                    if (theme.layout == CalendarLayout.WALL) panel(Modifier.fillMaxSize().padding(gutter))
+                    else if (landscape) {
+                        Row(Modifier.fillMaxSize().padding(gutter), horizontalArrangement = Arrangement.spacedBy(gutter)) {
+                            DashboardReadings(theme, typography, preferences, weatherState, forecast,
+                                clockTick, timeZone, true, gutter.value,
+                                Modifier.weight(1f).fillMaxHeight())
+                            panel(Modifier.weight(1f).fillMaxHeight())
+                        }
+                    } else {
+                        Column(Modifier.fillMaxSize().padding(gutter), verticalArrangement = Arrangement.spacedBy(gutter)) {
+                            DashboardReadings(theme, typography, preferences, weatherState, forecast,
+                                clockTick, timeZone, false, gutter.value,
+                                Modifier.weight(.46f).fillMaxWidth())
+                            panel(Modifier.weight(.54f).fillMaxWidth())
+                        }
                     }
                 }
+                CalendarLayout.POSTER -> PosterCalendar(theme, typography, selected, landscape, onToday, grid)
+                CalendarLayout.AGENDA -> AgendaCalendar(theme, typography, preferences, cells, selected,
+                    adjacentCells,
+                    monthTitle, timeZone, landscape, weatherState, forecast, scheduleItems,
+                    onPrevious, onNext, onToday, onSelect, onMonthPicker, onAddSchedule, onEditSchedule)
             }
-            CalendarLayout.POSTER -> PosterCalendar(theme, typography, selected, landscape, onToday, grid)
-            CalendarLayout.AGENDA -> AgendaCalendar(theme, typography, preferences, cells, selected,
-                adjacentCells,
-                monthTitle, timeZone, landscape, weatherState, forecast, scheduleItems,
-                onPrevious, onNext, onToday, onSelect, onMonthPicker, onAddSchedule, onEditSchedule)
+        }
+        if (showAttribution) {
+            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(20.dp),
+                contentAlignment = Alignment.Center) {
+                WeatherAttribution(Color(theme.backgroundEnd))
+            }
         }
     }
 }
@@ -480,7 +489,6 @@ private fun DashboardReadings(theme: ComposeCalendarTheme, typography: CalendarT
                 }
             }
         }
-        Box(Modifier.fillMaxWidth().height(18.dp), contentAlignment = Alignment.Center) { WeatherAttribution(Color(theme.backgroundStart)) }
         }
     }
 }
@@ -703,7 +711,6 @@ private fun AgendaCard(cell: CalendarCellInfo, theme: ComposeCalendarTheme, typo
                         Modifier.fillMaxWidth().clickable { edit(item) }.padding(vertical = 8.dp), maxLines = 2) }
                 }
             }
-            if (data != null || entry != null) Box(Modifier.fillMaxWidth().padding(top = 14.dp), contentAlignment = Alignment.Center) { WeatherAttribution(Color(theme.panel)) }
         }
     }
 }

@@ -477,7 +477,7 @@ internal fun ClockScreen(
         if (repository.isWeatherEnabled()) {
             WeatherAttribution(
                 faceColor = overlaySurface,
-                modifier = Modifier.align(Alignment.BottomStart).padding(12.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp),
             )
         }
     }
@@ -958,12 +958,17 @@ internal fun formatWeatherState(
 @Composable
 internal fun WeatherAttribution(faceColor: Color, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val iconSize = with(LocalDensity.current) { 11.sp.toDp() }
+    val iconSize = with(LocalDensity.current) { 10.sp.toDp() }
     val brand = stringResource(R.string.weather_attribution_brand)
     val suffix = stringResource(R.string.weather_attribution_suffix)
     // The caption sits on the live face, so its ink follows whatever the face is painted with
     // instead of the host window scheme, which says nothing about a photo or a theme gradient.
     val captionColor = Color(ClockPalette.foreground(faceColor.toArgb())).copy(alpha = .72f)
+    val captionStyle = TextStyle(
+        fontSize = 10.sp,
+        lineHeight = 12.sp,
+        platformStyle = PlatformTextStyle(includeFontPadding = false),
+    )
     Row(
         modifier.clickable {
             runCatching {
@@ -973,12 +978,12 @@ internal fun WeatherAttribution(faceColor: Color, modifier: Modifier = Modifier)
             }
         },
         verticalAlignment = Alignment.CenterVertically,
-        horizontalArrangement = Arrangement.spacedBy(0.dp),
+        horizontalArrangement = Arrangement.spacedBy(2.dp),
     ) {
         Text(
-            text = "${stringResource(R.string.weather_attribution_prefix)} ",
+            text = stringResource(R.string.weather_attribution_prefix),
             color = captionColor,
-            fontSize = 10.sp,
+            style = captionStyle,
         )
         Icon(
             painter = painterResource(R.drawable.ic_qweather_attribution),
@@ -989,7 +994,7 @@ internal fun WeatherAttribution(faceColor: Color, modifier: Modifier = Modifier)
         Text(
             text = brand + if (suffix.isNotBlank()) " $suffix" else "",
             color = captionColor,
-            fontSize = 10.sp,
+            style = captionStyle,
         )
     }
 }
