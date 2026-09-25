@@ -10,8 +10,6 @@ import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.padding
 import androidx.compose.material.icons.Icons
-import androidx.compose.material.icons.filled.AccessTime
-import androidx.compose.material.icons.filled.Alarm
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.Settings
@@ -79,8 +77,10 @@ private enum class Destination(
     CLOCK(R.string.pro_page_clock, filledIconRes = R.drawable.ic_nest_clock_farsight_digital_filled,
         outlinedIconRes = R.drawable.ic_nest_clock_farsight_digital),
     CALENDAR(R.string.pro_page_calendar, Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth),
-    POMODORO(R.string.pro_page_pomodoro, Icons.Filled.AccessTime, Icons.Outlined.AccessTime),
-    ALARM(R.string.pro_page_alarm, Icons.Filled.Alarm, Icons.Outlined.Alarm),
+    POMODORO(R.string.pro_page_pomodoro, outlinedIcon = Icons.Outlined.AccessTime,
+        filledIconRes = R.drawable.ic_schedule_filled),
+    ALARM(R.string.pro_page_alarm, outlinedIcon = Icons.Outlined.Alarm,
+        filledIconRes = R.drawable.ic_alarm_filled),
     COUNTDOWN(R.string.pro_page_countdown, Icons.Filled.HourglassBottom, Icons.Outlined.HourglassEmpty),
     STOPWATCH(R.string.pro_page_stopwatch, Icons.Filled.Timer, Icons.Outlined.Timer),
 }
