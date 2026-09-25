@@ -10,8 +10,11 @@ import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.StringRes
 import androidx.compose.foundation.BorderStroke
-import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.foundation.selection.selectableGroup
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.foundation.layout.Arrangement
+import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.BoxWithConstraints
 import androidx.compose.foundation.layout.Column
 import androidx.compose.foundation.layout.Row
@@ -21,8 +24,8 @@ import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.safeDrawingPadding
-import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.foundation.verticalScroll
@@ -48,23 +51,33 @@ import androidx.compose.runtime.CompositionLocalProvider
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
+import androidx.compose.runtime.key
+import androidx.compose.runtime.remember
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.draw.clip
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.clockmods.LocaleManager
 import com.clockmods.R
 import com.clockmods.background.ClockPreferences
+import com.clockmods.background.BackgroundRepository
 import com.clockmods.ui.compose.ClockModsTheme
 import com.clockmods.ultimate.clock.UltimateClockPreferences
 import com.clockmods.ultimate.clock.UltimateClockStyles
+import com.clockmods.ultimate.compose.CalendarThemeCatalog
+import com.clockmods.ultimate.compose.CalendarThemeThumbnail
+import com.clockmods.ultimate.compose.ClockStyleThumbnail
+import com.clockmods.ultimate.compose.previewClockBackground
 
-/** Compose-native, three-step first-run setup flow. */
+/** Compose-native first-run setup flow. */
 class SetupWizardActivity : ComponentActivity() {
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(LocaleManager.wrap(newBase) ?: newBase)
@@ -114,6 +127,7 @@ private data class SetupDraft(
     val weatherEnabled: Boolean,
     val temperatureUnit: String,
     val styleId: String,
+    val calendarThemeId: String,
 ) {
     fun applyTo(context: Context) {
         ClockPreferences(context).apply {
@@ -123,6 +137,7 @@ private data class SetupDraft(
                 setWeatherLocationMode(ClockPreferences.WEATHER_LOCATION_AUTOMATIC)
             }
             setWeatherTemperatureUnit(temperatureUnit)
+            setCalendarTheme(calendarThemeId)
         }
         UltimateClockPreferences(context).setStyleId(styleId)
     }
@@ -135,23 +150,30 @@ private fun SetupWizard(
 ) {
     val baseContext = LocalContext.current
     val preferences = ClockPreferences(baseContext)
-    val appearance = UltimateClockPreferences(baseContext)
     var step by rememberSaveable { mutableIntStateOf(0) }
-    var language by rememberSaveable { mutableStateOf(preferences.getClockLanguage()) }
+    var language by rememberSaveable { mutableStateOf<String?>(null) }
     var weatherEnabled by rememberSaveable { mutableStateOf(preferences.isWeatherEnabled()) }
-    var temperatureUnit by rememberSaveable {
-        mutableStateOf(preferences.getWeatherTemperatureUnit())
-    }
-    var styleId by rememberSaveable { mutableStateOf(appearance.getStyleId()) }
+    var temperatureUnit by rememberSaveable { mutableStateOf<String?>(null) }
+    var styleId by rememberSaveable { mutableStateOf<String?>(null) }
+    var calendarThemeId by rememberSaveable { mutableStateOf<String?>(null) }
+    val canContinue = canContinueSetupStep(
+        step, language, weatherEnabled, temperatureUnit, styleId, calendarThemeId,
+    )
 
     val currentConfiguration = LocalConfiguration.current
     val configuration = Configuration(currentConfiguration).apply {
-        setLocale(LocaleManager.resolveLocale(language))
+        setLocale(LocaleManager.resolveLocale(language ?: preferences.getClockLanguage()))
     }
     val localizedContext = baseContext.createConfigurationContext(configuration)
 
     fun finish() = onFinish(
-        SetupDraft(language, weatherEnabled, temperatureUnit, styleId),
+        SetupDraft(
+            checkNotNull(language),
+            weatherEnabled,
+            temperatureUnit ?: preferences.getWeatherTemperatureUnit(),
+            checkNotNull(styleId),
+            checkNotNull(calendarThemeId),
+        ),
     )
     fun goBack() {
         if (step > 0) step-- else onSkip()
@@ -188,24 +210,36 @@ private fun SetupWizard(
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.labelLarge,
                     )
-                    Column(
-                        Modifier
-                            .weight(1f)
-                            .verticalScroll(rememberScrollState())
-                            .padding(vertical = 20.dp),
-                    ) {
-                        when (step) {
-                            0 -> LanguageStep(language, onSelected = { language = it })
-                            1 -> WeatherStep(
-                                enabled = weatherEnabled,
-                                unit = temperatureUnit,
-                                onEnabledChanged = { weatherEnabled = it },
-                                onUnitSelected = { temperatureUnit = it },
-                            )
-                            else -> StyleStep(styleId, onSelected = { styleId = it })
+                    key(step) {
+                        Column(
+                            Modifier
+                                .weight(1f)
+                                .verticalScroll(rememberScrollState())
+                                .padding(vertical = 20.dp),
+                        ) {
+                            when (step) {
+                                0 -> LanguageStep(language, onSelected = { language = it })
+                                1 -> WeatherStep(
+                                    enabled = weatherEnabled,
+                                    unit = temperatureUnit,
+                                    onEnabledChanged = { weatherEnabled = it },
+                                    onUnitSelected = { temperatureUnit = it },
+                                )
+                                2 -> StyleStep(styleId, onSelected = { styleId = it })
+                                else -> CalendarStyleStep(calendarThemeId,
+                                    onSelected = { calendarThemeId = it })
+                            }
                         }
                     }
                     HorizontalDivider()
+                    if (!canContinue) {
+                        Text(
+                            stringResource(R.string.setup_wizard_choose_option),
+                            modifier = Modifier.padding(top = 8.dp),
+                            color = MaterialTheme.colorScheme.onSurfaceVariant,
+                            style = MaterialTheme.typography.bodySmall,
+                        )
+                    }
                     Row(
                         Modifier.fillMaxWidth().padding(top = 14.dp),
                         horizontalArrangement = Arrangement.spacedBy(12.dp),
@@ -221,6 +255,7 @@ private fun SetupWizard(
                         Button(
                             onClick = { if (step < STEP_COUNT - 1) step++ else finish() },
                             modifier = Modifier.weight(1f),
+                            enabled = canContinue,
                         ) {
                             Text(
                                 stringResource(
@@ -237,29 +272,31 @@ private fun SetupWizard(
 }
 
 @Composable
-private fun LanguageStep(selected: String, onSelected: (String) -> Unit) {
+private fun LanguageStep(selected: String?, onSelected: (String) -> Unit) {
     StepHeading(
         icon = { Icon(Icons.Default.Language, contentDescription = null) },
         title = R.string.setup_wizard_language_title,
         summary = R.string.setup_wizard_language_summary,
     )
-    listOf(
-        ClockPreferences.LANGUAGE_SIMPLIFIED to R.string.ultimate_language_simplified,
-        ClockPreferences.LANGUAGE_TRADITIONAL to R.string.ultimate_language_traditional,
-        ClockPreferences.LANGUAGE_ENGLISH to R.string.ultimate_language_english,
-    ).forEach { (value, label) ->
-        ChoiceRow(
-            label = stringResource(label),
-            selected = selected == value,
-            onClick = { onSelected(value) },
-        )
+    Column(Modifier.fillMaxWidth().selectableGroup()) {
+        listOf(
+            ClockPreferences.LANGUAGE_SIMPLIFIED to R.string.ultimate_language_simplified,
+            ClockPreferences.LANGUAGE_TRADITIONAL to R.string.ultimate_language_traditional,
+            ClockPreferences.LANGUAGE_ENGLISH to R.string.ultimate_language_english,
+        ).forEach { (value, label) ->
+            ChoiceRow(
+                label = stringResource(label),
+                selected = selected == value,
+                onClick = { onSelected(value) },
+            )
+        }
     }
 }
 
 @Composable
 private fun WeatherStep(
     enabled: Boolean,
-    unit: String,
+    unit: String?,
     onEnabledChanged: (Boolean) -> Unit,
     onUnitSelected: (String) -> Unit,
 ) {
@@ -269,7 +306,9 @@ private fun WeatherStep(
         summary = R.string.setup_wizard_weather_summary,
     )
     Row(
-        Modifier.fillMaxWidth().padding(vertical = 12.dp),
+        Modifier.fillMaxWidth()
+            .toggleable(value = enabled, role = Role.Switch, onValueChange = onEnabledChanged)
+            .padding(vertical = 12.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
         Column(Modifier.weight(1f)) {
@@ -280,87 +319,123 @@ private fun WeatherStep(
                 style = MaterialTheme.typography.bodySmall,
             )
         }
-        Switch(checked = enabled, onCheckedChange = onEnabledChanged)
+        Switch(checked = enabled, onCheckedChange = null)
     }
-    Text(
-        stringResource(R.string.setup_wizard_temperature_title),
-        modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
-        fontWeight = FontWeight.SemiBold,
-    )
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(8.dp)) {
-        ChoiceRow(
-            label = stringResource(R.string.ultimate_weather_celsius),
-            selected = unit == ClockPreferences.WEATHER_UNIT_CELSIUS,
-            enabled = enabled,
-            onClick = { onUnitSelected(ClockPreferences.WEATHER_UNIT_CELSIUS) },
+    if (enabled) {
+        Text(
+            stringResource(R.string.setup_wizard_temperature_title),
+            modifier = Modifier.padding(top = 12.dp, bottom = 4.dp),
+            fontWeight = FontWeight.SemiBold,
         )
-        ChoiceRow(
-            label = stringResource(R.string.ultimate_weather_fahrenheit),
-            selected = unit == ClockPreferences.WEATHER_UNIT_FAHRENHEIT,
-            enabled = enabled,
-            onClick = { onUnitSelected(ClockPreferences.WEATHER_UNIT_FAHRENHEIT) },
-        )
+        Column(Modifier.fillMaxWidth().selectableGroup(),
+            verticalArrangement = Arrangement.spacedBy(8.dp)) {
+            ChoiceRow(
+                label = stringResource(R.string.ultimate_weather_celsius),
+                selected = unit == ClockPreferences.WEATHER_UNIT_CELSIUS,
+                onClick = { onUnitSelected(ClockPreferences.WEATHER_UNIT_CELSIUS) },
+            )
+            ChoiceRow(
+                label = stringResource(R.string.ultimate_weather_fahrenheit),
+                selected = unit == ClockPreferences.WEATHER_UNIT_FAHRENHEIT,
+                onClick = { onUnitSelected(ClockPreferences.WEATHER_UNIT_FAHRENHEIT) },
+            )
+        }
     }
 }
 
 @Composable
-private fun StyleStep(selected: String, onSelected: (String) -> Unit) {
+private fun StyleStep(selected: String?, onSelected: (String) -> Unit) {
     StepHeading(
         icon = { Icon(Icons.Default.Palette, contentDescription = null) },
         title = R.string.setup_wizard_style_title,
         summary = R.string.setup_wizard_style_summary,
     )
-    val styles = listOf(
-        Triple(
-            UltimateClockStyles.STYLE_GLASS_ATELIER,
-            R.string.ultimate_style_glass_name,
-            R.string.ultimate_style_glass_summary,
-        ),
-        Triple(
-            UltimateClockStyles.STYLE_NOIR_INSTRUMENT,
-            R.string.ultimate_style_noir_name,
-            R.string.ultimate_style_noir_summary,
-        ),
-        Triple(
-            UltimateClockStyles.STYLE_PAPER_STATION,
-            R.string.ultimate_style_paper_name,
-            R.string.ultimate_style_paper_summary,
-        ),
-    )
-    Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(10.dp)) {
-        styles.forEach { (id, title, summary) ->
-            val isSelected = selected == id
-            Card(
-                modifier = Modifier.fillMaxWidth().clickable { onSelected(id) },
-                shape = RoundedCornerShape(8.dp),
-                border = BorderStroke(
-                    if (isSelected) 2.dp else 1.dp,
-                    if (isSelected) MaterialTheme.colorScheme.primary
-                    else MaterialTheme.colorScheme.outlineVariant,
-                ),
-                colors = CardDefaults.cardColors(
-                    containerColor = if (isSelected) MaterialTheme.colorScheme.primaryContainer
-                    else MaterialTheme.colorScheme.surfaceContainerLow,
-                ),
+    val context = LocalContext.current
+    val styles = remember { UltimateClockStyles.builtIns() }
+    val repository = remember(context) { BackgroundRepository(context) }
+    val appearance = remember(context) { UltimateClockPreferences(context) }
+    val background = previewClockBackground(repository, appearance, 0)
+    Column(Modifier.fillMaxWidth().selectableGroup(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        styles.forEach { style ->
+            val id = style.getMetadata().getId()
+            ThemeChoiceCard(
+                title = stringResource(UltimateClockStyles.styleNameRes(id)),
+                summary = stringResource(UltimateClockStyles.styleSummaryRes(id)),
+                selected = selected == id,
+                onClick = { onSelected(id) },
             ) {
-                Row(
-                    Modifier.fillMaxWidth().padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                ) {
-                    Column(Modifier.weight(1f)) {
-                        Text(stringResource(title), fontWeight = FontWeight.SemiBold)
-                        Text(
-                            stringResource(summary),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
-                    }
-                    if (isSelected) {
-                        Spacer(Modifier.width(12.dp))
-                        Icon(Icons.Default.Check, contentDescription = null)
-                    }
-                }
+                ClockStyleThumbnail(
+                    styleId = id,
+                    palette = appearance.getPalette(id),
+                    background = background,
+                    repository = repository,
+                    modifier = Modifier.fillMaxSize(),
+                )
             }
+        }
+    }
+}
+
+@Composable
+private fun CalendarStyleStep(selected: String?, onSelected: (String) -> Unit) {
+    StepHeading(
+        icon = { Icon(Icons.Default.Palette, contentDescription = null) },
+        title = R.string.setup_wizard_calendar_style_title,
+        summary = R.string.setup_wizard_calendar_style_summary,
+    )
+    val themes = remember { CalendarThemeCatalog.presets() }
+    Column(Modifier.fillMaxWidth().selectableGroup(),
+        verticalArrangement = Arrangement.spacedBy(10.dp)) {
+        themes.forEach { theme ->
+            ThemeChoiceCard(
+                title = stringResource(theme.nameRes),
+                summary = stringResource(theme.summaryRes),
+                selected = selected == theme.id,
+                onClick = { onSelected(theme.id) },
+            ) {
+                CalendarThemeThumbnail(theme, Modifier.fillMaxSize())
+            }
+        }
+    }
+}
+
+@Composable
+private fun ThemeChoiceCard(
+    title: String,
+    summary: String,
+    selected: Boolean,
+    onClick: () -> Unit,
+    preview: @Composable () -> Unit,
+) {
+    Card(
+        modifier = Modifier.fillMaxWidth().selectable(
+            selected = selected, role = Role.RadioButton, onClick = onClick,
+        ),
+        shape = RoundedCornerShape(8.dp),
+        border = BorderStroke(
+            if (selected) 2.dp else 1.dp,
+            if (selected) MaterialTheme.colorScheme.primary
+            else MaterialTheme.colorScheme.outlineVariant,
+        ),
+        colors = CardDefaults.cardColors(
+            containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer
+            else MaterialTheme.colorScheme.surfaceContainerLow,
+        ),
+    ) {
+        Row(Modifier.fillMaxWidth().padding(12.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+            Box(Modifier.size(width = 104.dp, height = 76.dp)
+                .clip(RoundedCornerShape(6.dp))) { preview() }
+            Column(Modifier.weight(1f)) {
+                Text(title, fontWeight = FontWeight.SemiBold, maxLines = 1,
+                    overflow = TextOverflow.Ellipsis)
+                Text(summary, color = MaterialTheme.colorScheme.onSurfaceVariant,
+                    style = MaterialTheme.typography.bodySmall, maxLines = 2,
+                    overflow = TextOverflow.Ellipsis)
+            }
+            if (selected) Icon(Icons.Default.Check, contentDescription = null)
         }
     }
 }
@@ -397,24 +472,36 @@ private fun StepHeading(
 private fun ChoiceRow(
     label: String,
     selected: Boolean,
-    enabled: Boolean = true,
     onClick: () -> Unit,
 ) {
     Row(
         Modifier
             .fillMaxWidth()
-            .clickable(enabled = enabled, onClick = onClick)
+            .selectable(selected = selected, role = Role.RadioButton, onClick = onClick)
             .padding(vertical = 8.dp),
         verticalAlignment = Alignment.CenterVertically,
     ) {
-        RadioButton(selected = selected, enabled = enabled, onClick = onClick)
+        RadioButton(selected = selected, onClick = null)
         Text(
             label,
             modifier = Modifier.padding(start = 8.dp),
-            color = if (enabled) MaterialTheme.colorScheme.onSurface
-            else MaterialTheme.colorScheme.onSurface.copy(alpha = .38f),
         )
     }
 }
 
-private const val STEP_COUNT = 3
+internal fun canContinueSetupStep(
+    step: Int,
+    language: String?,
+    weatherEnabled: Boolean,
+    temperatureUnit: String?,
+    styleId: String?,
+    calendarThemeId: String?,
+): Boolean = when (step) {
+    0 -> language != null
+    1 -> !weatherEnabled || temperatureUnit != null
+    2 -> styleId != null
+    3 -> calendarThemeId != null
+    else -> false
+}
+
+private const val STEP_COUNT = 4
