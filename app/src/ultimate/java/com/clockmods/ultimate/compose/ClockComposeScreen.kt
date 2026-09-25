@@ -910,11 +910,12 @@ private fun averageColor(bitmap: Bitmap): Int {
 internal fun rememberWeatherState(
     repository: BackgroundRepository,
     refreshGeneration: Int,
+    detailedOverride: Boolean? = null,
 ): WeatherModels.WeatherState? {
     val context = LocalContext.current
     var state by remember { mutableStateOf<WeatherModels.WeatherState?>(null) }
     var permissionGeneration by remember { mutableIntStateOf(0) }
-    val controller = remember(context) {
+    val controller = remember(context, detailedOverride) {
         WeatherController(
             context,
             object : WeatherController.Listener {
@@ -922,6 +923,7 @@ internal fun rememberWeatherState(
                     state = newState
                 }
             },
+            detailedOverride,
         )
     }
     val permissionLauncher = rememberLauncherForActivityResult(
@@ -945,14 +947,14 @@ internal fun rememberWeatherState(
             )
         }
     }
-    DisposableEffect(enabled, refreshGeneration, permissionGeneration) {
+    DisposableEffect(controller, enabled, refreshGeneration, permissionGeneration) {
         if (enabled) controller.start(repository.getWeatherIntervalMinutes()) else {
             controller.stop()
             state = null
         }
         onDispose(controller::stop)
     }
-    DisposableEffect(Unit) { onDispose(controller::shutdown) }
+    DisposableEffect(controller) { onDispose(controller::shutdown) }
     return state
 }
 

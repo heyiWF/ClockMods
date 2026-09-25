@@ -23,6 +23,10 @@ import kotlin.math.sin
 
 /** Kotlin renderers for the seven original gallery compositions. */
 internal class ProClassicRenderer : UltimateClockStyles.RendererBase() {
+    override fun adaptiveDateColor(context: ClockRenderContext, x: Float,
+        baseline: Float, maxWidth: Float, textSize: Float, original: Int,
+        align: Paint.Align): Int = original
+
     override fun render(canvas: Canvas, context: ClockRenderContext, state: ClockState, theme: ClockThemeTokens) {
         background(canvas, context, theme)
         val width = context.getWidth()
@@ -137,10 +141,10 @@ internal class ProClassicRenderer : UltimateClockStyles.RendererBase() {
             add(String.format(Locale.US, "%02d", calendar.get(Calendar.MINUTE)))
             if (state.isShowSeconds()) add(String.format(Locale.US, "%02d", calendar.get(Calendar.SECOND)))
         }
-        val top = context.getTop() + height * .20f
-        val bottom = context.getTop() + height * .78f
+        val top = context.getTop() + height * if (lines.size == 3) .29f else .38f
+        val bottom = context.getTop() + height * if (lines.size == 3) .71f else .62f
         val step = if (lines.size == 1) 0f else (bottom - top) / (lines.size - 1)
-        val preferredSize = min(unit * .34f * state.getTimeScale(), height * .20f)
+        val preferredSize = min(unit * .30f * state.getTimeScale(), min(height * .18f, step * .76f))
         val timeSize = fitTime("00", width * .72f, preferredSize, display)
         lines.forEachIndexed { index, value ->
             drawTime(
@@ -158,13 +162,13 @@ internal class ProClassicRenderer : UltimateClockStyles.RendererBase() {
                 theme.getPrimaryTextColor(), Paint.Align.RIGHT, supporting)
         }
         readableDate(
-            canvas, context, state, context.getCenterX(), context.getTop() + height * .10f,
+            canvas, context, state, context.getCenterX(), context.getTop() + height * .12f,
             width * .86f, unit * .042f, theme.getSecondaryTextColor(), Paint.Align.CENTER,
             supporting, true,
         )
         readableText(
             canvas, context, contextText(state), context.getCenterX(),
-            context.getBottom() - height * .06f, width * .86f,
+            context.getBottom() - height * .09f, width * .86f,
             unit * .042f * state.getSupportingScale(), 12f,
             theme.getSecondaryTextColor(), Paint.Align.CENTER, supporting,
         )

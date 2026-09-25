@@ -227,6 +227,37 @@ class UltimateClockRendererSmokeTest {
     }
 
     @Test
+    fun proClassicStackedTimeLeavesRoomForDateAndWeather() {
+        val style = UltimateClockStyles.createRegistry()
+            .find(UltimateClockStyles.STYLE_PRO_CLASSIC)!!
+        val paints = PaintPoolFixture.install()
+        try {
+            val state = ClockState.builder(1787633430123L)
+                .timeZone(TimeZone.getTimeZone("Asia/Shanghai"))
+                .locale(Locale.SIMPLIFIED_CHINESE)
+                .use24Hour(true)
+                .showSeconds(true)
+                .portraitStacked(true)
+                .dateText("2026 年 9 月 25 日 星期五 / 丙午[马]年八月十五")
+                .weatherText("东风 3 级")
+                .build()
+            val canvas = RecordingCanvas(920f, 2048f)
+            val context = ClockRenderContext(0f, 0f, 920f, 2048f, 2f, 2f,
+                state.getTimeMillis(), ClockBackground.theme(false))
+            style.getRenderer().render(canvas, context, state, style.getThemeTokens())
+            val time = canvas.textBounds.filter { it.text.length == 1 && it.text[0].isDigit() }
+            val date = canvas.textBounds.filter { it.text.contains('年') }
+            val weather = canvas.textBounds.single { it.text == "东风 3 级" }
+            assertEquals(6, time.size)
+            assertTrue("date/time gap", time.minOf { it.top } - date.maxOf { it.bottom } > 2048f * .04f)
+            assertTrue("time/weather gap", weather.top - time.maxOf { it.bottom } > 2048f * .04f)
+            canvas.assertTextInside(UltimateClockStyles.STYLE_PRO_CLASSIC)
+        } finally {
+            paints.restore()
+        }
+    }
+
+    @Test
     fun wideStatusCapsuleLeavesRoomForBubbleDateOnItsOwnRow() {
         val width = 920f
         val height = 2048f

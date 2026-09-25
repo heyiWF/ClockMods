@@ -16,6 +16,11 @@ import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.HourglassBottom
 import androidx.compose.material.icons.filled.Settings
 import androidx.compose.material.icons.filled.Timer
+import androidx.compose.material.icons.outlined.AccessTime
+import androidx.compose.material.icons.outlined.Alarm
+import androidx.compose.material.icons.outlined.CalendarMonth
+import androidx.compose.material.icons.outlined.HourglassEmpty
+import androidx.compose.material.icons.outlined.Timer
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteScaffold
 import androidx.compose.material3.adaptive.navigationsuite.NavigationSuiteType
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -66,15 +71,18 @@ import kotlinx.coroutines.delay
 
 private enum class Destination(
     @StringRes val labelRes: Int,
-    val icon: ImageVector? = null,
-    val iconRes: Int? = null,
+    val filledIcon: ImageVector? = null,
+    val outlinedIcon: ImageVector? = null,
+    val filledIconRes: Int? = null,
+    val outlinedIconRes: Int? = null,
 ) {
-    CLOCK(R.string.pro_page_clock, iconRes = R.drawable.ic_nest_clock_farsight_digital),
-    CALENDAR(R.string.pro_page_calendar, Icons.Default.CalendarMonth),
-    POMODORO(R.string.pro_page_pomodoro, Icons.Default.AccessTime),
-    ALARM(R.string.pro_page_alarm, Icons.Default.Alarm),
-    COUNTDOWN(R.string.pro_page_countdown, Icons.Default.HourglassBottom),
-    STOPWATCH(R.string.pro_page_stopwatch, Icons.Default.Timer),
+    CLOCK(R.string.pro_page_clock, filledIconRes = R.drawable.ic_nest_clock_farsight_digital_filled,
+        outlinedIconRes = R.drawable.ic_nest_clock_farsight_digital),
+    CALENDAR(R.string.pro_page_calendar, Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth),
+    POMODORO(R.string.pro_page_pomodoro, Icons.Filled.AccessTime, Icons.Outlined.AccessTime),
+    ALARM(R.string.pro_page_alarm, Icons.Filled.Alarm, Icons.Outlined.Alarm),
+    COUNTDOWN(R.string.pro_page_countdown, Icons.Filled.HourglassBottom, Icons.Outlined.HourglassEmpty),
+    STOPWATCH(R.string.pro_page_stopwatch, Icons.Filled.Timer, Icons.Outlined.Timer),
 }
 
 /** Compose-native application shell shared by every Ultimate destination. */
@@ -142,9 +150,12 @@ fun UltimateApp(
                         onClick = { destination = item },
                         icon = {
                             val description = stringResource(item.labelRes)
-                            val vector = item.icon
+                            val selected = destination == item
+                            val vector = if (selected) item.filledIcon else item.outlinedIcon
                             if (vector != null) Icon(vector, contentDescription = description)
-                            else Icon(painterResource(requireNotNull(item.iconRes)), contentDescription = description)
+                            else Icon(painterResource(requireNotNull(
+                                if (selected) item.filledIconRes else item.outlinedIconRes,
+                            )), contentDescription = description)
                         },
                         label = { Text(stringResource(item.labelRes), maxLines = 1) },
                         alwaysShowLabel = false,

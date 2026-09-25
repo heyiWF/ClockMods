@@ -439,6 +439,8 @@ object UltimateClockStyles {
             state: ClockState, x: Float, lowerBaseline: Float, maxWidth: Float,
             preferredSize: Float, color: Int, align: Paint.Align, face: Typeface?,
             stackLunar: Boolean) {
+            val dateColor = adaptiveDateColor(context, x, lowerBaseline, maxWidth,
+                preferredSize, color, align)
             val inset = minOf(minOf(context.getWidth(), context.getHeight()) * .045f,
                 context.getDensity() * 20f)
             val safeLeft = context.getLeft() + inset
@@ -508,7 +510,7 @@ object UltimateClockStyles {
                     safeBaseline + metrics.descent, size, metricsPaint.measureText(visibleText))
                 safeBaseline = minOf(safeBaseline, context.getBottom() - inset - metrics.descent)
                 text(canvas, visibleText, safeX,
-                    safeBaseline, size, color, align, face)
+                    safeBaseline, size, dateColor, align, face)
                 return
             }
             val size = maxOf(minimumSize, minOf(
@@ -532,9 +534,54 @@ object UltimateClockStyles {
             safeLowerBaseline = minOf(safeLowerBaseline,
                 context.getBottom() - inset - metrics.descent)
             text(canvas, firstText, safeX,
-                safeLowerBaseline - lineGap, size, color, align, face)
+                safeLowerBaseline - lineGap, size, dateColor, align, face)
             text(canvas, secondText, safeX,
-                safeLowerBaseline, size, color, align, face)
+                safeLowerBaseline, size, dateColor, align, face)
+        }
+
+        protected open fun adaptiveDateColor(context: ClockRenderContext, x: Float,
+            baseline: Float, maxWidth: Float, textSize: Float, original: Int,
+            align: Paint.Align): Int {
+            val background = context.getBackground() ?: return original
+            if (background.usesThemeSurface()) return original
+            val image = background.getBitmap()
+            if (!background.hasImage() || image == null) {
+                val surface = if (background.isDimmed())
+                    ClockPalette.mix(background.getColor(), Color.BLACK, .4f)
+                else background.getColor()
+                return ClockPalette.foreground(surface)
+            }
+            // Sample the displayed crop at the date's location, not the image-wide average.
+            val scale = maxOf(context.getWidth() / image.width,
+                context.getHeight() / image.height)
+            val displayedWidth = image.width * scale
+            val displayedHeight = image.height * scale
+            val imageLeft = context.getLeft() + (context.getWidth() - displayedWidth) * .5f
+            val imageTop = context.getTop() + (context.getHeight() - displayedHeight) * .5f
+            val sampleWidth = minOf(maxWidth, context.getWidth() * .82f)
+            val left = when (align) {
+                Paint.Align.LEFT -> x
+                Paint.Align.RIGHT -> x - sampleWidth
+                else -> x - sampleWidth * .5f
+            }
+            val light = 0xFFFEFEFF.toInt()
+            val dark = 0xFF010102.toInt()
+            var lightContrast = Double.MAX_VALUE
+            var darkContrast = Double.MAX_VALUE
+            for (row in 0..2) for (column in 0..4) {
+                val screenX = left + sampleWidth * (column + .5f) / 5f
+                val screenY = baseline - textSize * (row * .85f + .35f)
+                val bitmapX = ((screenX - imageLeft) / scale).toInt()
+                    .coerceIn(0, image.width - 1)
+                val bitmapY = ((screenY - imageTop) / scale).toInt()
+                    .coerceIn(0, image.height - 1)
+                val pixel = image.getPixel(bitmapX, bitmapY)
+                val surface = if (background.isDimmed())
+                    ClockPalette.mix(pixel, Color.BLACK, .4f) else pixel
+                lightContrast = minOf(lightContrast, ClockPalette.contrast(light, surface))
+                darkContrast = minOf(darkContrast, ClockPalette.contrast(dark, surface))
+            }
+            return if (lightContrast >= darkContrast) light else dark
         }
 
         protected fun drawTime(canvas: Canvas, value: String?, x: Float, baseline: Float,
