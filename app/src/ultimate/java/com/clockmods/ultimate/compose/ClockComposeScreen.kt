@@ -24,6 +24,7 @@ import android.telephony.TelephonyManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
 import androidx.compose.foundation.background
@@ -60,6 +61,7 @@ import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.withFrameMillis
 import androidx.compose.ui.Alignment
@@ -77,6 +79,7 @@ import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.input.pointer.pointerInput
+import androidx.compose.ui.input.pointer.util.VelocityTracker
 import androidx.compose.ui.layout.boundsInParent
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.layout.onSizeChanged
@@ -130,6 +133,8 @@ import java.util.Date
 import java.util.Locale
 import java.util.TimeZone
 import kotlin.math.hypot
+import kotlinx.coroutines.Job
+import kotlinx.coroutines.launch
 
 private const val WEATHER_DETAIL_HOLD_MILLIS = 3_000L
 private const val QWEATHER_WEBSITE = "https://www.qweather.com"
@@ -478,7 +483,7 @@ internal fun ClockScreen(
         if (repository.isWeatherEnabled()) {
             WeatherAttribution(
                 faceColor = overlaySurface,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(12.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(6.dp),
             )
         }
     }
@@ -658,6 +663,7 @@ private fun ClockCanvas(
     )
     var canvasSize by remember { mutableStateOf(IntSize.Zero) }
     var worldClockScroll by remember(styleId, worldClocks) { mutableFloatStateOf(0f) }
+    val flingScope = rememberCoroutineScope()
     val scrollMaximum = if (worldClockSupported && worldClocks.isNotEmpty() &&
         canvasSize.width > 0 && canvasSize.height > 0
     ) {
@@ -708,8 +714,12 @@ private fun ClockCanvas(
         .onSizeChanged { canvasSize = it }
         .pointerInput(worldClocks, scrollMaximum, bottomOverlayInset) {
             var draggingStrip = false
+            var flingJob: Job? = null
+            val velocityTracker = VelocityTracker()
             detectHorizontalDragGestures(
                 onDragStart = { position ->
+                    flingJob?.cancel()
+                    velocityTracker.resetTracking()
                     val strip = UltimateClockStyles.worldClockStripBounds(
                         0f, 0f, size.width.toFloat(), size.height.toFloat(),
                         density.density, bottomOverlayInset,
@@ -718,10 +728,25 @@ private fun ClockCanvas(
                         position.y in strip.top..strip.bottom
                 },
                 onDragCancel = { draggingStrip = false },
-                onDragEnd = { draggingStrip = false },
+                onDragEnd = {
+                    if (draggingStrip) {
+                        val velocity = velocityTracker.calculateVelocity().x
+                        if (kotlin.math.abs(velocity) > 80f) {
+                            flingJob = flingScope.launch {
+                                val animation = Animatable(worldClockScroll)
+                                animation.updateBounds(0f, scrollMaximum)
+                                animation.animateDecay(-velocity, exponentialDecay()) {
+                                    worldClockScroll = value
+                                }
+                            }
+                        }
+                    }
+                    draggingStrip = false
+                },
                 onHorizontalDrag = { change, amount ->
                     if (draggingStrip) {
                         change.consume()
+                        velocityTracker.addPosition(change.uptimeMillis, change.position)
                         worldClockScroll = (worldClockScroll - amount).coerceIn(0f, scrollMaximum)
                     }
                 },
@@ -959,15 +984,15 @@ internal fun formatWeatherState(
 @Composable
 internal fun WeatherAttribution(faceColor: Color, modifier: Modifier = Modifier) {
     val context = LocalContext.current
-    val iconSize = with(LocalDensity.current) { 10.sp.toDp() }
+    val iconSize = with(LocalDensity.current) { 8.sp.toDp() }
     val brand = stringResource(R.string.weather_attribution_brand)
     val suffix = stringResource(R.string.weather_attribution_suffix)
     // The caption sits on the live face, so its ink follows whatever the face is painted with
     // instead of the host window scheme, which says nothing about a photo or a theme gradient.
-    val captionColor = Color(ClockPalette.foreground(faceColor.toArgb())).copy(alpha = .72f)
+    val captionColor = Color(ClockPalette.foreground(faceColor.toArgb())).copy(alpha = .62f)
     val captionStyle = TextStyle(
-        fontSize = 10.sp,
-        lineHeight = 12.sp,
+        fontSize = 8.sp,
+        lineHeight = 10.sp,
         platformStyle = PlatformTextStyle(includeFontPadding = false),
     )
     Row(

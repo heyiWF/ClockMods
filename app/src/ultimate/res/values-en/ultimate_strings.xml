@@ -91,7 +91,7 @@
     <string name="ultimate_background_import_failed">Could not read this image</string>
     <string name="ultimate_display_section">Status display</string>
     <string name="ultimate_show_status_icons">Show status icons</string>
-    <string name="ultimate_show_status_icons_summary">Show network and battery status in a corner of the clock.</string>
+    <string name="ultimate_show_status_icons_summary">Show network and battery status in a corner of the clock</string>
     <string name="ultimate_status_icon_size">Status icon size</string>
     <string name="ultimate_status_icon_style">Status icon style</string>
     <string name="ultimate_status_icon_preview">Preview</string>
@@ -109,21 +109,21 @@
     <string name="ultimate_status_icon_reset">Restore default icon style</string>
     <string name="ultimate_dimming_section">Nighttime dimming</string>
     <string name="ultimate_dim_background">Dim background</string>
-    <string name="ultimate_dim_background_summary">Reduce background brightness while keeping the clock clear.</string>
+    <string name="ultimate_dim_background_summary">Reduce background brightness while keeping the clock clear</string>
     <string name="ultimate_schedule_dim_background">Dim background on a schedule</string>
-    <string name="ultimate_schedule_dim_background_summary">Apply background dimming only during the selected period.</string>
+    <string name="ultimate_schedule_dim_background_summary">Apply background dimming only during the selected period</string>
     <string name="ultimate_dim_start">Start time</string>
     <string name="ultimate_dim_end">End time</string>
 
     <string name="ultimate_time_date_title">Time &amp; date</string>
     <string name="ultimate_time_section">Time display</string>
     <string name="ultimate_use_24_hour">Use 24-hour time</string>
-    <string name="ultimate_use_24_hour_summary">When off, use 12-hour time.</string>
+    <string name="ultimate_use_24_hour_summary">When off, use 12-hour time</string>
     <string name="ultimate_show_seconds">Show seconds</string>
-    <string name="ultimate_show_seconds_summary">Show seconds in themes that support digits or a second hand.</string>
+    <string name="ultimate_show_seconds_summary">Show seconds in themes that support digits or a second hand</string>
     <string name="ultimate_time_sync_section">Synchronization &amp; time zone</string>
     <string name="ultimate_network_time">Use network time synchronization</string>
-    <string name="ultimate_network_time_summary">Calibrate the in-app clock at the selected interval.</string>
+    <string name="ultimate_network_time_summary">Calibrate the in-app clock at the selected interval</string>
     <string name="ultimate_sync_interval">Synchronization interval</string>
     <string name="ultimate_sync_30_minutes">30 minutes</string>
     <string name="ultimate_sync_1_hour">1 hour</string>
@@ -132,7 +132,7 @@
     <string name="ultimate_time_zone">Time zone</string>
     <string name="ultimate_date_section">Date</string>
     <string name="ultimate_show_lunar">Show lunar calendar</string>
-    <string name="ultimate_show_lunar_summary">Show lunar and solar-term details in supported themes.</string>
+    <string name="ultimate_show_lunar_summary">Show lunar and solar-term details in supported themes</string>
     <string name="ultimate_date_format">Date format</string>
     <string name="ultimate_date_format_help">Use fields such as yyyy, MM, dd, and EEEE, with any separators or literal text.</string>
     <string name="ultimate_date_format_invalid">Enter a valid format containing at least one date field.</string>
@@ -141,9 +141,9 @@
     <string name="ultimate_weather_section">Weather information</string>
     <string name="ultimate_weather_appearance_section">Weather appearance</string>
     <string name="ultimate_weather_enabled">Show weather</string>
-    <string name="ultimate_weather_enabled_summary">Show current weather in supported themes.</string>
+    <string name="ultimate_weather_enabled_summary">Show current weather in supported themes</string>
     <string name="ultimate_weather_detailed">Show detailed weather</string>
-    <string name="ultimate_weather_detailed_summary">Show feels-like temperature, wind, and a richer summary.</string>
+    <string name="ultimate_weather_detailed_summary">Show feels-like temperature, wind, and a richer summary</string>
     <string name="ultimate_custom_message_section">Weather-line message</string>
     <string name="ultimate_custom_message">Custom message</string>
     <string name="ultimate_custom_message_empty">Not set</string>
@@ -166,9 +166,9 @@
     <string name="ultimate_weather_12_hours">12 hours</string>
     <string name="ultimate_weather_icon_section">Icons</string>
     <string name="ultimate_weather_icon_fill">Use filled weather icons</string>
-    <string name="ultimate_weather_icon_fill_summary">Use outline icons when off.</string>
+    <string name="ultimate_weather_icon_fill_summary">Use outline icons when off</string>
     <string name="ultimate_weather_dynamic_color">Use theme color for weather icons</string>
-    <string name="ultimate_weather_dynamic_color_summary">Follow the current Material accent color.</string>
+    <string name="ultimate_weather_dynamic_color_summary">Follow the current Material accent color</string>
 
     <string name="ultimate_calendar_title">Calendar</string>
     <string name="calendar_settings_accessibility">Calendar settings</string>
@@ -176,7 +176,7 @@
     <string name="ultimate_calendar_sunday">Sunday first</string>
     <string name="ultimate_calendar_monday">Monday first</string>
     <string name="ultimate_calendar_highlight_weekends">Highlight weekends</string>
-    <string name="ultimate_calendar_highlight_weekends_summary">Distinguish Saturdays and Sundays in the month calendar.</string>
+    <string name="ultimate_calendar_highlight_weekends_summary">Distinguish Saturdays and Sundays in the month calendar</string>
 
     <string name="ultimate_calendar_theme_graphite_name">Graphite</string>
     <string name="ultimate_calendar_theme_graphite_summary">Default dark dashboard, keeps clock and weather</string>
@@ -214,9 +214,9 @@
     <string name="ultimate_chime_title">Time cues</string>
     <string name="ultimate_chime_cues_section">Time cues</string>
     <string name="ultimate_hourly_chime">Hourly visual cue</string>
-    <string name="ultimate_hourly_chime_summary">Show a cue at the start of every hour.</string>
+    <string name="ultimate_hourly_chime_summary">Show a cue at the start of every hour</string>
     <string name="ultimate_half_hour_chime">Half-hour visual cue</string>
-    <string name="ultimate_half_hour_chime_summary">Show a cue at every half hour.</string>
+    <string name="ultimate_half_hour_chime_summary">Show a cue at every half hour</string>
     <string name="ultimate_chime_animation">Time cue animation</string>
     <string name="ultimate_chime_radial">Classic burst</string>
     <string name="ultimate_chime_ripple">Golden ripples</string>
@@ -226,7 +226,7 @@
     <string name="ultimate_chime_comet">Comet trail</string>
     <string name="ultimate_chime_quiet_section">Quiet hours</string>
     <string name="ultimate_chime_quiet_hours">Enable quiet hours</string>
-    <string name="ultimate_chime_quiet_hours_summary">Pause hourly and half-hour cues during the selected period.</string>
+    <string name="ultimate_chime_quiet_hours_summary">Pause hourly and half-hour cues during the selected period</string>
     <string name="ultimate_chime_quiet_start">Quiet hours start</string>
     <string name="ultimate_chime_quiet_end">Quiet hours end</string>
 
@@ -240,7 +240,7 @@
     <string name="ultimate_language_traditional">Traditional Chinese</string>
     <string name="ultimate_language_english">English</string>
     <string name="ultimate_auto_start">Launch at startup</string>
-    <string name="ultimate_auto_start_summary">Automatically show ClockMods after the device starts.</string>
+    <string name="ultimate_auto_start_summary">Automatically show ClockMods after the device starts</string>
 
     <string name="ultimate_apply">Apply</string>
     <string name="ultimate_save">Save</string>

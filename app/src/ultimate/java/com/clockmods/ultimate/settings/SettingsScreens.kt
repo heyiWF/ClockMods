@@ -2,6 +2,13 @@ package com.clockmods.ultimate.settings
 
 import androidx.activity.compose.BackHandler
 import androidx.annotation.StringRes
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.fadeIn
+import androidx.compose.animation.fadeOut
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.core.tween
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -187,21 +194,40 @@ internal fun SettingsScreen(
                         modifier = Modifier.weight(1f),
                     )
                 }
-            } else if (page == null) {
-                SettingsHome(
-                    selected = null,
-                    onSelect = { page = it },
-                    onRestore = { confirmRestore = true },
-                    onDone = onDone,
-                    modifier = Modifier.fillMaxSize(),
-                )
             } else {
-                SettingsPageContent(
-                    page = page!!,
-                    generation = generation,
-                    onLanguageChanged = onLanguageChanged,
+                AnimatedContent(
+                    targetState = page,
                     modifier = Modifier.fillMaxSize(),
-                )
+                    transitionSpec = {
+                        if (targetState != null) {
+                            (slideInHorizontally(tween(260)) { it } + fadeIn(tween(260)))
+                                .togetherWith(slideOutHorizontally(tween(260)) { -it / 4 } +
+                                    fadeOut(tween(180)))
+                        } else {
+                            (slideInHorizontally(tween(260)) { -it / 4 } + fadeIn(tween(260)))
+                                .togetherWith(slideOutHorizontally(tween(260)) { it } +
+                                    fadeOut(tween(180)))
+                        }
+                    },
+                    label = "settingsNavigation",
+                ) { targetPage ->
+                    if (targetPage == null) {
+                        SettingsHome(
+                            selected = null,
+                            onSelect = { page = it },
+                            onRestore = { confirmRestore = true },
+                            onDone = onDone,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    } else {
+                        SettingsPageContent(
+                            page = targetPage,
+                            generation = generation,
+                            onLanguageChanged = onLanguageChanged,
+                            modifier = Modifier.fillMaxSize(),
+                        )
+                    }
+                }
             }
         }
     }

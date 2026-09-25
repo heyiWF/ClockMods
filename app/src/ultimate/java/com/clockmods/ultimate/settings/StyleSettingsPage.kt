@@ -661,7 +661,10 @@ private fun WorldClockDialog(
     val language = remember(context) {
         WorldClockCatalog.languageOf(LocaleManager.resolveLocale(context))
     }
-    val results = remember(query) { WorldClockCatalog.search(query).take(100) }
+    val results = remember(query, selected) {
+        val selectedIds = selected.mapTo(HashSet()) { it.getId() }
+        WorldClockCatalog.search(query).filterNot { it.getId() in selectedIds }
+    }
     AlertDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.ultimate_world_clock_title)) },
@@ -680,7 +683,9 @@ private fun WorldClockDialog(
                     color = MaterialTheme.colorScheme.primary,
                 )
                 LazyColumn(Modifier.fillMaxSize()) {
-                    items(results, key = { it.getId() }) { entry ->
+                    item { Text(stringResource(R.string.ultimate_world_clock_selected, selected.size),
+                        style = MaterialTheme.typography.titleSmall) }
+                    items(selected, key = { "selected:${it.getId()}" }) { entry ->
                         val index = selected.indexOf(entry)
                         Row(
                             Modifier.fillMaxWidth().padding(vertical = 4.dp),
@@ -696,36 +701,57 @@ private fun WorldClockDialog(
                                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                                 )
                             }
-                            if (index >= 0) {
-                                IconButton(
-                                    onClick = {
-                                        if (index > 0) selected = selected.toMutableList().also {
+                            IconButton(
+                                onClick = {
+                                    if (index > 0) selected = selected.toMutableList().also {
+                                        val value = it.removeAt(index)
+                                        it.add(index - 1, value)
+                                    }
+                                },
+                                enabled = index > 0,
+                            ) { Icon(Icons.Default.ArrowUpward, contentDescription =
+                                stringResource(R.string.ultimate_world_clock_move_up)) }
+                            IconButton(
+                                onClick = {
+                                    if (index < selected.lastIndex) {
+                                        selected = selected.toMutableList().also {
                                             val value = it.removeAt(index)
-                                            it.add(index - 1, value)
+                                            it.add(index + 1, value)
                                         }
-                                    },
-                                    enabled = index > 0,
-                                ) { Icon(Icons.Default.ArrowUpward, contentDescription = null) }
-                                IconButton(
-                                    onClick = {
-                                        if (index < selected.lastIndex) {
-                                            selected = selected.toMutableList().also {
-                                                val value = it.removeAt(index)
-                                                it.add(index + 1, value)
-                                            }
-                                        }
-                                    },
-                                    enabled = index < selected.lastIndex,
-                                ) { Icon(Icons.Default.ArrowDownward, contentDescription = null) }
-                                IconButton(onClick = { selected = selected - entry }) {
-                                    Icon(Icons.Default.Remove, contentDescription = null)
-                                }
-                            } else {
-                                IconButton(
-                                    onClick = { selected = selected + entry },
-                                    enabled = selected.size < WorldClockRepository.MAX_SELECTED,
-                                ) { Icon(Icons.Default.Add, contentDescription = null) }
+                                    }
+                                },
+                                enabled = index < selected.lastIndex,
+                            ) { Icon(Icons.Default.ArrowDownward, contentDescription =
+                                stringResource(R.string.ultimate_world_clock_move_down)) }
+                            IconButton(onClick = { selected = selected - entry }) {
+                                Icon(Icons.Default.Remove, contentDescription =
+                                    stringResource(R.string.ultimate_world_clock_remove))
                             }
+                        }
+                    }
+                    item { Text(stringResource(R.string.ultimate_world_clock_results),
+                        style = MaterialTheme.typography.titleSmall,
+                        modifier = Modifier.padding(top = 12.dp)) }
+                    items(results, key = { "available:${it.getId()}" }) { entry ->
+                        Row(
+                            Modifier.fillMaxWidth().padding(vertical = 4.dp),
+                            verticalAlignment = Alignment.CenterVertically,
+                        ) {
+                            Text(entry.getFlagEmoji(), Modifier.padding(end = 8.dp))
+                            Column(Modifier.weight(1f)) {
+                                Text(WorldClockCatalog.displayCity(entry, language))
+                                Text(
+                                    WorldClockCatalog.displayCountry(entry, language) +
+                                        " · " + entry.getZoneId(),
+                                    style = MaterialTheme.typography.bodySmall,
+                                    color = MaterialTheme.colorScheme.onSurfaceVariant,
+                                )
+                            }
+                            IconButton(
+                                onClick = { selected = selected + entry },
+                                enabled = selected.size < WorldClockRepository.MAX_SELECTED,
+                            ) { Icon(Icons.Default.Add, contentDescription =
+                                stringResource(R.string.ultimate_world_clock_add)) }
                         }
                     }
                 }

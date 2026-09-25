@@ -106,7 +106,7 @@ internal fun UltimateCalendarLayout(
                     preferences.isCalendarHighlightWeekends(), onSelect, Modifier.fillMaxSize()) })
         }
         val showAttribution = theme.showWeather && preferences.isWeatherEnabled()
-        Box(Modifier.fillMaxSize().padding(bottom = if (showAttribution) 20.dp else 0.dp)) {
+        Box(Modifier.fillMaxSize().padding(bottom = if (showAttribution) 14.dp else 0.dp)) {
             when (theme.layout) {
                 CalendarLayout.DASHBOARD, CalendarLayout.WALL -> {
                     val panel: @Composable (Modifier) -> Unit = { panelModifier ->
@@ -138,7 +138,7 @@ internal fun UltimateCalendarLayout(
             }
         }
         if (showAttribution) {
-            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(20.dp),
+            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(14.dp),
                 contentAlignment = Alignment.Center) {
                 WeatherAttribution(Color(theme.backgroundEnd))
             }
