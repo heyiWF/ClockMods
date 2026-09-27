@@ -310,11 +310,13 @@ internal fun renderClockPreview(
 internal fun ClockScreen(
     modifier: Modifier,
     refreshGeneration: Int,
+    immersive: Boolean,
     onOpenSettings: () -> Unit,
     onToggleChrome: () -> Unit,
 ) {
     val context = LocalContext.current
     val repository = remember(context) { BackgroundRepository(context) }
+    val safeArea = displaySafeArea(repository.isAvoidDisplayCutout(), immersive)
     val statusIconStyle = remember(context, refreshGeneration) { StatusIconStyle.read(context) }
     val appearance = remember(context, refreshGeneration) { UltimateClockPreferences(context) }
     val networkTime = remember { NetworkTimeProvider() }
@@ -441,14 +443,15 @@ internal fun ClockScreen(
             refreshGeneration = refreshGeneration,
             bottomOverlayInset = bottomOverlayInset,
             statusOverlay = statusOverlay,
+            safeArea = safeArea,
             onOverlaySurface = { overlaySurface = it },
         )
         if (showStatusIcons) {
             // The pill is positioned from the same geometry the renderers use for their own
             // top-right metadata, so every theme keeps the two aligned instead of guessing.
-            val faceWidth = faceSize.width.toFloat()
-            val faceHeight = faceSize.height.toFloat()
-            val placement = remember(styleId, faceWidth, faceHeight, statusPillSize, density.density) {
+            val faceWidth = (safeArea.contentRight(faceSize.width) - safeArea.contentLeft(faceSize.width)).toFloat()
+            val faceHeight = (safeArea.contentBottom(faceSize.height) - safeArea.contentTop(faceSize.height)).toFloat()
+            val placement = remember(styleId, faceWidth, faceHeight, statusPillSize, density.density, safeArea) {
                 if (faceWidth <= 0f || faceHeight <= 0f ||
                     statusPillSize.width <= 0 || statusPillSize.height <= 0
                 ) {
@@ -485,7 +488,8 @@ internal fun ClockScreen(
                             Modifier
                         } else {
                             Modifier.offset {
-                                IntOffset(placement[0].toInt(), placement[1].toInt())
+                                IntOffset(safeArea.left + placement[0].toInt(),
+                                    safeArea.top + placement[1].toInt())
                             }
                         },
                     )
@@ -501,7 +505,9 @@ internal fun ClockScreen(
         if (repository.isWeatherEnabled()) {
             WeatherAttribution(
                 faceColor = overlaySurface,
-                modifier = Modifier.align(Alignment.BottomCenter).padding(6.dp),
+                modifier = Modifier.align(Alignment.BottomCenter).padding(
+                    bottom = with(density) { safeArea.bottom.toDp() } + 6.dp,
+                ),
             )
         }
     }
@@ -601,6 +607,7 @@ private fun ClockCanvas(
     refreshGeneration: Int,
     bottomOverlayInset: Float,
     statusOverlay: ClockOverlayBounds?,
+    safeArea: DisplaySafeArea,
     onOverlaySurface: (Color) -> Unit,
 ) {
     val registry = remember { UltimateClockStyles.sharedRegistry() }
@@ -685,12 +692,17 @@ private fun ClockCanvas(
     val scrollMaximum = if (worldClockSupported && worldClocks.isNotEmpty() &&
         canvasSize.width > 0 && canvasSize.height > 0
     ) {
-        val width = canvasSize.width.toFloat()
-        val height = canvasSize.height.toFloat()
+        val width = (safeArea.contentRight(canvasSize.width) -
+            safeArea.contentLeft(canvasSize.width)).toFloat()
+        val height = (safeArea.contentBottom(canvasSize.height) -
+            safeArea.contentTop(canvasSize.height)).toFloat()
         val strip = UltimateClockStyles.worldClockStripBounds(
-            0f, 0f, width, height, density.density, bottomOverlayInset,
+            safeArea.left.toFloat(), safeArea.top.toFloat(),
+            safeArea.left + width, safeArea.top + height,
+            density.density, bottomOverlayInset,
         )
-        val faceHeight = strip.top - minOf(density.density * 8f, height * .025f)
+        val faceHeight = strip.top - safeArea.top -
+            minOf(density.density * 8f, height * .025f)
         val inset = UltimateClockStyles.worldClockContentInset(
             styleId, width, faceHeight, density.density,
         )
@@ -730,7 +742,7 @@ private fun ClockCanvas(
     val transitionType = repository.getTimeTransition()
     val canvasModifier = modifier
         .onSizeChanged { canvasSize = it }
-        .pointerInput(worldClocks, scrollMaximum, bottomOverlayInset) {
+        .pointerInput(worldClocks, scrollMaximum, bottomOverlayInset, safeArea) {
             var draggingStrip = false
             var flingJob: Job? = null
             val velocityTracker = VelocityTracker()
@@ -739,7 +751,9 @@ private fun ClockCanvas(
                     flingJob?.cancel()
                     velocityTracker.resetTracking()
                     val strip = UltimateClockStyles.worldClockStripBounds(
-                        0f, 0f, size.width.toFloat(), size.height.toFloat(),
+                        safeArea.left.toFloat(), safeArea.top.toFloat(),
+                        safeArea.contentRight(size.width).toFloat(),
+                        safeArea.contentBottom(size.height).toFloat(),
                         density.density, bottomOverlayInset,
                     )
                     draggingStrip = worldClockSupported && scrollMaximum > 0f &&
@@ -804,10 +818,10 @@ private fun ClockCanvas(
             .weatherTransitionProgress(weatherProgress.value)
             .build()
         val renderContext = ClockRenderContext(
-            0f,
-            0f,
-            size.width,
-            size.height,
+            safeArea.contentLeft(size.width.toInt()).toFloat(),
+            safeArea.contentTop(size.height.toInt()).toFloat(),
+            safeArea.contentRight(size.width.toInt()).toFloat(),
+            safeArea.contentBottom(size.height.toInt()).toFloat(),
             density.density,
             density.fontScale * density.density,
             now,
@@ -816,6 +830,7 @@ private fun ClockCanvas(
             worldClockScroll,
             false,
             statusOverlay,
+            ClockOverlayBounds(0f, 0f, size.width, size.height),
         )
         drawIntoCanvas { composeCanvas ->
             val canvas = composeCanvas.nativeCanvas

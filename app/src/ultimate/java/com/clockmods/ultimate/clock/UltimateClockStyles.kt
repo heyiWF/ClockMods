@@ -315,10 +315,10 @@ object UltimateClockStyles {
             theme: ClockThemeTokens, respectDimming: Boolean) {
             val hostBackground = context.getBackground()
             if (hostBackground != null && !hostBackground.usesThemeSurface()) {
-                val left = context.getLeft()
-                val top = context.getTop()
-                val right = context.getRight()
-                val bottom = context.getBottom()
+                val left = context.getBackgroundLeft()
+                val top = context.getBackgroundTop()
+                val right = context.getBackgroundRight()
+                val bottom = context.getBackgroundBottom()
                 if (hostBackground.hasImage()) {
                     val bitmap: Bitmap = hostBackground.getBitmap()!!
                     val width = maxOf(1f, right - left)
@@ -341,18 +341,32 @@ object UltimateClockStyles {
                 if (hostBackground.isDimmed() && respectDimming) {
                     canvas.drawRect(left, top, right, bottom, fill(0x66000000))
                 }
+                clipForegroundToContent(canvas, context)
                 return
             }
             val paint = fill(Color.WHITE)
             paint.shader = LinearGradient(
-                context.getLeft(), context.getTop(), context.getRight(), context.getBottom(),
+                context.getBackgroundLeft(), context.getBackgroundTop(),
+                context.getBackgroundRight(), context.getBackgroundBottom(),
                 theme.getBackgroundStartColor(), theme.getBackgroundEndColor(), Shader.TileMode.CLAMP,
             )
-            canvas.drawRect(context.getLeft(), context.getTop(), context.getRight(),
-                context.getBottom(), paint)
+            canvas.drawRect(context.getBackgroundLeft(), context.getBackgroundTop(),
+                context.getBackgroundRight(), context.getBackgroundBottom(), paint)
             if (hostBackground?.isDimmed() == true) {
-                canvas.drawRect(context.getLeft(), context.getTop(), context.getRight(),
-                    context.getBottom(), fill(0x66000000))
+                canvas.drawRect(context.getBackgroundLeft(), context.getBackgroundTop(),
+                    context.getBackgroundRight(), context.getBackgroundBottom(), fill(0x66000000))
+            }
+            clipForegroundToContent(canvas, context)
+        }
+
+        private fun clipForegroundToContent(canvas: Canvas, context: ClockRenderContext) {
+            if (context.getBackgroundLeft() != context.getLeft() ||
+                context.getBackgroundTop() != context.getTop() ||
+                context.getBackgroundRight() != context.getRight() ||
+                context.getBackgroundBottom() != context.getBottom()
+            ) {
+                canvas.clipRect(context.getLeft(), context.getTop(),
+                    context.getRight(), context.getBottom())
             }
         }
 
@@ -552,12 +566,14 @@ object UltimateClockStyles {
                 return ClockPalette.foreground(surface)
             }
             // Sample the displayed crop at the date's location, not the image-wide average.
-            val scale = maxOf(context.getWidth() / image.width,
-                context.getHeight() / image.height)
+            val scale = maxOf(context.getBackgroundWidth() / image.width,
+                context.getBackgroundHeight() / image.height)
             val displayedWidth = image.width * scale
             val displayedHeight = image.height * scale
-            val imageLeft = context.getLeft() + (context.getWidth() - displayedWidth) * .5f
-            val imageTop = context.getTop() + (context.getHeight() - displayedHeight) * .5f
+            val imageLeft = context.getBackgroundLeft() +
+                (context.getBackgroundWidth() - displayedWidth) * .5f
+            val imageTop = context.getBackgroundTop() +
+                (context.getBackgroundHeight() - displayedHeight) * .5f
             val sampleWidth = minOf(maxWidth, context.getWidth() * .82f)
             val left = when (align) {
                 Paint.Align.LEFT -> x

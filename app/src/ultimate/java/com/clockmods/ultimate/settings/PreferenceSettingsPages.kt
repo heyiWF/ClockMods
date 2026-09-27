@@ -338,6 +338,7 @@ internal fun BackgroundSettingsPage(modifier: Modifier, generation: Int) {
     var hasImage by remember(generation) { mutableStateOf(repository.hasImage()) }
     var color by remember(generation) { mutableIntStateOf(repository.getCurrentColor()) }
     var showStatus by remember(generation) { mutableStateOf(repository.isShowStatusIcons()) }
+    var avoidDisplayCutout by remember(generation) { mutableStateOf(repository.isAvoidDisplayCutout()) }
     var statusScale by remember(generation) { mutableFloatStateOf(repository.getStatusIconScale()) }
     var statusStyle by remember(generation) { mutableStateOf(StatusIconStyle.read(context)) }
     val updateStatusStyle: (StatusIconStyle) -> Unit = { updated ->
@@ -441,6 +442,14 @@ internal fun BackgroundSettingsPage(modifier: Modifier, generation: Int) {
         }
 
         SettingSection(stringResource(R.string.ultimate_display_section)) {
+            SettingSwitch(
+                stringResource(R.string.ultimate_avoid_display_cutout),
+                avoidDisplayCutout,
+                stringResource(R.string.ultimate_avoid_display_cutout_summary),
+            ) {
+                avoidDisplayCutout = it
+                repository.setAvoidDisplayCutout(it)
+            }
             SettingSwitch(
                 stringResource(R.string.ultimate_show_status_icons),
                 showStatus,

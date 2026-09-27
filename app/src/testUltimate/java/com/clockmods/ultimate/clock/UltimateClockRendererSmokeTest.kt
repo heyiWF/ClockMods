@@ -227,6 +227,35 @@ class UltimateClockRendererSmokeTest {
     }
 
     @Test
+    fun builtInTextRespectsInsetContentBounds() {
+        val state = ClockState.builder(1787633430123L)
+            .locale(Locale.SIMPLIFIED_CHINESE)
+            .dateText("2026 年 9 月 25 日 星期五")
+            .weatherText("深圳 28°C")
+            .showSeconds(true)
+            .build()
+        val paints = PaintPoolFixture.install()
+        try {
+            for (style in UltimateClockStyles.createRegistry().getStyles()) {
+                val canvas = RecordingCanvas(920f, 2048f)
+                val context = ClockRenderContext(
+                    24f, 96f, 896f, 1980f, 2f, 2f, state.getTimeMillis(),
+                    ClockBackground.theme(false), 56f, 0f, false, null,
+                    ClockOverlayBounds(0f, 0f, 920f, 2048f),
+                )
+                style.getRenderer().render(canvas, context, state, style.getThemeTokens())
+                assertFalse(style.getMetadata().getId(), canvas.textBounds.isEmpty())
+                for (text in canvas.textBounds.filter { it.text.contains("2026") }) {
+                    assertTrue("${style.getMetadata().getId()} '${text.text}' entered the top cutout: ${text.top}",
+                        text.top >= 95f)
+                }
+            }
+        } finally {
+            paints.restore()
+        }
+    }
+
+    @Test
     fun proClassicStackedTimeLeavesRoomForDateAndWeather() {
         val style = UltimateClockStyles.createRegistry()
             .find(UltimateClockStyles.STYLE_PRO_CLASSIC)!!

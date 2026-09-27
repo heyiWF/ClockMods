@@ -54,11 +54,14 @@ class GaussianGlass private constructor(
                 0f, 0f, 0f, 1f, 0f,
             ))
         }
-        val scale = maxOf(context.getWidth() / sourceWidth, context.getHeight() / sourceHeight)
+        val scale = maxOf(context.getBackgroundWidth() / sourceWidth,
+            context.getBackgroundHeight() / sourceHeight)
         scaleX = sourceWidth * scale / bitmap.width
         scaleY = sourceHeight * scale / bitmap.height
-        imageLeft = context.getCenterX() - sourceWidth * scale * .5f
-        imageTop = context.getCenterY() - sourceHeight * scale * .5f
+        imageLeft = (context.getBackgroundLeft() + context.getBackgroundRight()) * .5f -
+            sourceWidth * scale * .5f
+        imageTop = (context.getBackgroundTop() + context.getBackgroundBottom()) * .5f -
+            sourceHeight * scale * .5f
         imageToBackground.setScale(scaleX, scaleY)
         imageToBackground.postTranslate(imageLeft, imageTop)
         edge.style = Paint.Style.STROKE

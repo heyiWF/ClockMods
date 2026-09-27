@@ -45,6 +45,8 @@ open class BackgroundRepository(context: Context) {
     fun setDateColor(value: Int) = preferences.setDateColor(value)
     fun isShowStatusIcons() = preferences.isShowStatusIcons()
     fun setShowStatusIcons(value: Boolean) = preferences.setShowStatusIcons(value)
+    fun isAvoidDisplayCutout() = preferences.isAvoidDisplayCutout()
+    fun setAvoidDisplayCutout(value: Boolean) = preferences.setAvoidDisplayCutout(value)
     fun getStatusIconScale() = preferences.getStatusIconScale()
     fun setStatusIconScale(value: Float) = preferences.setStatusIconScale(value)
     fun isBlinkColon() = preferences.isBlinkColon()

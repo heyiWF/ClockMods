@@ -188,6 +188,7 @@ fun UltimateApp(
                     when (destination) {
                         Destination.CLOCK -> ClockScreen(
                             modifier = Modifier.padding(if (immersive) PaddingValues(0.dp) else padding),
+                            immersive = immersive,
                             refreshGeneration = refreshGeneration,
                             onOpenSettings = onOpenSettings,
                             onToggleChrome = { chromeVisible = !chromeVisible },
@@ -196,6 +197,7 @@ fun UltimateApp(
                             CalendarScreen(
                                 Modifier.padding(if (immersive) PaddingValues(0.dp) else padding),
                                 refreshGeneration,
+                                immersive = immersive,
                                 onToggleChrome = { chromeVisible = !chromeVisible },
                             )
                         Destination.POMODORO ->

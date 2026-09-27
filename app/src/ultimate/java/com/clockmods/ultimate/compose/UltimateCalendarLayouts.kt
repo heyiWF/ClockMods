@@ -67,11 +67,18 @@ internal fun UltimateCalendarLayout(
     adjacentCells: (Int) -> List<CalendarCellInfo>,
     weekdays: List<String>, monthTitle: String, timeZone: TimeZone, clockTick: () -> Long,
     weatherState: WeatherModels.WeatherState?, refreshGeneration: Int,
+    immersive: Boolean = false,
     scheduleItems: List<ScheduleItem>, onPrevious: () -> Unit, onNext: () -> Unit,
     onToday: () -> Unit, onSelect: (CalendarCellInfo) -> Unit, onMonthPicker: () -> Unit,
     onAddSchedule: () -> Unit, onEditSchedule: (ScheduleItem) -> Unit,
 ) {
     val context = LocalContext.current
+    val safeArea = displaySafeArea(preferences.isAvoidDisplayCutout(), immersive)
+    val density = LocalDensity.current
+    val safeLeft = with(density) { safeArea.left.toDp() }
+    val safeTop = with(density) { safeArea.top.toDp() }
+    val safeRight = with(density) { safeArea.right.toDp() }
+    val safeBottom = with(density) { safeArea.bottom.toDp() }
     var forecast by remember { mutableStateOf<WeatherModels.DailyForecastData?>(null) }
     val forecastController = remember(context) { DailyForecastController(context) { state ->
         if (state.data != null) forecast = state.data
@@ -106,7 +113,8 @@ internal fun UltimateCalendarLayout(
                     preferences.isCalendarHighlightWeekends(), onSelect, Modifier.fillMaxSize()) })
         }
         val showAttribution = theme.showWeather && preferences.isWeatherEnabled()
-        Box(Modifier.fillMaxSize().padding(bottom = if (showAttribution) 14.dp else 0.dp)) {
+        Box(Modifier.fillMaxSize().padding(start = safeLeft, top = safeTop,
+            end = safeRight, bottom = safeBottom + if (showAttribution) 14.dp else 0.dp)) {
             when (theme.layout) {
                 CalendarLayout.DASHBOARD, CalendarLayout.WALL -> {
                     val panel: @Composable (Modifier) -> Unit = { panelModifier ->
@@ -138,7 +146,8 @@ internal fun UltimateCalendarLayout(
             }
         }
         if (showAttribution) {
-            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth().height(14.dp),
+            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                .padding(start = safeLeft, end = safeRight, bottom = safeBottom).height(14.dp),
                 contentAlignment = Alignment.Center) {
                 WeatherAttribution(Color(theme.backgroundEnd))
             }

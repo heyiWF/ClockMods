@@ -125,6 +125,7 @@ private fun dayKey(year: Int, month: Int, day: Int): String = "$year-$month-$day
 internal fun CalendarScreen(
     modifier: Modifier,
     refreshGeneration: Int,
+    immersive: Boolean = false,
     onToggleChrome: () -> Unit = {},
 ) {
     val context = LocalContext.current
@@ -349,6 +350,7 @@ internal fun CalendarScreen(
         weekdays = weekdays, monthTitle = monthTitle, timeZone = timeZone,
         clockTick = { clockTick }, weatherState = weatherState,
         refreshGeneration = refreshGeneration, scheduleItems = selectedSchedule,
+        immersive = immersive,
         onPrevious = { movePage(-1) }, onNext = { movePage(1) },
         onToday = ::goToday, onSelect = ::selectDay,
         onMonthPicker = { monthPickerVisible = true },

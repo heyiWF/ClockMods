@@ -91,6 +91,8 @@
     <string name="ultimate_background_import_failed">無法讀取這張圖片</string>
     <string name="ultimate_display_section">狀態顯示</string>
     <string name="ultimate_show_status_icons">顯示狀態圖示</string>
+    <string name="ultimate_avoid_display_cutout">避開螢幕挖孔與瀏海</string>
+    <string name="ultimate_avoid_display_cutout_summary">自動調整時鐘與月曆內容，避開頂部狀態列和螢幕不規則區域</string>
     <string name="ultimate_show_status_icons_summary">在時鐘角落顯示網路與電池狀態</string>
     <string name="ultimate_status_icon_size">狀態圖示大小</string>
     <string name="ultimate_status_icon_style">狀態圖示樣式</string>

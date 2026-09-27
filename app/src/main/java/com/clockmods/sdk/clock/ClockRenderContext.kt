@@ -14,6 +14,7 @@ class ClockRenderContext(
     worldClockScroll: Float,
     private val worldClockStripHosted: Boolean,
     private val statusOverlay: ClockOverlayBounds?,
+    private val backgroundBounds: ClockOverlayBounds? = null,
 ) {
     private val density = maxOf(0.01f, density)
     private val scaledDensity = maxOf(0.01f, scaledDensity)
@@ -116,4 +117,10 @@ class ClockRenderContext(
     fun getWorldClockScroll() = worldClockScroll
     fun isWorldClockStripHosted() = worldClockStripHosted
     fun getStatusOverlay() = statusOverlay
+    fun getBackgroundLeft() = backgroundBounds?.getLeft() ?: left
+    fun getBackgroundTop() = backgroundBounds?.getTop() ?: top
+    fun getBackgroundRight() = backgroundBounds?.getRight() ?: right
+    fun getBackgroundBottom() = backgroundBounds?.getBottom() ?: bottom
+    fun getBackgroundWidth() = getBackgroundRight() - getBackgroundLeft()
+    fun getBackgroundHeight() = getBackgroundBottom() - getBackgroundTop()
 }
