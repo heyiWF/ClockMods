@@ -27,7 +27,7 @@ public final class TimerReceiver extends BroadcastReceiver {
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         boolean pomodoro = "pomodoro".equals(mode);
         manager.notify(pomodoro ? 201 : 202, new NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_notification_clock)
                 .setContentTitle(localized.getString(pomodoro
                         ? R.string.pomodoro_complete : R.string.countdown_complete))
                 .setContentText(localized.getString(R.string.timer_complete_open))

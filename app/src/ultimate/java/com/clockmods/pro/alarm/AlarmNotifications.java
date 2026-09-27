@@ -34,7 +34,7 @@ public final class AlarmNotifications {
                 new Intent(context, AlarmRingingActivity.class),
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         return new NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_notification_clock)
                 .setContentTitle(localized.getString(R.string.alarm_ringing))
                 .setContentText(localized.getString(R.string.alarm_open_to_dismiss))
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
