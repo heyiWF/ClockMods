@@ -150,8 +150,14 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
         mutableFloatStateOf(preferences.getSupportingFontScale(styleId))
     }
     var blinkColon by remember(generation) { mutableStateOf(preferences.isBlinkColon()) }
-    var animateDigits by remember(generation) { mutableStateOf(preferences.isAnimateTimeChanges()) }
-    var transition by remember(generation) { mutableStateOf(preferences.getTimeTransition()) }
+    var animateDigits by remember(generation, styleId) {
+        mutableStateOf(if (styleId == UltimateClockStyles.STYLE_PRO_CLASSIC)
+            preferences.isAnimateTimeChanges() else stylePreferences.isDigitAnimationEnabled(styleId))
+    }
+    var transition by remember(generation, styleId) {
+        mutableStateOf(if (styleId == UltimateClockStyles.STYLE_PRO_CLASSIC)
+            preferences.getTimeTransition() else stylePreferences.getDigitTransition(styleId))
+    }
     var smallSeconds by remember(generation) { mutableStateOf(preferences.isSmallSeconds()) }
     var portraitStacked by remember(generation) { mutableStateOf(preferences.isPortraitStacked()) }
     var dualLine by remember(generation) { mutableStateOf(preferences.isDateLunarDualLine()) }
@@ -175,6 +181,8 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
     val supportsSupportingScale = capabilities.supports(ClockStyleCapabilities.Capability.WEATHER) ||
         capabilities.supports(ClockStyleCapabilities.Capability.STATUS)
     val supportsWorldClock = capabilities.supports(ClockStyleCapabilities.Capability.WORLD_CLOCK)
+    val supportsDigitTransition = capabilities.supports(
+        ClockStyleCapabilities.Capability.DIGIT_TRANSITION)
     val galleryBackground = previewClockBackground(backgroundRepository, stylePreferences, generation)
 
     SettingsColumn(modifier) {
@@ -357,33 +365,17 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
                     blinkColon = it
                     preferences.setBlinkColon(it)
                 }
-                SettingSwitch(stringResource(R.string.ultimate_animate_time_changes), animateDigits) {
-                    animateDigits = it
-                    preferences.setAnimateTimeChanges(it)
-                }
-                Text(stringResource(R.string.ultimate_time_transition))
-                Row(
-                    Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp),
-                ) {
-                    listOf(
-                        ClockPreferences.TRANSITION_FADE to R.string.ultimate_transition_fade,
-                        ClockPreferences.TRANSITION_SLIDE_UP to R.string.ultimate_transition_slide_up,
-                        ClockPreferences.TRANSITION_SLIDE_DOWN to R.string.ultimate_transition_slide_down,
-                        ClockPreferences.TRANSITION_SCALE to R.string.ultimate_transition_scale,
-                        ClockPreferences.TRANSITION_FLIP to R.string.ultimate_transition_flip,
-                    ).forEach { (value, label) ->
-                        FilterChip(
-                            selected = transition == value,
-                            onClick = {
-                                transition = value
-                                preferences.setTimeTransition(value)
-                            },
-                            enabled = animateDigits,
-                            label = { Text(stringResource(label)) },
-                        )
-                    }
-                }
+                DigitTransitionControls(
+                    animateDigits, transition,
+                    onAnimateChange = {
+                        animateDigits = it
+                        preferences.setAnimateTimeChanges(it)
+                    },
+                    onTransitionChange = {
+                        transition = it
+                        preferences.setTimeTransition(it)
+                    },
+                )
                 SettingSwitch(
                     stringResource(R.string.ultimate_small_seconds),
                     smallSeconds,
@@ -409,6 +401,22 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
                     dualLine = it
                     preferences.setDateLunarDualLine(it)
                 }
+            }
+        }
+
+        if (!proClassic && supportsDigitTransition) {
+            SettingSection(stringResource(R.string.ultimate_time_appearance_section)) {
+                DigitTransitionControls(
+                    animateDigits, transition,
+                    onAnimateChange = {
+                        animateDigits = it
+                        stylePreferences.setDigitAnimationEnabled(styleId, it)
+                    },
+                    onTransitionChange = {
+                        transition = it
+                        stylePreferences.setDigitTransition(styleId, it)
+                    },
+                )
             }
         }
 
@@ -493,6 +501,37 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
             },
         )
         null -> Unit
+    }
+}
+
+@Composable
+private fun DigitTransitionControls(
+    animateDigits: Boolean,
+    transition: String,
+    onAnimateChange: (Boolean) -> Unit,
+    onTransitionChange: (String) -> Unit,
+) {
+    SettingSwitch(stringResource(R.string.ultimate_animate_time_changes), animateDigits,
+        onChange = onAnimateChange)
+    Text(stringResource(R.string.ultimate_time_transition))
+    Row(
+        Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
+        horizontalArrangement = Arrangement.spacedBy(8.dp),
+    ) {
+        listOf(
+            ClockPreferences.TRANSITION_FADE to R.string.ultimate_transition_fade,
+            ClockPreferences.TRANSITION_SLIDE_UP to R.string.ultimate_transition_slide_up,
+            ClockPreferences.TRANSITION_SLIDE_DOWN to R.string.ultimate_transition_slide_down,
+            ClockPreferences.TRANSITION_SCALE to R.string.ultimate_transition_scale,
+            ClockPreferences.TRANSITION_FLIP to R.string.ultimate_transition_flip,
+        ).forEach { (value, label) ->
+            FilterChip(
+                selected = transition == value,
+                onClick = { onTransitionChange(value) },
+                enabled = animateDigits,
+                label = { Text(stringResource(label)) },
+            )
+        }
     }
 }
 

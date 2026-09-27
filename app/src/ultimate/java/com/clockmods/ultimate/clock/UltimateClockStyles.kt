@@ -981,6 +981,7 @@ object UltimateClockStyles {
     fun builtIns(): List<ClockStyle> {
         val seconds = ClockStyleCapabilities.Capability.SECONDS
         val smoothSeconds = ClockStyleCapabilities.Capability.SMOOTH_SECONDS
+        val digitTransition = ClockStyleCapabilities.Capability.DIGIT_TRANSITION
         val date = ClockStyleCapabilities.Capability.DATE
         val timeZone = ClockStyleCapabilities.Capability.TIME_ZONE
         val weather = ClockStyleCapabilities.Capability.WEATHER
@@ -991,26 +992,26 @@ object UltimateClockStyles {
         styles += style(STYLE_PRO_CLASSIC, "Pro Classic",
             "The original ClockMods Pro face with its full set of display customizations.",
             ClockStyleMetadata.Kind.DIGITAL, proClassicTokens(),
-            arrayOf(seconds, date, timeZone, weather, status, twentyFourHour),
+            arrayOf(seconds, digitTransition, date, timeZone, weather, status, twentyFourHour),
             ProClassicRenderer())
         styles += style(STYLE_GLASS_ATELIER, "Glass Atelier",
             "A luminous metal and glass watch face inspired by premium industrial design.",
             ClockStyleMetadata.Kind.ANALOG, glassTokens(),
-            arrayOf(seconds, smoothSeconds, date, timeZone, weather, status, twentyFourHour),
+            arrayOf(seconds, smoothSeconds, digitTransition, date, timeZone, weather, status, twentyFourHour),
             GlassAtelierRenderer())
         styles += style(STYLE_NOIR_INSTRUMENT, "Noir Instrument",
             "A calibrated black instrument panel with a secondary seconds gauge.",
             ClockStyleMetadata.Kind.ANALOG, noirTokens(),
-            arrayOf(seconds, smoothSeconds, date, timeZone, weather, status, twentyFourHour),
+            arrayOf(seconds, smoothSeconds, digitTransition, date, timeZone, weather, status, twentyFourHour),
             NoirInstrumentRenderer())
         styles += style(STYLE_PAPER_STATION, "Paper Station",
             "A quiet paper planner face with ink marks, calendar rules, and a red index hand.",
             ClockStyleMetadata.Kind.ANALOG, paperTokens(),
-            arrayOf(seconds, smoothSeconds, date, timeZone, weather), PaperStationRenderer())
+            arrayOf(seconds, smoothSeconds, digitTransition, date, timeZone, weather), PaperStationRenderer())
         styles += style(STYLE_ORBIT_NEON, "Orbit Neon",
             "Concentric orbital progress rings turn time into a living instrument.",
             ClockStyleMetadata.Kind.HYBRID, orbitTokens(),
-            arrayOf(seconds, smoothSeconds, date, timeZone, weather, status, twentyFourHour),
+            arrayOf(seconds, smoothSeconds, digitTransition, date, timeZone, weather, status, twentyFourHour),
             OrbitNeonRenderer())
         styles += style(STYLE_DIGITAL_GRID, "Digital Grid",
             "A modular seven-segment display laid over a precise technical grid.",
@@ -1020,12 +1021,14 @@ object UltimateClockStyles {
         styles += style(STYLE_TYPOGRAPHIC, "Typographic",
             "A bold editorial layout where time, date, and context form a measured poster.",
             ClockStyleMetadata.Kind.DIGITAL, typeTokens(),
-            arrayOf(seconds, date, timeZone, weather, status, twentyFourHour),
+            arrayOf(seconds, digitTransition, date, timeZone, weather, status, twentyFourHour),
             TypographicRenderer())
 
-        val migrated = arrayOf(seconds, date, timeZone, weather, status, twentyFourHour, worldClock)
+        val migrated = arrayOf(seconds, digitTransition, date, timeZone, weather, status,
+            twentyFourHour, worldClock)
         val migratedSmooth = arrayOf(
-            seconds, smoothSeconds, date, timeZone, weather, status, twentyFourHour, worldClock,
+            seconds, smoothSeconds, digitTransition, date, timeZone, weather, status,
+            twentyFourHour, worldClock,
         )
         styles += style(
             STYLE_DUAL_BLOCKS, "双块", "小时与分钟的双块布局。",

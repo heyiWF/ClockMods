@@ -70,6 +70,16 @@ class ClockStyleRegistryTest {
     }
 
     @Test
+    fun digitTransitionIsOfferedOnlyForRenderersThatDrawTextDigits() {
+        for (style in UltimateClockStyles.builtIns()) {
+            val id = style.getMetadata().getId()
+            assertEquals(id, id != UltimateClockStyles.STYLE_DIGITAL_GRID,
+                style.getMetadata().getCapabilities()
+                    .supports(ClockStyleCapabilities.Capability.DIGIT_TRANSITION))
+        }
+    }
+
+    @Test
     fun digitalFacesIgnoreAnAnalogFacesStoredMotionMode() {
         val ribbon = UltimateClockStyles.createRegistry().find(UltimateClockStyles.STYLE_RIBBON)!!
         assertEquals(ClockState.SecondHandMotion.TICK, ClockMotionResolver.resolve(ribbon, true, ClockState.SecondHandMotion.OFF))

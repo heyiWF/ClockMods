@@ -6,7 +6,8 @@ import java.util.EnumSet
 /** Declares optional state and motion features understood by a clock style. */
 class ClockStyleCapabilities private constructor(values: EnumSet<Capability>) {
     enum class Capability {
-        SECONDS, SMOOTH_SECONDS, DATE, TIME_ZONE, WEATHER, STATUS, TWENTY_FOUR_HOUR, WORLD_CLOCK,
+        SECONDS, SMOOTH_SECONDS, DIGIT_TRANSITION, DATE, TIME_ZONE, WEATHER, STATUS,
+        TWENTY_FOUR_HOUR, WORLD_CLOCK,
     }
 
     private val values = values.clone() as EnumSet<Capability>

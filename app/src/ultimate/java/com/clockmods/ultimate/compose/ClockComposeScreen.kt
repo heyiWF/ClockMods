@@ -722,7 +722,13 @@ private fun ClockCanvas(
     }
 
     val transitionKey = if (showSeconds) timeMillis / 1_000L else timeMillis / 60_000L
-    val animateTime = repository.isAnimateTimeChanges()
+    val supportsDigitTransition = style.getMetadata().getCapabilities()
+        .supports(ClockStyleCapabilities.Capability.DIGIT_TRANSITION)
+    val animateTime = supportsDigitTransition && if (styleId == UltimateClockStyles.STYLE_PRO_CLASSIC) {
+        repository.isAnimateTimeChanges()
+    } else {
+        appearance.isDigitAnimationEnabled(styleId)
+    }
     val transitionProgress = remember(styleId, transitionKey, animateTime) {
         Animatable(if (animateTime) 0f else 1f)
     }
@@ -746,7 +752,11 @@ private fun ClockCanvas(
             weatherProgress.animateTo(1f, tween(durationMillis = 300))
         }
     }
-    val transitionType = repository.getTimeTransition()
+    val transitionType = if (styleId == UltimateClockStyles.STYLE_PRO_CLASSIC) {
+        repository.getTimeTransition()
+    } else {
+        appearance.getDigitTransition(styleId)
+    }
     val canvasModifier = modifier
         .onSizeChanged { canvasSize = it }
         .pointerInput(worldClocks, scrollMaximum, bottomOverlayInset, safeArea) {

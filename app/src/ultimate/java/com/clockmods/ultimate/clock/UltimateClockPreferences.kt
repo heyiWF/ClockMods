@@ -59,6 +59,28 @@ class UltimateClockPreferences {
         preferences.edit().putString(KEY_SECOND_HAND_MOTION, stored).apply()
     }
 
+    /** Digital transitions belong to the selected Ultimate style, not the Pro Classic keys. */
+    fun isDigitAnimationEnabled(styleId: String): Boolean = preferences.getBoolean(
+        KEY_DIGIT_ANIMATION_PREFIX + normalizeStyleId(styleId),
+        ClockPreferences.DEFAULT_ANIMATE_TIME_CHANGES,
+    )
+
+    fun setDigitAnimationEnabled(styleId: String, enabled: Boolean) {
+        preferences.edit().putBoolean(KEY_DIGIT_ANIMATION_PREFIX + normalizeStyleId(styleId), enabled).apply()
+    }
+
+    fun getDigitTransition(styleId: String): String = ClockPreferences.normalizeTimeTransition(
+        preferences.getString(
+            KEY_DIGIT_TRANSITION_PREFIX + normalizeStyleId(styleId),
+            ClockPreferences.DEFAULT_TIME_TRANSITION,
+        ),
+    )
+
+    fun setDigitTransition(styleId: String, transition: String?) {
+        preferences.edit().putString(KEY_DIGIT_TRANSITION_PREFIX + normalizeStyleId(styleId),
+            ClockPreferences.normalizeTimeTransition(transition)).apply()
+    }
+
     fun getBackgroundMode(): String = normalizeBackgroundMode(
         preferences.getString(KEY_BACKGROUND_MODE, DEFAULT_BACKGROUND_MODE)
     )
@@ -95,7 +117,10 @@ class UltimateClockPreferences {
 
     fun restoreDefaults() {
         val editor = preferences.edit()
-        preferences.all.keys.filter { it.startsWith("palette_") }.forEach(editor::remove)
+        preferences.all.keys.filter {
+            it.startsWith("palette_") || it.startsWith(KEY_DIGIT_ANIMATION_PREFIX) ||
+                it.startsWith(KEY_DIGIT_TRANSITION_PREFIX)
+        }.forEach(editor::remove)
         editor.putString(KEY_STYLE_ID, DEFAULT_STYLE_ID)
             .putString(KEY_SECOND_HAND_MOTION, "smooth")
             .putString(KEY_BACKGROUND_MODE, DEFAULT_BACKGROUND_MODE)
@@ -115,6 +140,8 @@ class UltimateClockPreferences {
         @JvmField val DEFAULT_BACKGROUND_MODE = BACKGROUND_MODE_THEME
 
         private const val KEY_SECOND_HAND_MOTION = "second_motion"
+        private const val KEY_DIGIT_ANIMATION_PREFIX = "digit_animation__"
+        private const val KEY_DIGIT_TRANSITION_PREFIX = "digit_transition__"
 
         @JvmStatic
         fun normalizeStyleId(styleId: String?): String {

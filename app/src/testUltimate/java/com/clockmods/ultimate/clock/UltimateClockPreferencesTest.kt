@@ -1,6 +1,7 @@
 package com.clockmods.ultimate.clock
 
 import android.content.SharedPreferences
+import com.clockmods.background.ClockPreferences
 import com.clockmods.sdk.clock.ClockState
 import org.junit.Assert.assertEquals
 import org.junit.Assert.assertFalse
@@ -83,6 +84,28 @@ class UltimateClockPreferencesTest {
         assertEquals(UltimateClockPreferences.BACKGROUND_MODE_IMAGE, preferences.getBackgroundMode())
         preferences.setBackgroundMode("unknown")
         assertEquals(UltimateClockPreferences.BACKGROUND_MODE_THEME, preferences.getBackgroundMode())
+    }
+
+    @Test
+    fun digitAnimationSettingsStayIndependentForEachStyleAndReset() {
+        val bubbles = UltimateClockStyles.STYLE_BUBBLES
+        val ribbon = UltimateClockStyles.STYLE_RIBBON
+        assertTrue(preferences.isDigitAnimationEnabled(bubbles))
+        assertEquals(ClockPreferences.TRANSITION_FADE, preferences.getDigitTransition(bubbles))
+
+        preferences.setDigitAnimationEnabled(bubbles, false)
+        preferences.setDigitTransition(bubbles, ClockPreferences.TRANSITION_FLIP)
+        preferences.setDigitTransition(ribbon, ClockPreferences.TRANSITION_SLIDE_UP)
+        val reopened = UltimateClockPreferences(stored)
+        assertFalse(reopened.isDigitAnimationEnabled(bubbles))
+        assertEquals(ClockPreferences.TRANSITION_FLIP, reopened.getDigitTransition(bubbles))
+        assertTrue(reopened.isDigitAnimationEnabled(ribbon))
+        assertEquals(ClockPreferences.TRANSITION_SLIDE_UP, reopened.getDigitTransition(ribbon))
+        reopened.setDigitTransition(ribbon, "invalid")
+        assertEquals(ClockPreferences.TRANSITION_FADE, reopened.getDigitTransition(ribbon))
+        reopened.restoreDefaults()
+        assertTrue(reopened.isDigitAnimationEnabled(bubbles))
+        assertEquals(ClockPreferences.TRANSITION_FADE, reopened.getDigitTransition(bubbles))
     }
 
     @Test
