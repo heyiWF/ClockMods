@@ -400,21 +400,27 @@ private fun PosterWordmark(year: Int, month: Int, theme: ComposeCalendarTheme,
 private fun DashboardReadings(theme: ComposeCalendarTheme, typography: CalendarTypography,
     preferences: ClockPreferences, weather: WeatherModels.WeatherState?, forecast: WeatherModels.DailyForecastData?,
     tick: () -> Long, zone: TimeZone, landscape: Boolean, gutter: Float, modifier: Modifier) {
+    val batteryTextStyle = typography.supportingStyle(
+        TextStyle(fontSize = MaterialTheme.typography.labelMedium.fontSize), "100%",
+    )
     Column(modifier.testTag("dashboard-readings"), verticalArrangement = Arrangement.spacedBy(gutter.dp)) {
         BoxWithConstraints(Modifier.fillMaxWidth().weight(if (landscape) 1.06f else .98f).calendarPanel(theme)) {
             val statusScale = minOf(
-                fitStatusPillScale(preferences.getStatusIconScale(), maxWidth.value - 24f),
+                fitStatusPillScale(preferences.getStatusIconScale(), maxWidth.value - 24f,
+                    typography.supportingScale),
                 ((maxHeight.value - 20f) / 68f).coerceAtLeast(ClockPreferences.MIN_STATUS_ICON_SCALE),
             )
             val clockHeight = maxHeight.value -
-                if (preferences.isShowStatusIcons()) 34f * statusScale + 10f else 0f
+                if (preferences.isShowStatusIcons())
+                    maxOf(34f, 14f + 16f * typography.supportingScale) * statusScale + 10f
+                else 0f
             val clockSize = minOf(
                 Sizing.clockTimeSize(maxWidth.value, clockHeight, preferences.isShowSeconds(), 1f),
                 maxWidth.value / if (preferences.isShowSeconds()) 5.3f else 3.7f,
             )
             Column(Modifier.fillMaxSize().padding(horizontal = 12.dp, vertical = 5.dp)) {
                 if (preferences.isShowStatusIcons()) DeviceStatusPill(rememberDeviceStatus(), statusScale, true,
-                    Color(preferences.getTimeColor()), Color(theme.panel))
+                    Color(preferences.getTimeColor()), Color(theme.panel), batteryTextStyle)
                 val clock = Calendar.getInstance(zone).apply { timeInMillis = tick() }
                 val time = SimpleDateFormat(if (preferences.isUse24Hour()) "HH:mm" else "hh:mm", Locale.US).apply { timeZone = zone }.format(clock.time)
                 Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
@@ -571,6 +577,9 @@ private fun AgendaCalendar(theme: ComposeCalendarTheme, typography: CalendarTypo
     val panelHeight = LocalConfiguration.current.screenHeightDp - if (landscape) 28f else 32f
     val chromeSize = Sizing.monthTitleSize(Sizing.monthToolbarHeight(panelHeight, 1f), 1f)
     val supportSize = Sizing.agendaSubheadingSize(Sizing.monthFooterHeight(panelHeight, 1f), 1f)
+    val batteryTextStyle = typography.supportingStyle(
+        TextStyle(fontSize = MaterialTheme.typography.labelMedium.fontSize), "100%",
+    )
     val header: @Composable () -> Unit = {
         Column { CalendarText(title, min(chromeSize, 36f * ClockPreferences.DEFAULT_DATE_FONT_SCALE / typography.dateScale),
                 theme.text, typography, Modifier.clickable(onClick = picker).testTag("month-title"),
@@ -582,7 +591,7 @@ private fun AgendaCalendar(theme: ComposeCalendarTheme, typography: CalendarTypo
             CalendarText(stringResource(R.string.calendar_today), supportSize, theme.accent, typography,
                 Modifier.clickable(onClick = today).padding(horizontal = 8.dp).heightIn(min = if (landscape) 32.dp else 36.dp))
             if (preferences.isShowStatusIcons()) DeviceStatusPill(rememberDeviceStatus(), statusScale,
-                true, Color(theme.text), Color(theme.backgroundStart))
+                true, Color(theme.text), Color(theme.backgroundStart), batteryTextStyle)
         }
     }
     val strip: @Composable (Modifier) -> Unit = { stripModifier ->
@@ -612,7 +621,8 @@ private fun AgendaCalendar(theme: ComposeCalendarTheme, typography: CalendarTypo
     if (landscape) Row(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 14.dp), horizontalArrangement = Arrangement.spacedBy(18.dp)) {
         Column(Modifier.weight(.36f).fillMaxHeight()) { header(); Spacer(Modifier.height(12.dp)); strip(Modifier.weight(1f).fillMaxWidth()) }
         Column(Modifier.weight(.64f).fillMaxHeight()) { BoxWithConstraints(Modifier.fillMaxWidth(), contentAlignment = Alignment.CenterEnd) {
-                actions(fitStatusPillScale(preferences.getStatusIconScale(), maxWidth.value - 60f))
+                actions(fitStatusPillScale(preferences.getStatusIconScale(), maxWidth.value - 60f,
+                    typography.supportingScale))
             }
             Spacer(Modifier.height(8.dp)); AgendaCard(selection, theme, typography, preferences, weather, forecast, schedule, add, edit, Modifier.fillMaxWidth().weight(1f)) }
     } else Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp)) {
@@ -622,11 +632,13 @@ private fun AgendaCalendar(theme: ComposeCalendarTheme, typography: CalendarTypo
                 Column(Modifier.fillMaxWidth()) {
                     header()
                     Row(Modifier.fillMaxWidth(), horizontalArrangement = Arrangement.End) {
-                        actions(fitStatusPillScale(preferences.getStatusIconScale(), availableWidth - 60f))
+                        actions(fitStatusPillScale(preferences.getStatusIconScale(), availableWidth - 60f,
+                            typography.supportingScale))
                     }
                 }
             } else {
-                val statusScale = fitStatusPillScale(preferences.getStatusIconScale(), availableWidth - 110f)
+                val statusScale = fitStatusPillScale(preferences.getStatusIconScale(),
+                    availableWidth - 110f, typography.supportingScale)
                 Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
                     Box(Modifier.weight(1f)) { header() }
                     actions(statusScale)

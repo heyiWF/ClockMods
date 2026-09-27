@@ -39,6 +39,7 @@ import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.height
+import androidx.compose.foundation.layout.heightIn
 import androidx.compose.foundation.layout.offset
 import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
@@ -92,6 +93,8 @@ import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.PlatformTextStyle
 import androidx.compose.ui.text.TextStyle
+import androidx.compose.ui.text.font.FontFamily
+import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.IntOffset
 import androidx.compose.ui.unit.IntSize
 import androidx.compose.ui.unit.dp
@@ -382,6 +385,19 @@ internal fun ClockScreen(
         .joinToString(" / ")
     val deviceStatus = rememberDeviceStatus()
     val showStatusIcons = repository.isShowStatusIcons()
+    val statusFontFamily = repository.getFontFamily(styleId)
+    val statusFontWeight = repository.getFontWeight(styleId)
+    val statusTextScale = repository.getSupportingFontScale(styleId)
+    val statusBaseFontSize = MaterialTheme.typography.labelMedium.fontSize
+    val statusTextStyle = remember(context, statusFontFamily, statusFontWeight,
+        statusTextScale, statusBaseFontSize) {
+        TextStyle(
+            fontFamily = FontFamily(ClockTypefaceResolver.resolve(context,
+                statusFontFamily, statusFontWeight)),
+            fontWeight = FontWeight(statusFontWeight),
+            fontSize = statusBaseFontSize * statusTextScale,
+        )
+    }
     var overlaySurface by remember { mutableStateOf(Color.Black) }
     val worldClocks = remember(refreshGeneration) {
         if (worldClockRepository.isEnabled()) worldClockRepository.getSelected() else emptyList()
@@ -455,11 +471,13 @@ internal fun ClockScreen(
                 scale = fitStatusPillScale(
                     repository.getStatusIconScale(),
                     faceWidth / density.density - 32f,
+                    statusTextScale,
                 ),
                 style = statusIconStyle,
                 transparent = styleId == UltimateClockStyles.STYLE_PRO_CLASSIC,
                 contentColor = Color(repository.getTimeColor()),
                 faceColor = overlaySurface,
+                batteryTextStyle = statusTextStyle,
                 modifier = Modifier
                     .onSizeChanged { statusPillSize = it }
                     .then(
@@ -1202,6 +1220,7 @@ internal fun DeviceStatusPill(
     transparent: Boolean,
     contentColor: Color,
     faceColor: Color,
+    batteryTextStyle: TextStyle,
     modifier: Modifier = Modifier,
     style: StatusIconStyle = StatusIconStyle.read(LocalContext.current),
 ) {
@@ -1262,14 +1281,14 @@ internal fun DeviceStatusPill(
                 Modifier.size(iconSize).testTag("status-battery-icon"),
                 fallbackDrawable = icon,
             )
-            Box(Modifier.height(iconSize),
+            Box(Modifier.heightIn(min = iconSize),
                 contentAlignment = Alignment.CenterStart) {
                 Text(
                     "${status.batteryPercent}%",
                     modifier = Modifier.testTag("status-battery-percent"),
                     color = ink,
-                    style = TextStyle(
-                        fontSize = MaterialTheme.typography.labelMedium.fontSize * normalizedScale,
+                    style = batteryTextStyle.copy(
+                        fontSize = batteryTextStyle.fontSize * normalizedScale,
                         platformStyle = PlatformTextStyle(includeFontPadding = false),
                     ),
                     maxLines = 1,
@@ -1280,9 +1299,14 @@ internal fun DeviceStatusPill(
 }
 
 /** Keep the whole status row within narrow clock and calendar panels. */
-internal fun fitStatusPillScale(requested: Float, availableWidthDp: Float): Float =
+internal fun fitStatusPillScale(
+    requested: Float,
+    availableWidthDp: Float,
+    batteryTextScale: Float = 1f,
+): Float =
     minOf(ClockPreferences.normalizeStatusIconScale(requested),
-        (availableWidthDp / 134f).coerceAtLeast(ClockPreferences.MIN_STATUS_ICON_SCALE))
+        (availableWidthDp / (134f + 26f * (batteryTextScale - 1f).coerceAtLeast(0f)))
+            .coerceAtLeast(ClockPreferences.MIN_STATUS_ICON_SCALE))
 
 internal fun statusSymbolCodePoint(drawable: Int): Int = when (drawable) {
     R.drawable.ic_battery_android_0 -> StatusSymbolRenderer.BATTERY_0
