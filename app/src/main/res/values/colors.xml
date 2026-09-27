@@ -1,3 +1,4 @@
 <resources>
     <color name="clock_default_background">#101418</color>
+    <color name="launcher_icon_background">#00000000</color>
 </resources>

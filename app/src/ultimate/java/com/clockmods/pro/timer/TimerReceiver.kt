@@ -70,7 +70,7 @@ class TimerReceiver : BroadcastReceiver() {
             manager.notify(
                 if (pomodoro) POMODORO_REQUEST_CODE else COUNTDOWN_REQUEST_CODE,
                 NotificationCompat.Builder(appContext, CHANNEL_ID)
-                    .setSmallIcon(R.mipmap.ic_launcher)
+                    .setSmallIcon(R.drawable.ic_notification_clock)
                     .setContentTitle(
                         localized.getString(
                             if (pomodoro) R.string.pomodoro_complete

@@ -139,7 +139,7 @@ class AlarmNotifications private constructor() {
                 PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
             )
             val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(R.mipmap.ic_launcher)
+                .setSmallIcon(R.drawable.ic_notification_clock)
                 .setContentTitle(localized.getString(R.string.alarm_ringing))
                 .setContentText(localized.getString(R.string.alarm_open_to_dismiss))
                 .setCategory(NotificationCompat.CATEGORY_ALARM)
@@ -148,7 +148,7 @@ class AlarmNotifications private constructor() {
                 .setAutoCancel(false)
                 .setContentIntent(ringing)
                 .addAction(
-                    R.mipmap.ic_launcher,
+                    R.drawable.ic_notification_clock,
                     localized.getString(R.string.alarm_dismiss),
                     stopRingingIntent(context),
                 )
