@@ -750,7 +750,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
                     size * max(1f, state.getSupportingScale()),
                 ),
                 maxWidth, size * state.getSupportingScale(), 12f,
-                color, align, face,
+                color, align, face, glass == null,
             )
         }
     }

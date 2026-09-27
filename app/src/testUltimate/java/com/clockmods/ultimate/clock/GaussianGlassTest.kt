@@ -63,6 +63,27 @@ class GaussianGlassTest {
     }
 
     @Test
+    fun fullImageFastBlurStaysCloseToGaussianEdge() {
+        val width = 64
+        val pixels = IntArray(width * width) { index ->
+            if (index % width < width / 2) 0xFF000000.toInt() else 0xFFFFFFFF.toInt()
+        }
+        val exact = GaussianGlass.blurPixels(pixels, width, width, 100)
+        val fast = GaussianGlass.fastBlurPixels(pixels, width, width, 6f)
+        for (x in 0 until width) {
+            val index = width * (width / 2) + x
+            assertTrue(
+                "fast blur differs at $x",
+                kotlin.math.abs((fast[index] and 255) - (exact[index] and 255)) <= 12,
+            )
+        }
+        assertArrayEquals(
+            intArrayOf(0xFF000000.toInt()),
+            GaussianGlass.fastBlurPixels(intArrayOf(0x00FFFFFF), 1, 1, 6f),
+        )
+    }
+
+    @Test
     fun strengthZeroPreservesDetailAndHigherStrengthSpreadsTheBlur() {
         val pixels = IntArray(81)
         Arrays.fill(pixels, 0xFF000000.toInt())

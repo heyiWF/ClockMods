@@ -40,6 +40,7 @@ import androidx.compose.material3.Slider
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -65,6 +66,7 @@ import com.clockmods.sdk.clock.ClockState
 import com.clockmods.sdk.clock.ClockStyleCapabilities
 import com.clockmods.sdk.clock.WorldClockEntry
 import com.clockmods.ultimate.clock.ClockPalette
+import com.clockmods.ultimate.clock.GaussianGlass
 import com.clockmods.ultimate.compose.ClockPreviewCanvas
 import com.clockmods.ultimate.compose.ClockStyleThumbnail
 import com.clockmods.ultimate.compose.previewClockBackground
@@ -73,6 +75,9 @@ import com.clockmods.ultimate.clock.UltimateClockStyles
 import com.clockmods.ultimate.clock.WorldClockCatalog
 import com.clockmods.ultimate.clock.WorldClockRepository
 import java.util.Locale
+import kotlinx.coroutines.Dispatchers
+import kotlinx.coroutines.delay
+import kotlinx.coroutines.withContext
 
 private enum class StyleDialog { TIME_COLOR, DATE_COLOR }
 
@@ -82,6 +87,7 @@ private val STYLE_CARD_HEIGHT = 172.dp
 
 /** Height of the live theme preview shown above the palette swatches. */
 private val PALETTE_PREVIEW_HEIGHT = 168.dp
+private const val BLUR_LOADING_MIN_MILLIS = 450L
 
 /**
  * The one colour ramp offered by every picker, ordered dark to light so the swatches read as a
@@ -580,6 +586,24 @@ private fun PaletteEditor(
     // The preview renders through the style's real renderer over the user's real background, so the
     // swatch rows below are a live readout of the theme rather than a blind colour picker.
     val background = previewClockBackground(repository, appearance, generation)
+    val previewImage = background.getBitmap()
+    val needsBlur = palette.gaussianBlur && background.hasImage() && previewImage != null
+    var blurReady by remember(styleId, previewImage, palette.blurStrength, needsBlur) {
+        mutableStateOf(!needsBlur || GaussianGlass.isPrepared(previewImage!!, palette.blurStrength))
+    }
+    LaunchedEffect(styleId, previewImage, palette.blurStrength, needsBlur) {
+        if (needsBlur && !blurReady) {
+            val started = android.os.SystemClock.elapsedRealtime()
+            withContext(Dispatchers.Default) {
+                GaussianGlass.prepare(previewImage!!, palette.blurStrength)
+            }
+            val remaining = BLUR_LOADING_MIN_MILLIS -
+                (android.os.SystemClock.elapsedRealtime() - started)
+            if (remaining > 0) delay(remaining)
+            blurReady = true
+        }
+    }
+    val blurLoading = needsBlur && !blurReady
     Box(
         Modifier
             .fillMaxWidth()
@@ -628,6 +652,8 @@ private fun PaletteEditor(
         stringResource(R.string.ultimate_palette_gaussian_blur),
         palette.gaussianBlur,
         stringResource(R.string.ultimate_palette_gaussian_blur_summary),
+        loading = blurLoading,
+        loadingSummary = stringResource(R.string.ultimate_palette_gaussian_blur_loading),
     ) { onChange(palette.withGaussianBlur(it)) }
     SettingSlider(
         stringResource(R.string.ultimate_palette_blur_strength),

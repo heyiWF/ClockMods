@@ -56,6 +56,7 @@ import androidx.compose.runtime.Composable
 import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.SideEffect
+import androidx.compose.runtime.State
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableFloatStateOf
 import androidx.compose.runtime.mutableIntStateOf
@@ -122,6 +123,7 @@ import com.clockmods.ui.ClockTypefaceResolver
 import com.clockmods.ui.StatusIconStyle
 import com.clockmods.ui.StatusSymbolRenderer
 import com.clockmods.ultimate.clock.ClockPalette
+import com.clockmods.ultimate.clock.GaussianGlass
 import com.clockmods.ultimate.clock.ClockMotionResolver
 import com.clockmods.ultimate.clock.ClockTypography
 import com.clockmods.ultimate.clock.UltimateClockPreferences
@@ -533,7 +535,9 @@ internal fun ClockPreviewCanvas(
     val locale = remember { Locale.SIMPLIFIED_CHINESE }
     val timeZone = remember { TimeZone.getDefault() }
     val theme = previewClockTheme(context, styleId, palette, repository)
+    val glassPreparation = prepareGlassForDraw(background, theme)
     Canvas(modifier) {
+        glassPreparation.value
         val canvas = drawContext.canvas.nativeCanvas
         renderClockPreview(
             canvas = canvas,
@@ -571,7 +575,9 @@ internal fun ClockStyleThumbnail(
     val locale = remember { Locale.SIMPLIFIED_CHINESE }
     val timeZone = remember { TimeZone.getDefault() }
     val theme = previewClockTheme(context, styleId, palette, repository)
+    val glassPreparation = prepareGlassForDraw(background, theme)
     Canvas(modifier) {
+        glassPreparation.value
         renderClockPreview(
             canvas = drawContext.canvas.nativeCanvas,
             styleId = styleId,
@@ -652,6 +658,7 @@ private fun ClockCanvas(
             ClockBackground.color(repository.getCurrentColor(), dimmed)
         else -> ClockBackground.theme(dimmed)
     }
+    val glassPreparation = prepareGlassForDraw(clockBackground, theme)
     // Host overlays sit on whatever the face is painted with, so they sample the same surface
     // the renderer uses instead of assuming the host window scheme describes it.
     val overlaySurface = remember(
@@ -786,6 +793,7 @@ private fun ClockCanvas(
         }
 
     Canvas(canvasModifier) {
+        glassPreparation.value
         // Reading the frame clock inside the draw scope keeps the per-frame sweep redrawing to the
         // draw phase instead of recomposing the whole screen sixty times a second.
         val now = if (smoothSeconds) animatedTime else timeMillis
@@ -1122,6 +1130,26 @@ private fun networkStatus(capabilities: NetworkCapabilities?, cellLevel: Int?): 
         capabilities.hasTransport(NetworkCapabilities.TRANSPORT_CELLULAR) -> DeviceNetwork.CELLULAR to cellLevel
         else -> DeviceNetwork.OTHER to null
     }
+}
+
+/** Prepare image blur off the draw thread, then invalidate the face or preview once it is ready. */
+@Composable
+private fun prepareGlassForDraw(
+    background: ClockBackground,
+    theme: ClockThemeTokens,
+): State<Int> {
+    val source = background.getBitmap().takeIf { background.hasImage() && theme.isGaussianBlur() }
+    val strength = theme.getBlurStrength()
+    val generation = remember(source, strength) { mutableIntStateOf(0) }
+    LaunchedEffect(source, strength) {
+        if (source != null) {
+            kotlinx.coroutines.withContext(kotlinx.coroutines.Dispatchers.Default) {
+                GaussianGlass.prepare(source, strength)
+            }
+            generation.intValue++
+        }
+    }
+    return generation
 }
 
 // An unbound TelephonyManager can follow the voice SIM on dual-SIM devices.

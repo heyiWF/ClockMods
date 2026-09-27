@@ -12,6 +12,7 @@ import android.graphics.Shader
 import com.clockmods.sdk.clock.ClockRenderContext
 import com.clockmods.sdk.clock.ClockThemeTokens
 import java.util.HashMap
+import java.util.LinkedHashMap
 import java.util.WeakHashMap
 
 /** A background-anchored blur sampled through moving card masks, including software previews. */
@@ -162,6 +163,33 @@ class GaussianGlass private constructor(
         private const val MAX_BRIGHTNESS_OVERLAY_ALPHA = .55f
         // Keys do not keep the host's full-size background alive after replacement or view disposal.
         private val CACHE = WeakHashMap<Bitmap, GaussianGlass>()
+        private val PREPARED = WeakHashMap<Bitmap, LinkedHashMap<Int, Bitmap>>()
+
+        @JvmStatic
+        @Synchronized
+        fun isPrepared(source: Bitmap, strength: Int): Boolean {
+            val value = strength.coerceIn(0, 100)
+            if (CACHE[source]?.strength == value) return true
+            return synchronized(PREPARED) { PREPARED[source]?.containsKey(value) == true }
+        }
+
+        /** Run from a worker before invalidating a canvas that uses this image. */
+        @JvmStatic
+        fun prepare(source: Bitmap, strength: Int) {
+            val value = strength.coerceIn(0, 100)
+            // Several gallery cards can request the same source at once. Only worker threads wait.
+            synchronized(source) {
+                synchronized(PREPARED) {
+                    if (PREPARED[source]?.containsKey(value) == true) return
+                }
+                val bitmap = blurred(source, value)
+                synchronized(PREPARED) {
+                    val variants = PREPARED.getOrPut(source) { LinkedHashMap(8, .75f, true) }
+                    variants[value] = bitmap
+                    if (variants.size > 6) variants.remove(variants.keys.first())
+                }
+            }
+        }
 
         @JvmStatic
         @Synchronized
@@ -177,8 +205,8 @@ class GaussianGlass private constructor(
             val blur = if (cached != null && cached.strength == theme.getBlurStrength()) {
                 cached.bitmap
             } else {
-                blurred(source, theme.getBlurStrength())
-            }
+                synchronized(PREPARED) { PREPARED[source]?.get(theme.getBlurStrength()) }
+            } ?: return null
             return GaussianGlass(
                 blur, source.width, source.height,
                 theme.getBlurStrength(), theme.getBlurBrightness(), context,
@@ -205,8 +233,75 @@ class GaussianGlass private constructor(
             small.getPixels(pixels, 0, width, 0, 0, width, height)
             if (small !== source) small.recycle()
             val sigma = blurSigma(strength, maxOf(width, height), sourceLongEdge)
-            return Bitmap.createBitmap(blurPixels(pixels, width, height, sigma), width, height,
+            return Bitmap.createBitmap(fastBlurPixels(pixels, width, height, sigma), width, height,
                 Bitmap.Config.ARGB_8888)
+        }
+
+        /** Three running-sum box passes approximate a Gaussian in linear time for full images. */
+        internal fun fastBlurPixels(pixels: IntArray, width: Int, height: Int, sigma: Float): IntArray {
+            var current = IntArray(pixels.size) { index ->
+                val color = pixels[index]
+                val alpha = color ushr 24
+                val red = (((color ushr 16) and 255) * alpha + 127) / 255
+                val green = (((color ushr 8) and 255) * alpha + 127) / 255
+                val blue = ((color and 255) * alpha + 127) / 255
+                0xFF000000.toInt() or (red shl 16) or (green shl 8) or blue
+            }
+            val idealWidth = kotlin.math.sqrt(1f + 4f * sigma * sigma)
+            val lowerWidth = maxOf(1, kotlin.math.floor(idealWidth).toInt() or 1)
+            val upperWidth = lowerWidth + 2
+            val lowerPasses = Math.round(
+                (12f * sigma * sigma - 3f * lowerWidth * lowerWidth -
+                    12f * lowerWidth - 9f) / (-4f * lowerWidth - 4f)
+            ).coerceIn(0, 3)
+            val horizontal = IntArray(pixels.size)
+            var next = IntArray(pixels.size)
+            repeat(3) { pass ->
+                val radius = (if (pass < lowerPasses) lowerWidth else upperWidth) / 2
+                if (radius == 0) return@repeat
+                boxBlur(current, horizontal, width, height, radius, true)
+                boxBlur(horizontal, next, width, height, radius, false)
+                val old = current
+                current = next
+                next = old
+            }
+            return current
+        }
+
+        private fun boxBlur(
+            input: IntArray,
+            output: IntArray,
+            width: Int,
+            height: Int,
+            radius: Int,
+            horizontal: Boolean,
+        ) {
+            val lines = if (horizontal) height else width
+            val length = if (horizontal) width else height
+            val stride = if (horizontal) 1 else width
+            val divisor = radius * 2 + 1
+            for (line in 0 until lines) {
+                val start = if (horizontal) line * width else line
+                val first = input[start]
+                var red = ((first ushr 16) and 255) * (radius + 1)
+                var green = ((first ushr 8) and 255) * (radius + 1)
+                var blue = (first and 255) * (radius + 1)
+                for (i in 1..radius) {
+                    val color = input[start + minOf(i, length - 1) * stride]
+                    red += (color ushr 16) and 255
+                    green += (color ushr 8) and 255
+                    blue += color and 255
+                }
+                for (i in 0 until length) {
+                    output[start + i * stride] = 0xFF000000.toInt() or
+                        ((red / divisor) shl 16) or ((green / divisor) shl 8) or (blue / divisor)
+                    val leaving = input[start + maxOf(0, i - radius) * stride]
+                    val entering = input[start + minOf(length - 1, i + radius + 1) * stride]
+                    red += ((entering ushr 16) and 255) - ((leaving ushr 16) and 255)
+                    green += ((entering ushr 8) and 255) - ((leaving ushr 8) and 255)
+                    blue += (entering and 255) - (leaving and 255)
+                }
+            }
         }
 
         /** Selects an adaptive working resolution for source detail and bounded memory use. */

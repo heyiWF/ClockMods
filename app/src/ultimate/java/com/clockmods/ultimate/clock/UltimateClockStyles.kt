@@ -239,6 +239,7 @@ object UltimateClockStyles {
     internal abstract class RendererBase : ClockRenderer {
         internal class PaintPool {
             internal var photoText = false
+            internal var photoVeil: Int? = null
             internal var motionState: ClockState? = null
             internal var digitTracker: ClockDigitTransitionTracker? = null
             internal var timeTextSizeObserver: ((Float) -> Unit)? = null
@@ -387,16 +388,20 @@ object UltimateClockStyles {
 
         private fun photoTextOutline(paint: Paint, size: Float) {
             val inkAlpha = Color.alpha(paint.color)
+            val outline = if (ClockPalette.contrast(paint.color, Color.BLACK) >
+                ClockPalette.contrast(paint.color, Color.WHITE)) Color.BLACK else Color.WHITE
             paint.style = Paint.Style.STROKE
-            paint.strokeWidth = maxOf(1f, minOf(2f, size * .012f))
-            paint.color = Color.argb(inkAlpha * 230 / 255, 0, 0, 0)
+            paint.strokeWidth = maxOf(2f, minOf(4f, size * .075f))
+            paint.color = alpha(outline, inkAlpha * 230 / 255)
         }
 
         private fun photoTextFill(paint: Paint, color: Int, size: Float) {
             paint.style = Paint.Style.FILL
             paint.color = color
+            val shadow = if (ClockPalette.contrast(color, Color.BLACK) >
+                ClockPalette.contrast(color, Color.WHITE)) Color.BLACK else Color.WHITE
             paint.setShadowLayer(maxOf(2f, size * .035f), 0f, 1f,
-                Color.argb(Color.alpha(color) * 153 / 255, 0, 0, 0))
+                alpha(shadow, Color.alpha(color) * 153 / 255))
         }
 
         protected fun fitText(value: String?, maxWidth: Float, size: Float, face: Typeface?): Float {
@@ -426,27 +431,84 @@ object UltimateClockStyles {
 
         protected fun readableText(canvas: Canvas, context: ClockRenderContext,
             value: String, x: Float, baseline: Float, maxWidth: Float, preferredSize: Float,
-            minimumSp: Float, color: Int, align: Paint.Align, face: Typeface?) {
-            if (maxWidth <= 0f) return
+            minimumSp: Float, color: Int, align: Paint.Align, face: Typeface?,
+            applyImageDimming: Boolean = true) {
+            if (maxWidth <= 0f || value.isEmpty()) return
             val floor = readableSize(context, 0f, minimumSp)
             val size = maxOf(floor, fitText(value, maxWidth, maxOf(floor, preferredSize), face))
-            val state = PAINT_POOL.get().motionState
-            val progress = state?.getWeatherTransitionProgress() ?: 1f
-            val previous = state?.getPreviousWeatherText().orEmpty()
-            if (state != null && progress < 1f && previous.isNotEmpty() &&
-                value == contextText(state)) {
-                val oldSize = maxOf(floor,
-                    fitText(previous, maxWidth, maxOf(floor, preferredSize), face))
-                val oldColor = alpha(color, (Color.alpha(color) * (1f - progress)).toInt())
-                val newColor = alpha(color, (Color.alpha(color) * progress).toInt())
-                text(canvas, ellipsize(previous, maxWidth, oldSize, face), x, baseline, oldSize,
-                    oldColor, align, face)
-                text(canvas, ellipsize(value, maxWidth, size, face), x, baseline, size,
-                    newColor, align, face)
-            } else {
-                text(canvas, ellipsize(value, maxWidth, size, face), x, baseline, size,
-                    color, align, face)
+            val visible = ellipsize(value, maxWidth, size, face)
+            val imageBackground = context.getBackground()?.takeIf { it.hasImage() }
+            val readableColor = if (imageBackground != null) {
+                val metricsPaint = fill(Color.WHITE).apply { typeface = face; textSize = size }
+                adaptiveImageTextColor(context, x, baseline,
+                    minOf(maxWidth, metricsPaint.measureText(visible)), size, align, color,
+                    applyImageDimming)
+            } else color
+            val pool = PAINT_POOL.get()
+            val previousPhotoText = pool.photoText
+            if (imageBackground != null) pool.photoText = true
+            try {
+                val state = pool.motionState
+                val progress = state?.getWeatherTransitionProgress() ?: 1f
+                val previous = state?.getPreviousWeatherText().orEmpty()
+                if (state != null && progress < 1f && previous.isNotEmpty() &&
+                    value == contextText(state)) {
+                    val oldSize = maxOf(floor,
+                        fitText(previous, maxWidth, maxOf(floor, preferredSize), face))
+                    val oldColor = alpha(readableColor,
+                        (Color.alpha(readableColor) * (1f - progress)).toInt())
+                    val newColor = alpha(readableColor,
+                        (Color.alpha(readableColor) * progress).toInt())
+                    text(canvas, ellipsize(previous, maxWidth, oldSize, face), x, baseline, oldSize,
+                        oldColor, align, face)
+                    text(canvas, visible, x, baseline, size, newColor, align, face)
+                } else {
+                    text(canvas, visible, x, baseline, size, readableColor, align, face)
+                }
+            } finally {
+                pool.photoText = previousPhotoText
             }
+        }
+
+        /** Select ink from the visible image crop directly behind a single supporting line. */
+        private fun adaptiveImageTextColor(context: ClockRenderContext, x: Float,
+            baseline: Float, textWidth: Float, textSize: Float, align: Paint.Align,
+            original: Int, applyImageDimming: Boolean): Int {
+            val background = context.getBackground() ?: return original
+            val image = background.getBitmap() ?: return original
+            if (textWidth <= 0f || image.width <= 0 || image.height <= 0) return original
+            val scale = maxOf(context.getBackgroundWidth() / image.width,
+                context.getBackgroundHeight() / image.height)
+            if (scale <= 0f) return original
+            val imageLeft = context.getBackgroundLeft() +
+                (context.getBackgroundWidth() - image.width * scale) * .5f
+            val imageTop = context.getBackgroundTop() +
+                (context.getBackgroundHeight() - image.height * scale) * .5f
+            val left = when (align) {
+                Paint.Align.LEFT -> x
+                Paint.Align.RIGHT -> x - textWidth
+                else -> x - textWidth * .5f
+            }
+            val light = 0xFFFEFEFF.toInt()
+            val dark = 0xFF010102.toInt()
+            val veil = PAINT_POOL.get().photoVeil
+            var lightContrast = Double.MAX_VALUE
+            var darkContrast = Double.MAX_VALUE
+            for (row in 0..2) for (column in 0..4) {
+                val screenX = left + textWidth * (column + .5f) / 5f
+                val screenY = baseline - textSize * (row + .5f) / 3f
+                val bitmapX = ((screenX - imageLeft) / scale).toInt().coerceIn(0, image.width - 1)
+                val bitmapY = ((screenY - imageTop) / scale).toInt().coerceIn(0, image.height - 1)
+                val pixel = image.getPixel(bitmapX, bitmapY)
+                var surface = if (background.isDimmed() && applyImageDimming)
+                    ClockPalette.mix(pixel, Color.BLACK, .4f) else pixel
+                if (veil != null) {
+                    surface = ClockPalette.mix(surface, veil, Color.alpha(veil) / 255f)
+                }
+                lightContrast = minOf(lightContrast, ClockPalette.contrast(light, surface))
+                darkContrast = minOf(darkContrast, ClockPalette.contrast(dark, surface))
+            }
+            return if (lightContrast >= darkContrast) light else dark
         }
 
         protected fun readableDate(canvas: Canvas, context: ClockRenderContext,
@@ -751,6 +813,7 @@ object UltimateClockStyles {
         protected fun customBackgroundVeil(canvas: Canvas, context: ClockRenderContext,
             color: Int) {
             if (!hasCustomBackground(context)) return
+            if (context.getBackground()?.hasImage() == true) PAINT_POOL.get().photoVeil = color
             canvas.drawRect(context.getLeft(), context.getTop(), context.getRight(),
                 context.getBottom(), fill(color))
         }
@@ -848,8 +911,10 @@ object UltimateClockStyles {
             val marker = RendererBase.beginPaintFrame()
             val paintPool = RendererBase.PAINT_POOL.get()
             val previousPhotoText = paintPool.photoText
+            val previousPhotoVeil = paintPool.photoVeil
             val previousMotionState = paintPool.motionState
             paintPool.photoText = false
+            paintPool.photoVeil = null
             paintPool.motionState = state
             val saveCount = canvas.save()
             try {
@@ -858,6 +923,7 @@ object UltimateClockStyles {
                 canvas.restoreToCount(saveCount)
                 RendererBase.endPaintFrame(marker)
                 paintPool.photoText = previousPhotoText
+                paintPool.photoVeil = previousPhotoVeil
                 paintPool.motionState = previousMotionState
             }
         }

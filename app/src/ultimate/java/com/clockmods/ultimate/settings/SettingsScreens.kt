@@ -19,6 +19,7 @@ import androidx.compose.foundation.layout.fillMaxSize
 import androidx.compose.foundation.layout.fillMaxHeight
 import androidx.compose.foundation.layout.fillMaxWidth
 import androidx.compose.foundation.layout.padding
+import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.selection.toggleable
@@ -37,6 +38,7 @@ import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
+import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.HorizontalDivider
 import androidx.compose.material3.VerticalDivider
@@ -354,26 +356,43 @@ internal fun SettingSwitch(
     value: Boolean,
     summary: String? = null,
     enabled: Boolean = true,
+    loading: Boolean = false,
+    loadingSummary: String? = null,
     onChange: (Boolean) -> Unit,
 ) {
     Row(
         Modifier.fillMaxWidth().alpha(if (enabled) 1f else 0.38f)
-            .toggleable(value = value, enabled = enabled, role = Role.Switch, onValueChange = onChange)
+            .toggleable(value = value, enabled = enabled && !loading, role = Role.Switch,
+                onValueChange = onChange)
             .padding(vertical = 5.dp),
         verticalAlignment = Alignment.CenterVertically,
         horizontalArrangement = Arrangement.spacedBy(12.dp),
     ) {
         Column(Modifier.weight(1f)) {
             Text(label)
-            if (!summary.isNullOrBlank()) {
+            val displayedSummary = if (loading) loadingSummary ?: summary else summary
+            if (!displayedSummary.isNullOrBlank()) {
                 Text(
-                    summary,
+                    displayedSummary,
                     color = MaterialTheme.colorScheme.onSurfaceVariant,
                     style = MaterialTheme.typography.bodySmall,
                 )
             }
         }
-        Switch(checked = value, onCheckedChange = null, enabled = enabled)
+        Switch(
+            checked = value,
+            onCheckedChange = null,
+            enabled = enabled,
+            thumbContent = if (loading) {
+                {
+                    CircularProgressIndicator(
+                        modifier = Modifier.size(16.dp),
+                        strokeWidth = 2.dp,
+                        color = MaterialTheme.colorScheme.primary,
+                    )
+                }
+            } else null,
+        )
     }
 }
 
