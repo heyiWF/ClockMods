@@ -28,7 +28,7 @@ public class GaussianGlassTest {
         }
     }
 
-    @Test public void sharpEdgeBecomesSmoothSymmetricGaussianTransition() {
+    @Test public void sharpEdgeBecomesSmoothSymmetricTransition() {
         int[] pixels = new int[31];
         Arrays.fill(pixels, 0xFF000000);
         Arrays.fill(pixels, 15, 31, 0xFFFFFFFF);
@@ -37,7 +37,7 @@ public class GaussianGlassTest {
         assertEquals(0xFFFFFFFF, result[30]);
         assertTrue((result[14] & 255) > 0);
         assertTrue((result[15] & 255) < 255);
-        assertEquals(255, (result[14] & 255) + (result[15] & 255));
+        assertEquals(255d, (result[14] & 255) + (result[15] & 255), 4d);
         for (int i = 1; i < result.length; i++) {
             assertTrue((result[i] & 255) >= (result[i - 1] & 255));
         }
@@ -49,6 +49,24 @@ public class GaussianGlassTest {
     @Test public void transparentWhiteDoesNotProduceBrightHalos() {
         assertArrayEquals(new int[] {0xFF000000},
                 GaussianGlass.blurPixels(new int[] {0x00FFFFFF}, 1, 1));
+    }
+
+    @Test public void fastBlurKeepsUniformSurfacesAndSoftensBothAxes() {
+        int[] uniform = new int[35];
+        Arrays.fill(uniform, 0xFF2389AB);
+        assertArrayEquals(uniform, GaussianGlass.fastBlurPixels(uniform, 5, 7, 4f));
+        assertArrayEquals(new int[] {0xFF000000},
+                GaussianGlass.fastBlurPixels(new int[] {0x00FFFFFF}, 1, 1, 4f));
+
+        int[] impulse = new int[81];
+        Arrays.fill(impulse, 0xFF000000);
+        impulse[40] = 0xFFFFFFFF;
+        int[] result = GaussianGlass.fastBlurPixels(impulse, 9, 9, 2f);
+        assertTrue((result[40] & 255) < 255);
+        assertTrue((result[39] & 255) > 0);
+        assertEquals(result[39], result[41]);
+        assertEquals(result[31], result[49]);
+        assertEquals(0xFFFFFFFF, impulse[40]);
     }
 
     @Test public void strengthZeroPreservesDetailAndHigherStrengthSpreadsTheBlur() {

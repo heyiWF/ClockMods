@@ -92,6 +92,7 @@ import com.clockmods.ultimate.clock.UltimateClockPreferences;
 import com.clockmods.ultimate.clock.UltimateClockStyles;
 import com.clockmods.ultimate.clock.ClockTypography;
 import com.clockmods.ultimate.clock.ClockPalette;
+import com.clockmods.ultimate.clock.GaussianGlass;
 import com.clockmods.sdk.clock.ClockThemeTokens;
 import com.clockmods.ultimate.clock.WorldClockCatalog;
 import com.clockmods.ultimate.clock.WorldClockRepository;
@@ -103,6 +104,7 @@ import com.google.android.material.appbar.CollapsingToolbarLayout;
 import com.google.android.material.button.MaterialButton;
 import com.google.android.material.button.MaterialButtonToggleGroup;
 import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.progressindicator.CircularProgressIndicator;
 import com.google.android.material.color.DynamicColors;
 import com.google.android.material.color.MaterialColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
@@ -123,6 +125,7 @@ import java.util.Locale;
 import java.util.TimeZone;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.Future;
 
 /**
  * The Ultimate settings shell.  Pages are deliberately kept as plain views so a third-party
@@ -2681,6 +2684,35 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     blurControls.setVisibility(enabled ? View.VISIBLE : View.GONE);
                     preview.setPalette(draft[0]);
                 }) : null;
+        if (blurSwitch != null) {
+            LinearLayout switchRow = (LinearLayout) blurSwitch.getParent();
+            switchRow.removeView(blurSwitch);
+            FrameLayout switchSlot = new FrameLayout(this);
+            switchSlot.addView(blurSwitch, new FrameLayout.LayoutParams(
+                    ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT,
+                    Gravity.CENTER));
+            CircularProgressIndicator progress = new CircularProgressIndicator(this);
+            progress.setIndeterminate(true);
+            progress.setVisibility(View.GONE);
+            switchSlot.addView(progress, new FrameLayout.LayoutParams(dp(22), dp(22),
+                    Gravity.CENTER));
+            LinearLayout.LayoutParams slotParams = new LinearLayout.LayoutParams(
+                    dp(64), dp(48));
+            slotParams.setMarginStart(dp(16));
+            switchRow.addView(switchSlot, slotParams);
+            LinearLayout switchLabels = (LinearLayout) switchRow.getChildAt(0);
+            TextView summary = (TextView) switchLabels.getChildAt(1);
+            preview.setBlurLoadingListener(loading -> {
+                blurSwitch.setEnabled(!loading);
+                blurSwitch.setVisibility(loading ? View.INVISIBLE : View.VISIBLE);
+                progress.setVisibility(loading ? View.VISIBLE : View.GONE);
+                summary.setText(loading ? R.string.ultimate_palette_gaussian_blur_loading
+                        : R.string.ultimate_palette_gaussian_blur_summary);
+                switchRow.setContentDescription(getString(R.string.ultimate_palette_gaussian_blur)
+                        + ", " + summary.getText());
+            });
+            preview.setAwaitingBackground(true);
+        }
         solidControls.setVisibility(imageBackground && draft[0].gaussianBlur ? View.GONE : View.VISIBLE);
         blurControls.setVisibility(imageBackground && draft[0].gaussianBlur ? View.VISIBLE : View.GONE);
         controls.addView(blurControls);
@@ -2770,9 +2802,8 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                         if (image != null) image.recycle();
                         return;
                     }
-                    preview.previewBackground = ClockBackground.image(image,
-                            repository.getCurrentColor(), repository.isDimBackground());
-                    preview.invalidate();
+                    preview.setPreviewBackground(image == null ? null : ClockBackground.image(
+                            image, repository.getCurrentColor(), repository.isDimBackground()));
                 });
             });
         }
@@ -3481,6 +3512,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         private final String scopeId;
         private ClockThemeTokens previewTokens;
         private ClockBackground previewBackground;
+        private Consumer<Boolean> blurLoadingListener;
+        private Future<?> blurTask;
+        private int blurGeneration;
+        private boolean awaitingBackground;
         private int targetViewportWidth;
         private int targetViewportHeight;
         private int maxPreviewHeight;
@@ -3498,7 +3533,64 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         void setPalette(ClockPalette palette) {
             previewTokens = palette.applyTo(style.getThemeTokens());
             typography.invalidate();
+            prepareBlur();
             invalidate();
+        }
+
+        void setBlurLoadingListener(Consumer<Boolean> listener) {
+            blurLoadingListener = listener;
+        }
+
+        void setAwaitingBackground(boolean awaiting) {
+            awaitingBackground = awaiting;
+            prepareBlur();
+        }
+
+        void setPreviewBackground(ClockBackground background) {
+            previewBackground = background;
+            awaitingBackground = false;
+            prepareBlur();
+            invalidate();
+        }
+
+        private void prepareBlur() {
+            int generation = ++blurGeneration;
+            if (blurTask != null) blurTask.cancel(false);
+            if (!previewTokens.isGaussianBlur()) {
+                reportBlurLoading(false);
+                return;
+            }
+            if (awaitingBackground) {
+                reportBlurLoading(true);
+                return;
+            }
+            Bitmap image = previewBackground == null ? null : previewBackground.getBitmap();
+            if (image == null || image.isRecycled()) {
+                reportBlurLoading(false);
+                return;
+            }
+            int strength = previewTokens.getBlurStrength();
+            if (GaussianGlass.isPrepared(image, strength)) {
+                reportBlurLoading(false);
+                return;
+            }
+            reportBlurLoading(true);
+            blurTask = imageExecutor.submit(() -> {
+                try {
+                    GaussianGlass.prepare(image, strength);
+                } catch (RuntimeException | OutOfMemoryError ignored) {
+                    // Keep the preview responsive and show the unblurred card on failure.
+                }
+                runOnUiThread(() -> {
+                    if (generation != blurGeneration || isDestroyed()) return;
+                    reportBlurLoading(false);
+                    invalidate();
+                });
+            });
+        }
+
+        private void reportBlurLoading(boolean loading) {
+            if (blurLoadingListener != null) blurLoadingListener.accept(loading);
         }
 
         void setTargetViewport(int width, int height, int maxHeight) {

@@ -809,6 +809,7 @@ public class UltimateClockView extends FrameLayout {
         if (repository == null || getWidth() <= 0 || getHeight() <= 0) return;
         final int requestedWidth = getWidth();
         final int requestedHeight = getHeight();
+        final ClockThemeTokens requestedTheme = paletteTokens;
         synchronized (workerLock) {
             if (!attached || imageExecutor == null || imageExecutor.isShutdown()) return;
             imageExecutor.execute(() -> {
@@ -818,6 +819,13 @@ public class UltimateClockView extends FrameLayout {
                         loaded = repository.loadImage(requestedWidth, requestedHeight);
                     } catch (IOException | OutOfMemoryError ignored) {
                         loaded = null;
+                    }
+                }
+                if (loaded != null && requestedTheme != null && requestedTheme.isGaussianBlur()) {
+                    try {
+                        GaussianGlass.prepare(loaded, requestedTheme.getBlurStrength());
+                    } catch (RuntimeException | OutOfMemoryError ignored) {
+                        // Show the image with solid cards if blur preparation cannot finish.
                     }
                 }
                 final Bitmap result = loaded;

@@ -16,9 +16,10 @@ import com.clockmods.sdk.clock.ClockThemeTokens;
 
 import java.util.WeakHashMap;
 import java.util.HashMap;
+import java.util.LinkedHashMap;
 
 /** A background-anchored blur sampled through moving card masks, including software previews. */
-final class GaussianGlass {
+public final class GaussianGlass {
     private static final int BASE_BLUR_EDGE = 192;
     // A weak blur preserves fine detail, so its working bitmap must also preserve enough detail.
     // Keeping every strength at BASE_BLUR_EDGE makes individual texels visible when that bitmap is
@@ -32,6 +33,8 @@ final class GaussianGlass {
     private static final float MAX_BRIGHTNESS_OVERLAY_ALPHA = .55f;
     // Keys do not keep the host's full-size background alive after replacement or view disposal.
     private static final WeakHashMap<Bitmap, GaussianGlass> CACHE = new WeakHashMap<>();
+    private static final WeakHashMap<Bitmap, LinkedHashMap<Integer, Bitmap>> PREPARED =
+            new WeakHashMap<>();
     private final Bitmap bitmap;
     private final BitmapShader shader;
     private final Matrix imageToBackground = new Matrix();
@@ -59,11 +62,45 @@ final class GaussianGlass {
                 && cached.strength == theme.getBlurStrength()
                 && cached.brightness == theme.getBlurBrightness()) return cached;
         Bitmap blur = cached != null && cached.strength == theme.getBlurStrength()
-                ? cached.bitmap : blurred(source, theme.getBlurStrength());
+                ? cached.bitmap : preparedBitmap(source, theme.getBlurStrength());
+        if (blur == null) return null;
         GaussianGlass result = new GaussianGlass(context, blur,
                 source.getWidth(), source.getHeight(), theme.getBlurStrength(), theme.getBlurBrightness());
         CACHE.put(source, result);
         return result;
+    }
+
+    /** The draw path only reads completed variants; image processing runs on a worker. */
+    public static synchronized boolean isPrepared(Bitmap source, int strength) {
+        int value = Math.max(0, Math.min(100, strength));
+        GaussianGlass cached = CACHE.get(source);
+        return cached != null && cached.strength == value
+                || preparedBitmap(source, value) != null;
+    }
+
+    public static void prepare(Bitmap source, int strength) {
+        if (source == null || source.isRecycled()) return;
+        int value = Math.max(0, Math.min(100, strength));
+        synchronized (source) {
+            if (isPrepared(source, value)) return;
+            Bitmap result = blurred(source, value);
+            synchronized (PREPARED) {
+                LinkedHashMap<Integer, Bitmap> variants = PREPARED.get(source);
+                if (variants == null) {
+                    variants = new LinkedHashMap<>(8, .75f, true);
+                    PREPARED.put(source, variants);
+                }
+                variants.put(value, result);
+                if (variants.size() > 6) variants.remove(variants.keySet().iterator().next());
+            }
+        }
+    }
+
+    private static Bitmap preparedBitmap(Bitmap source, int strength) {
+        synchronized (PREPARED) {
+            LinkedHashMap<Integer, Bitmap> variants = PREPARED.get(source);
+            return variants == null ? null : variants.get(strength);
+        }
     }
 
     private GaussianGlass(ClockRenderContext context, Bitmap bitmap, int sourceWidth, int sourceHeight,
@@ -223,7 +260,7 @@ final class GaussianGlass {
         return value * SIGMA_PER_STRENGTH * workingEdge / baseEdge;
     }
 
-    /** Separable Gaussian convolution with clamped edges; transparent pixels composite on black. */
+    /** Blur with clamped edges; transparent pixels composite on black. */
     static int[] blurPixels(int[] pixels, int width, int height) {
         return blurPixels(pixels, width, height, ClockThemeTokens.DEFAULT_BLUR_STRENGTH);
     }
@@ -234,49 +271,68 @@ final class GaussianGlass {
     }
 
     private static int[] blurPixels(int[] pixels, int width, int height, float sigma) {
-        int radius = (int) Math.ceil(sigma * 3f);
-        float[] kernel = kernel(radius, sigma);
-        float[] horizontal = new float[pixels.length * 3];
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                int offset = (y * width + x) * 3;
-                for (int k = -radius; k <= radius; k++) {
-                    int color = pixels[y * width + Math.max(0, Math.min(width - 1, x + k))];
-                    float weight = kernel[k + radius] * (color >>> 24) / 255f;
-                    for (int c = 0; c < 3; c++) {
-                        horizontal[offset + c] += ((color >>> (c * 8)) & 255) * weight;
-                    }
-                }
-            }
-        }
-        int[] result = new int[pixels.length];
-        for (int y = 0; y < height; y++) {
-            for (int x = 0; x < width; x++) {
-                int color = 0xFF000000;
-                for (int c = 0; c < 3; c++) {
-                    float value = 0;
-                    for (int k = -radius; k <= radius; k++) {
-                        int offset = (Math.max(0, Math.min(height - 1, y + k)) * width + x) * 3;
-                        value += horizontal[offset + c] * kernel[k + radius];
-                    }
-                    color |= Math.min(255, Math.round(value)) << (c * 8);
-                }
-                result[y * width + x] = color;
-            }
-        }
-        return result;
+        return fastBlurPixels(pixels, width, height, sigma);
     }
 
-    private static float[] kernel(int radius, float sigma) {
-        if (radius == 0) return new float[] {1f};
-        float[] weights = new float[radius * 2 + 1];
-        float sum = 0;
-        for (int i = -radius; i <= radius; i++) {
-            weights[i + radius] = (float) Math.exp(-i * i / (2d * sigma * sigma));
-            sum += weights[i + radius];
+    /** Three running-sum box passes approximate a Gaussian in time linear in image size. */
+    static int[] fastBlurPixels(int[] pixels, int width, int height, float sigma) {
+        int[] current = new int[pixels.length];
+        for (int i = 0; i < pixels.length; i++) {
+            int color = pixels[i];
+            int alpha = color >>> 24;
+            int red = ((color >>> 16 & 255) * alpha + 127) / 255;
+            int green = ((color >>> 8 & 255) * alpha + 127) / 255;
+            int blue = ((color & 255) * alpha + 127) / 255;
+            current[i] = 0xFF000000 | red << 16 | green << 8 | blue;
         }
-        for (int i = 0; i < weights.length; i++) weights[i] /= sum;
-        return weights;
+        float idealWidth = (float) Math.sqrt(1f + 4f * sigma * sigma);
+        int lowerWidth = Math.max(1, ((int) Math.floor(idealWidth)) | 1);
+        int upperWidth = lowerWidth + 2;
+        int lowerPasses = Math.max(0, Math.min(3, Math.round(
+                (12f * sigma * sigma - 3f * lowerWidth * lowerWidth
+                        - 12f * lowerWidth - 9f) / (-4f * lowerWidth - 4f))));
+        int[] horizontal = new int[pixels.length];
+        int[] next = new int[pixels.length];
+        for (int pass = 0; pass < 3; pass++) {
+            int radius = (pass < lowerPasses ? lowerWidth : upperWidth) / 2;
+            if (radius == 0) continue;
+            boxBlur(current, horizontal, width, height, radius, true);
+            boxBlur(horizontal, next, width, height, radius, false);
+            int[] old = current;
+            current = next;
+            next = old;
+        }
+        return current;
+    }
+
+    private static void boxBlur(int[] input, int[] output, int width, int height,
+            int radius, boolean horizontal) {
+        int lines = horizontal ? height : width;
+        int length = horizontal ? width : height;
+        int stride = horizontal ? 1 : width;
+        int divisor = radius * 2 + 1;
+        for (int line = 0; line < lines; line++) {
+            int start = horizontal ? line * width : line;
+            int first = input[start];
+            int red = (first >>> 16 & 255) * (radius + 1);
+            int green = (first >>> 8 & 255) * (radius + 1);
+            int blue = (first & 255) * (radius + 1);
+            for (int i = 1; i <= radius; i++) {
+                int color = input[start + Math.min(i, length - 1) * stride];
+                red += color >>> 16 & 255;
+                green += color >>> 8 & 255;
+                blue += color & 255;
+            }
+            for (int i = 0; i < length; i++) {
+                output[start + i * stride] = 0xFF000000
+                        | red / divisor << 16 | green / divisor << 8 | blue / divisor;
+                int leaving = input[start + Math.max(0, i - radius) * stride];
+                int entering = input[start + Math.min(length - 1, i + radius + 1) * stride];
+                red += (entering >>> 16 & 255) - (leaving >>> 16 & 255);
+                green += (entering >>> 8 & 255) - (leaving >>> 8 & 255);
+                blue += (entering & 255) - (leaving & 255);
+            }
+        }
     }
 
     /**
