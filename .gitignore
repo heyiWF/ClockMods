@@ -5,6 +5,8 @@ qweather.properties
 .claude/
 .workbuddy/
 .tmp*/
+/.tmp-*
+/.android/
 
 # Gradle
 .gradle/
