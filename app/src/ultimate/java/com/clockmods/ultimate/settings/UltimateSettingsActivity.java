@@ -1686,6 +1686,12 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 R.drawable.ultimate_ic_chevron_right, this::launchImagePicker);
 
         addSectionLabel(body, R.string.ultimate_display_section);
+        addSwitch(body, R.string.ultimate_avoid_display_cutout,
+                R.string.ultimate_avoid_display_cutout_summary,
+                repository.isAvoidDisplayCutout(), value -> {
+                    repository.setAvoidDisplayCutout(value);
+                    markChanged("avoid_display_cutout");
+                });
         addSwitch(body, R.string.ultimate_show_status_icons,
                 R.string.ultimate_show_status_icons_summary, repository.isShowStatusIcons(), value -> {
                     repository.setShowStatusIcons(value);

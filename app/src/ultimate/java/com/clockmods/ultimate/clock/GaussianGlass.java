@@ -11,6 +11,7 @@ import android.graphics.RectF;
 import android.graphics.Shader;
 
 import com.clockmods.sdk.clock.ClockRenderContext;
+import com.clockmods.sdk.clock.ClockOverlayBounds;
 import com.clockmods.sdk.clock.ClockThemeTokens;
 
 import java.util.WeakHashMap;
@@ -50,8 +51,11 @@ final class GaussianGlass {
                 || !context.getBackground().hasImage()) return null;
         Bitmap source = context.getBackground().getBitmap();
         GaussianGlass cached = CACHE.get(source);
-        if (cached != null && cached.left == context.getLeft() && cached.top == context.getTop()
-                && cached.right == context.getRight() && cached.bottom == context.getBottom()
+        ClockOverlayBounds canvasBounds = context.getCanvasBounds();
+        if (cached != null && cached.left == canvasBounds.getLeft()
+                && cached.top == canvasBounds.getTop()
+                && cached.right == canvasBounds.getRight()
+                && cached.bottom == canvasBounds.getBottom()
                 && cached.strength == theme.getBlurStrength()
                 && cached.brightness == theme.getBlurBrightness()) return cached;
         Bitmap blur = cached != null && cached.strength == theme.getBlurStrength()
@@ -67,10 +71,11 @@ final class GaussianGlass {
         this.bitmap = bitmap;
         this.strength = strength;
         this.brightness = brightness;
-        left = context.getLeft();
-        top = context.getTop();
-        right = context.getRight();
-        bottom = context.getBottom();
+        ClockOverlayBounds canvasBounds = context.getCanvasBounds();
+        left = canvasBounds.getLeft();
+        top = canvasBounds.getTop();
+        right = canvasBounds.getRight();
+        bottom = canvasBounds.getBottom();
         shader = new BitmapShader(bitmap, Shader.TileMode.CLAMP, Shader.TileMode.CLAMP);
         materialPaint.setShader(shader);
         float[] brightnessTransform = brightnessTransform(brightness);
@@ -83,11 +88,12 @@ final class GaussianGlass {
                     0, 0, scale, 0, offset,
                     0, 0, 0, 1, 0}));
         }
-        float scale = Math.max(context.getWidth() / sourceWidth, context.getHeight() / sourceHeight);
+        float scale = Math.max(canvasBounds.getWidth() / sourceWidth,
+                canvasBounds.getHeight() / sourceHeight);
         scaleX = sourceWidth * scale / bitmap.getWidth();
         scaleY = sourceHeight * scale / bitmap.getHeight();
-        imageLeft = context.getCenterX() - sourceWidth * scale * .5f;
-        imageTop = context.getCenterY() - sourceHeight * scale * .5f;
+        imageLeft = (left + right) * .5f - sourceWidth * scale * .5f;
+        imageTop = (top + bottom) * .5f - sourceHeight * scale * .5f;
         imageToBackground.setScale(scaleX, scaleY);
         imageToBackground.postTranslate(imageLeft, imageTop);
         edge.setStyle(Paint.Style.STROKE);

@@ -87,6 +87,10 @@ public class ClockView extends View {
     private Bitmap backgroundBitmap;
     private int loadedWidth;
     private int loadedHeight;
+    private int contentInsetLeft;
+    private int contentInsetTop;
+    private int contentInsetRight;
+    private int contentInsetBottom;
     private float timeFontScale = ClockPreferences.DEFAULT_TIME_FONT_SCALE;
     private float dateFontScale = ClockPreferences.DEFAULT_DATE_FONT_SCALE;
     private boolean blinkColon = ClockPreferences.DEFAULT_BLINK_COLON;
@@ -159,6 +163,29 @@ public class ClockView extends View {
         backgroundRepository = repository;
         requestBackgroundReload();
         invalidate();
+    }
+
+    /** Keep the wallpaper edge to edge while moving the Pro Classic content out of cutouts. */
+    public void setContentInsets(int left, int top, int right, int bottom) {
+        left = Math.max(0, left);
+        top = Math.max(0, top);
+        right = Math.max(0, right);
+        bottom = Math.max(0, bottom);
+        if (contentInsetLeft == left && contentInsetTop == top
+                && contentInsetRight == right && contentInsetBottom == bottom) return;
+        contentInsetLeft = left;
+        contentInsetTop = top;
+        contentInsetRight = right;
+        contentInsetBottom = bottom;
+        invalidate();
+    }
+
+    private int contentWidth() {
+        return Math.max(1, getWidth() - contentInsetLeft - contentInsetRight);
+    }
+
+    private int contentHeight() {
+        return Math.max(1, getHeight() - contentInsetTop - contentInsetBottom);
     }
 
     public void setWeatherState(WeatherState state) {
@@ -269,6 +296,11 @@ public class ClockView extends View {
             canvas.drawColor(DIM_BACKGROUND_OVERLAY_COLOR);
         }
 
+        int contentSave = canvas.save();
+        canvas.translate(contentInsetLeft, contentInsetTop);
+        width = contentWidth();
+        height = contentHeight();
+
         applyTextStyles();
 
         ClockTimeFormatter.DisplayTime displayTime = ClockTimeFormatter.format(
@@ -281,6 +313,7 @@ public class ClockView extends View {
         // Portrait stacked layout is a fully separate path; landscape is untouched.
         if (height >= width && portraitStacked) {
             drawStackedPortrait(canvas, now, dateText, lunarText, width, height);
+            canvas.restoreToCount(contentSave);
             return;
         }
 
@@ -343,6 +376,7 @@ public class ClockView extends View {
         if (lunarText.length() == 0) {
             applySupportingTypeface(dateText);
             drawSupportingText(canvas, dateText, centerX, dateBaseline, Paint.Align.CENTER);
+            canvas.restoreToCount(contentSave);
             return;
         }
 
@@ -359,6 +393,7 @@ public class ClockView extends View {
             drawSupportingText(canvas, dateText, centerX, dateBaseline - lunarRowGap,
                 Paint.Align.CENTER);
         }
+        canvas.restoreToCount(contentSave);
     }
 
     /**
@@ -629,7 +664,7 @@ public class ClockView extends View {
                 (elapsed - WEATHER_DETAIL_SCROLL_PAUSE_MILLIS) / (float) scrollMillis));
             float clipLeft = centerX - available / 2f;
             canvas.save();
-            canvas.clipRect(clipLeft, 0f, clipLeft + available, getHeight());
+            canvas.clipRect(clipLeft, 0f, clipLeft + available, contentHeight());
             startX = clipLeft - overflow * progress;
         } else {
             startX = centerX - total / 2f;
@@ -855,7 +890,7 @@ public class ClockView extends View {
     private float weatherDetailAvailableWidth() {
         float padding = WEATHER_DETAIL_HORIZONTAL_PADDING_DP
                 * getResources().getDisplayMetrics().density;
-        return Math.max(1f, getWidth() - padding * 2f);
+        return Math.max(1f, contentWidth() - padding * 2f);
     }
 
     private void drawScrollingWeatherText(Canvas canvas, String text, float centerX,
@@ -875,7 +910,7 @@ public class ClockView extends View {
         float progress = Math.max(0f, Math.min(1f,
                 (elapsed - WEATHER_DETAIL_SCROLL_PAUSE_MILLIS) / (float) scrollMillis));
         canvas.save();
-        canvas.clipRect(left, 0f, left + availableWidth, getHeight());
+        canvas.clipRect(left, 0f, left + availableWidth, contentHeight());
         drawSupportingText(canvas, text, left - overflow * progress, baseline, Paint.Align.LEFT);
         canvas.restore();
     }
@@ -893,7 +928,7 @@ public class ClockView extends View {
                 * getResources().getDisplayMetrics().density;
         float offset = loopingMarqueeOffset(elapsed, cycleDistance, speed);
         float top = Math.max(0f, baseline + metrics.ascent - datePaint.getTextSize() * 0.12f);
-        float bottom = Math.min(getHeight(), baseline + metrics.descent
+        float bottom = Math.min(contentHeight(), baseline + metrics.descent
                 + datePaint.getTextSize() * 0.12f);
         int layer = canvas.saveLayer(left, top, right, bottom, null);
         canvas.clipRect(left, top, right, bottom);
@@ -926,7 +961,7 @@ public class ClockView extends View {
         float offset = oneShotMarqueeOffset(elapsed, WEATHER_DETAIL_SCROLL_PAUSE_MILLIS,
                 distance, speed);
         float top = Math.max(0f, baseline + metrics.ascent - datePaint.getTextSize() * 0.12f);
-        float bottom = Math.min(getHeight(), baseline + metrics.descent
+        float bottom = Math.min(contentHeight(), baseline + metrics.descent
                 + datePaint.getTextSize() * 0.12f);
         int layer = canvas.saveLayer(left, top, right, bottom, null);
         canvas.clipRect(left, top, right, bottom);

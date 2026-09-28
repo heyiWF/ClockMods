@@ -1,6 +1,7 @@
 package com.clockmods.pro;
 
 import android.content.Intent;
+import android.graphics.Insets;
 import android.net.Uri;
 import android.os.Build;
 import android.os.Bundle;
@@ -10,6 +11,7 @@ import android.view.Gravity;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowInsets;
 import android.widget.FrameLayout;
 import android.widget.LinearLayout;
 import android.widget.NumberPicker;
@@ -95,6 +97,11 @@ public final class ProCalendarFragment extends Fragment implements CalendarLayou
             @Nullable Bundle savedInstanceState) {
         View root = inflater.inflate(R.layout.fragment_pro_calendar, container, false);
         styleHost = root.findViewById(R.id.calendar_style_host);
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
+            applyDisplaySafeArea(view, insets);
+            return insets;
+        });
+        root.requestApplyInsets();
         preferences = new ClockPreferences(requireContext());
         holidayRepository = new HolidayRepository(requireContext());
         restoreState(savedInstanceState);
@@ -170,6 +177,8 @@ public final class ProCalendarFragment extends Fragment implements CalendarLayou
     private void refreshSettings(View root) {
         preferences = new ClockPreferences(requireContext());
         installStyle(preferences.getCalendarTheme());
+        styleHost.setBackground(style.getTheme().newPageBackground());
+        applyDisplaySafeArea(root, root.getRootWindowInsets());
         BackgroundRepository background = new BackgroundRepository(requireContext());
         layout.applySettings(style.getTheme(), preferences, background);
         TimeZone zone = appTimeZone();
@@ -187,6 +196,21 @@ public final class ProCalendarFragment extends Fragment implements CalendarLayou
         if (lastForecastState != null) layout.bindForecast(lastForecastState);
         layout.applyResponsiveSizing();
         if (resumed) startWeatherIfEnabled();
+    }
+
+    private void applyDisplaySafeArea(View root, WindowInsets windowInsets) {
+        if (windowInsets == null || preferences == null) return;
+        Insets safe = Insets.NONE;
+        if (preferences.isAvoidDisplayCutout()) {
+            Insets bars = windowInsets.getInsetsIgnoringVisibility(
+                    WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+            Insets cutout = windowInsets.getInsets(WindowInsets.Type.displayCutout());
+            safe = Insets.of(Math.max(bars.left, cutout.left),
+                    Math.max(bars.top, cutout.top),
+                    Math.max(bars.right, cutout.right),
+                    Math.max(bars.bottom, cutout.bottom));
+        }
+        root.setPadding(safe.left, safe.top, safe.right, safe.bottom);
     }
 
     /** Swaps in the composition for {@code styleId}, or leaves the current one alone if unchanged. */

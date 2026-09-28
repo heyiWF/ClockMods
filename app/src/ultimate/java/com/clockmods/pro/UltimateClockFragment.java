@@ -8,6 +8,7 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.graphics.Color;
+import android.graphics.Insets;
 import android.graphics.drawable.GradientDrawable;
 import android.net.Uri;
 import android.os.Build;
@@ -17,6 +18,7 @@ import android.view.LayoutInflater;
 import android.view.MotionEvent;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.WindowInsets;
 import android.view.accessibility.AccessibilityNodeInfo;
 
 import androidx.annotation.NonNull;
@@ -79,6 +81,7 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
     private boolean resumed;
     /** True while the clock view is frosting the plate behind the capsule instead of the host. */
     private boolean statusOverlayBlurred;
+    private Insets contentInsets = Insets.NONE;
 
     @Nullable
     @Override
@@ -91,6 +94,11 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
         proClassicClockView = root.findViewById(R.id.pro_classic_clock_view);
         statusBarView = root.findViewById(R.id.status_bar_view);
         weatherAttribution = root.findViewById(R.id.weather_attribution);
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
+            applyDisplaySafeArea(insets);
+            return insets;
+        });
+        root.requestApplyInsets();
         BackgroundRepository repository = new BackgroundRepository(requireContext());
         statusOverlayRepository = new UltimateStatusOverlayRepository(requireContext());
         applyClockStyle(repository);
@@ -207,6 +215,7 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
         }
         statusBarView.setVisibility(repository.isShowStatusIcons() ? View.VISIBLE : View.GONE);
         statusBarView.invalidate();
+        applyDisplaySafeArea(clockHost.getRootWindowInsets());
         updateStatusOverlayPlacement();
         applyWeatherEnabled(repository);
         startWeatherIfEnabled();
@@ -233,7 +242,7 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
             ViewGroup.MarginLayoutParams attributionParams =
                     (ViewGroup.MarginLayoutParams) weatherAttribution.getLayoutParams();
             attributionParams.height = dp(18);
-            attributionParams.bottomMargin = dp(4);
+            attributionParams.bottomMargin = dp(4) + contentInsets.bottom;
             weatherAttribution.setLayoutParams(attributionParams);
             UltimateClockPreferences appearance = new UltimateClockPreferences(requireContext());
             boolean adaptive = ClockPalette.supports(appearance.getStyleId())
@@ -376,6 +385,32 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
                 !proClassicActive && weatherEnabled ? dp(28) : 0f);
     }
 
+    private void applyDisplaySafeArea(WindowInsets windowInsets) {
+        if (windowInsets == null || clockHost == null) return;
+        boolean avoid = new BackgroundRepository(requireContext()).isAvoidDisplayCutout();
+        Insets safe = Insets.NONE;
+        if (avoid) {
+            Insets bars = windowInsets.getInsetsIgnoringVisibility(
+                    WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
+            Insets cutout = windowInsets.getInsets(WindowInsets.Type.displayCutout());
+            safe = Insets.of(Math.max(bars.left, cutout.left),
+                    Math.max(bars.top, cutout.top),
+                    Math.max(bars.right, cutout.right),
+                    Math.max(bars.bottom, cutout.bottom));
+        }
+        if (safe.equals(contentInsets)) return;
+        contentInsets = safe;
+        ultimateClockView.setContentInsets(safe.left, safe.top, safe.right, safe.bottom);
+        proClassicClockView.setContentInsets(safe.left, safe.top, safe.right, safe.bottom);
+        if (weatherAttribution != null) {
+            ViewGroup.MarginLayoutParams params =
+                    (ViewGroup.MarginLayoutParams) weatherAttribution.getLayoutParams();
+            params.bottomMargin = dp(4) + safe.bottom;
+            weatherAttribution.setLayoutParams(params);
+        }
+        updateStatusOverlayPlacement();
+    }
+
     /**
      * The clock view draws the capsule's frosted plate itself whenever the face renders with
      * Gaussian blur, so this drops the flat capsule for the plate and takes the foreground the
@@ -457,13 +492,24 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
      */
     private void updateStatusOverlayPlacement() {
         if (statusBarView == null || ultimateClockView == null) return;
-        if (proClassicActive || statusBarView.getVisibility() != View.VISIBLE) {
+        if (statusBarView.getVisibility() != View.VISIBLE) {
             ultimateClockView.setStatusOverlay(null);
             return;
         }
         if (clockHost == null || clockHost.getWidth() <= 0 || clockHost.getHeight() <= 0) return;
         float hostWidth = clockHost.getWidth();
         float hostHeight = clockHost.getHeight();
+        if (proClassicActive) {
+            float desiredLeft = hostWidth - contentInsets.right - dp(STATUS_CAPSULE_MARGIN_DP)
+                    - statusBarView.getWidth();
+            statusBarView.setTranslationX(desiredLeft - statusBarView.getLeft());
+            statusBarView.setTranslationY(contentInsets.top + dp(STATUS_CAPSULE_MARGIN_TOP_DP)
+                    - statusBarView.getTop());
+            ultimateClockView.setStatusOverlay(null);
+            return;
+        }
+        float contentWidth = Math.max(1f, hostWidth - contentInsets.left - contentInsets.right);
+        float contentHeight = Math.max(1f, hostHeight - contentInsets.top - contentInsets.bottom);
         int capsuleHeight = dp(STATUS_CAPSULE_HEIGHT_DP);
         // The capsule hugs its content, so measure it the way it measures itself. The box's right
         // edge is what the corner styles care about, which is also what keeps the capsule from
@@ -473,9 +519,13 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
                 View.MeasureSpec.makeMeasureSpec(capsuleHeight, View.MeasureSpec.EXACTLY));
         float[] box = UltimateClockStyles.statusCapsuleBounds(
                 new UltimateClockPreferences(requireContext()).getStyleId(),
-                hostWidth, hostHeight, getResources().getDisplayMetrics().density,
+                contentWidth, contentHeight, getResources().getDisplayMetrics().density,
                 dp(STATUS_CAPSULE_MARGIN_DP), dp(STATUS_CAPSULE_MARGIN_TOP_DP),
                 statusBarView.getMeasuredWidth(), capsuleHeight);
+        box[0] += contentInsets.left;
+        box[1] += contentInsets.top;
+        box[2] += contentInsets.left;
+        box[3] += contentInsets.top;
         anchorCapsule(box, hostWidth);
         ultimateClockView.setStatusOverlay(new ClockOverlayBounds(box[0], box[1], box[2], box[3]));
     }

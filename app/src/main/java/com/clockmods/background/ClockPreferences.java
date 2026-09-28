@@ -43,6 +43,7 @@ public class ClockPreferences {
     private static final String KEY_TIME_COLOR = "time_color";
     private static final String KEY_DATE_COLOR = "date_color";
     private static final String KEY_SHOW_STATUS_ICONS = "show_status_icons";
+    private static final String KEY_AVOID_DISPLAY_CUTOUT = "avoid_display_cutout";
     private static final String KEY_STATUS_ICON_SCALE = "status_icon_scale";
     private static final String KEY_BLINK_COLON = "blink_colon";
     private static final String KEY_ANIMATE_TIME_CHANGES = "animate_time_changes";
@@ -293,6 +294,14 @@ public class ClockPreferences {
 
     public void setShowStatusIcons(boolean show) {
         preferences.edit().putBoolean(KEY_SHOW_STATUS_ICONS, show).apply();
+    }
+
+    public boolean isAvoidDisplayCutout() {
+        return preferences.getBoolean(KEY_AVOID_DISPLAY_CUTOUT, false);
+    }
+
+    public void setAvoidDisplayCutout(boolean avoid) {
+        preferences.edit().putBoolean(KEY_AVOID_DISPLAY_CUTOUT, avoid).apply();
     }
 
     public float getStatusIconScale() {
@@ -918,6 +927,7 @@ public class ClockPreferences {
                 .putInt(KEY_TIME_COLOR, DEFAULT_TEXT_COLOR)
                 .putInt(KEY_DATE_COLOR, DEFAULT_TEXT_COLOR)
                 .putBoolean(KEY_SHOW_STATUS_ICONS, DEFAULT_SHOW_STATUS_ICONS)
+                .putBoolean(KEY_AVOID_DISPLAY_CUTOUT, false)
                 .putFloat(KEY_STATUS_ICON_SCALE, DEFAULT_STATUS_ICON_SCALE)
                 .putBoolean(KEY_BLINK_COLON, DEFAULT_BLINK_COLON)
                 .putBoolean(KEY_ANIMATE_TIME_CHANGES, DEFAULT_ANIMATE_TIME_CHANGES)

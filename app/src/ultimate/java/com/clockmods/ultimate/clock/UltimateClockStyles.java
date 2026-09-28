@@ -716,11 +716,12 @@ public final class UltimateClockStyles {
         protected static void background(Canvas canvas, ClockRenderContext context,
                 ClockThemeTokens theme, boolean respectDimming) {
             ClockBackground hostBackground = context.getBackground();
+            ClockOverlayBounds canvasBounds = context.getCanvasBounds();
             if (hostBackground != null && !hostBackground.usesThemeSurface()) {
-                float left = context.getLeft();
-                float top = context.getTop();
-                float right = context.getRight();
-                float bottom = context.getBottom();
+                float left = canvasBounds.getLeft();
+                float top = canvasBounds.getTop();
+                float right = canvasBounds.getRight();
+                float bottom = canvasBounds.getBottom();
                 if (hostBackground.hasImage()) {
                     Bitmap bitmap = hostBackground.getBitmap();
                     float width = Math.max(1f, right - left);
@@ -746,14 +747,14 @@ public final class UltimateClockStyles {
                 return;
             }
             Paint p = fill(Color.WHITE);
-            p.setShader(new LinearGradient(context.getLeft(), context.getTop(),
-                    context.getRight(), context.getBottom(), theme.getBackgroundStartColor(),
+            p.setShader(new LinearGradient(canvasBounds.getLeft(), canvasBounds.getTop(),
+                    canvasBounds.getRight(), canvasBounds.getBottom(), theme.getBackgroundStartColor(),
                     theme.getBackgroundEndColor(), Shader.TileMode.CLAMP));
-            canvas.drawRect(context.getLeft(), context.getTop(), context.getRight(),
-                    context.getBottom(), p);
+            canvas.drawRect(canvasBounds.getLeft(), canvasBounds.getTop(),
+                    canvasBounds.getRight(), canvasBounds.getBottom(), p);
             if (hostBackground != null && hostBackground.isDimmed()) {
-                canvas.drawRect(context.getLeft(), context.getTop(), context.getRight(),
-                        context.getBottom(), fill(0x66000000));
+                canvas.drawRect(canvasBounds.getLeft(), canvasBounds.getTop(),
+                        canvasBounds.getRight(), canvasBounds.getBottom(), fill(0x66000000));
             }
         }
 

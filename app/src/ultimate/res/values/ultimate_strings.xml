@@ -91,6 +91,8 @@
     <string name="ultimate_background_imported">背景图片已更新</string>
     <string name="ultimate_background_import_failed">无法读取这张图片</string>
     <string name="ultimate_display_section">状态显示</string>
+    <string name="ultimate_avoid_display_cutout">避开屏幕挖孔与刘海</string>
+    <string name="ultimate_avoid_display_cutout_summary">自动调整时钟与月历内容，避开顶部状态栏和屏幕不规则区域</string>
     <string name="ultimate_show_status_icons">显示状态图标</string>
     <string name="ultimate_show_status_icons_summary">在时钟角落显示网络和电池状态。</string>
     <string name="ultimate_status_icon_size">状态图标大小</string>

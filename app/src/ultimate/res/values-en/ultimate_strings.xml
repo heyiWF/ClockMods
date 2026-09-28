@@ -91,6 +91,8 @@
     <string name="ultimate_background_imported">Background image updated</string>
     <string name="ultimate_background_import_failed">Could not read this image</string>
     <string name="ultimate_display_section">Status display</string>
+    <string name="ultimate_avoid_display_cutout">Avoid camera cutouts and notches</string>
+    <string name="ultimate_avoid_display_cutout_summary">Keep clock and calendar content clear of the top status bar and screen cutouts</string>
     <string name="ultimate_show_status_icons">Show status icons</string>
     <string name="ultimate_show_status_icons_summary">Show network and battery status in a corner of the clock.</string>
     <string name="ultimate_status_icon_size">Status icon size</string>

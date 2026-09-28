@@ -112,6 +112,10 @@ public class UltimateClockView extends FrameLayout {
     private boolean windowVisible = true;
     private boolean windowFocused = true;
     private float bottomOverlayInset;
+    private int contentInsetLeft;
+    private int contentInsetTop;
+    private int contentInsetRight;
+    private int contentInsetBottom;
     private ClockOverlayBounds statusOverlay;
     private StatusOverlayPlateListener statusOverlayPlateListener;
     private boolean statusOverlayBlurred;
@@ -170,8 +174,7 @@ public class UltimateClockView extends FrameLayout {
         worldClockCards = new View(context) {
             @Override protected void onMeasure(int widthSpec, int heightSpec) {
                 int width = (int) Math.ceil(UltimateClockStyles.worldClockContentWidth(
-                        worldClocks.size(), UltimateClockView.this.getMeasuredWidth(),
-                        UltimateClockView.this.getMeasuredHeight(),
+                        worldClocks.size(), contentWidth(), contentHeight(),
                         getResources().getDisplayMetrics().density));
                 setMeasuredDimension(width, MeasureSpec.getSize(heightSpec));
             }
@@ -386,6 +389,30 @@ public class UltimateClockView extends FrameLayout {
         invalidate();
     }
 
+    /** Reserves a cutout-safe content rectangle without shrinking the background image. */
+    public void setContentInsets(int left, int top, int right, int bottom) {
+        left = Math.max(0, left);
+        top = Math.max(0, top);
+        right = Math.max(0, right);
+        bottom = Math.max(0, bottom);
+        if (contentInsetLeft == left && contentInsetTop == top
+                && contentInsetRight == right && contentInsetBottom == bottom) return;
+        contentInsetLeft = left;
+        contentInsetTop = top;
+        contentInsetRight = right;
+        contentInsetBottom = bottom;
+        requestLayout();
+        invalidate();
+    }
+
+    private int contentWidth() {
+        return Math.max(1, getMeasuredWidth() - contentInsetLeft - contentInsetRight);
+    }
+
+    private int contentHeight() {
+        return Math.max(1, getMeasuredHeight() - contentInsetTop - contentInsetBottom);
+    }
+
     /**
      * Reports the box a host overlay occupies — the status capsule — so a style keeps its own
      * metadata clear of it. Like the bottom inset this only moves content; the background still
@@ -528,11 +555,15 @@ public class UltimateClockView extends FrameLayout {
                 .dateScale(dateScale)
                 .supportingScale(supportingScale)
                 .build();
-        ClockRenderContext renderContext = new ClockRenderContext(0f, 0f, getWidth(), getHeight(),
+        float right = Math.max(contentInsetLeft, getWidth() - contentInsetRight);
+        float bottom = Math.max(contentInsetTop, getHeight() - contentInsetBottom);
+        ClockRenderContext renderContext = new ClockRenderContext(
+                contentInsetLeft, contentInsetTop, right, bottom,
                 getResources().getDisplayMetrics().density,
                 TypedValue.applyDimension(TypedValue.COMPLEX_UNIT_SP, 1f,
                             getResources().getDisplayMetrics()), now,
-                createBackground(now), bottomOverlayInset, 0f, true, statusOverlay);
+                createBackground(now), bottomOverlayInset, 0f, true, statusOverlay,
+                new ClockOverlayBounds(0f, 0f, getWidth(), getHeight()));
         ClockThemeTokens theme = typography.apply(getContext(), paletteTokens, styleId,
                 fontFamily, fontWeight);
         worldClockState = state;
@@ -620,11 +651,12 @@ public class UltimateClockView extends FrameLayout {
         if (worldClockScroller.getVisibility() == GONE) return;
         RectF strip = worldClockStripBounds();
         float density = getResources().getDisplayMetrics().density;
-        float faceHeight = strip.top - Math.min(density * 8f, getMeasuredHeight() * .025f);
+        float faceHeight = strip.top - contentInsetTop
+                - Math.min(density * 8f, contentHeight() * .025f);
         int inset = Math.round(UltimateClockStyles.worldClockContentInset(styleId,
-                getMeasuredWidth(), faceHeight, density));
+                contentWidth(), faceHeight, density));
         worldClockScroller.setPadding(inset, 0, inset, 0);
-        worldClockScroller.measure(MeasureSpec.makeMeasureSpec(getMeasuredWidth(), MeasureSpec.EXACTLY),
+        worldClockScroller.measure(MeasureSpec.makeMeasureSpec(contentWidth(), MeasureSpec.EXACTLY),
                 MeasureSpec.makeMeasureSpec(Math.round(strip.height()), MeasureSpec.EXACTLY));
     }
 
@@ -632,12 +664,14 @@ public class UltimateClockView extends FrameLayout {
         super.onLayout(changed, left, top, right, bottom);
         if (worldClockScroller.getVisibility() == GONE) return;
         RectF strip = worldClockStripBounds();
-        worldClockScroller.layout(0, Math.round(strip.top), getMeasuredWidth(),
+        worldClockScroller.layout(contentInsetLeft, Math.round(strip.top),
+                contentInsetLeft + contentWidth(),
                 Math.round(strip.top) + worldClockScroller.getMeasuredHeight());
     }
 
     private RectF worldClockStripBounds() {
-        return UltimateClockStyles.worldClockStripBounds(0f, 0f, getMeasuredWidth(), getMeasuredHeight(),
+        return UltimateClockStyles.worldClockStripBounds(contentInsetLeft, contentInsetTop,
+                contentInsetLeft + contentWidth(), contentInsetTop + contentHeight(),
                 getResources().getDisplayMetrics().density, bottomOverlayInset);
     }
 

@@ -144,6 +144,14 @@ public class BackgroundRepository {
         preferences.setShowStatusIcons(show);
     }
 
+    public boolean isAvoidDisplayCutout() {
+        return preferences.isAvoidDisplayCutout();
+    }
+
+    public void setAvoidDisplayCutout(boolean avoid) {
+        preferences.setAvoidDisplayCutout(avoid);
+    }
+
     public float getStatusIconScale() {
         return preferences.getStatusIconScale();
     }

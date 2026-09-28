@@ -14,6 +14,7 @@ public final class ClockRenderContext {
     private final float worldClockScroll;
     private final boolean worldClockStripHosted;
     private final ClockOverlayBounds statusOverlay;
+    private final ClockOverlayBounds canvasBounds;
 
     public ClockRenderContext(float left, float top, float right, float bottom, float density,
             float scaledDensity, long frameTimeMillis) {
@@ -66,6 +67,17 @@ public final class ClockRenderContext {
             float scaledDensity, long frameTimeMillis,
             ClockBackground background, float bottomInset, float worldClockScroll,
             boolean worldClockStripHosted, ClockOverlayBounds statusOverlay) {
+        this(left, top, right, bottom, density, scaledDensity, frameTimeMillis,
+                background, bottomInset, worldClockScroll, worldClockStripHosted,
+                statusOverlay, new ClockOverlayBounds(left, top, right, bottom));
+    }
+
+    /** Content may avoid a cutout while the background still covers the full canvas. */
+    public ClockRenderContext(float left, float top, float right, float bottom, float density,
+            float scaledDensity, long frameTimeMillis,
+            ClockBackground background, float bottomInset, float worldClockScroll,
+            boolean worldClockStripHosted, ClockOverlayBounds statusOverlay,
+            ClockOverlayBounds canvasBounds) {
         if (right < left || bottom < top) {
             throw new IllegalArgumentException("Render bounds must not be inverted");
         }
@@ -81,6 +93,8 @@ public final class ClockRenderContext {
         this.worldClockScroll = Math.max(0f, worldClockScroll);
         this.worldClockStripHosted = worldClockStripHosted;
         this.statusOverlay = statusOverlay;
+        this.canvasBounds = canvasBounds == null
+                ? new ClockOverlayBounds(left, top, right, bottom) : canvasBounds;
     }
 
     public float getLeft() { return left; }
@@ -103,4 +117,5 @@ public final class ClockRenderContext {
      * nothing is overlaid. See {@link ClockOverlayBounds} for the clearance rule a style owes it.
      */
     public ClockOverlayBounds getStatusOverlay() { return statusOverlay; }
+    public ClockOverlayBounds getCanvasBounds() { return canvasBounds; }
 }
