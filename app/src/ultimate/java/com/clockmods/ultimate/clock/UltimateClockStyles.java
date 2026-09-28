@@ -607,15 +607,19 @@ public final class UltimateClockStyles {
         @Override public void render(Canvas canvas, ClockRenderContext context, ClockState state,
                 ClockThemeTokens theme) {
             int paintMarker = RendererBase.beginPaintFrame();
-            boolean previousPhotoText = RendererBase.PAINT_POOL.get().photoText;
-            RendererBase.PAINT_POOL.get().photoText = false;
+            RendererBase.PaintPool pool = RendererBase.PAINT_POOL.get();
+            boolean previousPhotoText = pool.photoText;
+            Integer previousPhotoVeil = pool.photoVeil;
+            pool.photoText = false;
+            pool.photoVeil = null;
             int saveCount = canvas.save();
             try {
                 delegate.render(canvas, context, state, theme);
             } finally {
                 canvas.restoreToCount(saveCount);
                 RendererBase.endPaintFrame(paintMarker);
-                RendererBase.PAINT_POOL.get().photoText = previousPhotoText;
+                pool.photoText = previousPhotoText;
+                pool.photoVeil = previousPhotoVeil;
             }
         }
     }
@@ -657,6 +661,7 @@ public final class UltimateClockStyles {
 
         private static final class PaintPool {
             boolean photoText;
+            Integer photoVeil;
             private final List<Paint> paints = new ArrayList<Paint>();
             private int nextIndex;
             private int frameDepth;
@@ -774,15 +779,21 @@ public final class UltimateClockStyles {
         }
 
         private static void photoTextOutline(Paint paint, float size) {
+            int color = paint.getColor();
+            int outline = ClockPalette.contrast(color, Color.BLACK)
+                    > ClockPalette.contrast(color, Color.WHITE) ? Color.BLACK : Color.WHITE;
             paint.setStyle(Paint.Style.STROKE);
-            paint.setStrokeWidth(Math.max(1f, Math.min(2f, size * .012f)));
-            paint.setColor(0xE6000000);
+            paint.setStrokeWidth(Math.max(2f, Math.min(4f, size * .075f)));
+            paint.setColor(alpha(outline, Color.alpha(color) * 230 / 255));
         }
 
         private static void photoTextFill(Paint paint, int color, float size) {
             paint.setStyle(Paint.Style.FILL);
             paint.setColor(color);
-            paint.setShadowLayer(Math.max(2f, size * .035f), 0f, 1f, 0x99000000);
+            int shadow = ClockPalette.contrast(color, Color.BLACK)
+                    > ClockPalette.contrast(color, Color.WHITE) ? Color.BLACK : Color.WHITE;
+            paint.setShadowLayer(Math.max(2f, size * .035f), 0f, 1f,
+                    alpha(shadow, Color.alpha(color) * 153 / 255));
         }
 
         protected static float fitText(String value, float maxWidth, float size, Typeface face) {
@@ -818,12 +829,83 @@ public final class UltimateClockStyles {
         protected static void readableText(Canvas canvas, ClockRenderContext context,
                 String value, float x, float baseline, float maxWidth, float preferredSize,
                 float minimumSp, int color, Paint.Align align, Typeface face) {
-            if (maxWidth <= 0f) return;
+            readableText(canvas, context, value, x, baseline, maxWidth, preferredSize,
+                    minimumSp, color, align, face, true);
+        }
+
+        protected static void readableText(Canvas canvas, ClockRenderContext context,
+                String value, float x, float baseline, float maxWidth, float preferredSize,
+                float minimumSp, int color, Paint.Align align, Typeface face,
+                boolean applyImageDimming) {
+            if (maxWidth <= 0f || value == null || value.isEmpty()) return;
             float floor = readableSize(context, 0f, minimumSp);
             float size = Math.max(floor,
                     fitText(value, maxWidth, Math.max(floor, preferredSize), face));
-            text(canvas, ellipsize(value, maxWidth, size, face), x, baseline, size,
-                    color, align, face);
+            String visible = ellipsize(value, maxWidth, size, face);
+            ClockBackground background = context.getBackground();
+            boolean imageBackground = background != null && background.hasImage();
+            int readableColor = color;
+            if (imageBackground) {
+                Paint metrics = fill(Color.WHITE);
+                metrics.setTypeface(face);
+                metrics.setTextSize(size);
+                readableColor = adaptiveImageTextColor(context, x, baseline,
+                        Math.min(maxWidth, metrics.measureText(visible)), size, align, color,
+                        applyImageDimming);
+            }
+            PaintPool pool = PAINT_POOL.get();
+            boolean previousPhotoText = pool.photoText;
+            if (imageBackground) pool.photoText = true;
+            try {
+                text(canvas, visible, x, baseline, size, readableColor, align, face);
+            } finally {
+                pool.photoText = previousPhotoText;
+            }
+        }
+
+        /** Pick light or dark ink from the visible image crop beneath this supporting line. */
+        private static int adaptiveImageTextColor(ClockRenderContext context, float x,
+                float baseline, float textWidth, float textSize, Paint.Align align,
+                int original, boolean applyImageDimming) {
+            ClockBackground background = context.getBackground();
+            Bitmap image = background == null ? null : background.getBitmap();
+            if (image == null || image.isRecycled() || textWidth <= 0f
+                    || image.getWidth() <= 0 || image.getHeight() <= 0) return original;
+            ClockOverlayBounds bounds = context.getCanvasBounds();
+            float scale = Math.max(bounds.getWidth() / image.getWidth(),
+                    bounds.getHeight() / image.getHeight());
+            if (scale <= 0f) return original;
+            float imageLeft = bounds.getLeft()
+                    + (bounds.getWidth() - image.getWidth() * scale) * .5f;
+            float imageTop = bounds.getTop()
+                    + (bounds.getHeight() - image.getHeight() * scale) * .5f;
+            float left = align == Paint.Align.LEFT ? x
+                    : align == Paint.Align.RIGHT ? x - textWidth : x - textWidth * .5f;
+            int light = 0xFFFEFEFF;
+            int dark = 0xFF010102;
+            Integer veil = PAINT_POOL.get().photoVeil;
+            double lightContrast = Double.MAX_VALUE;
+            double darkContrast = Double.MAX_VALUE;
+            for (int row = 0; row < 3; row++) {
+                for (int column = 0; column < 5; column++) {
+                    float screenX = left + textWidth * (column + .5f) / 5f;
+                    float screenY = baseline - textSize * (row + .5f) / 3f;
+                    int bitmapX = Math.max(0, Math.min(image.getWidth() - 1,
+                            (int) ((screenX - imageLeft) / scale)));
+                    int bitmapY = Math.max(0, Math.min(image.getHeight() - 1,
+                            (int) ((screenY - imageTop) / scale)));
+                    int surface = image.getPixel(bitmapX, bitmapY);
+                    if (background.isDimmed() && applyImageDimming) {
+                        surface = ClockPalette.mix(surface, Color.BLACK, .4f);
+                    }
+                    if (veil != null) {
+                        surface = ClockPalette.mix(surface, veil, Color.alpha(veil) / 255f);
+                    }
+                    lightContrast = Math.min(lightContrast, ClockPalette.contrast(light, surface));
+                    darkContrast = Math.min(darkContrast, ClockPalette.contrast(dark, surface));
+                }
+            }
+            return lightContrast >= darkContrast ? light : dark;
         }
 
         /**
@@ -961,6 +1043,7 @@ public final class UltimateClockStyles {
         protected static void customBackgroundVeil(Canvas canvas, ClockRenderContext context,
                 int color) {
             if (!hasCustomBackground(context)) return;
+            if (context.getBackground().hasImage()) PAINT_POOL.get().photoVeil = color;
             canvas.drawRect(context.getLeft(), context.getTop(), context.getRight(),
                     context.getBottom(), fill(color));
         }
@@ -2399,7 +2482,8 @@ public final class UltimateClockStyles {
                 readableText(canvas, context, value, x,
                         clearOfStatusOverlay(context, x, align, baseline, maxWidth,
                                 size * Math.max(1f, state.getSupportingScale())),
-                        maxWidth, size * state.getSupportingScale(), 12f, color, align, face);
+                        maxWidth, size * state.getSupportingScale(), 12f, color, align, face,
+                        glass == null);
             } finally {
                 RendererBase.PAINT_POOL.get().photoText = previous;
             }
