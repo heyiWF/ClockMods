@@ -10,7 +10,7 @@
         android:title="@string/pro_page_calendar" />
     <item
         android:id="@+id/navigation_pomodoro"
-        android:icon="@drawable/ic_clock_loader_10"
+        android:icon="@drawable/ultimate_ic_schedule"
         android:title="@string/pro_page_pomodoro" />
     <item
         android:id="@+id/navigation_alarm"

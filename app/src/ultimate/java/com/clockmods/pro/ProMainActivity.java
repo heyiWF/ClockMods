@@ -45,6 +45,16 @@ public abstract class ProMainActivity extends AppCompatActivity {
             R.id.navigation_clock, R.id.navigation_calendar, R.id.navigation_pomodoro,
             R.id.navigation_alarm, R.id.navigation_countdown, R.id.navigation_stopwatch
     };
+    private static final int[] NAVIGATION_OUTLINED_ICONS = {
+            R.drawable.ic_nest_clock_farsight_digital, R.drawable.ic_calendar_month,
+            R.drawable.ultimate_ic_schedule, R.drawable.ic_alarm,
+            R.drawable.ic_hourglass, R.drawable.ic_timer
+    };
+    private static final int[] NAVIGATION_FILLED_ICONS = {
+            R.drawable.ic_nest_clock_farsight_digital_filled, R.drawable.ic_calendar_month,
+            R.drawable.ic_schedule_filled, R.drawable.ic_alarm_filled,
+            R.drawable.ic_hourglass, R.drawable.ic_timer
+    };
     private ViewPager2 pager;
     private BottomNavigationView navigation;
     private GestureDetector chromeGestureDetector;
@@ -97,6 +107,7 @@ public abstract class ProMainActivity extends AppCompatActivity {
         ProFontApplier.apply(navigation);
         ButtonTextSizer.applyAllTextToTree(navigation);
         navigation.setSelectedItemId(NAVIGATION_IDS[selectedPage]);
+        updateNavigationIcons();
         navigation.setOnItemSelectedListener(item -> {
             for (int position = 0; position < NAVIGATION_IDS.length; position++) {
                 if (NAVIGATION_IDS[position] == item.getItemId()) {
@@ -111,6 +122,7 @@ public abstract class ProMainActivity extends AppCompatActivity {
                 dispatchCalendarDestinationChange(selectedPage, position);
                 selectedPage = position;
                 navigation.setSelectedItemId(NAVIGATION_IDS[position]);
+                updateNavigationIcons();
                 updateChromeForPage();
             }
         });
@@ -132,6 +144,15 @@ public abstract class ProMainActivity extends AppCompatActivity {
     /** Creates the adapter for the Ultimate clock and its integrated tool destinations. */
     protected ProPagerAdapter createPagerAdapter() {
         return new ProPagerAdapter(this);
+    }
+
+    private void updateNavigationIcons() {
+        for (int position = 0; position < NAVIGATION_IDS.length; position++) {
+            navigation.getMenu().findItem(NAVIGATION_IDS[position]).setIcon(
+                    position == selectedPage
+                            ? NAVIGATION_FILLED_ICONS[position]
+                            : NAVIGATION_OUTLINED_ICONS[position]);
+        }
     }
 
     @Override
