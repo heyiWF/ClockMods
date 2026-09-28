@@ -126,8 +126,6 @@ public class ClockPreferences {
     public static final float DEFAULT_DATE_FONT_SCALE = 0.55f;
     /** Multiplier used by labels, weather, status, and world-clock metadata. */
     public static final float DEFAULT_SUPPORTING_FONT_SCALE = 1.0f;
-    public static final float MIN_SUPPORTING_FONT_SCALE = 0.75f;
-    public static final float MAX_SUPPORTING_FONT_SCALE = 2.0f;
     public static final int DEFAULT_TEXT_COLOR = 0xFFFFFFFF;
     public static final boolean DEFAULT_DIM_BACKGROUND = false;
     public static final boolean DEFAULT_SCHEDULE_DIM_BACKGROUND = false;
@@ -204,6 +202,8 @@ public class ClockPreferences {
     public static final float MIN_FONT_SCALE = 0.20f;
     public static final float MAX_FONT_SCALE = 1.50f;
     public static final float MAX_DATE_FONT_SCALE = 2.0f;
+    public static final float MIN_SUPPORTING_FONT_SCALE = MIN_FONT_SCALE;
+    public static final float MAX_SUPPORTING_FONT_SCALE = MAX_DATE_FONT_SCALE;
 
     /** Default background color: solid black. */
     public static final int DEFAULT_BACKGROUND_COLOR = 0xFF000000;

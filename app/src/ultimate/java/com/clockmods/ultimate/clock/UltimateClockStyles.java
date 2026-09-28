@@ -1378,7 +1378,7 @@ public final class UltimateClockStyles {
 
             float dateSize = readableSize(context, unit * .045f * state.getDateScale(), 12f);
             float supportingSize = readableSize(context,
-                    unit * .040f * state.getSupportingScale(), 12f);
+                    unit * .045f * state.getSupportingScale(), 12f);
             float supportingGap = Math.max(context.getDensity() * 7f,
                     Math.max(dateSize, supportingSize) * .55f);
             readableDate(canvas, context, state, centerX,
@@ -1388,7 +1388,7 @@ public final class UltimateClockStyles {
             String contextText = contextText(state);
             readableText(canvas, context, contextText, centerX,
                     baseline + metrics.descent + supportingGap + supportingSize,
-                    width * .88f, unit * .040f * state.getSupportingScale(), 12f,
+                    width * .88f, unit * .045f * state.getSupportingScale(), 12f,
                     theme.getSecondaryTextColor(), Paint.Align.CENTER, supporting);
         }
     }
@@ -1434,7 +1434,7 @@ public final class UltimateClockStyles {
                     Paint.Align.LEFT, bold);
             String contextLine = contextText(state);
             readableText(canvas, context, contextLine, infoLeft, contextY,
-                    infoRight - infoLeft, unit * .030f * state.getSupportingScale(), 12f,
+                    infoRight - infoLeft, unit * .034f * state.getSupportingScale(), 12f,
                     theme.getPrimaryTextColor(), Paint.Align.LEFT, sans);
 
             float cx = landscape ? context.getLeft() + w * .69f : context.getCenterX();
@@ -1595,7 +1595,7 @@ public final class UltimateClockStyles {
                     !landscape);
             String contextLine = contextText(state);
             readableText(canvas, context, contextLine, infoLeft, contextY,
-                    infoRight - infoLeft, unit * .027f * state.getSupportingScale(), 12f,
+                    infoRight - infoLeft, unit * .030f * state.getSupportingScale(), 12f,
                     theme.getPrimaryTextColor(), Paint.Align.LEFT, mono);
 
             if (landscape) {
@@ -1726,7 +1726,7 @@ public final class UltimateClockStyles {
                     theme.getPrimaryTextColor(), Paint.Align.LEFT, sansBold);
             String contextLine = contextText(state);
             readableText(canvas, context, contextLine, infoLeft, contextY,
-                    infoRight - infoLeft, unit * .027f * state.getSupportingScale(), 12f,
+                    infoRight - infoLeft, unit * .032f * state.getSupportingScale(), 12f,
                     theme.getPrimaryTextColor(), Paint.Align.LEFT, sans);
         }
     }
@@ -1816,7 +1816,7 @@ public final class UltimateClockStyles {
                     !landscape);
             String contextLine = contextText(state);
             readableText(canvas, context, contextLine, infoLeft, contextY,
-                    infoRight - infoLeft, unit * .026f * state.getSupportingScale(), 12f,
+                    infoRight - infoLeft, unit * .031f * state.getSupportingScale(), 12f,
                     theme.getSecondaryTextColor(), Paint.Align.LEFT, mono);
 
             int hourValue = c.get(Calendar.HOUR);
@@ -1985,7 +1985,7 @@ public final class UltimateClockStyles {
                     Paint.Align.LEFT, mono, !landscape);
             String contextLine = contextText(state);
             readableText(canvas, context, contextLine, textLeft, contextY,
-                    textRight - textLeft, unit * .025f * state.getSupportingScale(), 12f,
+                    textRight - textLeft, unit * .030f * state.getSupportingScale(), 12f,
                     theme.getAccentColor(), Paint.Align.LEFT, mono);
         }
 
@@ -2131,7 +2131,7 @@ public final class UltimateClockStyles {
                     !landscape);
             String contextLine = contextText(state);
             readableText(canvas, context, contextLine, infoLeft, contextY,
-                    infoRight - infoLeft, unit * .024f * state.getSupportingScale(), 12f,
+                    infoRight - infoLeft, unit * .031f * state.getSupportingScale(), 12f,
                     theme.getSecondaryTextColor(), Paint.Align.LEFT, regular);
         }
     }
@@ -2296,7 +2296,7 @@ public final class UltimateClockStyles {
                     Paint.Align.LEFT, colors.onPanel, supporting, Math.min(w, h) * .034f);
             drawContext(canvas, context, state, second.right - second.width() * .05f,
                     second.top + second.height() * .078f, second.width() * .62f,
-                    Paint.Align.RIGHT, colors.onAccent, supporting, Math.min(w, h) * .028f);
+                    Paint.Align.RIGHT, colors.onAccent, supporting, Math.min(w, h) * .034f);
             if (secondsVisible(state)) {
                 float markerSize = readableSize(context,
                         Math.min(w, h) * .034f * supportScale, 16f);
@@ -2343,7 +2343,7 @@ public final class UltimateClockStyles {
                     supporting, Math.min(w, h) * .032f);
             drawContext(canvas, context, state, context.getLeft() + w * .029f,
                     context.getTop() + h * .072f, w * .40f, Paint.Align.LEFT, colors.mutedBackground,
-                    supporting, Math.min(w, h) * .027f);
+                    supporting, Math.min(w, h) * .032f);
             if (secondsVisible(state)) {
                 float bubbleRadius = h * .040f;
                 float y = cy + outer;
@@ -2421,7 +2421,7 @@ public final class UltimateClockStyles {
                     supporting, Math.min(w, h) * .032f);
             drawContext(canvas, context, state, context.getRight() - w * .029f,
                     context.getTop() + h * .072f, w * .35f, Paint.Align.RIGHT, colors.mutedBackground,
-                    supporting, Math.min(w, h) * .027f);
+                    supporting, Math.min(w, h) * .032f);
         }
 
         private void drawBubblesPortrait(Canvas canvas, ClockRenderContext context, ClockState state,
@@ -2488,7 +2488,7 @@ public final class UltimateClockStyles {
             }
             drawContext(canvas, context, state, context.getLeft() + w * .06f,
                     context.getTop() + h * .965f, w * .88f, Paint.Align.LEFT, colors.mutedBackground,
-                    supporting, w * .034f);
+                    supporting, w * .040f);
         }
 
         private void drawBlend(Canvas canvas, ClockRenderContext context, ClockState state,
@@ -2527,7 +2527,7 @@ public final class UltimateClockStyles {
             drawContext(canvas, context, state, digital.right - digital.width() * .045f,
                     digital.top + digital.height() * .067f, digital.width() * .48f,
                     Paint.Align.RIGHT, colors.mutedAccent, supporting,
-                    Math.min(w, h) * .027f);
+                    Math.min(w, h) * .032f);
             if (secondsVisible(state)) {
                 float secondSize = readableSize(context,
                         Math.min(w, h) * .034f * state.getSupportingScale(), 16f);
@@ -2645,7 +2645,7 @@ public final class UltimateClockStyles {
                     supporting, Math.min(w, h) * .032f);
             drawContext(canvas, context, state, context.getRight() - w * .029f,
                     topRowY, w * .35f, Paint.Align.RIGHT, colors.mutedBackground,
-                    supporting, Math.min(w, h) * .027f);
+                    supporting, Math.min(w, h) * .032f);
         }
 
         private void drawDate(Canvas canvas, ClockRenderContext context, ClockState state,

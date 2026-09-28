@@ -3692,8 +3692,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     .weatherText("24 C  CLEAR")
                     .timeScale(repository.getTimeFontScale(scopeId)
                             / ClockPreferences.DEFAULT_TIME_FONT_SCALE)
-                    .dateScale(repository.getDateFontScale(scopeId)
-                            / ClockPreferences.DEFAULT_DATE_FONT_SCALE)
+                    .dateScale(repository.getDateFontScale(scopeId))
                     .supportingScale(repository.getSupportingFontScale(scopeId))
                     .build();
             ClockRenderContext context = new ClockRenderContext(0f, 0f, renderWidth, renderHeight,

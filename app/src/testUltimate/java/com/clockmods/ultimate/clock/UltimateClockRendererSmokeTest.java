@@ -359,6 +359,41 @@ public class UltimateClockRendererSmokeTest {
                 blendPortrait[1] > w * .035f);
     }
 
+    @Test public void matchingDateAndSupportingPercentagesDrawAtMatchingSizes()
+            throws Exception {
+        ClockStyleRegistry registry = UltimateClockStyles.createRegistry();
+        PaintPoolFixture paints = PaintPoolFixture.install();
+        try {
+            // The JVM RectF stub gives migrated cards a zero width. Check those
+            // layouts on an emulator where their real bounds are available.
+            for (int styleIndex = 1; styleIndex < CORE_STYLE_IDS.length; styleIndex++) {
+                String styleId = CORE_STYLE_IDS[styleIndex];
+                ClockStyle style = registry.find(styleId);
+                Assert.assertNotNull(styleId, style);
+                for (float scale : new float[] {.2f, 1f, 2f}) {
+                    ClockState state = ClockState.builder(1787633430123L)
+                            .dateText("DATE").weatherText("NOTE")
+                            .dateScale(scale).supportingScale(scale).build();
+                    RecordingCanvas canvas = new RecordingCanvas(2560f, 1440f);
+                    ClockRenderContext context = new ClockRenderContext(0f, 0f,
+                            2560f, 1440f, 2f, 2f, state.getTimeMillis(),
+                            ClockBackground.theme(false));
+                    style.getRenderer().render(canvas, context, state, style.getThemeTokens());
+                    TextBounds date = canvas.textBounds.stream()
+                            .filter(bounds -> "DATE".equals(bounds.text)).findFirst()
+                            .orElseThrow(() -> new AssertionError(styleId + " has no date"));
+                    TextBounds supporting = canvas.textBounds.stream()
+                            .filter(bounds -> "NOTE".equals(bounds.text)).findFirst()
+                            .orElseThrow(() -> new AssertionError(styleId + " has no supporting text"));
+                    Assert.assertEquals(styleId + " at " + scale, date.textSize,
+                            supporting.textSize, .01f);
+                }
+            }
+        } finally {
+            paints.restore();
+        }
+    }
+
     @Test public void portraitDateTextClearsWideStatusCapsule() throws Exception {
         ClockState state = longChineseState(false);
         ClockOverlayBounds capsule = new ClockOverlayBounds(345f, 32f, 680f, 112f);

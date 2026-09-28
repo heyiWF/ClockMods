@@ -245,8 +245,7 @@ public class UltimateClockView extends FrameLayout {
         fontWeight = repository.getFontWeight(styleId);
         timeScale = repository.getTimeFontScale(styleId)
                 / ClockPreferences.DEFAULT_TIME_FONT_SCALE;
-        dateScale = repository.getDateFontScale(styleId)
-                / ClockPreferences.DEFAULT_DATE_FONT_SCALE;
+        dateScale = repository.getDateFontScale(styleId);
         supportingScale = repository.getSupportingFontScale(styleId);
         ClockThemeTokens base = styleRegistry.resolveForApi(styleId, Build.VERSION.SDK_INT).getThemeTokens();
         paletteTokens = ClockPalette.supports(styleId)
