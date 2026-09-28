@@ -36,7 +36,6 @@ import java.util.concurrent.Executors;
 
 public class ClockView extends View {
     private static final long MILLIS_PER_SECOND = 1000L;
-    private static final long TIME_TRANSITION_DURATION_MILLIS = 300L;
     private static final long WEATHER_DETAIL_HOLD_MILLIS = 3000L;
     private static final long WEATHER_DETAIL_SCROLL_PAUSE_MILLIS = 1000L;
     private static final long WEATHER_DETAIL_TRANSITION_MILLIS = 200L;
@@ -549,8 +548,9 @@ public class ClockView extends View {
             return false;
         }
         float progress = Math.min(1f,
-                (uptime - stackedAt[index]) / (float) TIME_TRANSITION_DURATION_MILLIS);
-        float eased = 1f - (float) Math.pow(1f - progress, 3);
+                (uptime - stackedAt[index])
+                        / (float) ClockDigitTransitionTiming.DURATION_MILLIS);
+        float eased = ClockDigitTransitionTiming.easeOutCubic(progress);
         drawTextTransition(canvas, stackedPrev[index], stackedText[index], centerX, baseline,
                 timePaint, eased, true, true);
         if (progress < 1f) {
@@ -1304,7 +1304,7 @@ public class ClockView extends View {
         }
 
         float progress = Math.min(1f, (SystemClock.uptimeMillis() - timeTransitionStartedAt)
-                / (float) TIME_TRANSITION_DURATION_MILLIS);
+                / (float) ClockDigitTransitionTiming.DURATION_MILLIS);
         drawConfiguredTimeTransition(canvas, previousTime, displayedTime,
             centerX, mainBaseline, progress);
         if (progress < 1f) {
@@ -1317,7 +1317,7 @@ public class ClockView extends View {
     private void drawConfiguredTimeTransition(Canvas canvas,
             ClockTimeFormatter.DisplayTime oldTime, ClockTimeFormatter.DisplayTime newTime,
             float centerX, float mainBaseline, float progress) {
-        float eased = 1f - (float) Math.pow(1f - progress, 3);
+        float eased = ClockDigitTransitionTiming.easeOutCubic(progress);
         drawTimeTransition(canvas, oldTime, newTime, centerX, mainBaseline, eased);
     }
 

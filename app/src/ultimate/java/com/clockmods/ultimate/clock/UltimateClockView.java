@@ -35,6 +35,7 @@ import com.clockmods.sdk.clock.ClockStyleRegistry;
 import com.clockmods.sdk.clock.ClockThemeTokens;
 import com.clockmods.sdk.clock.WorldClockEntry;
 import com.clockmods.time.NetworkTimeProvider;
+import com.clockmods.ui.ClockDigitTransitionTiming;
 import com.clockmods.ui.DateFormatter;
 import com.clockmods.weather.WeatherModels;
 import com.clockmods.weather.WeatherModels.WeatherState;
@@ -57,7 +58,6 @@ import java.util.concurrent.Executors;
 public class UltimateClockView extends FrameLayout {
     private static final long MILLIS_PER_SECOND = 1000L;
     private static final long MINUTE_REFRESH_MILLIS = 60_000L;
-    private static final long TIME_TRANSITION_DURATION_MILLIS = 300L;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable ticker = new Runnable() {
@@ -569,7 +569,7 @@ public class UltimateClockView extends FrameLayout {
         }
         float transitionProgress = transitionStartedUptime == 0L ? 1f
                 : Math.min(1f, (uptime - transitionStartedUptime)
-                        / (float) TIME_TRANSITION_DURATION_MILLIS);
+                        / (float) ClockDigitTransitionTiming.DURATION_MILLIS);
         if (transitionProgress >= 1f) transitionStartedUptime = 0L;
         ClockState state = ClockState.builder(now)
                 .timeZone(timeZone)
@@ -588,7 +588,8 @@ public class UltimateClockView extends FrameLayout {
                 .dateScale(dateScale)
                 .supportingScale(supportingScale)
                 .timeTransition(digitTransition)
-                .timeTransitionProgress(transitionProgress)
+                .timeTransitionProgress(ClockDigitTransitionTiming.easeOutCubic(
+                        transitionProgress))
                 .build();
         float right = Math.max(contentInsetLeft, getWidth() - contentInsetRight);
         float bottom = Math.max(contentInsetTop, getHeight() - contentInsetBottom);
