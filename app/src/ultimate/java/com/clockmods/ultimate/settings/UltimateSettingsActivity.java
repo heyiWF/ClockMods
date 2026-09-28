@@ -1138,46 +1138,47 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             list.removeAllViews();
             counter.setText(getString(R.string.ultimate_world_clock_counter, draft.size()));
             String query = search.getText() == null ? "" : search.getText().toString().trim();
-            List<WorldClockEntry> visible = query.length() == 0
-                    ? new ArrayList<>(draft) : WorldClockCatalog.search(query);
-            if (visible.isEmpty()) {
+            TextView selectedTitle = label(getString(R.string.ultimate_world_clock_selected,
+                    draft.size()), 14, true);
+            list.addView(selectedTitle, bottomMargin(wrapParams(), dp(8)));
+            if (draft.isEmpty()) {
                 TextView empty = label(R.string.ultimate_world_clock_empty, 14, false);
                 empty.setTextColor(onSurfaceVariantColor());
                 empty.setGravity(Gravity.CENTER);
                 empty.setPadding(0, dp(24), 0, dp(24));
                 list.addView(empty, wrapParams());
-                return;
             }
-            int shown = 0;
-            for (WorldClockEntry entry : visible) {
-                if (shown++ >= 30) break;
+            for (WorldClockEntry entry : draft) {
                 final int selectedIndex = draft.indexOf(entry);
-                boolean selected = selectedIndex >= 0;
-                Runnable primary;
-                Runnable up = null;
-                Runnable down = null;
-                if (selected) {
-                    primary = () -> {
-                        draft.remove(entry);
-                        rebuild[0].run();
-                    };
-                    up = selectedIndex > 0 ? () -> {
-                        WorldClockEntry value = draft.remove(selectedIndex);
-                        draft.add(selectedIndex - 1, value);
-                        rebuild[0].run();
-                    } : null;
-                    down = selectedIndex + 1 < draft.size() ? () -> {
-                        WorldClockEntry value = draft.remove(selectedIndex);
-                        draft.add(selectedIndex + 1, value);
-                        rebuild[0].run();
-                    } : null;
-                } else {
-                    primary = draft.size() < WorldClockRepository.MAX_SELECTED ? () -> {
-                        draft.add(entry);
-                        rebuild[0].run();
-                    } : null;
-                }
-                list.addView(worldClockRow(entry, selected, primary, up, down),
+                Runnable remove = () -> {
+                    draft.remove(entry);
+                    rebuild[0].run();
+                };
+                Runnable up = selectedIndex > 0 ? () -> {
+                    WorldClockEntry value = draft.remove(selectedIndex);
+                    draft.add(selectedIndex - 1, value);
+                    rebuild[0].run();
+                } : null;
+                Runnable down = selectedIndex + 1 < draft.size() ? () -> {
+                    WorldClockEntry value = draft.remove(selectedIndex);
+                    draft.add(selectedIndex + 1, value);
+                    rebuild[0].run();
+                } : null;
+                list.addView(worldClockRow(entry, true, remove, up, down),
+                        bottomMargin(wrapParams(), dp(8)));
+            }
+
+            TextView resultsTitle = label(R.string.ultimate_world_clock_results, 14, true);
+            list.addView(resultsTitle, topMargin(bottomMargin(wrapParams(), dp(8)), dp(12)));
+            int shown = 0;
+            for (WorldClockEntry entry : WorldClockCatalog.search(query)) {
+                if (draft.contains(entry)) continue;
+                if (shown++ >= 30) break;
+                Runnable add = draft.size() < WorldClockRepository.MAX_SELECTED ? () -> {
+                    draft.add(entry);
+                    rebuild[0].run();
+                } : null;
+                list.addView(worldClockRow(entry, false, add, null, null),
                         bottomMargin(wrapParams(), dp(8)));
             }
         };
