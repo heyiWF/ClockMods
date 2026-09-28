@@ -120,7 +120,7 @@ public class ClockPreferences {
     /** Multiplier used by labels, weather, status, and world-clock metadata. */
     public static final float DEFAULT_SUPPORTING_FONT_SCALE = 1.0f;
     public static final float MIN_SUPPORTING_FONT_SCALE = 0.75f;
-    public static final float MAX_SUPPORTING_FONT_SCALE = 1.50f;
+    public static final float MAX_SUPPORTING_FONT_SCALE = 2.0f;
     public static final int DEFAULT_TEXT_COLOR = 0xFFFFFFFF;
     public static final boolean DEFAULT_DIM_BACKGROUND = false;
     public static final boolean DEFAULT_SCHEDULE_DIM_BACKGROUND = false;
@@ -196,6 +196,7 @@ public class ClockPreferences {
     /** Allowed range for the width-based font scale (fraction of screen width). */
     public static final float MIN_FONT_SCALE = 0.20f;
     public static final float MAX_FONT_SCALE = 1.50f;
+    public static final float MAX_DATE_FONT_SCALE = 2.0f;
 
     /** Default background color: solid black. */
     public static final int DEFAULT_BACKGROUND_COLOR = 0xFF000000;
@@ -265,11 +266,11 @@ public class ClockPreferences {
     }
 
     public float getDateFontScale() {
-        return clampScale(preferences.getFloat(KEY_DATE_FONT_SCALE, DEFAULT_DATE_FONT_SCALE));
+        return clampDateScale(preferences.getFloat(KEY_DATE_FONT_SCALE, DEFAULT_DATE_FONT_SCALE));
     }
 
     public void setDateFontScale(float scale) {
-        preferences.edit().putFloat(KEY_DATE_FONT_SCALE, clampScale(scale)).apply();
+        preferences.edit().putFloat(KEY_DATE_FONT_SCALE, clampDateScale(scale)).apply();
     }
 
     public int getTimeColor() {
@@ -469,13 +470,13 @@ public class ClockPreferences {
 
     /** Per-style date size, falling back to the pre-theme global preference. */
     public float getDateFontScale(String scopeId) {
-        return clampScale(preferences.getFloat(
+        return clampDateScale(preferences.getFloat(
                 KEY_DATE_FONT_SCALE_PREFIX + normalizeScope(scopeId), getDateFontScale()));
     }
 
     public void setDateFontScale(String scopeId, float scale) {
         preferences.edit().putFloat(KEY_DATE_FONT_SCALE_PREFIX + normalizeScope(scopeId),
-                clampScale(scale)).apply();
+                clampDateScale(scale)).apply();
     }
 
     public float getSupportingFontScale(String scopeId) {
@@ -984,6 +985,11 @@ public class ClockPreferences {
     private static float clampScale(float scale) {
         if (Float.isNaN(scale) || Float.isInfinite(scale)) return DEFAULT_TIME_FONT_SCALE;
         return Math.max(MIN_FONT_SCALE, Math.min(MAX_FONT_SCALE, scale));
+    }
+
+    private static float clampDateScale(float scale) {
+        if (Float.isNaN(scale) || Float.isInfinite(scale)) return DEFAULT_DATE_FONT_SCALE;
+        return Math.max(MIN_FONT_SCALE, Math.min(MAX_DATE_FONT_SCALE, scale));
     }
 
     /** These reference faces are designed around a strong display weight, not body Regular. */

@@ -2405,6 +2405,14 @@ public final class UltimateClockStyles {
                     context.getTop() + h * .055f, w * .76f, Paint.Align.LEFT, colors.mutedBackground,
                     supporting, w * .040f);
             float[] geometry = bubblesPortraitGeometry(w, h, context.getDensity());
+            // Enlarged two-line dates need more headroom than the default composition reserves.
+            // Use the space below the minute bubble before shrinking either time panel.
+            float desiredShift = w * .095f * Math.max(0f, state.getDateScale() - 1f);
+            float availableShift = Math.max(0f, h * .94f - geometry[2] - geometry[3]);
+            float shapeShift = Math.min(desiredShift, availableShift);
+            geometry[0] += shapeShift;
+            geometry[1] += shapeShift;
+            geometry[2] += shapeShift;
             RectF hour = new RectF(context.getLeft() + w * .09f,
                     context.getTop() + geometry[0], context.getRight() - w * .09f,
                     context.getTop() + geometry[1]);

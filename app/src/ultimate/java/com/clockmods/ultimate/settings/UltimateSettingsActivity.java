@@ -1444,29 +1444,22 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                         "font_family", true));
         addWeightSlider(body, scopeId, pageToRefresh);
         if (isMigratedClockStyle(scopeId)) {
-            addActionRow(body, R.string.ultimate_time_size,
-                    percentSummary(repository.getTimeFontScale(scopeId)),
-                    R.drawable.ultimate_ic_chevron_right, () -> showScaleDialog(
-                            R.string.ultimate_time_size, repository.getTimeFontScale(scopeId),
-                            ClockPreferences.MIN_FONT_SCALE, ClockPreferences.MAX_FONT_SCALE,
-                            value -> repository.setTimeFontScale(scopeId, value),
-                            "time_font_scale:" + scopeId));
-            addActionRow(body, R.string.ultimate_date_size,
-                    percentSummary(repository.getDateFontScale(scopeId)),
-                    R.drawable.ultimate_ic_chevron_right, () -> showScaleDialog(
-                            R.string.ultimate_date_size, repository.getDateFontScale(scopeId),
-                            ClockPreferences.MIN_FONT_SCALE, ClockPreferences.MAX_FONT_SCALE,
-                            value -> repository.setDateFontScale(scopeId, value),
-                            "date_font_scale:" + scopeId));
-            addActionRow(body, R.string.ultimate_supporting_text_size,
-                    percentSummary(repository.getSupportingFontScale(scopeId)),
-                    R.drawable.ultimate_ic_chevron_right, () -> showScaleDialog(
-                            R.string.ultimate_supporting_text_size,
-                            repository.getSupportingFontScale(scopeId),
-                            ClockPreferences.MIN_SUPPORTING_FONT_SCALE,
-                            ClockPreferences.MAX_SUPPORTING_FONT_SCALE,
-                            value -> repository.setSupportingFontScale(scopeId, value),
-                            "supporting_font_scale:" + scopeId));
+            addScaleSlider(body, R.string.ultimate_time_size,
+                    repository.getTimeFontScale(scopeId), ClockPreferences.MIN_FONT_SCALE,
+                    ClockPreferences.MAX_FONT_SCALE,
+                    value -> repository.setTimeFontScale(scopeId, value),
+                    "time_font_scale:" + scopeId, pageToRefresh);
+            addScaleSlider(body, R.string.ultimate_date_size,
+                    repository.getDateFontScale(scopeId), ClockPreferences.MIN_FONT_SCALE,
+                    ClockPreferences.MAX_DATE_FONT_SCALE,
+                    value -> repository.setDateFontScale(scopeId, value),
+                    "date_font_scale:" + scopeId, pageToRefresh);
+            addScaleSlider(body, R.string.ultimate_supporting_text_size,
+                    repository.getSupportingFontScale(scopeId),
+                    ClockPreferences.MIN_SUPPORTING_FONT_SCALE,
+                    ClockPreferences.MAX_SUPPORTING_FONT_SCALE,
+                    value -> repository.setSupportingFontScale(scopeId, value),
+                    "supporting_font_scale:" + scopeId, pageToRefresh);
         }
     }
 
@@ -1551,12 +1544,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
 
     private void addProClassicTimeAppearanceSettings(LinearLayout body) {
         addSectionLabel(body, R.string.ultimate_time_appearance_section, 22);
-        addActionRow(body, R.string.ultimate_time_size,
-                percentSummary(repository.getTimeFontScale()),
-                R.drawable.ultimate_ic_chevron_right, () -> showScaleDialog(
-                        R.string.ultimate_time_size, repository.getTimeFontScale(),
-                        ClockPreferences.MIN_FONT_SCALE, ClockPreferences.MAX_FONT_SCALE,
-                        repository::setTimeFontScale, "time_font_scale"));
+        addScaleSlider(body, R.string.ultimate_time_size,
+                repository.getTimeFontScale(), ClockPreferences.MIN_FONT_SCALE,
+                ClockPreferences.MAX_FONT_SCALE, repository::setTimeFontScale,
+                "time_font_scale", Page.STYLE);
         addActionRow(body, R.string.ultimate_time_color,
                 colorSummary(repository.getTimeColor()), R.drawable.ultimate_ic_chevron_right,
                 () -> showColorDialog(R.string.ultimate_time_color,
@@ -1618,12 +1609,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
 
     private void addProClassicDateAppearanceSettings(LinearLayout body) {
         addSectionLabel(body, R.string.ultimate_date_appearance_section, 22);
-        addActionRow(body, R.string.ultimate_date_size,
-                percentSummary(repository.getDateFontScale()),
-                R.drawable.ultimate_ic_chevron_right, () -> showScaleDialog(
-                        R.string.ultimate_date_size, repository.getDateFontScale(),
-                        ClockPreferences.MIN_FONT_SCALE, ClockPreferences.MAX_FONT_SCALE,
-                        repository::setDateFontScale, "date_font_scale"));
+        addScaleSlider(body, R.string.ultimate_date_size,
+                repository.getDateFontScale(), ClockPreferences.MIN_FONT_SCALE,
+                ClockPreferences.MAX_DATE_FONT_SCALE, repository::setDateFontScale,
+                "date_font_scale", Page.STYLE);
         addActionRow(body, R.string.ultimate_date_color,
                 colorSummary(repository.getDateColor()), R.drawable.ultimate_ic_chevron_right,
                 () -> showColorDialog(R.string.ultimate_date_color,
@@ -1716,13 +1705,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     markChanged("show_status_icons");
                     showPage(Page.BACKGROUND);
                 });
-        View statusScale = addActionRow(body, R.string.ultimate_status_icon_size,
-                percentSummary(repository.getStatusIconScale()),
-                R.drawable.ultimate_ic_chevron_right, () -> showScaleDialog(
-                        R.string.ultimate_status_icon_size, repository.getStatusIconScale(),
-                        ClockPreferences.MIN_STATUS_ICON_SCALE,
-                        ClockPreferences.MAX_STATUS_ICON_SCALE,
-                        repository::setStatusIconScale, "status_icon_scale"));
+        View statusScale = addScaleSlider(body, R.string.ultimate_status_icon_size,
+                repository.getStatusIconScale(), ClockPreferences.MIN_STATUS_ICON_SCALE,
+                ClockPreferences.MAX_STATUS_ICON_SCALE,
+                repository::setStatusIconScale, "status_icon_scale", Page.BACKGROUND);
         setViewTreeEnabled(statusScale, repository.isShowStatusIcons());
         View statusStyle = addActionRow(body, R.string.ultimate_status_icon_style,
                 getString(R.string.ultimate_status_icon_style_summary),
@@ -2620,14 +2606,19 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 .show();
     }
 
-    private void showScaleDialog(int titleRes, float current, float minimum, float maximum,
-            FloatChange change, String source) {
+    private View addScaleSlider(LinearLayout body, int titleRes, float current,
+            float minimum, float maximum, FloatChange change, String source,
+            Page pageToRefresh) {
         int minPercent = Math.round(minimum * 100f);
         int maxPercent = Math.round(maximum * 100f);
-        LinearLayout content = new LinearLayout(this);
-        content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(24), dp(8), dp(24), 0);
-        TextView value = label(percentSummary(current), 16, true);
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.VERTICAL);
+        row.setPadding(0, dp(8), 0, dp(4));
+        TextView title = label(titleRes, 16, false);
+        row.addView(title, wrapParams());
+        TextView value = label(percentSummary(current), 13, false);
+        value.setTextColor(onSurfaceVariantColor());
+        row.addView(value, topMargin(wrapParams(), dp(2)));
         Slider slider = new Slider(this);
         slider.setValueFrom(minPercent);
         slider.setValueTo(maxPercent);
@@ -2637,21 +2628,37 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         slider.setValue(Math.max(minPercent, Math.min(maxPercent,
                 Math.round(current * 100f))));
         slider.setContentDescription(getString(titleRes));
-        slider.addOnChangeListener((control, selected, fromUser) -> value.setText(
-                getString(R.string.ultimate_percent_value, Math.round(selected))));
-        content.addView(value, wrapParams());
-        content.addView(slider, topMargin(wrapParams(), dp(8)));
-        Page pageToRefresh = currentPage;
-        new MaterialAlertDialogBuilder(this)
-                .setTitle(titleRes)
-                .setView(content)
-                .setNegativeButton(R.string.ultimate_cancel, null)
-                .setPositiveButton(R.string.ultimate_apply, (dialog, which) -> {
-                    change.apply(slider.getValue() / 100f);
+        slider.setLabelFormatter(selected ->
+                getString(R.string.ultimate_percent_value, Math.round(selected)));
+        final boolean[] trackingTouch = {false};
+        slider.addOnChangeListener((control, selected, fromUser) -> {
+            value.setText(percentSummary(selected / 100f));
+            // Keyboard and accessibility adjustments have no touch-release callback.
+            if (fromUser && !trackingTouch[0]) {
+                change.apply(selected / 100f);
+                markChanged(source);
+            }
+        });
+        slider.addOnSliderTouchListener(new Slider.OnSliderTouchListener() {
+            @Override public void onStartTrackingTouch(Slider control) {
+                trackingTouch[0] = true;
+            }
+
+            @Override public void onStopTrackingTouch(Slider control) {
+                trackingTouch[0] = false;
+                float selected = control.getValue() / 100f;
+                if (Math.abs(selected - current) < .001f) return;
+                row.post(() -> {
+                    change.apply(selected);
                     markChanged(source);
                     showPage(pageToRefresh);
-                })
-                .show();
+                });
+            }
+        });
+        row.addView(slider, topMargin(new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT), dp(4)));
+        body.addView(row, wrapParams());
+        return row;
     }
 
     private void showStylePaletteDialog(ClockStyle style) {
