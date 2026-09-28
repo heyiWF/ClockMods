@@ -2030,13 +2030,42 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 R.string.ultimate_hourly_chime_summary, repository.isHourlyChimeEnabled(), value -> {
                     repository.setHourlyChimeEnabled(value);
                     markChanged("hourly_chime");
+                    showPage(Page.CHIME);
                 });
         addSwitch(body, R.string.ultimate_half_hour_chime,
                 R.string.ultimate_half_hour_chime_summary,
                 repository.isHalfHourChimeEnabled(), value -> {
                     repository.setHalfHourChimeEnabled(value);
                     markChanged("half_hour_chime");
+                    showPage(Page.CHIME);
                 });
+
+        String[] animationIds = {ClockPreferences.CHIME_RADIAL,
+                ClockPreferences.CHIME_RIPPLE, ClockPreferences.CHIME_PULSE,
+                ClockPreferences.CHIME_AURORA, ClockPreferences.CHIME_ORBIT,
+                ClockPreferences.CHIME_COMET};
+        String[] animationNames = {getString(R.string.ultimate_chime_radial),
+                getString(R.string.ultimate_chime_ripple),
+                getString(R.string.ultimate_chime_pulse),
+                getString(R.string.ultimate_chime_aurora),
+                getString(R.string.ultimate_chime_orbit),
+                getString(R.string.ultimate_chime_comet)};
+        int selectedAnimation = 0;
+        for (int index = 0; index < animationIds.length; index++) {
+            if (animationIds[index].equals(repository.getChimeAnimation())) {
+                selectedAnimation = index;
+                break;
+            }
+        }
+        int initialAnimation = selectedAnimation;
+        View animationRow = addActionRow(body, R.string.ultimate_chime_animation,
+                animationNames[selectedAnimation], R.drawable.ultimate_ic_chevron_right,
+                () -> showSingleChoiceDialog(R.string.ultimate_chime_animation, animationNames,
+                        initialAnimation,
+                        index -> repository.setChimeAnimation(animationIds[index]),
+                        "chime_animation", true));
+        setViewTreeEnabled(animationRow, repository.isHourlyChimeEnabled()
+                || repository.isHalfHourChimeEnabled());
 
         addSectionLabel(body, R.string.ultimate_chime_quiet_section, 22);
         addSwitch(body, R.string.ultimate_chime_quiet_hours,

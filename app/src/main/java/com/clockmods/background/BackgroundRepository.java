@@ -182,6 +182,8 @@ public class BackgroundRepository {
     public void setHourlyChimeEnabled(boolean enabled) { preferences.setHourlyChimeEnabled(enabled); }
     public boolean isHalfHourChimeEnabled() { return preferences.isHalfHourChimeEnabled(); }
     public void setHalfHourChimeEnabled(boolean enabled) { preferences.setHalfHourChimeEnabled(enabled); }
+    public String getChimeAnimation() { return preferences.getChimeAnimation(); }
+    public void setChimeAnimation(String animation) { preferences.setChimeAnimation(animation); }
     public boolean isHourlyChimeQuietEnabled() { return preferences.isHourlyChimeQuietEnabled(); }
     public void setHourlyChimeQuietEnabled(boolean enabled) { preferences.setHourlyChimeQuietEnabled(enabled); }
     public int getHourlyChimeQuietStart() { return preferences.getHourlyChimeQuietStart(); }

@@ -1,5 +1,7 @@
 package com.clockmods.pro.chime;
 
+import com.clockmods.background.ClockPreferences;
+
 import org.junit.Test;
 
 import java.util.Calendar;
@@ -11,6 +13,20 @@ import static org.junit.Assert.assertTrue;
 
 public class HourlyChimeControllerTest {
     private static final TimeZone TIME_ZONE = TimeZone.getTimeZone("Asia/Shanghai");
+
+    @Test
+    public void chimeAnimationKeepsSupportedChoicesAndFallsBackToClassic() {
+        for (String animation : new String[]{ClockPreferences.CHIME_RADIAL,
+                ClockPreferences.CHIME_RIPPLE, ClockPreferences.CHIME_PULSE,
+                ClockPreferences.CHIME_AURORA, ClockPreferences.CHIME_ORBIT,
+                ClockPreferences.CHIME_COMET}) {
+            assertEquals(animation, ClockPreferences.normalizeChimeAnimation(animation));
+        }
+        assertEquals(ClockPreferences.CHIME_RADIAL,
+                ClockPreferences.normalizeChimeAnimation("unknown"));
+        assertEquals(ClockPreferences.CHIME_RADIAL,
+                ClockPreferences.normalizeChimeAnimation(null));
+    }
 
     @Test
     public void startsDuringFinalTwoSecondsBeforeHour() {

@@ -30,6 +30,12 @@ public class ClockPreferences {
     public static final String TRANSITION_SLIDE_DOWN = "slide_down";
     public static final String TRANSITION_SCALE = "scale";
     public static final String TRANSITION_FLIP = "flip";
+    public static final String CHIME_RADIAL = "radial";
+    public static final String CHIME_RIPPLE = "ripple";
+    public static final String CHIME_PULSE = "pulse";
+    public static final String CHIME_AURORA = "aurora";
+    public static final String CHIME_ORBIT = "orbit";
+    public static final String CHIME_COMET = "comet";
 
     private static final String PREFS_NAME = "clock_prefs";
     private static final String KEY_BACKGROUND_MODE = "background_mode";
@@ -50,6 +56,7 @@ public class ClockPreferences {
     private static final String KEY_TIME_TRANSITION = "time_transition";
     private static final String KEY_HOURLY_CHIME = "hourly_visual_chime";
     private static final String KEY_HALF_HOUR_CHIME = "half_hour_visual_chime";
+    private static final String KEY_CHIME_ANIMATION = "chime_animation";
     private static final String KEY_HOURLY_CHIME_QUIET = "hourly_chime_quiet";
     private static final String KEY_HOURLY_CHIME_QUIET_START = "hourly_chime_quiet_start";
     private static final String KEY_HOURLY_CHIME_QUIET_END = "hourly_chime_quiet_end";
@@ -360,6 +367,22 @@ public class ClockPreferences {
 
     public void setHalfHourChimeEnabled(boolean enabled) {
         preferences.edit().putBoolean(KEY_HALF_HOUR_CHIME, enabled).apply();
+    }
+
+    public String getChimeAnimation() {
+        return normalizeChimeAnimation(preferences.getString(KEY_CHIME_ANIMATION, CHIME_RADIAL));
+    }
+
+    public void setChimeAnimation(String animation) {
+        preferences.edit().putString(KEY_CHIME_ANIMATION,
+                normalizeChimeAnimation(animation)).apply();
+    }
+
+    public static String normalizeChimeAnimation(String animation) {
+        if (CHIME_RIPPLE.equals(animation) || CHIME_PULSE.equals(animation)
+                || CHIME_AURORA.equals(animation) || CHIME_ORBIT.equals(animation)
+                || CHIME_COMET.equals(animation)) return animation;
+        return CHIME_RADIAL;
     }
 
     public boolean isHourlyChimeQuietEnabled() {
@@ -935,6 +958,7 @@ public class ClockPreferences {
                 .putString(KEY_TIME_TRANSITION, DEFAULT_TIME_TRANSITION)
                 .putBoolean(KEY_HOURLY_CHIME, DEFAULT_HOURLY_CHIME)
                 .putBoolean(KEY_HALF_HOUR_CHIME, DEFAULT_HALF_HOUR_CHIME)
+                .putString(KEY_CHIME_ANIMATION, CHIME_RADIAL)
                 .putBoolean(KEY_HOURLY_CHIME_QUIET, DEFAULT_HOURLY_CHIME_QUIET)
                 .putInt(KEY_HOURLY_CHIME_QUIET_START, DEFAULT_HOURLY_CHIME_QUIET_START)
                 .putInt(KEY_HOURLY_CHIME_QUIET_END, DEFAULT_HOURLY_CHIME_QUIET_END)
