@@ -1,11 +1,13 @@
 package com.clockmods.ultimate.compose
 
+import android.content.res.Configuration
 import androidx.compose.foundation.layout.WindowInsets
 import androidx.compose.foundation.layout.ExperimentalLayoutApi
 import androidx.compose.foundation.layout.displayCutout
 import androidx.compose.foundation.layout.navigationBarsIgnoringVisibility
 import androidx.compose.foundation.layout.statusBarsIgnoringVisibility
 import androidx.compose.runtime.Composable
+import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalDensity
 import kotlin.math.max
 
@@ -27,15 +29,16 @@ internal data class DisplaySafeArea(
 internal fun displaySafeArea(enabled: Boolean, immersive: Boolean): DisplaySafeArea {
     if (!enabled || !immersive) return DisplaySafeArea()
     val density = LocalDensity.current
+    val landscape = LocalConfiguration.current.orientation == Configuration.ORIENTATION_LANDSCAPE
     val cutout = WindowInsets.displayCutout
     val status = WindowInsets.statusBarsIgnoringVisibility
     val navigation = WindowInsets.navigationBarsIgnoringVisibility
     return DisplaySafeArea(
         left = max(cutout.getLeft(density, androidx.compose.ui.unit.LayoutDirection.Ltr),
             status.getLeft(density, androidx.compose.ui.unit.LayoutDirection.Ltr)),
-        top = max(cutout.getTop(density), status.getTop(density)),
+        top = if (landscape) 0 else max(cutout.getTop(density), status.getTop(density)),
         right = max(cutout.getRight(density, androidx.compose.ui.unit.LayoutDirection.Ltr),
             status.getRight(density, androidx.compose.ui.unit.LayoutDirection.Ltr)),
-        bottom = max(cutout.getBottom(density), navigation.getBottom(density)),
+        bottom = if (landscape) 0 else max(cutout.getBottom(density), navigation.getBottom(density)),
     )
 }
