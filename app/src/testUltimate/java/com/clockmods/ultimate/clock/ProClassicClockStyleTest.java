@@ -28,6 +28,7 @@ public class ProClassicClockStyleTest {
         Assert.assertEquals(ClockStyleMetadata.Kind.DIGITAL, metadata.getKind());
         Assert.assertEquals(EnumSet.of(
                 ClockStyleCapabilities.Capability.SECONDS,
+                ClockStyleCapabilities.Capability.DIGIT_TRANSITION,
                 ClockStyleCapabilities.Capability.DATE,
                 ClockStyleCapabilities.Capability.TIME_ZONE,
                 ClockStyleCapabilities.Capability.WEATHER,

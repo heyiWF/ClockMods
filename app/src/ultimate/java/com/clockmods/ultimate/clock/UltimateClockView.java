@@ -7,6 +7,7 @@ import android.graphics.RectF;
 import android.os.Build;
 import android.os.Handler;
 import android.os.Looper;
+import android.os.SystemClock;
 import android.text.format.DateFormat;
 import android.util.AttributeSet;
 import android.util.TypedValue;
@@ -56,6 +57,7 @@ import java.util.concurrent.Executors;
 public class UltimateClockView extends FrameLayout {
     private static final long MILLIS_PER_SECOND = 1000L;
     private static final long MINUTE_REFRESH_MILLIS = 60_000L;
+    private static final long TIME_TRANSITION_DURATION_MILLIS = 300L;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable ticker = new Runnable() {
@@ -73,6 +75,11 @@ public class UltimateClockView extends FrameLayout {
             UltimateClockPreferences.DEFAULT_SECOND_HAND_MOTION;
     private String backgroundMode = UltimateClockPreferences.DEFAULT_BACKGROUND_MODE;
     private boolean showSeconds = true;
+    private boolean animateDigits;
+    private ClockState.TimeTransition digitTransition = ClockState.TimeTransition.FADE;
+    private ClockDigitTransitionTracker digitTracker = new ClockDigitTransitionTracker();
+    private long transitionTimeKey = -1L;
+    private long transitionStartedUptime;
     private boolean use24Hour;
     private Locale locale;
     private TimeZone timeZone;
@@ -205,9 +212,12 @@ public class UltimateClockView extends FrameLayout {
     /** Applies the shared Ultimate settings contract without replacing the host registry. */
     public final void reloadPreferences() {
         if (preferences == null) return;
+        String previousStyleId = styleId;
         styleId = preferences.getStyleId();
         secondHandMotion = preferences.getSecondHandMotion();
         backgroundMode = preferences.getBackgroundMode();
+        reloadDigitTransition();
+        if (!styleId.equals(previousStyleId)) resetDigitTransition();
         if (worldClockRepository == null) {
             worldClockRepository = new WorldClockRepository(getContext());
         }
@@ -268,9 +278,12 @@ public class UltimateClockView extends FrameLayout {
     }
 
     public void setStyleId(String value) {
+        String previousStyleId = styleId;
         styleId = value == null ? UltimateClockPreferences.DEFAULT_STYLE_ID : value.trim();
         if (styleId.length() == 0) styleId = UltimateClockPreferences.DEFAULT_STYLE_ID;
         if (preferences != null) preferences.setStyleId(styleId);
+        reloadDigitTransition();
+        if (!styleId.equals(previousStyleId)) resetDigitTransition();
         reloadTypography();
         requestLayout();
         invalidate();
@@ -525,6 +538,7 @@ public class UltimateClockView extends FrameLayout {
     public void stop() {
         requestedRunning = false;
         cancelTicker();
+        resetDigitTransition();
     }
 
     public boolean isRunning() {
@@ -538,6 +552,26 @@ public class UltimateClockView extends FrameLayout {
         ClockStyle style = styleRegistry.resolveForApi(styleId, Build.VERSION.SDK_INT);
         ClockState.SecondHandMotion motion = resolveSecondHandMotion(
                 style, showSeconds, secondHandMotion);
+        boolean supportsDigitTransition = style.getMetadata().getCapabilities().supports(
+                ClockStyleCapabilities.Capability.DIGIT_TRANSITION);
+        long timeKey = showSeconds && style.getMetadata().getCapabilities().supports(
+                ClockStyleCapabilities.Capability.SECONDS) ? now / MILLIS_PER_SECOND
+                : now / MINUTE_REFRESH_MILLIS;
+        long uptime = SystemClock.uptimeMillis();
+        if (transitionTimeKey != timeKey) {
+            boolean adjacentTick = transitionTimeKey >= 0L && timeKey == transitionTimeKey + 1L;
+            transitionTimeKey = timeKey;
+            transitionStartedUptime = animateDigits && supportsDigitTransition && adjacentTick
+                    ? uptime : 0L;
+            if (transitionStartedUptime > 0L && shouldRunFrames()) {
+                cancelTicker();
+                postOnAnimation(ticker);
+            }
+        }
+        float transitionProgress = transitionStartedUptime == 0L ? 1f
+                : Math.min(1f, (uptime - transitionStartedUptime)
+                        / (float) TIME_TRANSITION_DURATION_MILLIS);
+        if (transitionProgress >= 1f) transitionStartedUptime = 0L;
         ClockState state = ClockState.builder(now)
                 .timeZone(timeZone)
                 .locale(locale)
@@ -554,6 +588,8 @@ public class UltimateClockView extends FrameLayout {
                 .timeScale(timeScale)
                 .dateScale(dateScale)
                 .supportingScale(supportingScale)
+                .timeTransition(digitTransition)
+                .timeTransitionProgress(transitionProgress)
                 .build();
         float right = Math.max(contentInsetLeft, getWidth() - contentInsetRight);
         float bottom = Math.max(contentInsetTop, getHeight() - contentInsetBottom);
@@ -572,7 +608,9 @@ public class UltimateClockView extends FrameLayout {
         worldClockCards.invalidate();
         int saveCount = canvas.save();
         try {
-            style.getRenderer().render(canvas, renderContext, state, theme);
+            UltimateClockStyles.renderWithDigitTracker(style.getRenderer(), canvas,
+                    renderContext, state, theme,
+                    animateDigits && supportsDigitTransition ? digitTracker : null);
         } finally {
             canvas.restoreToCount(saveCount);
         }
@@ -694,6 +732,10 @@ public class UltimateClockView extends FrameLayout {
 
     private void scheduleNextFrame() {
         if (!shouldRunFrames()) return;
+        if (transitionStartedUptime > 0L) {
+            postOnAnimation(ticker);
+            return;
+        }
         long delay;
         ClockStyle style = styleRegistry.resolveForApi(styleId, Build.VERSION.SDK_INT);
         ClockState.SecondHandMotion motion = resolveSecondHandMotion(
@@ -740,6 +782,33 @@ public class UltimateClockView extends FrameLayout {
     private void cancelTicker() {
         handler.removeCallbacks(ticker);
         removeCallbacks(ticker);
+    }
+
+    private void reloadDigitTransition() {
+        BackgroundRepository repository = backgroundRepository != null
+                ? backgroundRepository : new BackgroundRepository(getContext());
+        boolean proClassic = UltimateClockStyles.STYLE_PRO_CLASSIC.equals(styleId);
+        animateDigits = proClassic ? repository.isAnimateTimeChanges()
+                : preferences.isDigitAnimationEnabled(styleId);
+        String transition = proClassic ? repository.getTimeTransition()
+                : preferences.getDigitTransition(styleId);
+        if (ClockPreferences.TRANSITION_SLIDE_UP.equals(transition)) {
+            digitTransition = ClockState.TimeTransition.SLIDE_UP;
+        } else if (ClockPreferences.TRANSITION_SLIDE_DOWN.equals(transition)) {
+            digitTransition = ClockState.TimeTransition.SLIDE_DOWN;
+        } else if (ClockPreferences.TRANSITION_SCALE.equals(transition)) {
+            digitTransition = ClockState.TimeTransition.SCALE;
+        } else if (ClockPreferences.TRANSITION_FLIP.equals(transition)) {
+            digitTransition = ClockState.TimeTransition.FLIP;
+        } else {
+            digitTransition = ClockState.TimeTransition.FADE;
+        }
+    }
+
+    private void resetDigitTransition() {
+        transitionTimeKey = -1L;
+        transitionStartedUptime = 0L;
+        digitTracker = new ClockDigitTransitionTracker();
     }
 
     private String dateText(long now) {

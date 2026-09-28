@@ -10,6 +10,7 @@ import java.util.TimeZone;
 /** Immutable clock data. It contains no layout, paint, or theme decisions. */
 public final class ClockState {
     public enum SecondHandMotion { OFF, TICK, SWEEP }
+    public enum TimeTransition { FADE, SLIDE_UP, SLIDE_DOWN, SCALE, FLIP }
 
     private final long timeMillis;
     private final TimeZone timeZone;
@@ -25,6 +26,8 @@ public final class ClockState {
     private final float timeScale;
     private final float dateScale;
     private final float supportingScale;
+    private final TimeTransition timeTransition;
+    private final float timeTransitionProgress;
 
     private ClockState(Builder builder) {
         timeMillis = builder.timeMillis;
@@ -42,6 +45,8 @@ public final class ClockState {
         timeScale = positiveScale(builder.timeScale);
         dateScale = positiveScale(builder.dateScale);
         supportingScale = positiveScale(builder.supportingScale);
+        timeTransition = builder.timeTransition;
+        timeTransitionProgress = transitionProgress(builder.timeTransitionProgress);
     }
 
     public static Builder builder(long timeMillis) {
@@ -62,6 +67,8 @@ public final class ClockState {
     public float getTimeScale() { return timeScale; }
     public float getDateScale() { return dateScale; }
     public float getSupportingScale() { return supportingScale; }
+    public TimeTransition getTimeTransition() { return timeTransition; }
+    public float getTimeTransitionProgress() { return timeTransitionProgress; }
 
     public Calendar newCalendar() {
         Calendar calendar = Calendar.getInstance(timeZone, locale);
@@ -88,6 +95,8 @@ public final class ClockState {
         private float timeScale = 1f;
         private float dateScale = 1f;
         private float supportingScale = 1f;
+        private TimeTransition timeTransition = TimeTransition.FADE;
+        private float timeTransitionProgress = 1f;
 
         private Builder(long timeMillis) {
             this.timeMillis = timeMillis;
@@ -130,6 +139,15 @@ public final class ClockState {
         public Builder timeScale(float value) { timeScale = value; return this; }
         public Builder dateScale(float value) { dateScale = value; return this; }
         public Builder supportingScale(float value) { supportingScale = value; return this; }
+        public Builder timeTransition(TimeTransition value) {
+            if (value == null) throw new IllegalArgumentException("timeTransition must not be null");
+            timeTransition = value;
+            return this;
+        }
+        public Builder timeTransitionProgress(float value) {
+            timeTransitionProgress = value;
+            return this;
+        }
 
         public ClockState build() {
             return new ClockState(this);
@@ -138,5 +156,9 @@ public final class ClockState {
 
     private static float positiveScale(float value) {
         return Float.isNaN(value) || Float.isInfinite(value) || value <= 0f ? 1f : value;
+    }
+
+    private static float transitionProgress(float value) {
+        return Float.isNaN(value) ? 1f : Math.max(0f, Math.min(1f, value));
     }
 }

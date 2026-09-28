@@ -253,6 +253,21 @@ public final class UltimateClockStyles {
         }
     }
 
+    /** Supplies a view-owned digit history only while its face is being rendered. */
+    static void renderWithDigitTracker(ClockRenderer renderer, Canvas canvas,
+            ClockRenderContext context, ClockState state, ClockThemeTokens theme,
+            ClockDigitTransitionTracker tracker) {
+        RendererBase.PaintPool pool = RendererBase.PAINT_POOL.get();
+        ClockDigitTransitionTracker previous = pool.digitTracker;
+        if (tracker != null) tracker.beginFrame();
+        pool.digitTracker = tracker;
+        try {
+            renderer.render(canvas, context, state, theme);
+        } finally {
+            pool.digitTracker = previous;
+        }
+    }
+
     static float ribbonSecondsTextSize(float timeTextSize) {
         return Math.max(0f, timeTextSize) * .5f;
     }
@@ -350,6 +365,7 @@ public final class UltimateClockStyles {
                 ClockStyleMetadata.Kind.DIGITAL, proClassicTokens(),
                 new ClockStyleCapabilities.Capability[] {
                         ClockStyleCapabilities.Capability.SECONDS,
+                        ClockStyleCapabilities.Capability.DIGIT_TRANSITION,
                         ClockStyleCapabilities.Capability.DATE,
                         ClockStyleCapabilities.Capability.TIME_ZONE,
                         ClockStyleCapabilities.Capability.WEATHER,
@@ -362,6 +378,7 @@ public final class UltimateClockStyles {
                 new ClockStyleCapabilities.Capability[] {
                         ClockStyleCapabilities.Capability.SECONDS,
                         ClockStyleCapabilities.Capability.SMOOTH_SECONDS,
+                        ClockStyleCapabilities.Capability.DIGIT_TRANSITION,
                         ClockStyleCapabilities.Capability.DATE,
                         ClockStyleCapabilities.Capability.TIME_ZONE,
                         ClockStyleCapabilities.Capability.WEATHER,
@@ -374,6 +391,7 @@ public final class UltimateClockStyles {
                 new ClockStyleCapabilities.Capability[] {
                         ClockStyleCapabilities.Capability.SECONDS,
                         ClockStyleCapabilities.Capability.SMOOTH_SECONDS,
+                        ClockStyleCapabilities.Capability.DIGIT_TRANSITION,
                         ClockStyleCapabilities.Capability.DATE,
                         ClockStyleCapabilities.Capability.TIME_ZONE,
                         ClockStyleCapabilities.Capability.WEATHER,
@@ -386,6 +404,7 @@ public final class UltimateClockStyles {
                 new ClockStyleCapabilities.Capability[] {
                         ClockStyleCapabilities.Capability.SECONDS,
                         ClockStyleCapabilities.Capability.SMOOTH_SECONDS,
+                        ClockStyleCapabilities.Capability.DIGIT_TRANSITION,
                         ClockStyleCapabilities.Capability.DATE,
                         ClockStyleCapabilities.Capability.TIME_ZONE,
                         ClockStyleCapabilities.Capability.WEATHER
@@ -396,6 +415,7 @@ public final class UltimateClockStyles {
                 new ClockStyleCapabilities.Capability[] {
                         ClockStyleCapabilities.Capability.SECONDS,
                         ClockStyleCapabilities.Capability.SMOOTH_SECONDS,
+                        ClockStyleCapabilities.Capability.DIGIT_TRANSITION,
                         ClockStyleCapabilities.Capability.DATE,
                         ClockStyleCapabilities.Capability.TIME_ZONE,
                         ClockStyleCapabilities.Capability.WEATHER,
@@ -418,6 +438,7 @@ public final class UltimateClockStyles {
                 ClockStyleMetadata.Kind.DIGITAL, typeTokens(),
                 new ClockStyleCapabilities.Capability[] {
                         ClockStyleCapabilities.Capability.SECONDS,
+                        ClockStyleCapabilities.Capability.DIGIT_TRANSITION,
                         ClockStyleCapabilities.Capability.DATE,
                         ClockStyleCapabilities.Capability.TIME_ZONE,
                         ClockStyleCapabilities.Capability.WEATHER,
@@ -426,6 +447,7 @@ public final class UltimateClockStyles {
                 }, new TypographicRenderer()));
         ClockStyleCapabilities.Capability[] migrated = new ClockStyleCapabilities.Capability[] {
                 ClockStyleCapabilities.Capability.SECONDS,
+                ClockStyleCapabilities.Capability.DIGIT_TRANSITION,
                 ClockStyleCapabilities.Capability.DATE,
                 ClockStyleCapabilities.Capability.TIME_ZONE,
                 ClockStyleCapabilities.Capability.WEATHER,
@@ -436,6 +458,7 @@ public final class UltimateClockStyles {
         ClockStyleCapabilities.Capability[] migratedSmooth = new ClockStyleCapabilities.Capability[] {
                 ClockStyleCapabilities.Capability.SECONDS,
                 ClockStyleCapabilities.Capability.SMOOTH_SECONDS,
+                ClockStyleCapabilities.Capability.DIGIT_TRANSITION,
                 ClockStyleCapabilities.Capability.DATE,
                 ClockStyleCapabilities.Capability.TIME_ZONE,
                 ClockStyleCapabilities.Capability.WEATHER,
@@ -610,8 +633,10 @@ public final class UltimateClockStyles {
             RendererBase.PaintPool pool = RendererBase.PAINT_POOL.get();
             boolean previousPhotoText = pool.photoText;
             Integer previousPhotoVeil = pool.photoVeil;
+            ClockState previousMotionState = pool.motionState;
             pool.photoText = false;
             pool.photoVeil = null;
+            pool.motionState = state;
             int saveCount = canvas.save();
             try {
                 delegate.render(canvas, context, state, theme);
@@ -620,6 +645,7 @@ public final class UltimateClockStyles {
                 RendererBase.endPaintFrame(paintMarker);
                 pool.photoText = previousPhotoText;
                 pool.photoVeil = previousPhotoVeil;
+                pool.motionState = previousMotionState;
             }
         }
     }
@@ -662,6 +688,8 @@ public final class UltimateClockStyles {
         private static final class PaintPool {
             boolean photoText;
             Integer photoVeil;
+            ClockState motionState;
+            ClockDigitTransitionTracker digitTracker;
             private final List<Paint> paints = new ArrayList<Paint>();
             private int nextIndex;
             private int frameDepth;
@@ -987,20 +1015,137 @@ public final class UltimateClockStyles {
             p.setTextSize(size);
             p.setTextAlign(align);
             p.setTypeface(face);
+            drawTimeWithPaint(canvas, value, x, baseline, p);
+        }
+
+        protected static void drawTimeWithPaint(Canvas canvas, String value, float x,
+                float baseline, Paint paint) {
+            PaintPool pool = PAINT_POOL.get();
+            ClockState state = pool.motionState;
+            float progress = state == null ? 1f : state.getTimeTransitionProgress();
+            String previous = pool.digitTracker == null ? null
+                    : pool.digitTracker.previousFor(value, progress < 1f);
+            ClockState.TimeTransition transition = state == null
+                    ? ClockState.TimeTransition.FADE : state.getTimeTransition();
+            int color = paint.getColor();
             if (PAINT_POOL.get().photoText) {
-                photoTextOutline(p, size);
-                ClockTimeText.draw(canvas, value, x, baseline, p);
-                photoTextFill(p, color, size);
+                photoTextOutline(paint, paint.getTextSize());
+                drawTimeCharacters(canvas, previous, value, x, baseline, paint, progress,
+                        transition);
+                photoTextFill(paint, color, paint.getTextSize());
             }
-            ClockTimeText.draw(canvas, value, x, baseline, p);
+            drawTimeCharacters(canvas, previous, value, x, baseline, paint, progress,
+                    transition);
+        }
+
+        private static void drawTimeCharacters(Canvas canvas, String previous, String current,
+                float x, float baseline, Paint paint, float progress,
+                ClockState.TimeTransition transition) {
+            boolean changed = false;
+            if (previous != null && progress < 1f) {
+                for (int index = 0; index < current.length(); index++) {
+                    if (ClockDigitTransitionTracker.changedDigit(previous, current, index)) {
+                        changed = true;
+                        break;
+                    }
+                }
+            }
+            if (!changed) {
+                ClockTimeText.drawStable(canvas, current, x, baseline, paint);
+                return;
+            }
+            int originalAlpha = paint.getAlpha();
+            Paint.Align originalAlign = paint.getTextAlign();
+            float totalWidth = ClockTimeText.stableWidth(current, paint);
+            float cursor = originalAlign == Paint.Align.CENTER ? x - totalWidth / 2f
+                    : originalAlign == Paint.Align.RIGHT ? x - totalWidth : x;
+            float colonOffset = current.indexOf(':') < 0 ? 0f
+                    : ClockTimeText.colonBaselineOffset(paint);
+            paint.setTextAlign(Paint.Align.CENTER);
+            try {
+                for (int index = 0; index < current.length(); index++) {
+                    char character = current.charAt(index);
+                    float width = ClockTimeText.slotWidth(current, index, paint);
+                    float center = cursor + width / 2f;
+                    if (!ClockDigitTransitionTracker.changedDigit(previous, current, index)) {
+                        paint.setAlpha(originalAlpha);
+                        if (character != ' ') canvas.drawText(String.valueOf(character), center,
+                                baseline + (character == ':' ? colonOffset : 0f), paint);
+                    } else {
+                        String oldDigit = String.valueOf(previous.charAt(index));
+                        String newDigit = String.valueOf(character);
+                        float pivot = baseline - paint.getTextSize() / 2f;
+                        float distance = paint.getTextSize() * .24f;
+                        switch (transition) {
+                            case SLIDE_UP:
+                            case SLIDE_DOWN:
+                                float direction = transition == ClockState.TimeTransition.SLIDE_UP
+                                        ? -1f : 1f;
+                                drawTransitionGlyph(canvas, paint, oldDigit, center, baseline,
+                                        pivot, originalAlpha, 1f - progress, 1f,
+                                        direction * distance * progress);
+                                drawTransitionGlyph(canvas, paint, newDigit, center, baseline,
+                                        pivot, originalAlpha, progress, 1f,
+                                        -direction * distance * (1f - progress));
+                                break;
+                            case SCALE:
+                                drawTransitionGlyph(canvas, paint, oldDigit, center, baseline,
+                                        pivot, originalAlpha, 1f - progress, 1f + .08f * progress,
+                                        0f);
+                                drawTransitionGlyph(canvas, paint, newDigit, center, baseline,
+                                        pivot, originalAlpha, progress, .88f + .12f * progress, 0f);
+                                break;
+                            case FLIP:
+                                if (progress < .5f) {
+                                    drawTransitionGlyph(canvas, paint, oldDigit, center, baseline,
+                                            pivot, originalAlpha, 1f,
+                                            Math.max(.05f, 1f - progress * 2f), 0f);
+                                } else {
+                                    drawTransitionGlyph(canvas, paint, newDigit, center, baseline,
+                                            pivot, originalAlpha, 1f,
+                                            Math.max(.05f, (progress - .5f) * 2f), 0f);
+                                }
+                                break;
+                            case FADE:
+                            default:
+                                drawTransitionGlyph(canvas, paint, oldDigit, center, baseline,
+                                        pivot, originalAlpha, 1f - progress, 1f, 0f);
+                                drawTransitionGlyph(canvas, paint, newDigit, center, baseline,
+                                        pivot, originalAlpha, progress, 1f, 0f);
+                                break;
+                        }
+                    }
+                    cursor += width;
+                }
+            } finally {
+                paint.setAlpha(originalAlpha);
+                paint.setTextAlign(originalAlign);
+            }
+        }
+
+        private static void drawTransitionGlyph(Canvas canvas, Paint paint, String glyph,
+                float center, float baseline, float pivot, int alpha, float fraction,
+                float scaleY, float shiftY) {
+            if (fraction <= 0f) return;
+            paint.setAlpha(Math.max(0, Math.min(255, (int) (alpha * fraction))));
+            int save = canvas.save();
+            canvas.translate(0f, shiftY);
+            canvas.scale(1f, scaleY, center, pivot);
+            canvas.drawText(glyph, center, baseline, paint);
+            canvas.restoreToCount(save);
         }
 
         protected static void fittedTime(Canvas canvas, String value, float x, float baseline,
                 float maxWidth, float preferredSize, int color, Paint.Align align,
                 Typeface face) {
             if (maxWidth <= 0f) return;
-            drawTime(canvas, value, x, baseline, fitText(value, maxWidth, preferredSize, face),
-                    color, align, face);
+            Paint measure = fill(Color.WHITE);
+            measure.setTypeface(face);
+            measure.setTextSize(preferredSize);
+            float width = ClockTimeText.stableWidth(value, measure);
+            float size = width > maxWidth && width > 0f
+                    ? preferredSize * maxWidth / width : preferredSize;
+            drawTime(canvas, value, x, baseline, size, color, align, face);
         }
 
         protected static String contextText(ClockState state) {
@@ -1145,7 +1290,12 @@ public final class UltimateClockStyles {
             Typeface display = displayTypeface(theme, Typeface.NORMAL);
             Typeface supporting = supportingTypeface(theme, Typeface.NORMAL);
             String time = timeText(state.newCalendar(), state, state.isShowSeconds());
-            float timeSize = fitText(time, width * .94f, unit * .42f, display);
+            Paint timeMeasure = fill(Color.WHITE);
+            timeMeasure.setTypeface(display);
+            timeMeasure.setTextSize(unit * .42f);
+            float stableWidth = ClockTimeText.stableWidth(time, timeMeasure);
+            float timeSize = stableWidth > width * .94f
+                    ? unit * .42f * width * .94f / stableWidth : unit * .42f;
             Paint timePaint = fill(theme.getPrimaryTextColor());
             timePaint.setTypeface(display);
             timePaint.setTextSize(timeSize);
@@ -1154,7 +1304,7 @@ public final class UltimateClockStyles {
                     Math.max(1f, unit * .012f), 0x66000000);
             Paint.FontMetrics metrics = timePaint.getFontMetrics();
             float baseline = centerY - (metrics.ascent + metrics.descent) * .5f;
-            ClockTimeText.draw(canvas, time, centerX, baseline, timePaint);
+            drawTimeWithPaint(canvas, time, centerX, baseline, timePaint);
 
             float dateSize = readableSize(context, unit * .045f * state.getDateScale(), 12f);
             float supportingSize = readableSize(context,
@@ -1402,7 +1552,7 @@ public final class UltimateClockStyles {
                         ? String.format(Locale.US, "%02d", c.get(Calendar.SECOND)) : "--";
                 float subSecondsSize = Math.min(subR * .55f,
                         readableSize(context, subR * .31f, 10f));
-                text(canvas, seconds, subX, centeredBaseline(subY, subSecondsSize, mono),
+                drawTime(canvas, seconds, subX, centeredBaseline(subY, subSecondsSize, mono),
                         subSecondsSize, theme.getPrimaryTextColor(), Paint.Align.CENTER, mono);
             }
         }
@@ -1573,7 +1723,7 @@ public final class UltimateClockStyles {
             String seconds = state.isShowSeconds()
                     && state.getSecondHandMotion() != ClockState.SecondHandMotion.OFF
                     ? String.format(Locale.US, "%02d", c.get(Calendar.SECOND)) : "--";
-            text(canvas, seconds, cx, cy + inner * .46f,
+            drawTime(canvas, seconds, cx, cy + inner * .46f,
                     readableSize(context, unit * .023f, 12f),
                     0xFFFF725E, Paint.Align.CENTER, mono);
 
@@ -1870,7 +2020,7 @@ public final class UltimateClockStyles {
                     ? String.format(Locale.US, "%02d", c.get(Calendar.SECOND)) : "--";
             float secondsX = context.getRight() - w * .07f;
             float secondsY = context.getTop() + h * .16f;
-            text(canvas, seconds, secondsX, secondsY, unit * .065f,
+            drawTime(canvas, seconds, secondsX, secondsY, unit * .065f,
                     theme.getAccentColor(), Paint.Align.RIGHT, bold);
             float secondsLabelY = secondsY + Math.max(small * 1.15f, unit * .045f);
             text(canvas, "SEC", secondsX, secondsLabelY, small,
@@ -2085,7 +2235,7 @@ public final class UltimateClockStyles {
                 float markerY = second.bottom - Math.max(second.height() * .079f, markerRadius * 1.25f);
                 drawScallopedCircle(canvas, markerX, markerY, markerRadius,
                         colors.badge);
-                text(canvas, String.format(Locale.US, "%02d", c.get(Calendar.SECOND)), markerX,
+                drawTime(canvas, String.format(Locale.US, "%02d", c.get(Calendar.SECOND)), markerX,
                         centeredBaseline(markerY, markerSize, supporting), markerSize,
                         colors.onBadge, Paint.Align.CENTER, supporting);
             }
@@ -2138,7 +2288,7 @@ public final class UltimateClockStyles {
                 android.graphics.Rect glyphBounds = new android.graphics.Rect();
                 secondsPaint.getTextBounds(seconds, 0, seconds.length(), glyphBounds);
                 // Align the visible digits, not the font's ascent/descent box, to the ring.
-                canvas.drawText(seconds, cx,
+                drawTimeWithPaint(canvas, seconds, cx,
                         y - (glyphBounds.top + glyphBounds.bottom) * .5f, secondsPaint);
             }
         }
@@ -2183,7 +2333,7 @@ public final class UltimateClockStyles {
                 float secondSize = fitText("00", secondRadius * 1.15f,
                         h * .075f * state.getSupportingScale(), supporting);
                 String seconds = String.format(Locale.US, "%02d", c.get(Calendar.SECOND));
-                text(canvas, seconds, secondX,
+                drawTime(canvas, seconds, secondX,
                         centeredBaseline(secondY, secondSize, supporting), secondSize,
                         colors.onPanelAlt, Paint.Align.CENTER, supporting);
             }
@@ -2254,7 +2404,7 @@ public final class UltimateClockStyles {
                 float sy = minuteY + minuteRadius * .32f;
                 bubble(canvas, sx, sy, sr, colors.panelAlt);
                 float ss = fitText("00", sr * 1.28f, sr * .76f, supporting);
-                text(canvas, String.format(Locale.US, "%02d", c.get(Calendar.SECOND)), sx,
+                drawTime(canvas, String.format(Locale.US, "%02d", c.get(Calendar.SECOND)), sx,
                         centeredBaseline(sy, ss, supporting), ss, colors.onPanelAlt,
                         Paint.Align.CENTER, supporting);
             }
@@ -2311,7 +2461,7 @@ public final class UltimateClockStyles {
                 // takes 20dp from the same panel's top — with the date a line higher up.
                 float sy = digital.bottom - digital.height() * .050f - sr;
                 drawScallopedCircle(canvas, sx, sy, sr, colors.badge);
-                text(canvas, String.format(Locale.US, "%02d", c.get(Calendar.SECOND)), sx,
+                drawTime(canvas, String.format(Locale.US, "%02d", c.get(Calendar.SECOND)), sx,
                         centeredBaseline(sy, secondSize, supporting), secondSize,
                         colors.onBadge, Paint.Align.CENTER, supporting);
             }
@@ -2403,7 +2553,7 @@ public final class UltimateClockStyles {
             if (secondsVisible(state)) {
                 float sy = ribbon.centerY();
                 drawScallopedCircle(canvas, secondsX, sy, secondsRadius, colors.badge);
-                text(canvas, String.format(Locale.US, "%02d", c.get(Calendar.SECOND)), secondsX,
+                drawTime(canvas, String.format(Locale.US, "%02d", c.get(Calendar.SECOND)), secondsX,
                         centeredBaseline(sy, secondsSize, supporting), secondsSize,
                         colors.onBadge, Paint.Align.CENTER, supporting);
             }

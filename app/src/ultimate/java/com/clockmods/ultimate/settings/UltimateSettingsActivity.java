@@ -1023,6 +1023,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             addProClassicTimeAppearanceSettings(body);
             addProClassicDateAppearanceSettings(body);
             addProClassicWeatherAppearanceSettings(body);
+        } else if (capabilities.supports(
+                ClockStyleCapabilities.Capability.DIGIT_TRANSITION)) {
+            addSectionLabel(body, R.string.ultimate_time_appearance_section, 22);
+            addDigitTransitionControls(body, selectedId);
         }
         return scrollable(body);
     }
@@ -1563,31 +1567,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     repository.setBlinkColon(value);
                     markChanged("blink_colon");
                 });
-        final View[] transitionRow = new View[1];
-        addSwitch(body, R.string.ultimate_animate_time_changes,
-                R.string.ultimate_animate_time_changes_summary,
-                repository.isAnimateTimeChanges(), value -> {
-                    repository.setAnimateTimeChanges(value);
-                    markChanged("animate_time_changes");
-                    if (transitionRow[0] != null) {
-                        setViewTreeEnabled(transitionRow[0], value);
-                    }
-                });
-        String[] transitionNames = {
-                getString(R.string.ultimate_transition_fade),
-                getString(R.string.ultimate_transition_slide_up),
-                getString(R.string.ultimate_transition_slide_down),
-                getString(R.string.ultimate_transition_scale),
-                getString(R.string.ultimate_transition_flip)
-        };
-        transitionRow[0] = addActionRow(body, R.string.ultimate_time_transition,
-                transitionNames[transitionIndex(repository.getTimeTransition())],
-                R.drawable.ultimate_ic_chevron_right, () -> showSingleChoiceDialog(
-                        R.string.ultimate_time_transition, transitionNames,
-                        transitionIndex(repository.getTimeTransition()), value ->
-                                repository.setTimeTransition(transitionForIndex(value)),
-                        "time_transition", true));
-        setViewTreeEnabled(transitionRow[0], repository.isAnimateTimeChanges());
+        addDigitTransitionControls(body, UltimateClockStyles.STYLE_PRO_CLASSIC);
         MaterialSwitch smallSeconds = addSwitch(body, R.string.ultimate_small_seconds,
                 R.string.ultimate_small_seconds_summary, repository.isSmallSeconds(), value -> {
                     repository.setSmallSeconds(value);
@@ -1599,6 +1579,41 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     repository.setPortraitStacked(value);
                     markChanged("portrait_stacked");
                 });
+    }
+
+    private void addDigitTransitionControls(LinearLayout body, String styleId) {
+        boolean proClassic = UltimateClockStyles.STYLE_PRO_CLASSIC.equals(styleId);
+        boolean enabled = proClassic ? repository.isAnimateTimeChanges()
+                : ultimatePreferences.isDigitAnimationEnabled(styleId);
+        String transition = proClassic ? repository.getTimeTransition()
+                : ultimatePreferences.getDigitTransition(styleId);
+        final View[] transitionRow = new View[1];
+        addSwitch(body, R.string.ultimate_animate_time_changes,
+                R.string.ultimate_animate_time_changes_summary, enabled, value -> {
+                    if (proClassic) repository.setAnimateTimeChanges(value);
+                    else ultimatePreferences.setDigitAnimationEnabled(styleId, value);
+                    markChanged("animate_time_changes");
+                    if (transitionRow[0] != null) setViewTreeEnabled(transitionRow[0], value);
+                });
+        String[] transitionNames = {
+                getString(R.string.ultimate_transition_fade),
+                getString(R.string.ultimate_transition_slide_up),
+                getString(R.string.ultimate_transition_slide_down),
+                getString(R.string.ultimate_transition_scale),
+                getString(R.string.ultimate_transition_flip)
+        };
+        transitionRow[0] = addActionRow(body, R.string.ultimate_time_transition,
+                transitionNames[transitionIndex(transition)],
+                R.drawable.ultimate_ic_chevron_right, () -> showSingleChoiceDialog(
+                        R.string.ultimate_time_transition, transitionNames,
+                        transitionIndex(proClassic ? repository.getTimeTransition()
+                                : ultimatePreferences.getDigitTransition(styleId)), value -> {
+                            if (proClassic) repository.setTimeTransition(transitionForIndex(value));
+                            else ultimatePreferences.setDigitTransition(styleId,
+                                    transitionForIndex(value));
+                        },
+                        "time_transition", true));
+        setViewTreeEnabled(transitionRow[0], enabled);
     }
 
     private void addProClassicDateAppearanceSettings(LinearLayout body) {

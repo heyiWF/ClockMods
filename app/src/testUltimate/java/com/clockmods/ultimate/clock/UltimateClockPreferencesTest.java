@@ -115,6 +115,27 @@ public class UltimateClockPreferencesTest {
                 preferences.getBackgroundMode());
     }
 
+    @Test public void digitTransitionsAreIndependentAcrossThemesAndReset() {
+        String bubbles = UltimateClockStyles.STYLE_BUBBLES;
+        String orbit = UltimateClockStyles.STYLE_ORBIT;
+        preferences.setDigitAnimationEnabled(bubbles, false);
+        preferences.setDigitTransition(bubbles, "slide_up");
+        preferences.setDigitTransition(orbit, "flip");
+
+        UltimateClockPreferences reopened = new UltimateClockPreferences(stored);
+        Assert.assertFalse(reopened.isDigitAnimationEnabled(bubbles));
+        Assert.assertTrue(reopened.isDigitAnimationEnabled(orbit));
+        Assert.assertEquals("slide_up", reopened.getDigitTransition(bubbles));
+        Assert.assertEquals("flip", reopened.getDigitTransition(orbit));
+        Assert.assertEquals("fade", reopened.getDigitTransition(
+                UltimateClockStyles.STYLE_PRO_CLASSIC));
+
+        reopened.restoreDefaults();
+        Assert.assertTrue(reopened.isDigitAnimationEnabled(bubbles));
+        Assert.assertEquals("fade", reopened.getDigitTransition(bubbles));
+        Assert.assertEquals("fade", reopened.getDigitTransition(orbit));
+    }
+
     @Test public void palettesPersistIndependentlyAndResetWithDefaults() {
         String orbit = UltimateClockStyles.STYLE_ORBIT;
         String dual = UltimateClockStyles.STYLE_DUAL_BLOCKS;

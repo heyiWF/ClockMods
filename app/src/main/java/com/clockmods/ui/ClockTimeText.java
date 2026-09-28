@@ -79,6 +79,54 @@ public final class ClockTimeText {
         }
     }
 
+    /** Draw numeric positions in equal-width slots for proportional typefaces. */
+    public static void drawStable(Canvas canvas, String text, float x, float baseline, Paint paint) {
+        if (text == null || text.isEmpty()) return;
+        Paint.Align align = paint.getTextAlign();
+        float cursor = align == Paint.Align.CENTER ? x - stableWidth(text, paint) / 2f
+                : align == Paint.Align.RIGHT ? x - stableWidth(text, paint) : x;
+        float colonOffset = text.indexOf(COLON) < 0 ? 0f : colonBaselineOffset(paint);
+        paint.setTextAlign(Paint.Align.CENTER);
+        try {
+            for (int index = 0; index < text.length(); index++) {
+                char character = text.charAt(index);
+                float width = slotWidth(text, index, paint);
+                if (character != ' ') {
+                    canvas.drawText(String.valueOf(character), cursor + width / 2f,
+                            baseline + (character == COLON ? colonOffset : 0f), paint);
+                }
+                cursor += width;
+            }
+        } finally {
+            paint.setTextAlign(align);
+        }
+    }
+
+    public static float stableWidth(String text, Paint paint) {
+        if (text == null) return 0f;
+        float width = 0f;
+        for (int index = 0; index < text.length(); index++) {
+            width += slotWidth(text, index, paint);
+        }
+        return width;
+    }
+
+    public static float slotWidth(String text, int index, Paint paint) {
+        char character = text.charAt(index);
+        if (character >= '0' && character <= '9') {
+            float widest = 0f;
+            for (char digit = '0'; digit <= '9'; digit++) {
+                widest = Math.max(widest, paint.measureText(String.valueOf(digit)));
+            }
+            return widest;
+        }
+        if (character == ' ' && (index > 0 && Character.isDigit(text.charAt(index - 1))
+                || index + 1 < text.length() && Character.isDigit(text.charAt(index + 1)))) {
+            return paint.measureText(":");
+        }
+        return paint.measureText(String.valueOf(character));
+    }
+
     /**
      * Returns {@code text} with every ':' wrapped in a baseline shifting span, for
      * TextViews that display a time. The shift is recomputed from the view's own paint

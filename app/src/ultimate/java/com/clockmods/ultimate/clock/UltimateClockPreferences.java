@@ -23,6 +23,8 @@ public final class UltimateClockPreferences {
 
     private static final String PREFS_NAME = PREFERENCES_NAME;
     private static final String KEY_SECOND_HAND_MOTION = KEY_SECOND_MOTION;
+    private static final String KEY_DIGIT_ANIMATION_PREFIX = "digit_animation__";
+    private static final String KEY_DIGIT_TRANSITION_PREFIX = "digit_transition__";
 
     private final SharedPreferences preferences;
 
@@ -84,6 +86,28 @@ public final class UltimateClockPreferences {
         preferences.edit().putString(KEY_SECOND_HAND_MOTION, stored).apply();
     }
 
+    /** Each Ultimate face keeps its digit motion separate from Pro Classic's preferences. */
+    public boolean isDigitAnimationEnabled(String styleId) {
+        return preferences.getBoolean(KEY_DIGIT_ANIMATION_PREFIX + normalizeStyleId(styleId),
+                ClockPreferences.DEFAULT_ANIMATE_TIME_CHANGES);
+    }
+
+    public void setDigitAnimationEnabled(String styleId, boolean enabled) {
+        preferences.edit().putBoolean(KEY_DIGIT_ANIMATION_PREFIX + normalizeStyleId(styleId),
+                enabled).apply();
+    }
+
+    public String getDigitTransition(String styleId) {
+        return ClockPreferences.normalizeTimeTransition(preferences.getString(
+                KEY_DIGIT_TRANSITION_PREFIX + normalizeStyleId(styleId),
+                ClockPreferences.DEFAULT_TIME_TRANSITION));
+    }
+
+    public void setDigitTransition(String styleId, String transition) {
+        preferences.edit().putString(KEY_DIGIT_TRANSITION_PREFIX + normalizeStyleId(styleId),
+                ClockPreferences.normalizeTimeTransition(transition)).apply();
+    }
+
     public String getBackgroundMode() {
         return normalizeBackgroundMode(preferences.getString(
                 KEY_BACKGROUND_MODE, DEFAULT_BACKGROUND_MODE));
@@ -119,7 +143,8 @@ public final class UltimateClockPreferences {
     public void restoreDefaults() {
         SharedPreferences.Editor editor = preferences.edit();
         for (String key : preferences.getAll().keySet()) {
-            if (key.startsWith("palette_")) editor.remove(key);
+            if (key.startsWith("palette_") || key.startsWith(KEY_DIGIT_ANIMATION_PREFIX)
+                    || key.startsWith(KEY_DIGIT_TRANSITION_PREFIX)) editor.remove(key);
         }
         editor
                 .putString(KEY_STYLE_ID, DEFAULT_STYLE_ID)

@@ -9,6 +9,7 @@ public final class ClockStyleCapabilities {
     public enum Capability {
         SECONDS,
         SMOOTH_SECONDS,
+        DIGIT_TRANSITION,
         DATE,
         TIME_ZONE,
         WEATHER,
