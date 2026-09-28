@@ -946,6 +946,14 @@ public final class UltimateClockStyles {
                 ClockState state, float x, float lowerBaseline, float maxWidth,
                 float preferredSize, int color, Paint.Align align, Typeface face,
                 boolean stackLunar) {
+            readableDate(canvas, context, state, x, lowerBaseline, maxWidth, preferredSize,
+                    color, align, face, stackLunar, true);
+        }
+
+        protected static void readableDate(Canvas canvas, ClockRenderContext context,
+                ClockState state, float x, float lowerBaseline, float maxWidth,
+                float preferredSize, int color, Paint.Align align, Typeface face,
+                boolean stackLunar, boolean adaptColor) {
             float inset = Math.min(Math.min(context.getWidth(), context.getHeight()) * .045f,
                     context.getDensity() * 20f);
             float safeLeft = context.getLeft() + inset;
@@ -996,8 +1004,10 @@ public final class UltimateClockStyles {
                         safeBaseline + metrics.descent, size);
                 safeBaseline = Math.min(safeBaseline,
                         context.getBottom() - inset - metrics.descent);
+                int dateColor = adaptColor ? adaptiveDateColor(context, x, safeBaseline,
+                        metricsPaint.measureText(visible), size, color, align) : color;
                 text(canvas, visible, x,
-                        safeBaseline, size, color, align, face);
+                        safeBaseline, size, dateColor, align, face);
                 return;
             }
             float size = Math.max(minimumSize, Math.min(
@@ -1027,10 +1037,27 @@ public final class UltimateClockStyles {
                     safeLowerBaseline + metrics.descent, size);
             safeLowerBaseline = Math.min(safeLowerBaseline,
                     context.getBottom() - inset - metrics.descent);
+            int dateColor = adaptColor ? adaptiveDateColor(context, x, safeLowerBaseline,
+                    textWidth, size * 2.45f, color, align) : color;
             text(canvas, firstText, x,
-                    safeLowerBaseline - lineGap, size, color, align, face);
+                    safeLowerBaseline - lineGap, size, dateColor, align, face);
             text(canvas, secondText, x, safeLowerBaseline,
-                    size, color, align, face);
+                    size, dateColor, align, face);
+        }
+
+        private static int adaptiveDateColor(ClockRenderContext context, float x,
+                float baseline, float textWidth, float textSize, int original,
+                Paint.Align align) {
+            ClockBackground background = context.getBackground();
+            if (background == null || background.usesThemeSurface()) return original;
+            if (background.hasImage()) {
+                return adaptiveImageTextColor(context, x, baseline, textWidth, textSize,
+                        align, original, true);
+            }
+            int surface = background.isDimmed()
+                    ? ClockPalette.mix(background.getColor(), Color.BLACK, .4f)
+                    : background.getColor();
+            return ClockPalette.foreground(surface);
         }
 
         private static float dateStatusClearance(ClockRenderContext context, Paint.Align align,
@@ -1357,7 +1384,7 @@ public final class UltimateClockStyles {
             readableDate(canvas, context, state, centerX,
                     baseline + metrics.ascent - supportingGap, width * .88f,
                     unit * .045f, theme.getSecondaryTextColor(), Paint.Align.CENTER,
-                    supporting, height > width);
+                    supporting, height > width, false);
             String contextText = contextText(state);
             readableText(canvas, context, contextText, centerX,
                     baseline + metrics.descent + supportingGap + supportingSize,
