@@ -220,9 +220,19 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
         // The capsule sits at the end of a header row rather than in a side column, so unlike the
         // dashboard it is aligned to the row's end and tinted as support rather than as body type.
         statusBar.setBackgroundRepository(background);
+        statusBar.setTypographyScope(ClockPreferences.calendarScope(theme.id));
         statusBar.setContentAlignedStart(false);
         statusBar.setTintOverride(theme.followsUserTimeColor ? 0 : theme.secondary);
         statusBar.setVisibility(preferences.isShowStatusIcons() ? View.VISIBLE : View.GONE);
+        float supportingScale = preferences.getSupportingFontScale(
+                ClockPreferences.calendarScope(theme.id));
+        int statusHeight = Math.round(Math.max(24f, 14f + 16f * supportingScale)
+                * preferences.getStatusIconScale() * density);
+        ViewGroup.LayoutParams statusParams = statusBar.getLayoutParams();
+        if (statusParams.height != statusHeight) {
+            statusParams.height = statusHeight;
+            statusBar.setLayoutParams(statusParams);
+        }
         titleView.setTextColor(theme.text);
         weekView.setTextColor(theme.secondary);
         todayButton.setTextColor(theme.accent);

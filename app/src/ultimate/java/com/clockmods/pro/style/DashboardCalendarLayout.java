@@ -230,6 +230,7 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
         this.theme = theme;
         this.preferences = preferences;
         statusBar.setBackgroundRepository(background);
+        statusBar.setTypographyScope(ClockPreferences.calendarScope(theme.id));
         statusBar.setContentAlignedStart(true);
         statusBar.setTintOverride(theme.followsUserTimeColor ? 0 : theme.text);
         statusBar.setVisibility(preferences.isShowStatusIcons() ? View.VISIBLE : View.GONE);
@@ -359,15 +360,24 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
     private void applyClockSizing() {
         if (clockCard == null || clockCard.getWidth() <= 0 || clockCard.getHeight() <= 0) return;
         float density = context.getResources().getDisplayMetrics().density;
+        float iconScale = preferences.getStatusIconScale();
+        float supportingScale = preferences.getSupportingFontScale(
+                ClockPreferences.calendarScope(theme.id));
+        int statusHeight = Math.round(Math.min(clockCard.getHeight() * .30f,
+                Math.max(28f, 14f + 16f * supportingScale) * iconScale * density));
+        int maxStatusWidth = Math.max(1, clockCard.getWidth() - dp(28));
+        int statusWidth = Math.min(maxStatusWidth, Math.max(
+                Math.round(clockCard.getWidth() * .38f),
+                Math.round((134f + 26f * Math.max(0f, supportingScale - 1f))
+                        * iconScale * density)));
+        float timeHeight = clockCard.getHeight() - (preferences.isShowStatusIcons()
+                ? statusHeight + dp(10) : 0);
         float timeSize = CalendarDashboardSizing.clockTimeSize(clockCard.getWidth(),
-                clockCard.getHeight(), preferences.isShowSeconds(), density);
+                Math.max(1f, timeHeight), preferences.isShowSeconds(), density);
         timeView.setTextSize(TypedValue.COMPLEX_UNIT_PX, timeSize);
         secondsView.setTextSize(TypedValue.COMPLEX_UNIT_PX, timeSize * 0.46f);
         periodView.setTextSize(TypedValue.COMPLEX_UNIT_PX, timeSize * 0.25f);
         ViewGroup.LayoutParams statusParams = statusBar.getLayoutParams();
-        int statusWidth = Math.round(clockCard.getWidth() * 0.38f);
-        int statusHeight = Math.round(Math.min(clockCard.getHeight() * 0.16f,
-                clockCard.getWidth() * 0.065f));
         if (statusParams.width != statusWidth || statusParams.height != statusHeight) {
             statusParams.width = statusWidth;
             statusParams.height = statusHeight;

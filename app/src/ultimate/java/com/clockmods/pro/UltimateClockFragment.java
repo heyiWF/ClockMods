@@ -51,7 +51,6 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
      */
     private static final int STATUS_CAPSULE_MARGIN_DP = 20;
     private static final int STATUS_CAPSULE_MARGIN_TOP_DP = 16;
-    private static final int STATUS_CAPSULE_HEIGHT_DP = 28;
     /**
      * The capsule is filled with the style's surface at full opacity. A sheer fill picked up
      * whatever sat behind it, so a corner straddling two surfaces rendered as two different shades;
@@ -222,8 +221,8 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
     }
 
     private void applyClockStyle(BackgroundRepository repository) {
-        proClassicActive = UltimateClockStyles.STYLE_PRO_CLASSIC.equals(
-                new UltimateClockPreferences(requireContext()).getStyleId());
+        String styleId = new UltimateClockPreferences(requireContext()).getStyleId();
+        proClassicActive = UltimateClockStyles.STYLE_PRO_CLASSIC.equals(styleId);
         attachActiveClock(repository);
         if (statusBarView != null) {
             if (statusOverlayRepository == null) {
@@ -231,6 +230,16 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
             }
             statusBarView.setBackgroundRepository(
                     proClassicActive ? repository : statusOverlayRepository);
+            statusBarView.setTypographyScope(styleId);
+            float textScale = repository.getSupportingFontScale(styleId);
+            float iconScale = repository.getStatusIconScale();
+            int capsuleHeight = dp(Math.round(Math.max(28f, 14f + 16f * textScale)
+                    * iconScale));
+            ViewGroup.LayoutParams statusParams = statusBarView.getLayoutParams();
+            if (statusParams.height != capsuleHeight) {
+                statusParams.height = capsuleHeight;
+                statusBarView.setLayoutParams(statusParams);
+            }
             applyStatusCapsule();
             statusBarView.setPaddingRelative(dp(8), statusBarView.getPaddingTop(),
                     dp(proClassicActive ? 4 : 8), statusBarView.getPaddingBottom());
@@ -510,7 +519,7 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
         }
         float contentWidth = Math.max(1f, hostWidth - contentInsets.left - contentInsets.right);
         float contentHeight = Math.max(1f, hostHeight - contentInsets.top - contentInsets.bottom);
-        int capsuleHeight = dp(STATUS_CAPSULE_HEIGHT_DP);
+        int capsuleHeight = statusBarView.getLayoutParams().height;
         // The capsule hugs its content, so measure it the way it measures itself. The box's right
         // edge is what the corner styles care about, which is also what keeps the capsule from
         // drifting sideways as the battery reading gains a digit.

@@ -202,7 +202,7 @@ public final class UltimateClockStyles {
      */
     private static float topMetadataTop(String styleId, float width, float height, float density,
             float marginY) {
-        if (STYLE_BUBBLES.equals(styleId) && width < height) {
+        if (width < height && (STYLE_BUBBLES.equals(styleId) || STYLE_RIBBON.equals(styleId))) {
             return Math.min(Math.min(width, height) * .045f, density * 20f);
         }
         return marginY;
@@ -954,9 +954,25 @@ public final class UltimateClockStyles {
             float availableWidth = align == Paint.Align.LEFT ? safeRight - x
                     : align == Paint.Align.RIGHT ? x - safeLeft
                     : 2f * Math.min(x - safeLeft, safeRight - x);
-            maxWidth = Math.min(maxWidth, availableWidth);
+            ClockOverlayBounds overlay = context.getStatusOverlay();
+            float overlayWidth = Float.MAX_VALUE;
+            if (overlay != null && overlay.getBottom() > lowerBaseline - preferredSize * 3f
+                    && overlay.getTop() < lowerBaseline + preferredSize) {
+                float sideWidth = Float.MAX_VALUE;
+                if (align == Paint.Align.LEFT && overlay.getLeft() > x) {
+                    sideWidth = overlay.getLeft() - x - context.getDensity() * 4f;
+                } else if (align == Paint.Align.RIGHT && overlay.getRight() < x) {
+                    sideWidth = x - overlay.getRight() - context.getDensity() * 4f;
+                }
+                if (sideWidth >= context.getDensity() * 80f) overlayWidth = sideWidth;
+            }
+            boolean constrainedByOverlay = overlayWidth <= Math.min(maxWidth, availableWidth);
+            maxWidth = Math.min(Math.min(maxWidth, availableWidth), overlayWidth);
             if (maxWidth <= 0f) return;
             float floor = readableSize(context, 0f, 12f);
+            float minimumSize = constrainedByOverlay
+                    ? Math.min(floor, context.getScaledDensity() * 10f) : floor;
+            float fittingWidth = constrainedByOverlay ? maxWidth * .92f : maxWidth;
             float requested = Math.max(floor, preferredSize * state.getDateScale());
             Paint requestedPaint = fill(Color.WHITE);
             requestedPaint.setTypeface(face);
@@ -964,8 +980,8 @@ public final class UltimateClockStyles {
             String[] lines = dateLines(state.getDateText(), requestedPaint, maxWidth,
                     stackLunar, state.getLocale());
             if (lines[1].length() == 0) {
-                float size = Math.max(floor,
-                        fitText(state.getDateText(), maxWidth, requested, face));
+                float size = Math.max(minimumSize,
+                        fitText(state.getDateText(), fittingWidth, requested, face));
                 Paint metricsPaint = fill(Color.WHITE);
                 metricsPaint.setTypeface(face);
                 metricsPaint.setTextSize(size);
@@ -974,13 +990,19 @@ public final class UltimateClockStyles {
                         context.getTop() + inset - metrics.ascent);
                 safeBaseline = Math.min(safeBaseline,
                         context.getBottom() - inset - metrics.descent);
-                text(canvas, ellipsize(state.getDateText(), maxWidth, size, face), x,
+                String visible = ellipsize(state.getDateText(), maxWidth, size, face);
+                safeBaseline += dateStatusClearance(context, align, x,
+                        metricsPaint.measureText(visible), safeBaseline + metrics.ascent,
+                        safeBaseline + metrics.descent, size);
+                safeBaseline = Math.min(safeBaseline,
+                        context.getBottom() - inset - metrics.descent);
+                text(canvas, visible, x,
                         safeBaseline, size, color, align, face);
                 return;
             }
-            float size = Math.max(floor, Math.min(
-                    fitText(lines[0], maxWidth, requested, face),
-                    fitText(lines[1], maxWidth, requested, face)));
+            float size = Math.max(minimumSize, Math.min(
+                    fitText(lines[0], fittingWidth, requested, face),
+                    fitText(lines[1], fittingWidth, requested, face)));
             float lineGap = size * 1.45f;
             // Headers grow downward when they wrap; footers retain their bottom anchor.
             boolean designedStack = stackLunar
@@ -992,14 +1014,35 @@ public final class UltimateClockStyles {
             metricsPaint.setTypeface(face);
             metricsPaint.setTextSize(size);
             Paint.FontMetrics metrics = metricsPaint.getFontMetrics();
+            String firstText = ellipsize(lines[0], maxWidth, size, face);
+            String secondText = ellipsize(lines[1], maxWidth, size, face);
+            float textWidth = Math.max(metricsPaint.measureText(firstText),
+                    metricsPaint.measureText(secondText));
             float safeLowerBaseline = Math.max(lowerBaseline,
                     context.getTop() + inset + lineGap - metrics.ascent);
             safeLowerBaseline = Math.min(safeLowerBaseline,
                     context.getBottom() - inset - metrics.descent);
-            text(canvas, ellipsize(lines[0], maxWidth, size, face), x,
+            safeLowerBaseline += dateStatusClearance(context, align, x, textWidth,
+                    safeLowerBaseline - lineGap + metrics.ascent,
+                    safeLowerBaseline + metrics.descent, size);
+            safeLowerBaseline = Math.min(safeLowerBaseline,
+                    context.getBottom() - inset - metrics.descent);
+            text(canvas, firstText, x,
                     safeLowerBaseline - lineGap, size, color, align, face);
-            text(canvas, ellipsize(lines[1], maxWidth, size, face), x, safeLowerBaseline,
+            text(canvas, secondText, x, safeLowerBaseline,
                     size, color, align, face);
+        }
+
+        private static float dateStatusClearance(ClockRenderContext context, Paint.Align align,
+                float x, float textWidth, float top, float bottom, float textSize) {
+            ClockOverlayBounds overlay = context.getStatusOverlay();
+            if (overlay == null) return 0f;
+            float rowLeft = align == Paint.Align.RIGHT ? x - textWidth
+                    : align == Paint.Align.CENTER ? x - textWidth * .5f : x;
+            if (!overlay.spansHorizontally(rowLeft, rowLeft + textWidth)
+                    || !overlay.spansVertically(top, bottom)) return 0f;
+            return overlay.getBottom() + Math.max(context.getDensity() * 4f, textSize * .25f)
+                    - top;
         }
 
         /**

@@ -14,6 +14,7 @@ import android.net.wifi.WifiInfo;
 import android.net.wifi.WifiManager;
 import android.os.BatteryManager;
 import android.telephony.SignalStrength;
+import android.telephony.SubscriptionManager;
 import android.telephony.TelephonyCallback;
 import android.telephony.TelephonyManager;
 import android.util.AttributeSet;
@@ -31,6 +32,9 @@ import com.clockmods.background.ClockPreferences;
  */
 public class StatusBarView extends View {
     private static final int INVALID_RSSI = -127;
+    // Public SDK constant arrived after this branch's compileSdk 36.1.
+    private static final String ACTION_DEFAULT_DATA_SUBSCRIPTION_CHANGED =
+            "android.intent.action.ACTION_DEFAULT_DATA_SUBSCRIPTION_CHANGED";
 
     private enum NetworkState {
         NONE, MOBILE, WIFI, ETHERNET
@@ -57,6 +61,7 @@ public class StatusBarView extends View {
     };
 
     private BackgroundRepository backgroundRepository;
+    private String typographyScope;
     private StatusIconStyle statusIconStyle;
 
     private int batteryLevel = -1;
@@ -71,6 +76,7 @@ public class StatusBarView extends View {
     private boolean receiverRegistered;
     private boolean networkCallbackRegistered;
     private TelephonyManager telephonyManager;
+    private int dataSubscriptionId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
     private ConnectivityManager connectivityManager;
 
     /**
@@ -125,6 +131,7 @@ public class StatusBarView extends View {
     private final BroadcastReceiver connectivityReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
+            refreshTelephonySubscription();
             refreshNetworkState();
             invalidate();
         }
@@ -145,6 +152,27 @@ public class StatusBarView extends View {
         backgroundRepository = repository;
         requestLayout();
         invalidate();
+    }
+
+    /** Uses the active clock or calendar theme's font for the battery percentage. */
+    public void setTypographyScope(String scope) {
+        if (scope == null ? typographyScope == null : scope.equals(typographyScope)) return;
+        typographyScope = scope;
+        requestLayout();
+        invalidate();
+    }
+
+    private void configureBatteryText(float iconHeight) {
+        float scale = backgroundRepository == null || typographyScope == null ? 1f
+                : backgroundRepository.getSupportingFontScale(typographyScope);
+        textPaint.setTextSize(iconHeight * .9f * scale);
+        if (backgroundRepository != null) {
+            String family = typographyScope == null ? backgroundRepository.getFontFamily()
+                    : backgroundRepository.getFontFamily(typographyScope);
+            int weight = typographyScope == null ? com.clockmods.background.FontCatalog.DEFAULT_WEIGHT
+                    : backgroundRepository.getFontWeight(typographyScope);
+            textPaint.setTypeface(ClockTypefaceResolver.resolve(getContext(), family, weight));
+        }
     }
 
     public void setContentAlignedStart(boolean alignedStart) {
@@ -201,8 +229,9 @@ public class StatusBarView extends View {
         }
         // Connectivity itself comes from the network callback now; this broadcast is kept only
         // because RSSI changes on an already-connected wifi network do not raise one.
-        context.registerReceiver(connectivityReceiver,
-                new IntentFilter(WifiManager.RSSI_CHANGED_ACTION));
+        IntentFilter connectivityFilter = new IntentFilter(WifiManager.RSSI_CHANGED_ACTION);
+        connectivityFilter.addAction(ACTION_DEFAULT_DATA_SUBSCRIPTION_CHANGED);
+        context.registerReceiver(connectivityReceiver, connectivityFilter);
         receiverRegistered = true;
     }
 
@@ -221,20 +250,49 @@ public class StatusBarView extends View {
     }
 
     private void registerTelephonyCallback() {
-        telephonyManager = (TelephonyManager) getContext().getSystemService(Context.TELEPHONY_SERVICE);
-        if (telephonyManager == null) return;
+        refreshTelephonySubscription();
+    }
+
+    private void refreshTelephonySubscription() {
+        TelephonyManager base = (TelephonyManager) getContext()
+                .getSystemService(Context.TELEPHONY_SERVICE);
+        if (base == null) return;
+        int activeId;
+        try {
+            activeId = SubscriptionManager.getActiveDataSubscriptionId();
+            if (activeId == SubscriptionManager.INVALID_SUBSCRIPTION_ID) {
+                activeId = SubscriptionManager.getDefaultDataSubscriptionId();
+            }
+        } catch (RuntimeException ignored) {
+            activeId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
+        }
+        if (telephonyManager != null && dataSubscriptionId == activeId) return;
+        unregisterTelephonyCallback();
+        dataSubscriptionId = activeId;
+        telephonyManager = activeId == SubscriptionManager.INVALID_SUBSCRIPTION_ID
+                ? base : base.createForSubscriptionId(activeId);
+        try {
+            mobileSignalStrength = mobileSignalLevel(telephonyManager.getSignalStrength());
+        } catch (RuntimeException ignored) {
+            mobileSignalStrength = 0;
+        }
         try {
             telephonyManager.registerTelephonyCallback(
                     getContext().getMainExecutor(), telephonyCallback);
-        } catch (SecurityException ignored) {
+        } catch (RuntimeException ignored) {
             telephonyManager = null;
         }
     }
 
     private void unregisterTelephonyCallback() {
         if (telephonyManager == null) return;
-        telephonyManager.unregisterTelephonyCallback(telephonyCallback);
+        try {
+            telephonyManager.unregisterTelephonyCallback(telephonyCallback);
+        } catch (RuntimeException ignored) {
+            // A data-SIM change can invalidate an earlier registration.
+        }
         telephonyManager = null;
+        dataSubscriptionId = SubscriptionManager.INVALID_SUBSCRIPTION_ID;
     }
 
     private void registerNetworkCallback() {
@@ -280,6 +338,7 @@ public class StatusBarView extends View {
     }
 
     private void refreshNetworkState() {
+        refreshTelephonySubscription();
         Context context = getContext();
         if (connectivityManager == null) {
             connectivityManager = (ConnectivityManager)
@@ -378,6 +437,12 @@ public class StatusBarView extends View {
         return baseHeight * ClockPreferences.normalizeStatusIconScale(scale);
     }
 
+    private static float fittedIconHeight(float viewHeight, float density, float scale) {
+        float normalized = ClockPreferences.normalizeStatusIconScale(scale);
+        return calculateStatusIconHeight(
+                Math.min(28f * density, viewHeight / normalized), density, normalized);
+    }
+
     @Override
     protected void onMeasure(int widthMeasureSpec, int heightMeasureSpec) {
         int desiredHeight = Math.round(28f * density);
@@ -386,13 +451,9 @@ public class StatusBarView extends View {
         // a pill background rely on wrap_content hugging the drawn content, so measuring for the
         // largest possible icon scale or a placeholder "100%" would leave dead space in the pill.
         float scale = resolveStatusIconScale();
-        float iconHeight = calculateStatusIconHeight(measuredHeight, density, scale);
+        float iconHeight = fittedIconHeight(measuredHeight, density, scale);
         float gap = 8f * density * scale;
-        textPaint.setTextSize(iconHeight * 0.9f);
-        if (backgroundRepository != null) {
-            textPaint.setTypeface(ClockTypefaceResolver.resolveTime(
-                    getContext(), backgroundRepository.getFontFamily(), false));
-        }
+        configureBatteryText(iconHeight);
         float contentWidth = iconHeight * 1.15f;
         if (batteryLevel >= 0) {
             contentWidth += gap * 0.4f + iconHeight * 1.55f + gap * 0.6f
@@ -423,7 +484,7 @@ public class StatusBarView extends View {
             textPaint.clearShadowLayer();
         }
 
-        float iconHeight = calculateStatusIconHeight(getHeight(), density, scale);
+        float iconHeight = fittedIconHeight(getHeight(), density, scale);
         float centerY = getHeight() / 2f;
         float gap = 8f * density * scale;
         if (contentAlignedStart) {
@@ -436,11 +497,7 @@ public class StatusBarView extends View {
         // Battery percentage text.
         float cursor = right;
         if (batteryLevel >= 0) {
-            textPaint.setTextSize(iconHeight * 0.9f);
-            if (backgroundRepository != null) {
-                textPaint.setTypeface(ClockTypefaceResolver.resolveTime(
-                        getContext(), backgroundRepository.getFontFamily(), false));
-            }
+            configureBatteryText(iconHeight);
             String percent = batteryLevel + "%";
             canvas.drawText(percent, cursor, centerY - (textPaint.ascent() + textPaint.descent()) / 2f, textPaint);
             cursor -= textPaint.measureText(percent) + gap * 0.6f;
@@ -488,11 +545,7 @@ public class StatusBarView extends View {
         drawBattery(canvas, cursor, centerY, batterySize);
         cursor += batterySize + gap * 0.6f;
         textPaint.setTextAlign(Paint.Align.LEFT);
-        textPaint.setTextSize(iconHeight * 0.9f);
-        if (backgroundRepository != null) {
-            textPaint.setTypeface(ClockTypefaceResolver.resolveTime(
-                    getContext(), backgroundRepository.getFontFamily(), false));
-        }
+        configureBatteryText(iconHeight);
         canvas.drawText(batteryLevel + "%", cursor,
                 centerY - (textPaint.ascent() + textPaint.descent()) / 2f, textPaint);
         textPaint.setTextAlign(Paint.Align.RIGHT);

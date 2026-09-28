@@ -311,6 +311,11 @@ public class UltimateClockRendererSmokeTest {
         // block's safe inset rather than on the page margin.
         Assert.assertEquals("气泡's portrait capsule starts on the date's line",
                 Math.min(Math.min(h, w) * .045f, density * 20f), bubblesPortrait[1], .01f);
+        float[] ribbonPortrait = UltimateClockStyles.statusCapsuleBounds(
+                UltimateClockStyles.STYLE_RIBBON, h, w, density,
+                marginX, marginY, capsuleW, capsuleH);
+        Assert.assertEquals("丝带's portrait capsule starts on the date's line",
+                Math.min(Math.min(h, w) * .045f, density * 20f), ribbonPortrait[1], .01f);
 
         // 字形时刻 right-aligns its seconds block, and 数字网格's landscape SEC panel ends there.
         float[] typographic = UltimateClockStyles.statusCapsuleBounds(
@@ -352,6 +357,34 @@ public class UltimateClockRendererSmokeTest {
                 blendPortrait[2] < h - h * .05f);
         Assert.assertTrue("混合 portrait must sit below the panel top: " + blendPortrait[1],
                 blendPortrait[1] > w * .035f);
+    }
+
+    @Test public void portraitDateTextClearsWideStatusCapsule() throws Exception {
+        ClockState state = longChineseState(false);
+        ClockOverlayBounds capsule = new ClockOverlayBounds(345f, 32f, 680f, 112f);
+        PaintPoolFixture paints = PaintPoolFixture.install();
+        try {
+            for (String styleId : new String[] {
+                    UltimateClockStyles.STYLE_BUBBLES, UltimateClockStyles.STYLE_RIBBON}) {
+                ClockStyle style = UltimateClockStyles.createRegistry().find(styleId);
+                RecordingCanvas canvas = new RecordingCanvas(720f, 1600f);
+                ClockRenderContext context = new ClockRenderContext(0f, 0f, 720f, 1600f,
+                        2f, 2f, state.getTimeMillis(), ClockBackground.theme(false),
+                        0f, 0f, true, capsule);
+                style.getRenderer().render(canvas, context, state, style.getThemeTokens());
+                int checked = 0;
+                for (TextBounds bounds : canvas.textBounds) {
+                    if (!bounds.text.contains("年")) continue;
+                    checked++;
+                    Assert.assertFalse(styleId + " date overlaps status capsule",
+                            capsule.spansHorizontally(bounds.left, bounds.right)
+                                    && capsule.spansVertically(bounds.top, bounds.bottom));
+                }
+                Assert.assertTrue(styleId + " drew no date", checked > 0);
+            }
+        } finally {
+            paints.restore();
+        }
     }
 
     private static void assertRendersWithoutLeakingCanvasState(ClockStyle style,
