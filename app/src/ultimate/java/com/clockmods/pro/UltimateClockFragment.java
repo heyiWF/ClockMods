@@ -7,6 +7,7 @@ import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.Intent;
 import android.content.pm.PackageManager;
+import android.content.res.Configuration;
 import android.graphics.Color;
 import android.graphics.Insets;
 import android.graphics.drawable.GradientDrawable;
@@ -402,10 +403,12 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
             Insets bars = windowInsets.getInsetsIgnoringVisibility(
                     WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
             Insets cutout = windowInsets.getInsets(WindowInsets.Type.displayCutout());
+            boolean landscape = getResources().getConfiguration().orientation
+                    == Configuration.ORIENTATION_LANDSCAPE;
             safe = Insets.of(Math.max(bars.left, cutout.left),
-                    Math.max(bars.top, cutout.top),
+                    landscape ? 0 : Math.max(bars.top, cutout.top),
                     Math.max(bars.right, cutout.right),
-                    Math.max(bars.bottom, cutout.bottom));
+                    landscape ? 0 : Math.max(bars.bottom, cutout.bottom));
         }
         if (safe.equals(contentInsets)) return;
         contentInsets = safe;

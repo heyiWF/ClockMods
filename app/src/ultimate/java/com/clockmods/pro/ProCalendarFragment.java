@@ -1,6 +1,7 @@
 package com.clockmods.pro;
 
 import android.content.Intent;
+import android.content.res.Configuration;
 import android.graphics.Insets;
 import android.net.Uri;
 import android.os.Build;
@@ -205,10 +206,12 @@ public final class ProCalendarFragment extends Fragment implements CalendarLayou
             Insets bars = windowInsets.getInsetsIgnoringVisibility(
                     WindowInsets.Type.statusBars() | WindowInsets.Type.navigationBars());
             Insets cutout = windowInsets.getInsets(WindowInsets.Type.displayCutout());
+            boolean landscape = getResources().getConfiguration().orientation
+                    == Configuration.ORIENTATION_LANDSCAPE;
             safe = Insets.of(Math.max(bars.left, cutout.left),
-                    Math.max(bars.top, cutout.top),
+                    landscape ? 0 : Math.max(bars.top, cutout.top),
                     Math.max(bars.right, cutout.right),
-                    Math.max(bars.bottom, cutout.bottom));
+                    landscape ? 0 : Math.max(bars.bottom, cutout.bottom));
         }
         root.setPadding(safe.left, safe.top, safe.right, safe.bottom);
     }
