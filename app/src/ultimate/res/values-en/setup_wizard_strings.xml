@@ -4,6 +4,7 @@
     <string name="setup_wizard_tab_language">Language</string>
     <string name="setup_wizard_tab_weather">Weather</string>
     <string name="setup_wizard_tab_style">Appearance</string>
+    <string name="setup_wizard_tab_calendar">Calendar</string>
     <string name="setup_wizard_title">Welcome to ClockMods</string>
     <string name="setup_wizard_intro">Take a minute to choose the essentials. You can change everything later in Settings.</string>
     <string name="setup_wizard_step">Step %1$d of %2$d</string>
@@ -15,7 +16,10 @@
     <string name="setup_wizard_weather_enabled_summary">Show live weather for your location</string>
     <string name="setup_wizard_temperature_title">Temperature unit</string>
     <string name="setup_wizard_style_title">Choose a clock style</string>
-    <string name="setup_wizard_style_summary">Pick a look for your clock. More styles are available in the theme gallery.</string>
+    <string name="setup_wizard_style_summary">Choose from every clock style in the theme gallery.</string>
+    <string name="setup_wizard_calendar_style_title">Choose a calendar theme</string>
+    <string name="setup_wizard_calendar_style_summary">Choose a calendar layout and color scheme.</string>
+    <string name="setup_wizard_choose_option">Choose an option to continue</string>
     <string name="setup_wizard_settings_hint">After setup, double-tap the clock screen to open the settings panel.</string>
     <string name="setup_wizard_skip">Set up later</string>
     <string name="setup_wizard_back">Back</string>

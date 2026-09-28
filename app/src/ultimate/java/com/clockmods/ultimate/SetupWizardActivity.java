@@ -3,6 +3,7 @@ package com.clockmods.ultimate;
 import android.content.Context;
 import android.content.res.ColorStateList;
 import android.graphics.Color;
+import android.graphics.Canvas;
 import android.graphics.PorterDuff;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
@@ -27,6 +28,11 @@ import com.clockmods.LocaleManager;
 import com.clockmods.R;
 import com.clockmods.background.ClockPreferences;
 import com.clockmods.platform.ExperienceBridge;
+import com.clockmods.pro.style.CalendarPreviewPainter;
+import com.clockmods.pro.style.CalendarStyle;
+import com.clockmods.pro.style.CalendarStyleMetadata;
+import com.clockmods.pro.style.UltimateCalendarStyles;
+import com.clockmods.sdk.clock.ClockStyle;
 import com.clockmods.ultimate.clock.UltimateClockPreferences;
 import com.clockmods.ultimate.clock.UltimateClockStyles;
 import com.google.android.material.button.MaterialButton;
@@ -50,6 +56,8 @@ public final class SetupWizardActivity extends AppCompatActivity {
     private static final String STATE_WEATHER = "setup_wizard_weather";
     private static final String STATE_UNIT = "setup_wizard_unit";
     private static final String STATE_STYLE = "setup_wizard_style";
+    private static final String STATE_CALENDAR_STYLE = "setup_wizard_calendar_style";
+    private static final int STEP_COUNT = 4;
 
     private int step;
     private Context wizardContext;
@@ -64,6 +72,7 @@ public final class SetupWizardActivity extends AppCompatActivity {
     private RadioGroup unitGroup;
     private MaterialSwitch weatherSwitch;
     private String selectedStyle;
+    private String selectedCalendarStyle;
     private String selectedLanguage;
     private String selectedTemperatureUnit;
     private boolean selectedWeatherEnabled;
@@ -73,6 +82,7 @@ public final class SetupWizardActivity extends AppCompatActivity {
     private boolean compactLandscape;
     private final List<MaterialCardView> styleCards = new ArrayList<>();
     private final List<MaterialRadioButton> styleRadios = new ArrayList<>();
+    private TextView choiceHint;
 
     private ClockPreferences preferences;
     private UltimateClockPreferences ultimatePreferences;
@@ -122,17 +132,18 @@ public final class SetupWizardActivity extends AppCompatActivity {
         compactLandscape = compactHeight && (windowLandscape || rotatedDisplay);
         preferences = new ClockPreferences(this);
         ultimatePreferences = new UltimateClockPreferences(this);
-        selectedLanguage = preferences.getClockLanguage();
-        selectedTemperatureUnit = preferences.getWeatherTemperatureUnit();
+        selectedLanguage = null;
+        selectedTemperatureUnit = null;
         selectedWeatherEnabled = preferences.isWeatherEnabled();
-        selectedStyle = ultimatePreferences.getStyleId();
+        selectedStyle = null;
+        selectedCalendarStyle = null;
         if (savedInstanceState != null) {
-            selectedLanguage = savedInstanceState.getString(STATE_LANGUAGE, selectedLanguage);
-            selectedTemperatureUnit = savedInstanceState.getString(STATE_UNIT,
-                    selectedTemperatureUnit);
+            selectedLanguage = savedInstanceState.getString(STATE_LANGUAGE);
+            selectedTemperatureUnit = savedInstanceState.getString(STATE_UNIT);
             selectedWeatherEnabled = savedInstanceState.getBoolean(STATE_WEATHER,
                     selectedWeatherEnabled);
-            selectedStyle = savedInstanceState.getString(STATE_STYLE, selectedStyle);
+            selectedStyle = savedInstanceState.getString(STATE_STYLE);
+            selectedCalendarStyle = savedInstanceState.getString(STATE_CALENDAR_STYLE);
         }
         buildShell();
         showStep(savedInstanceState == null ? 0 : savedInstanceState.getInt(STATE_STEP, 0));
@@ -149,7 +160,8 @@ public final class SetupWizardActivity extends AppCompatActivity {
         // together, and rebuilding from saved state also restores the matching resource locale.
         android.content.res.Configuration localized = new android.content.res.Configuration(
                 getResources().getConfiguration());
-        localized.setLocale(LocaleManager.resolveLocale(selectedLanguage));
+        localized.setLocale(LocaleManager.resolveLocale(selectedLanguage == null
+                ? preferences.getClockLanguage() : selectedLanguage));
         wizardContext = new androidx.appcompat.view.ContextThemeWrapper(
                 createConfigurationContext(localized), getTheme());
         stepTabs.clear();
@@ -223,7 +235,8 @@ public final class SetupWizardActivity extends AppCompatActivity {
         LinearLayout progressRow = new LinearLayout(wizardContext);
         progressRow.setGravity(Gravity.CENTER_VERTICAL);
         int[] tabLabels = {R.string.setup_wizard_tab_language,
-                R.string.setup_wizard_tab_weather, R.string.setup_wizard_tab_style};
+                R.string.setup_wizard_tab_weather, R.string.setup_wizard_tab_style,
+                R.string.setup_wizard_tab_calendar};
         for (int i = 0; i < tabLabels.length; i++) {
             TextView tab = text(wizardContext.getString(tabLabels[i]), 12, true);
             tab.setGravity(Gravity.CENTER);
@@ -281,6 +294,9 @@ public final class SetupWizardActivity extends AppCompatActivity {
         nextButton.setIconSize(dp(18));
         nextButton.setOnClickListener(v -> onNext());
         actions.addView(nextButton);
+        choiceHint = text(R.string.setup_wizard_choose_option, 12, false);
+        choiceHint.setTextColor(onSurfaceVariantColor());
+        shell.addView(choiceHint);
         shell.addView(actions);
         setContentView(root);
         // A language switch replaces the content while the window is already attached.
@@ -288,7 +304,7 @@ public final class SetupWizardActivity extends AppCompatActivity {
     }
 
     private void showStep(int requestedStep) {
-        step = Math.max(0, Math.min(2, requestedStep));
+        step = Math.max(0, Math.min(STEP_COUNT - 1, requestedStep));
         pageHost.removeAllViews();
         styleCards.clear();
         styleRadios.clear();
@@ -296,8 +312,9 @@ public final class SetupWizardActivity extends AppCompatActivity {
         int pageInset = compactLandscape ? 4 : compactHeight ? 8 : 16;
         pageContent.setPadding(0, dp(pageInset), 0, dp(pageInset));
 
-        stepLabel.setText(wizardContext.getString(R.string.setup_wizard_step_short, step + 1, 3));
-        stepLabel.setContentDescription(wizardContext.getString(R.string.setup_wizard_step, step + 1, 3));
+        stepLabel.setText(wizardContext.getString(R.string.setup_wizard_step_short, step + 1, STEP_COUNT));
+        stepLabel.setContentDescription(wizardContext.getString(R.string.setup_wizard_step,
+                step + 1, STEP_COUNT));
         for (int i = 0; i < stepTabs.size(); i++) {
             TextView tab = stepTabs.get(i);
             tab.setBackground(rounded(i == step ? primaryContainerColor()
@@ -307,9 +324,12 @@ public final class SetupWizardActivity extends AppCompatActivity {
         }
         if (step == 0) languagePage();
         else if (step == 1) weatherPage();
-        else stylePage();
+        else if (step == 2) stylePage();
+        else calendarStylePage();
         backButton.setText(wizardContext.getString(step == 0 ? R.string.setup_wizard_skip : R.string.setup_wizard_back));
-        nextButton.setText(wizardContext.getString(step == 2 ? R.string.setup_wizard_done : R.string.setup_wizard_next));
+        nextButton.setText(wizardContext.getString(step == STEP_COUNT - 1
+                ? R.string.setup_wizard_done : R.string.setup_wizard_next));
+        updateContinueState();
         pageScroll.scrollTo(0, 0);
     }
 
@@ -331,7 +351,7 @@ public final class SetupWizardActivity extends AppCompatActivity {
         // Register after the initial check so rebuilding the translated options cannot recurse.
         languageGroup.setOnCheckedChangeListener((group, checkedId) -> {
             String language = checkedTag(group, selectedLanguage);
-            if (language.equals(selectedLanguage)) return;
+            if (language == null || language.equals(selectedLanguage)) return;
             captureCurrentStep();
             buildShell();
             showStep(step);
@@ -387,8 +407,13 @@ public final class SetupWizardActivity extends AppCompatActivity {
         weatherSwitch.setOnCheckedChangeListener((button, checked) -> {
             selectedWeatherEnabled = checked;
             setRadioGroupEnabled(unitGroup, checked);
+            updateContinueState();
         });
         setRadioGroupEnabled(unitGroup, selectedWeatherEnabled);
+        unitGroup.setOnCheckedChangeListener((group, checkedId) -> {
+            selectedTemperatureUnit = checkedTag(group, selectedTemperatureUnit);
+            updateContinueState();
+        });
     }
 
     private void addUnitOption(String value, int labelRes) {
@@ -434,12 +459,11 @@ public final class SetupWizardActivity extends AppCompatActivity {
         addPageHeading(R.drawable.ultimate_ic_palette, R.string.setup_wizard_style_title,
                 R.string.setup_wizard_style_summary);
 
-        addStyleCard(UltimateClockStyles.STYLE_GLASS_ATELIER,
-                R.string.ultimate_style_glass_name, R.string.ultimate_style_glass_summary);
-        addStyleCard(UltimateClockStyles.STYLE_NOIR_INSTRUMENT,
-                R.string.ultimate_style_noir_name, R.string.ultimate_style_noir_summary);
-        addStyleCard(UltimateClockStyles.STYLE_PAPER_STATION,
-                R.string.ultimate_style_paper_name, R.string.ultimate_style_paper_summary);
+        for (ClockStyle style : UltimateClockStyles.builtIns()) {
+            String id = style.getMetadata().getId();
+            addStyleCard(id, styleNameResource(id), styleSummaryResource(id),
+                    new SetupClockPreviewView(wizardContext, id));
+        }
         TextView settingsHint = text(R.string.setup_wizard_settings_hint, 13, false);
         settingsHint.setTextColor(onSurfaceVariantColor());
         settingsHint.setLineSpacing(0f, 1.2f);
@@ -447,7 +471,17 @@ public final class SetupWizardActivity extends AppCompatActivity {
         pageContent.addView(settingsHint, topMargin(wrap(), dp(12)));
     }
 
-    private void addStyleCard(String id, int titleRes, int summaryRes) {
+    private void calendarStylePage() {
+        addPageHeading(R.drawable.ultimate_ic_palette, R.string.setup_wizard_calendar_style_title,
+                R.string.setup_wizard_calendar_style_summary);
+        for (CalendarStyle style : UltimateCalendarStyles.sharedRegistry().getStyles()) {
+            CalendarStyleMetadata metadata = style.getMetadata();
+            addStyleCard(metadata.getId(), metadata.getNameRes(), metadata.getSummaryRes(),
+                    new SetupCalendarPreviewView(wizardContext, style));
+        }
+    }
+
+    private void addStyleCard(String id, int titleRes, int summaryRes, View preview) {
         MaterialCardView card = new MaterialCardView(wizardContext);
         // Selection is represented by the explicit trailing radio and stroke colour. Leaving the
         // card non-checkable prevents MaterialCardView from adding its default checked icon.
@@ -466,7 +500,6 @@ public final class SetupWizardActivity extends AppCompatActivity {
         content.setOrientation(LinearLayout.HORIZONTAL);
         content.setGravity(Gravity.CENTER_VERTICAL);
         content.setPadding(dp(10), dp(10), dp(6), dp(10));
-        View preview = new SetupClockPreviewView(wizardContext, id);
         preview.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
         preview.setBackground(rounded(surfaceContainerLowColor(), 12));
         preview.setClipToOutline(true);
@@ -494,8 +527,10 @@ public final class SetupWizardActivity extends AppCompatActivity {
         content.addView(radio, new LinearLayout.LayoutParams(dp(48), dp(48)));
         card.addView(content);
         card.setOnClickListener(v -> {
-            selectedStyle = id;
+            if (step == 2) selectedStyle = id;
+            else selectedCalendarStyle = id;
             updateStyleCards();
+            updateContinueState();
         });
         card.setTag(id);
         styleCards.add(card);
@@ -508,13 +543,84 @@ public final class SetupWizardActivity extends AppCompatActivity {
     private void updateStyleCards() {
         for (int i = 0; i < styleCards.size(); i++) {
             MaterialCardView card = styleCards.get(i);
-            boolean selected = String.valueOf(card.getTag()).equals(selectedStyle);
+            boolean selected = String.valueOf(card.getTag()).equals(
+                    step == 2 ? selectedStyle : selectedCalendarStyle);
             card.setStrokeWidth(dp(selected ? 2 : 1));
             card.setStrokeColor(selected ? primaryColor() : outlineVariantColor());
             card.setCardBackgroundColor(selected ? primaryContainerColor() : surfaceContainerLowColor());
             styleRadios.get(i).setChecked(selected);
             String state = selected ? wizardContext.getString(R.string.ultimate_settings_selected_state) : null;
             card.setStateDescription(state);
+        }
+    }
+
+    private void updateContinueState() {
+        boolean enabled = canContinueStep(step, selectedLanguage, selectedWeatherEnabled,
+                selectedTemperatureUnit, selectedStyle, selectedCalendarStyle);
+        nextButton.setEnabled(enabled);
+        choiceHint.setVisibility(enabled ? View.GONE : View.VISIBLE);
+    }
+
+    static boolean canContinueStep(int step, String language, boolean weatherEnabled,
+            String temperatureUnit, String styleId, String calendarStyleId) {
+        switch (step) {
+            case 0: return language != null;
+            case 1: return !weatherEnabled || temperatureUnit != null;
+            case 2: return styleId != null;
+            case 3: return calendarStyleId != null;
+            default: return false;
+        }
+    }
+
+    private static int styleNameResource(String id) {
+        if (UltimateClockStyles.STYLE_PRO_CLASSIC.equals(id)) return R.string.ultimate_style_pro_classic_name;
+        if (UltimateClockStyles.STYLE_GLASS_ATELIER.equals(id)) return R.string.ultimate_style_glass_name;
+        if (UltimateClockStyles.STYLE_NOIR_INSTRUMENT.equals(id)) return R.string.ultimate_style_noir_name;
+        if (UltimateClockStyles.STYLE_PAPER_STATION.equals(id)) return R.string.ultimate_style_paper_name;
+        if (UltimateClockStyles.STYLE_ORBIT_NEON.equals(id)) return R.string.ultimate_style_orbit_name;
+        if (UltimateClockStyles.STYLE_DIGITAL_GRID.equals(id)) return R.string.ultimate_style_grid_name;
+        if (UltimateClockStyles.STYLE_TYPOGRAPHIC.equals(id)) return R.string.ultimate_style_typographic_name;
+        if (UltimateClockStyles.STYLE_DUAL_BLOCKS.equals(id)) return R.string.ultimate_style_dual_blocks_name;
+        if (UltimateClockStyles.STYLE_ORBIT.equals(id)) return R.string.ultimate_style_orbit_migrated_name;
+        if (UltimateClockStyles.STYLE_BUBBLES.equals(id)) return R.string.ultimate_style_bubbles_name;
+        if (UltimateClockStyles.STYLE_BLEND.equals(id)) return R.string.ultimate_style_blend_name;
+        if (UltimateClockStyles.STYLE_RIBBON.equals(id)) return R.string.ultimate_style_ribbon_name;
+        throw new IllegalArgumentException("Missing clock style name: " + id);
+    }
+
+    private static int styleSummaryResource(String id) {
+        if (UltimateClockStyles.STYLE_PRO_CLASSIC.equals(id)) return R.string.ultimate_style_pro_classic_summary;
+        if (UltimateClockStyles.STYLE_GLASS_ATELIER.equals(id)) return R.string.ultimate_style_glass_summary;
+        if (UltimateClockStyles.STYLE_NOIR_INSTRUMENT.equals(id)) return R.string.ultimate_style_noir_summary;
+        if (UltimateClockStyles.STYLE_PAPER_STATION.equals(id)) return R.string.ultimate_style_paper_summary;
+        if (UltimateClockStyles.STYLE_ORBIT_NEON.equals(id)) return R.string.ultimate_style_orbit_summary;
+        if (UltimateClockStyles.STYLE_DIGITAL_GRID.equals(id)) return R.string.ultimate_style_grid_summary;
+        if (UltimateClockStyles.STYLE_TYPOGRAPHIC.equals(id)) return R.string.ultimate_style_typographic_summary;
+        if (UltimateClockStyles.STYLE_DUAL_BLOCKS.equals(id)) return R.string.ultimate_style_dual_blocks_summary;
+        if (UltimateClockStyles.STYLE_ORBIT.equals(id)) return R.string.ultimate_style_orbit_migrated_summary;
+        if (UltimateClockStyles.STYLE_BUBBLES.equals(id)) return R.string.ultimate_style_bubbles_summary;
+        if (UltimateClockStyles.STYLE_BLEND.equals(id)) return R.string.ultimate_style_blend_summary;
+        if (UltimateClockStyles.STYLE_RIBBON.equals(id)) return R.string.ultimate_style_ribbon_summary;
+        throw new IllegalArgumentException("Missing clock style summary: " + id);
+    }
+
+    private static final class SetupCalendarPreviewView extends View {
+        private final CalendarPreviewPainter painter;
+
+        SetupCalendarPreviewView(Context context, CalendarStyle style) {
+            super(context);
+            painter = new CalendarPreviewPainter(style,
+                    context.getResources().getDisplayMetrics().density);
+        }
+
+        @Override protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
+            super.onSizeChanged(width, height, oldWidth, oldHeight);
+            painter.setBounds(width, height);
+        }
+
+        @Override protected void onDraw(Canvas canvas) {
+            super.onDraw(canvas);
+            painter.draw(canvas, getWidth(), getHeight());
         }
     }
 
@@ -557,8 +663,10 @@ public final class SetupWizardActivity extends AppCompatActivity {
     }
 
     private void onNext() {
-        if (step < 2) {
-            captureCurrentStep();
+        captureCurrentStep();
+        if (!canContinueStep(step, selectedLanguage, selectedWeatherEnabled,
+                selectedTemperatureUnit, selectedStyle, selectedCalendarStyle)) return;
+        if (step < STEP_COUNT - 1) {
             step++;
             showStep(step);
         } else {
@@ -579,8 +687,10 @@ public final class SetupWizardActivity extends AppCompatActivity {
                 preferences.getWeatherLocationMode())) {
             preferences.setWeatherLocationMode(ClockPreferences.WEATHER_LOCATION_AUTOMATIC);
         }
-        preferences.setWeatherTemperatureUnit(selectedTemperatureUnit);
+        preferences.setWeatherTemperatureUnit(selectedTemperatureUnit == null
+                ? preferences.getWeatherTemperatureUnit() : selectedTemperatureUnit);
         ultimatePreferences.setStyleId(selectedStyle);
+        preferences.setCalendarTheme(selectedCalendarStyle);
     }
 
     /** Keeps choices when the user moves back and forth without writing partial setup to disk. */
@@ -631,6 +741,7 @@ public final class SetupWizardActivity extends AppCompatActivity {
         outState.putBoolean(STATE_WEATHER, selectedWeatherEnabled);
         outState.putString(STATE_UNIT, selectedTemperatureUnit);
         outState.putString(STATE_STYLE, selectedStyle);
+        outState.putString(STATE_CALENDAR_STYLE, selectedCalendarStyle);
         super.onSaveInstanceState(outState);
     }
 

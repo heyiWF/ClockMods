@@ -4,6 +4,7 @@
     <string name="setup_wizard_tab_language">語言</string>
     <string name="setup_wizard_tab_weather">天氣</string>
     <string name="setup_wizard_tab_style">外觀</string>
+    <string name="setup_wizard_tab_calendar">月曆</string>
     <string name="setup_wizard_title">開始使用 ClockMods</string>
     <string name="setup_wizard_intro">花一分鐘完成幾項重要設定，之後也能隨時在設定中修改。</string>
     <string name="setup_wizard_step">第 %1$d 步，共 %2$d 步</string>
@@ -15,7 +16,10 @@
     <string name="setup_wizard_weather_enabled_summary">顯示目前位置的即時天氣</string>
     <string name="setup_wizard_temperature_title">溫度單位</string>
     <string name="setup_wizard_style_title">選擇主題樣式</string>
-    <string name="setup_wizard_style_summary">挑選喜愛的時鐘外觀，稍後可在主題庫查看更多。</string>
+    <string name="setup_wizard_style_summary">從完整主題庫中選擇喜歡的時鐘外觀。</string>
+    <string name="setup_wizard_calendar_style_title">選擇月曆主題</string>
+    <string name="setup_wizard_calendar_style_summary">選擇喜歡的月曆版面與配色。</string>
+    <string name="setup_wizard_choose_option">請先選擇一個選項再繼續</string>
     <string name="setup_wizard_settings_hint">完成設定後，在時鐘畫面輕觸兩下即可開啟設定面板。</string>
     <string name="setup_wizard_skip">稍後設定</string>
     <string name="setup_wizard_back">返回</string>
