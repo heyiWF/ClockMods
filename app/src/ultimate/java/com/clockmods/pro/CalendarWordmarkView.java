@@ -31,6 +31,8 @@ public final class CalendarWordmarkView extends View {
     private String year = "";
     private String lunar = "";
     private String festivals = "";
+    private float dateScale = 1f;
+    private float supportingScale = 1f;
 
     public CalendarWordmarkView(Context context) { this(context, null); }
 
@@ -76,14 +78,20 @@ public final class CalendarWordmarkView extends View {
         invalidate();
     }
 
+    public void setScales(float dateScale, float supportingScale) {
+        this.dateScale = dateScale;
+        this.supportingScale = supportingScale;
+        invalidate();
+    }
+
     @Override protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
         float boxWidth = usableWidth();
         float boxHeight = usableHeight();
         if (boxWidth <= 0f || boxHeight <= 0f) return;
         float density = getResources().getDisplayMetrics().density;
-        float lunarSize = Math.min(16f * density, boxHeight * .09f);
-        float festivalSize = Math.min(13f * density, boxHeight * .075f);
+        float lunarSize = Math.min(16f * density * supportingScale, boxHeight * .12f);
+        float festivalSize = Math.min(13f * density * supportingScale, boxHeight * .10f);
         lunarPaint.setTextSize(shrinkToFit(lunarPaint, lunar, lunarSize, boxWidth));
         festivalPaint.setTextSize(shrinkToFit(festivalPaint, festivals, festivalSize, boxWidth));
         float detailHeight = lunar.length() == 0 ? 0f : lunarPaint.descent() - lunarPaint.ascent();
@@ -101,12 +109,18 @@ public final class CalendarWordmarkView extends View {
         float remainingHeight = Math.max(1f, boxHeight - headingHeight);
         float fittedMonthBound = CalendarDashboardSizing.posterWordmarkSize(
                 boxWidth, remainingHeight, density);
-        monthPaint.setTextSize(shrinkToFit(monthPaint, month, fittedMonthBound,
+        monthPaint.setTextSize(shrinkToFit(monthPaint, month, fittedMonthBound * dateScale,
                 boxWidth * MONTH_WIDTH_SHARE));
         float fittedYearBound = CalendarDashboardSizing.posterYearSize(
-                monthPaint.getTextSize(), remainingHeight, density);
+                monthPaint.getTextSize() / dateScale, remainingHeight, density) * dateScale;
         yearPaint.setTextSize(shrinkToFit(yearPaint, year, fittedYearBound,
                 boxWidth * YEAR_WIDTH_SHARE));
+        float combinedHeight = monthPaint.descent() - monthPaint.ascent()
+                + (year.length() == 0 ? 0f : yearPaint.descent() - yearPaint.ascent()
+                + monthPaint.getTextSize() * .12f);
+        float heightFit = Math.min(1f, remainingHeight * .94f / Math.max(1f, combinedHeight));
+        monthPaint.setTextSize(monthPaint.getTextSize() * heightFit);
+        yearPaint.setTextSize(yearPaint.getTextSize() * heightFit);
         // Ascent/descent rather than the full font height: the gap wants to track the visible
         // glyphs, not the line box, or the year drifts away from the word above it.
         float monthHeight = monthPaint.descent() - monthPaint.ascent();

@@ -1443,7 +1443,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                         },
                         "font_family", true));
         addWeightSlider(body, scopeId, pageToRefresh);
-        if (isMigratedClockStyle(scopeId)) {
+        if (isMigratedClockStyle(scopeId) || scopeId.startsWith("calendar:")) {
             addScaleSlider(body, R.string.ultimate_time_size,
                     repository.getTimeFontScale(scopeId), ClockPreferences.MIN_FONT_SCALE,
                     ClockPreferences.MAX_FONT_SCALE,

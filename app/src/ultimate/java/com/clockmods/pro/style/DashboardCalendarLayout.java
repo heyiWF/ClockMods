@@ -374,6 +374,9 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
                 ? statusHeight + dp(10) : 0);
         float timeSize = CalendarDashboardSizing.clockTimeSize(clockCard.getWidth(),
                 Math.max(1f, timeHeight), preferences.isShowSeconds(), density);
+        float timeScale = preferences.getTimeFontScale(ClockPreferences.calendarScope(theme.id))
+                / ClockPreferences.DEFAULT_TIME_FONT_SCALE;
+        timeSize = Math.min(timeSize * timeScale, timeHeight * .62f);
         timeView.setTextSize(TypedValue.COMPLEX_UNIT_PX, timeSize);
         secondsView.setTextSize(TypedValue.COMPLEX_UNIT_PX, timeSize * 0.46f);
         periodView.setTextSize(TypedValue.COMPLEX_UNIT_PX, timeSize * 0.25f);
@@ -404,6 +407,10 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
         float iconSize = CalendarDashboardSizing.weatherIconSize(width, height, density);
         float temperatureSize = CalendarDashboardSizing.weatherTemperatureSize(
                 width, height, density);
+        float supportScale = preferences.getSupportingFontScale(
+                ClockPreferences.calendarScope(theme.id))
+                / ClockPreferences.DEFAULT_SUPPORTING_FONT_SCALE;
+        temperatureSize = Math.min(temperatureSize * supportScale, height * .40f);
         TextViewCompat.setAutoSizeTextTypeWithDefaults(currentTemperature,
                 TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE);
         TextViewCompat.setAutoSizeTextTypeWithDefaults(feelsLikeLabel,
@@ -416,7 +423,8 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
         feelsLikeLabel.setTextSize(TypedValue.COMPLEX_UNIT_PX, temperatureSize * 0.26f);
         feelsLike.setTextSize(TypedValue.COMPLEX_UNIT_PX, temperatureSize * 0.53f);
         weatherSummary.setTextSize(TypedValue.COMPLEX_UNIT_PX,
-                CalendarDashboardSizing.weatherSummarySize(width, height, density));
+                Math.min(CalendarDashboardSizing.weatherSummarySize(width, height, density)
+                        * supportScale, height * .16f));
         ViewGroup.LayoutParams iconParams = currentWeatherIcon.getLayoutParams();
         int roundedIconSize = Math.round(iconSize);
         boolean iconSizeChanged;
@@ -491,7 +499,11 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
                     TextViewCompat.setAutoSizeTextTypeWithDefaults(text,
                             TextViewCompat.AUTO_SIZE_TEXT_TYPE_NONE);
                     text.setTextSize(TypedValue.COMPLEX_UNIT_PX,
-                            forecastTextSize(sizeRes, columnWidth, cardHeight, density));
+                            Math.min(forecastTextSize(sizeRes, columnWidth, cardHeight, density)
+                                    * preferences.getSupportingFontScale(
+                                            ClockPreferences.calendarScope(theme.id))
+                                    / ClockPreferences.DEFAULT_SUPPORTING_FONT_SCALE,
+                                    cardHeight * .15f));
                 }
             }
         }
@@ -521,23 +533,28 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
                 panelHeight, density));
         int footerHeight = Math.round(CalendarDashboardSizing.monthFooterHeight(
                 panelHeight, density));
+        float dateScale = preferences.getDateFontScale(ClockPreferences.calendarScope(theme.id))
+                / ClockPreferences.DEFAULT_DATE_FONT_SCALE;
         setViewHeight(monthToolbar, toolbarHeight);
         setViewHeight(weekdayGrid, weekdayHeight);
         setViewHeight(footer, footerHeight);
         title.setTextSize(TypedValue.COMPLEX_UNIT_PX,
-                CalendarDashboardSizing.monthTitleSize(toolbarHeight, density));
+                Math.min(CalendarDashboardSizing.monthTitleSize(toolbarHeight, density)
+                        * dateScale, toolbarHeight * .68f));
         applyMonthButtonSize(previousButton, toolbarHeight);
         applyMonthButtonSize(todayButton, toolbarHeight);
         applyMonthButtonSize(nextButton, toolbarHeight);
         float weekdaySize = CalendarDashboardSizing.monthWeekdaySize(
                 panelWidth / 7f, weekdayHeight, density);
+        weekdaySize = Math.min(weekdaySize * dateScale, weekdayHeight * .80f);
         for (int index = 0; index < weekdayGrid.getChildCount(); index++) {
             View weekday = weekdayGrid.getChildAt(index);
             if (weekday instanceof TextView) {
                 ((TextView) weekday).setTextSize(TypedValue.COMPLEX_UNIT_PX, weekdaySize);
             }
         }
-        footer.setTextSizePx(CalendarDashboardSizing.monthFooterSize(footerHeight, density));
+        footer.setTextSizePx(Math.min(CalendarDashboardSizing.monthFooterSize(footerHeight,
+                density) * dateScale, footerHeight * .55f));
         float cellWidth = Math.max(1f, (grid.getWidth() > 0 ? grid.getWidth() : panelWidth) / 7f);
         float remainingGridHeight = Math.max(1f, panelHeight - toolbarHeight - weekdayHeight
                 - footerHeight);
@@ -566,6 +583,9 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
         float lunarSize = CalendarDashboardSizing.monthLunarSize(cellWidth, cellHeight, density);
         int labelHeight = Math.max(1, Math.round(
                 CalendarDashboardSizing.monthLabelHeight(cellHeight, lunarSize)));
+        lunarSize = Math.min(lunarSize * preferences.getSupportingFontScale(
+                ClockPreferences.calendarScope(theme.id))
+                / ClockPreferences.DEFAULT_SUPPORTING_FONT_SCALE, labelHeight * .72f);
         int horizontalPadding = Math.max(1, Math.round(CalendarDashboardSizing.spacing(
                 cellWidth * 0.015f, density, 3f)));
         int verticalPadding = Math.max(1, Math.round(CalendarDashboardSizing.spacing(
@@ -577,6 +597,11 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
             setPadding(cell, horizontalPadding, verticalPadding);
             for (int item = 0; item < cell.getChildCount(); item++) {
                 View content = cell.getChildAt(item);
+                if (content instanceof CalendarDayNumberView) {
+                    ((CalendarDayNumberView) content).setDayTextScale(
+                            preferences.getDateFontScale(ClockPreferences.calendarScope(theme.id))
+                                    / ClockPreferences.DEFAULT_DATE_FONT_SCALE);
+                }
                 if (content instanceof CalendarLabelCarouselView) {
                     ((CalendarLabelCarouselView) content).setTextSizePx(lunarSize);
                     ViewGroup.LayoutParams params = content.getLayoutParams();
@@ -850,6 +875,9 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
             solar.setFill(theme.todayFill);
         }
         solar.setDay(day.dayNumber, dayColor);
+        solar.setDayTextScale(preferences.getDateFontScale(
+                ClockPreferences.calendarScope(theme.id))
+                / ClockPreferences.DEFAULT_DATE_FONT_SCALE);
         if (day.holidayBadge.length() > 0) {
             solar.setBadge(day.holidayBadge,
                     day.holidayOffDay ? theme.restBadge : theme.workBadge);
@@ -886,7 +914,9 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
         carouselItems.addAll(labels);
         CalendarLabelCarouselView lunar = new CalendarLabelCarouselView(context);
         lunar.setItems(carouselItems);
-        lunar.setTextSizePx(lunarSize);
+        lunar.setTextSizePx(Math.min(lunarSize * preferences.getSupportingFontScale(
+                ClockPreferences.calendarScope(theme.id))
+                / ClockPreferences.DEFAULT_SUPPORTING_FONT_SCALE, labelHeight * .72f));
         lunar.setTextColor(labels.isEmpty() ? theme.secondary : theme.text);
         lunar.setTypeface(calendarTypeface);
         lunar.setActive(interactive && active);
@@ -926,9 +956,13 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
                 ? CalendarPageState.Selection.NONE : pageState.selection;
         footer.setTypeface(themeTypeface(false));
         footer.setTextSizePx(footer.getHeight() > 0
-                ? CalendarDashboardSizing.monthFooterSize(footer.getHeight(),
+                ? Math.min(CalendarDashboardSizing.monthFooterSize(footer.getHeight(),
                         context.getResources().getDisplayMetrics().density)
-                : context.getResources().getDimension(R.dimen.calendar_footer_text_size));
+                        * preferences.getDateFontScale(ClockPreferences.calendarScope(theme.id))
+                        / ClockPreferences.DEFAULT_DATE_FONT_SCALE, footer.getHeight() * .55f)
+                : context.getResources().getDimension(R.dimen.calendar_footer_text_size)
+                        * preferences.getDateFontScale(ClockPreferences.calendarScope(theme.id))
+                        / ClockPreferences.DEFAULT_DATE_FONT_SCALE);
         List<CalendarFooterCarouselView.Item> items = new ArrayList<>();
         items.add(new CalendarFooterCarouselView.Item(selection.dateLine, theme.text));
         if (selection.suitableLine.length() > 0) {

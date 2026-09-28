@@ -24,6 +24,7 @@ public final class CalendarDayNumberView extends View {
     private boolean filled;
     /** Pinned text size in px, or 0 to derive one from the cell. See {@link #setDayTextSize}. */
     private float pinnedTextSize;
+    private float dayTextScale = 1f;
 
     public CalendarDayNumberView(Context context) { this(context, null); }
 
@@ -40,13 +41,13 @@ public final class CalendarDayNumberView extends View {
     public void setDay(String day, int color) {
         this.day = day;
         dayPaint.setColor(color);
-        invalidate();
+        applyTextSize(getWidth(), getHeight());
     }
 
     public void setBadge(String badge, int color) {
         this.badge = badge == null ? "" : badge;
         badgePaint.setColor(color);
-        invalidate();
+        applyTextSize(getWidth(), getHeight());
     }
 
     /** Disc drawn behind the number, used to mark today. {@code 0} draws the number alone. */
@@ -73,10 +74,31 @@ public final class CalendarDayNumberView extends View {
         applyTextSize(getWidth(), getHeight());
     }
 
+    public void setDayTextScale(float scale) {
+        dayTextScale = scale;
+        applyTextSize(getWidth(), getHeight());
+    }
+
     private void applyTextSize(int width, int height) {
-        dayPaint.setTextSize(pinnedTextSize > 0f ? pinnedTextSize
+        float size = (pinnedTextSize > 0f ? pinnedTextSize
                 : CalendarDashboardSizing.monthDaySize(width, height,
-                        getResources().getDisplayMetrics().density));
+                        getResources().getDisplayMetrics().density)) * dayTextScale;
+        dayPaint.setTextSize(size);
+        if (width > 0 && height > 0 && day.length() > 0) {
+            dayPaint.getTextBounds(day, 0, day.length(), inkBounds);
+            float heightFit = height * .72f / Math.max(1f, inkBounds.height());
+            float widthFit = width * .72f / Math.max(1f, dayPaint.measureText(day));
+            size *= Math.min(1f, Math.min(heightFit, widthFit));
+            dayPaint.setTextSize(size);
+            if (badge.length() > 0) {
+                badgePaint.setTextSize(size * .48f);
+                float extent = dayPaint.measureText(day) / 2f
+                        + 2f * getResources().getDisplayMetrics().density
+                        + badgePaint.measureText(badge);
+                size *= Math.min(1f, Math.max(1f, width / 2f - 1f) / Math.max(1f, extent));
+                dayPaint.setTextSize(size);
+            }
+        }
         badgePaint.setTextSize(dayPaint.getTextSize() * 0.48f);
         invalidate();
     }

@@ -202,6 +202,12 @@ public final class PosterCalendarLayout implements CalendarLayout, CalendarPager
     public void applyResponsiveSizing() {
         if (monthPanel == null || monthPanel.getWidth() <= 0 || monthPanel.getHeight() <= 0) return;
         float density = context.getResources().getDisplayMetrics().density;
+        float dateFactor = preferences.getDateFontScale(ClockPreferences.calendarScope(theme.id))
+                / ClockPreferences.DEFAULT_DATE_FONT_SCALE;
+        float supportFactor = preferences.getSupportingFontScale(
+                ClockPreferences.calendarScope(theme.id))
+                / ClockPreferences.DEFAULT_SUPPORTING_FONT_SCALE;
+        wordmark.setScales(dateFactor, supportFactor);
         int panelHeight = monthPanel.getHeight() - monthPanel.getPaddingTop()
                 - monthPanel.getPaddingBottom();
         int weekdayHeight = Math.round(
@@ -214,6 +220,7 @@ public final class PosterCalendarLayout implements CalendarLayout, CalendarPager
         float cellHeight = Math.max(1f, grid.getHeight() / 6f);
         float weekdaySize = CalendarDashboardSizing.posterWeekdaySize(cellWidth, weekdayHeight,
                 density);
+        weekdaySize = Math.min(weekdaySize * dateFactor, weekdayHeight * .80f);
         for (int index = 0; index < weekdayGrid.getChildCount(); index++) {
             View child = weekdayGrid.getChildAt(index);
             if (child instanceof TextView) {
@@ -225,6 +232,7 @@ public final class PosterCalendarLayout implements CalendarLayout, CalendarPager
         todayButton.setTextSize(TypedValue.COMPLEX_UNIT_PX, weekdaySize);
         float numberSize = CalendarDashboardSizing.posterCellNumberSize(cellWidth, cellHeight,
                 density);
+        numberSize = Math.min(numberSize * dateFactor, cellHeight * .72f);
         int markHeight = Math.max(1,
                 Math.round(CalendarDashboardSizing.posterMarkHeight(numberSize, density)));
         applyCellSizing(grid, numberSize, markHeight);

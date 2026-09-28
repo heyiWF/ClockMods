@@ -338,11 +338,19 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
                 - monthPanel.getPaddingBottom();
         float chromeSize = CalendarDashboardSizing.monthTitleSize(
                 CalendarDashboardSizing.monthToolbarHeight(panelHeight, density), density);
-        titleView.setTextSize(TypedValue.COMPLEX_UNIT_PX, chromeSize);
+        float dateFactor = preferences.getDateFontScale(ClockPreferences.calendarScope(theme.id))
+                / ClockPreferences.DEFAULT_DATE_FONT_SCALE;
+        float supportFactor = preferences.getSupportingFontScale(
+                ClockPreferences.calendarScope(theme.id))
+                / ClockPreferences.DEFAULT_SUPPORTING_FONT_SCALE;
+        titleView.setTextSize(TypedValue.COMPLEX_UNIT_PX,
+                Math.min(chromeSize * dateFactor, 36f * density));
         float supportSize = CalendarDashboardSizing.agendaSubheadingSize(
                 CalendarDashboardSizing.monthFooterHeight(panelHeight, density), density);
-        weekView.setTextSize(TypedValue.COMPLEX_UNIT_PX, supportSize);
-        todayButton.setTextSize(TypedValue.COMPLEX_UNIT_PX, supportSize);
+        weekView.setTextSize(TypedValue.COMPLEX_UNIT_PX,
+                Math.min(supportSize * supportFactor, 24f * density));
+        todayButton.setTextSize(TypedValue.COMPLEX_UNIT_PX,
+                Math.min(supportSize * supportFactor, 24f * density));
         applyStripSizing(density);
         applyCardSizing(density);
     }
@@ -359,6 +367,12 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
                 density);
         float labelSize = CalendarDashboardSizing.agendaStripLunarSize(cellWidth, cellHeight,
                 density);
+        numberSize = Math.min(numberSize * preferences.getDateFontScale(
+                ClockPreferences.calendarScope(theme.id))
+                / ClockPreferences.DEFAULT_DATE_FONT_SCALE, cellHeight * .46f);
+        labelSize = Math.min(labelSize * preferences.getSupportingFontScale(
+                ClockPreferences.calendarScope(theme.id))
+                / ClockPreferences.DEFAULT_SUPPORTING_FONT_SCALE, cellHeight * .22f);
         for (DayCell cell : cells) cell.applySizing(numberSize, labelSize);
         for (int index = 0; index < stripPreview.getChildCount(); index++) {
             View child = stripPreview.getChildAt(index);
@@ -371,9 +385,15 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
         float cardWidth = card.getWidth() - card.getPaddingLeft() - card.getPaddingRight();
         float cardHeight = card.getHeight() - card.getPaddingTop() - card.getPaddingBottom();
         dateView.setTextSize(TypedValue.COMPLEX_UNIT_PX,
-                CalendarDashboardSizing.agendaDetailTitleSize(cardWidth, cardHeight, density));
+                Math.min(CalendarDashboardSizing.agendaDetailTitleSize(cardWidth, cardHeight,
+                        density) * preferences.getDateFontScale(
+                        ClockPreferences.calendarScope(theme.id))
+                        / ClockPreferences.DEFAULT_DATE_FONT_SCALE, 36f * density));
         float bodySize = CalendarDashboardSizing.agendaDetailBodySize(cardWidth, cardHeight,
                 density);
+        bodySize = Math.min(bodySize * preferences.getSupportingFontScale(
+                ClockPreferences.calendarScope(theme.id))
+                / ClockPreferences.DEFAULT_SUPPORTING_FONT_SCALE, cardHeight * .13f);
         chipView.setTextSize(TypedValue.COMPLEX_UNIT_PX, bodySize);
         festivalsView.setTextSize(TypedValue.COMPLEX_UNIT_PX, bodySize);
         weatherText.setTextSize(TypedValue.COMPLEX_UNIT_PX, bodySize);
