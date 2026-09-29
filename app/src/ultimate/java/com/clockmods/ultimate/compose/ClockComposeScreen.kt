@@ -1307,9 +1307,8 @@ internal fun DeviceStatusPill(
     ) {
         val networkSize = Modifier.size(iconSize).testTag("status-network-icon")
         when (status.network) {
-            DeviceNetwork.OFFLINE -> StatusSymbolIcon(
-                StatusSymbolRenderer.GLOBE_CANCEL, style, ink, networkSize,
-                fallbackDrawable = R.drawable.ic_globe_2_cancel,
+            DeviceNetwork.OFFLINE -> Icon(
+                painterResource(R.drawable.ic_signal_wifi_off), null, networkSize, tint = ink,
             )
             DeviceNetwork.ETHERNET -> StatusSymbolIcon(
                 StatusSymbolRenderer.ETHERNET, style, ink, networkSize,
