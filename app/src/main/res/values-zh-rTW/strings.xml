@@ -61,6 +61,8 @@
         <item>下滑</item>
         <item>縮放</item>
         <item>翻頁</item>
+        <item>向右疾滑</item>
+        <item>掃描刷新</item>
     </string-array>
     <string name="background_settings">設定</string>
     <string name="open_settings_accessibility">開啟設定</string>

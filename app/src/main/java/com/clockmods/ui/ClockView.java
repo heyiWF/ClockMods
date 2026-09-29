@@ -38,7 +38,8 @@ public class ClockView extends View {
     private static final long MILLIS_PER_SECOND = 1000L;
     private static final long WEATHER_DETAIL_HOLD_MILLIS = 3000L;
     private static final long WEATHER_DETAIL_SCROLL_PAUSE_MILLIS = 1000L;
-    private static final long WEATHER_DETAIL_TRANSITION_MILLIS = 200L;
+    private static final long WEATHER_DETAIL_TRANSITION_MILLIS =
+            ClockDigitTransitionTiming.DURATION_MILLIS / 2L;
     private static final long WEATHER_DETAIL_FRAME_DELAY_MILLIS = 16L;
     private static final float WEATHER_DETAIL_SCROLL_DP_PER_SECOND = 40f;
     private static final float WEATHER_DETAIL_HORIZONTAL_PADDING_DP = 24f;
@@ -316,7 +317,7 @@ public class ClockView extends View {
             return;
         }
 
-        String fullDate = lunarText.length() == 0 ? dateText : dateText + " " + lunarText;
+        String fullDate = lunarText.length() == 0 ? dateText : dateText + " | " + lunarText;
 
         // Portrait always stacks the date and lunar lines; landscape shares a single line
         // unless the user opts into two rows.
@@ -549,10 +550,11 @@ public class ClockView extends View {
         }
         float progress = Math.min(1f,
                 (uptime - stackedAt[index])
-                        / (float) ClockDigitTransitionTiming.DURATION_MILLIS);
-        float eased = ClockDigitTransitionTiming.easeOutCubic(progress);
+                        / (float) timeTransitionDurationMillis());
+        float fraction = ClockPreferences.TRANSITION_SCAN.equals(timeTransition) ? progress
+                : ClockDigitTransitionTiming.easeOutCubic(progress);
         drawTextTransition(canvas, stackedPrev[index], stackedText[index], centerX, baseline,
-                timePaint, eased, true, true);
+                timePaint, fraction, true, true, null);
         if (progress < 1f) {
             return true;
         }
@@ -756,8 +758,11 @@ public class ClockView extends View {
             return;
         }
 
-        long fadeOutEnd = displayDuration + WEATHER_DETAIL_TRANSITION_MILLIS;
-        long fadeInEnd = fadeOutEnd + WEATHER_DETAIL_TRANSITION_MILLIS;
+        long transitionMillis = ClockPreferences.TRANSITION_SCAN.equals(timeTransition)
+                ? ClockDigitTransitionTiming.SCAN_DURATION_MILLIS / 2L
+                : WEATHER_DETAIL_TRANSITION_MILLIS;
+        long fadeOutEnd = displayDuration + transitionMillis;
+        long fadeInEnd = fadeOutEnd + transitionMillis;
 
         int nextIndex = (carousel.index + 1) % carousel.items.size();
         WeatherLineItem nextItem = carousel.items.get(nextIndex);
@@ -767,12 +772,12 @@ public class ClockView extends View {
                 baseline, metrics, 0f, elapsed);
         } else if (elapsed < fadeOutEnd) {
             float progress = (float) (elapsed - displayDuration)
-                / WEATHER_DETAIL_TRANSITION_MILLIS;
+                / transitionMillis;
             drawWeatherDetailItem(canvas, currentItem, nextItem, centerX,
                 baseline, metrics, progress * 0.5f, displayDuration);
         } else if (elapsed < fadeInEnd) {
             float progress = (float) (elapsed - fadeOutEnd)
-                / WEATHER_DETAIL_TRANSITION_MILLIS;
+                / transitionMillis;
             drawWeatherDetailItem(canvas, currentItem, nextItem, centerX,
                 baseline, metrics, 0.5f + progress * 0.5f, 0L);
         } else {
@@ -785,11 +790,7 @@ public class ClockView extends View {
         postInvalidateDelayed(WEATHER_DETAIL_FRAME_DELAY_MILLIS);
     }
 
-    /**
-     * Draws the carousel line. {@code progress} runs across the whole transition where
-     * {@code [0, 0.5)} fades out {@code current} and {@code [0.5, 1]} brings in {@code next};
-     * outside a transition it is 0 and only {@code current} is drawn at full strength.
-     */
+    /** Draws both carousel items on the same eased timeline as the clock digits. */
     private void drawWeatherDetailItem(Canvas canvas, WeatherLineItem current, WeatherLineItem next,
             float centerX, float baseline, Paint.FontMetrics metrics, float progress,
             long itemElapsed) {
@@ -799,24 +800,55 @@ public class ClockView extends View {
                 ClockPreferences.TRANSITION_FADE, 0f, itemElapsed);
             return;
         }
-        // The selected transition is specifically a digit-change preference. Weather and the
-        // custom-message carousel keep their own neutral cross-fade instead of silently reusing
-        // a Pro Classic clock-style control.
-        String transition = ClockPreferences.TRANSITION_FADE;
-        if (progress < 0.5f) {
-            float outProgress = progress / 0.5f;
-            drawWeatherDetailLine(canvas, current, centerX, baseline, metrics,
-                Math.round(255f * (1f - outProgress)), transition, outProgress, itemElapsed);
+        String transition = timeTransition;
+        float eased = ClockDigitTransitionTiming.easeOutCubic(progress);
+        if (ClockPreferences.TRANSITION_SLIDE_RIGHT.equals(transition)
+                || ClockPreferences.TRANSITION_SCAN.equals(transition)) {
+            float available = weatherDetailAvailableWidth();
+            float left = centerX - available / 2f;
+            float right = centerX + available / 2f;
+            if (ClockPreferences.TRANSITION_SCAN.equals(transition)) {
+                float feather = datePaint.getTextSize() * .22f;
+                float edge = ClockDigitTransitionTiming.scanEdge(
+                        left, available, feather, progress);
+                boolean reveal = progress >= .5f;
+                WeatherLineItem item = reveal ? next : current;
+                long elapsed = reveal ? 0L : itemElapsed;
+                ClockScanTransition.draw(canvas, left, right, 0f, getHeight(), edge,
+                        feather, reveal,
+                        opacity -> drawWeatherDetailLine(canvas, item, centerX, baseline,
+                                metrics, Math.round(255f * opacity),
+                                ClockPreferences.TRANSITION_FADE, 0f, elapsed));
+            } else {
+                int save = canvas.save();
+                canvas.clipRect(left, 0f, right, getHeight());
+                drawWeatherDetailLine(canvas, current, centerX, baseline, metrics,
+                        Math.round(255f * (1f - eased)), transition, eased, itemElapsed);
+                drawWeatherDetailLine(canvas, next, centerX, baseline, metrics,
+                        Math.round(255f * eased), transition, eased - 1f, 0L);
+                canvas.restoreToCount(save);
+            }
+            return;
+        }
+        if (ClockPreferences.TRANSITION_FLIP.equals(transition)) {
+            if (eased < .5f) {
+                drawWeatherDetailLine(canvas, current, centerX, baseline, metrics,
+                        255, transition, eased * 2f, itemElapsed);
+            } else {
+                drawWeatherDetailLine(canvas, next, centerX, baseline, metrics,
+                        255, transition, (eased - 1f) * 2f, 0L);
+            }
         } else {
-            float inProgress = (progress - 0.5f) / 0.5f;
+            drawWeatherDetailLine(canvas, current, centerX, baseline, metrics,
+                    Math.round(255f * (1f - eased)), transition, eased, itemElapsed);
             drawWeatherDetailLine(canvas, next, centerX, baseline, metrics,
-                Math.round(255f * inProgress), transition, -(1f - inProgress), itemElapsed);
+                    Math.round(255f * eased), transition, eased - 1f, 0L);
         }
     }
 
     /**
      * Renders one carousel line honouring the transition style. {@code phase} encodes the
-     * spatial offset for motion styles: negative means leaving (old item), positive means
+     * spatial offset for motion styles: positive means leaving (old item), negative means
      * entering (new item), 0 means settled.
      */
     private void drawWeatherDetailLine(Canvas canvas, WeatherLineItem item, float centerX,
@@ -829,14 +861,21 @@ public class ClockView extends View {
         if (ClockPreferences.TRANSITION_SLIDE_UP.equals(transition)
                 || ClockPreferences.TRANSITION_SLIDE_DOWN.equals(transition)) {
             float direction = ClockPreferences.TRANSITION_SLIDE_UP.equals(transition) ? -1f : 1f;
-            float distance = datePaint.getTextSize() * 0.6f;
+            float distance = datePaint.getTextSize() * 0.4f;
             canvas.save();
             canvas.translate(0f, direction * distance * phase);
             datePaint.setAlpha(Math.round(clampedAlpha / 255f * originalAlpha));
             drawWeatherLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
             canvas.restore();
+        } else if (ClockPreferences.TRANSITION_SLIDE_RIGHT.equals(transition)) {
+            canvas.save();
+            canvas.translate(datePaint.getTextSize()
+                    * ClockDigitTransitionTiming.SLIDE_DISTANCE_FRACTION * phase, 0f);
+            datePaint.setAlpha(Math.round(clampedAlpha / 255f * originalAlpha));
+            drawWeatherLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
+            canvas.restore();
         } else if (ClockPreferences.TRANSITION_SCALE.equals(transition)) {
-            float scale = 1f - 0.12f * Math.abs(phase);
+            float scale = phase >= 0f ? 1f + .08f * phase : 1f + .12f * phase;
             float pivotY = baseline + (metrics.ascent + metrics.descent) / 2f;
             canvas.save();
             canvas.scale(scale, scale, centerX, pivotY);
@@ -1304,7 +1343,7 @@ public class ClockView extends View {
         }
 
         float progress = Math.min(1f, (SystemClock.uptimeMillis() - timeTransitionStartedAt)
-                / (float) ClockDigitTransitionTiming.DURATION_MILLIS);
+                / (float) timeTransitionDurationMillis());
         drawConfiguredTimeTransition(canvas, previousTime, displayedTime,
             centerX, mainBaseline, progress);
         if (progress < 1f) {
@@ -1317,7 +1356,8 @@ public class ClockView extends View {
     private void drawConfiguredTimeTransition(Canvas canvas,
             ClockTimeFormatter.DisplayTime oldTime, ClockTimeFormatter.DisplayTime newTime,
             float centerX, float mainBaseline, float progress) {
-        float eased = ClockDigitTransitionTiming.easeOutCubic(progress);
+        float eased = ClockPreferences.TRANSITION_SCAN.equals(timeTransition) ? progress
+                : ClockDigitTransitionTiming.easeOutCubic(progress);
         drawTimeTransition(canvas, oldTime, newTime, centerX, mainBaseline, eased);
     }
 
@@ -1342,31 +1382,85 @@ public class ClockView extends View {
 
         float mainWidth = stableTextWidth(newTime.mainText, timePaint);
         float gapWidth = smallSecondsGapWidth();
+        float[] scanBounds = changedDigitBounds(oldTime.mainText, newTime.mainText,
+                centerX, timePaint);
+        float secondsCenter = 0f;
+        if (newTime.hasSmallSeconds()) {
+            float secondsWidth = stableTextWidth(newTime.secondsText, secondsPaint);
+            secondsCenter = centerX + mainWidth / 2f + gapWidth + secondsWidth / 2f;
+            float[] secondsBounds = changedDigitBounds(oldTime.secondsText,
+                    newTime.secondsText, secondsCenter, secondsPaint);
+            if (secondsBounds != null) {
+                if (scanBounds == null) scanBounds = secondsBounds;
+                else {
+                    scanBounds[0] = Math.min(scanBounds[0], secondsBounds[0]);
+                    scanBounds[1] = Math.max(scanBounds[1], secondsBounds[1]);
+                }
+            }
+        }
         drawTextTransition(canvas, oldTime.mainText, newTime.mainText,
             centerX, mainBaseline, timePaint, progress,
-            oldTime.colonVisible, newTime.colonVisible);
+            oldTime.colonVisible, newTime.colonVisible, scanBounds);
         if (newTime.hasPeriod()) {
             float periodWidth = periodPaint.measureText(newTime.periodText);
             drawTextTransition(canvas, oldTime.periodText, newTime.periodText,
                     centerX - mainWidth / 2f - gapWidth - periodWidth / 2f,
                 bottomAlignedBaseline(mainBaseline, timePaint, periodPaint),
-                periodPaint, progress, true, true);
+                periodPaint, progress, true, true, null);
         }
         if (newTime.hasSmallSeconds()) {
-            float secondsWidth = stableTextWidth(newTime.secondsText, secondsPaint);
             drawTextTransition(canvas, oldTime.secondsText, newTime.secondsText,
-                    centerX + mainWidth / 2f + gapWidth + secondsWidth / 2f,
+                    secondsCenter,
                 bottomAlignedBaseline(mainBaseline, timePaint, secondsPaint),
-                secondsPaint, progress, true, true);
+                secondsPaint, progress, true, true, scanBounds);
         }
+    }
+
+    private long timeTransitionDurationMillis() {
+        return ClockPreferences.TRANSITION_SCAN.equals(timeTransition)
+                ? ClockDigitTransitionTiming.SCAN_DURATION_MILLIS
+                : ClockDigitTransitionTiming.DURATION_MILLIS;
+    }
+
+    private static float[] changedDigitBounds(String oldText, String newText,
+            float centerX, Paint paint) {
+        float digitWidth = widestDigitWidth(paint);
+        float cursor = centerX - stableTextWidth(newText, paint, digitWidth) / 2f;
+        float left = Float.POSITIVE_INFINITY;
+        float right = Float.NEGATIVE_INFINITY;
+        for (int i = 0; i < newText.length(); i++) {
+            float width = Math.max(stableCharacterWidth(newText.substring(i, i + 1),
+                    paint, digitWidth), stableCharacterWidth(oldText.substring(i, i + 1),
+                    paint, digitWidth));
+            if (Character.isDigit(newText.charAt(i))
+                    && oldText.charAt(i) != newText.charAt(i)) {
+                left = Math.min(left, cursor);
+                right = Math.max(right, cursor + width);
+            }
+            cursor += width;
+        }
+        return left == Float.POSITIVE_INFINITY ? null : new float[] {left, right};
     }
 
     private void drawTextTransition(Canvas canvas, String oldText, String newText,
             float centerX, float baseline, Paint paint, float progress,
-            boolean oldColonsVisible, boolean newColonsVisible) {
+            boolean oldColonsVisible, boolean newColonsVisible, float[] sharedScanBounds) {
+        if (oldText.equals(newText) && oldColonsVisible == newColonsVisible
+                && (newColonsVisible || newText.indexOf(':') < 0)) {
+            drawStableText(canvas, newText, centerX, baseline, paint);
+            return;
+        }
         int originalAlpha = paint.getAlpha();
         float digitWidth = widestDigitWidth(paint);
-        float cursor = centerX - stableTextWidth(newText, paint, digitWidth) / 2f;
+        float totalWidth = stableTextWidth(newText, paint, digitWidth);
+        float cursor = centerX - totalWidth / 2f;
+        boolean scan = ClockPreferences.TRANSITION_SCAN.equals(timeTransition);
+        float[] scanBounds = sharedScanBounds == null
+                ? changedDigitBounds(oldText, newText, centerX, paint) : sharedScanBounds;
+        float scanEdge = scan && scanBounds != null
+                ? ClockDigitTransitionTiming.scanEdge(scanBounds[0],
+                        scanBounds[1] - scanBounds[0], paint.getTextSize() * .22f, progress)
+                : 0f;
         for (int index = 0; index < newText.length(); index++) {
             String newCharacter = newText.substring(index, index + 1);
             String oldCharacter = oldText.substring(index, index + 1);
@@ -1376,7 +1470,15 @@ public class ClockView extends View {
             float characterCenter = cursor + characterWidth / 2f;
             boolean colonVisibilityChanged = ":".equals(newCharacter)
                     && oldColonsVisible != newColonsVisible;
-            if (newCharacter.equals(oldCharacter) && !colonVisibilityChanged) {
+            if (scan && Character.isDigit(newCharacter.charAt(0))
+                    && !newCharacter.equals(oldCharacter)) {
+                boolean reveal = progress >= .5f;
+                String character = reveal ? newCharacter : oldCharacter;
+                drawScannedCharacter(canvas, character, characterCenter, baseline, paint,
+                        cursor, cursor + characterWidth, scanEdge, reveal);
+            } else if (newCharacter.equals(oldCharacter) && !colonVisibilityChanged
+                    && !(ClockPreferences.TRANSITION_SLIDE_RIGHT.equals(timeTransition)
+                    && ClockDigitTransitionTiming.changedDigitPair(oldText, newText, index))) {
                 if (":".equals(newCharacter) && !newColonsVisible) {
                     cursor += characterWidth;
                     continue;
@@ -1432,6 +1534,17 @@ public class ClockView extends View {
                 }
                 return;
             }
+            if (ClockPreferences.TRANSITION_SLIDE_RIGHT.equals(timeTransition)) {
+                float distance = paint.getTextSize()
+                        * ClockDigitTransitionTiming.SLIDE_DISTANCE_FRACTION;
+                drawTranslatedCharacter(canvas, oldCharacter, centerX, baseline, paint,
+                        Math.round(255f * (1f - progress) * (1f - progress)),
+                        distance * progress);
+                drawTranslatedCharacter(canvas, newCharacter, centerX, baseline, paint,
+                        Math.round(255f * progress * progress),
+                        -distance * (1f - progress));
+                return;
+            }
             setClockTextAlpha(paint, Math.round(255f * (1f - progress)));
             canvas.drawText(oldCharacter, centerX,
                 alignedCharacterBaseline(oldCharacter, baseline, paint), paint);
@@ -1439,6 +1552,28 @@ public class ClockView extends View {
             canvas.drawText(newCharacter, centerX,
                 alignedCharacterBaseline(newCharacter, baseline, paint), paint);
             }
+
+    private void drawTranslatedCharacter(Canvas canvas, String character, float centerX,
+            float baseline, Paint paint, int alpha, float shiftX) {
+        setClockTextAlpha(paint, alpha);
+        int save = canvas.save();
+        canvas.translate(shiftX, 0f);
+        canvas.drawText(character, centerX,
+                alignedCharacterBaseline(character, baseline, paint), paint);
+        canvas.restoreToCount(save);
+    }
+
+    private void drawScannedCharacter(Canvas canvas, String character, float centerX,
+            float baseline, Paint paint, float left, float right, float edge, boolean reveal) {
+        ClockScanTransition.draw(canvas, left, right,
+                baseline - paint.getTextSize() * 1.4f,
+                baseline + paint.getTextSize() * .4f, edge,
+                paint.getTextSize() * .22f, reveal, opacity -> {
+                    setClockTextAlpha(paint, Math.round(255f * opacity));
+                    canvas.drawText(character, centerX,
+                            alignedCharacterBaseline(character, baseline, paint), paint);
+                });
+    }
 
             private void drawTransformedCharacter(Canvas canvas, String character,
                 float centerX, float baseline, Paint paint, int alpha, float scaleY,

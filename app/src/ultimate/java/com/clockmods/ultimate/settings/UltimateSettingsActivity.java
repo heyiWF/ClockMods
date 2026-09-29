@@ -1592,7 +1592,9 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 getString(R.string.ultimate_transition_slide_up),
                 getString(R.string.ultimate_transition_slide_down),
                 getString(R.string.ultimate_transition_scale),
-                getString(R.string.ultimate_transition_flip)
+                getString(R.string.ultimate_transition_flip),
+                getString(R.string.ultimate_transition_slide_right),
+                getString(R.string.ultimate_transition_scan)
         };
         transitionRow[0] = addActionRow(body, R.string.ultimate_time_transition,
                 transitionNames[transitionIndex(transition)],
@@ -3164,6 +3166,8 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         if (ClockPreferences.TRANSITION_SLIDE_DOWN.equals(transition)) return 2;
         if (ClockPreferences.TRANSITION_SCALE.equals(transition)) return 3;
         if (ClockPreferences.TRANSITION_FLIP.equals(transition)) return 4;
+        if (ClockPreferences.TRANSITION_SLIDE_RIGHT.equals(transition)) return 5;
+        if (ClockPreferences.TRANSITION_SCAN.equals(transition)) return 6;
         return 0;
     }
 
@@ -3172,6 +3176,8 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         if (index == 2) return ClockPreferences.TRANSITION_SLIDE_DOWN;
         if (index == 3) return ClockPreferences.TRANSITION_SCALE;
         if (index == 4) return ClockPreferences.TRANSITION_FLIP;
+        if (index == 5) return ClockPreferences.TRANSITION_SLIDE_RIGHT;
+        if (index == 6) return ClockPreferences.TRANSITION_SCAN;
         return ClockPreferences.TRANSITION_FADE;
     }
 

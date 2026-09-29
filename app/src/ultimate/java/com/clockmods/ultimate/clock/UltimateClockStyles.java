@@ -22,6 +22,8 @@ import com.clockmods.sdk.clock.ClockStyleRegistry;
 import com.clockmods.sdk.clock.ClockThemeTokens;
 import com.clockmods.sdk.clock.WorldClockEntry;
 import com.clockmods.ui.ClockTimeText;
+import com.clockmods.ui.ClockDigitTransitionTiming;
+import com.clockmods.ui.ClockScanTransition;
 
 import java.util.ArrayList;
 import java.util.Calendar;
@@ -1129,6 +1131,22 @@ public final class UltimateClockStyles {
             float totalWidth = ClockTimeText.stableWidth(current, paint);
             float cursor = originalAlign == Paint.Align.CENTER ? x - totalWidth / 2f
                     : originalAlign == Paint.Align.RIGHT ? x - totalWidth : x;
+            float scanLeft = Float.POSITIVE_INFINITY;
+            float scanRight = Float.NEGATIVE_INFINITY;
+            if (transition == ClockState.TimeTransition.SCAN) {
+                float position = cursor;
+                for (int index = 0; index < current.length(); index++) {
+                    float width = ClockTimeText.slotWidth(current, index, paint);
+                    if (ClockDigitTransitionTracker.changedDigit(previous, current, index)) {
+                        scanLeft = Math.min(scanLeft, position);
+                        scanRight = Math.max(scanRight, position + width);
+                    }
+                    position += width;
+                }
+            }
+            float scanEdge = scanLeft == Float.POSITIVE_INFINITY ? 0f
+                    : ClockDigitTransitionTiming.scanEdge(scanLeft, scanRight - scanLeft,
+                            paint.getTextSize() * .22f, progress);
             float colonOffset = current.indexOf(':') < 0 ? 0f
                     : ClockTimeText.colonBaselineOffset(paint);
             paint.setTextAlign(Paint.Align.CENTER);
@@ -1137,7 +1155,18 @@ public final class UltimateClockStyles {
                     char character = current.charAt(index);
                     float width = ClockTimeText.slotWidth(current, index, paint);
                     float center = cursor + width / 2f;
-                    if (!ClockDigitTransitionTracker.changedDigit(previous, current, index)) {
+                    if (transition == ClockState.TimeTransition.SCAN
+                            && ClockDigitTransitionTracker.changedDigit(
+                                    previous, current, index)) {
+                        boolean reveal = progress >= .5f;
+                        float glyphBaseline = baseline + (character == ':' ? colonOffset : 0f);
+                        String glyph = String.valueOf(reveal ? character : previous.charAt(index));
+                        drawScanGlyph(canvas, paint, glyph, center, glyphBaseline,
+                                originalAlpha, cursor, cursor + width, scanEdge, reveal);
+                    } else if (!ClockDigitTransitionTracker.changedDigit(previous, current, index)
+                            && !(transition == ClockState.TimeTransition.SLIDE_RIGHT
+                            && ClockDigitTransitionTiming.changedDigitPair(
+                                    previous, current, index))) {
                         paint.setAlpha(originalAlpha);
                         if (character != ' ') canvas.drawText(String.valueOf(character), center,
                                 baseline + (character == ':' ? colonOffset : 0f), paint);
@@ -1176,6 +1205,18 @@ public final class UltimateClockStyles {
                                             Math.max(.05f, (progress - .5f) * 2f), 0f);
                                 }
                                 break;
+                            case SLIDE_RIGHT:
+                                drawTransitionGlyphX(canvas, paint, oldDigit, center, baseline,
+                                        originalAlpha, (1f - progress) * (1f - progress),
+                                        paint.getTextSize()
+                                                * ClockDigitTransitionTiming.SLIDE_DISTANCE_FRACTION
+                                                * progress);
+                                drawTransitionGlyphX(canvas, paint, newDigit, center, baseline,
+                                        originalAlpha, progress * progress,
+                                        -paint.getTextSize()
+                                                * ClockDigitTransitionTiming.SLIDE_DISTANCE_FRACTION
+                                                * (1f - progress));
+                                break;
                             case FADE:
                             default:
                                 drawTransitionGlyph(canvas, paint, oldDigit, center, baseline,
@@ -1203,6 +1244,28 @@ public final class UltimateClockStyles {
             canvas.scale(1f, scaleY, center, pivot);
             canvas.drawText(glyph, center, baseline, paint);
             canvas.restoreToCount(save);
+        }
+
+        private static void drawTransitionGlyphX(Canvas canvas, Paint paint, String glyph,
+                float center, float baseline, int alpha, float fraction, float shiftX) {
+            if (fraction <= 0f) return;
+            paint.setAlpha(Math.max(0, Math.min(255, (int) (alpha * fraction))));
+            int save = canvas.save();
+            canvas.translate(shiftX, 0f);
+            canvas.drawText(glyph, center, baseline, paint);
+            canvas.restoreToCount(save);
+        }
+
+        private static void drawScanGlyph(Canvas canvas, Paint paint, String glyph,
+                float center, float baseline, int alpha, float left, float right,
+                float edge, boolean reveal) {
+            ClockScanTransition.draw(canvas, left, right,
+                    baseline - paint.getTextSize() * 1.4f,
+                    baseline + paint.getTextSize() * .4f, edge,
+                    paint.getTextSize() * .22f, reveal, opacity -> {
+                        paint.setAlpha(Math.round(alpha * opacity));
+                        canvas.drawText(glyph, center, baseline, paint);
+                    });
         }
 
         protected static void fittedTime(Canvas canvas, String value, float x, float baseline,

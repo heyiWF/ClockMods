@@ -569,7 +569,9 @@ public class UltimateClockView extends FrameLayout {
         }
         float transitionProgress = transitionStartedUptime == 0L ? 1f
                 : Math.min(1f, (uptime - transitionStartedUptime)
-                        / (float) ClockDigitTransitionTiming.DURATION_MILLIS);
+                        / (float) (digitTransition == ClockState.TimeTransition.SCAN
+                        ? ClockDigitTransitionTiming.SCAN_DURATION_MILLIS
+                        : ClockDigitTransitionTiming.DURATION_MILLIS));
         if (transitionProgress >= 1f) transitionStartedUptime = 0L;
         ClockState state = ClockState.builder(now)
                 .timeZone(timeZone)
@@ -588,8 +590,9 @@ public class UltimateClockView extends FrameLayout {
                 .dateScale(dateScale)
                 .supportingScale(supportingScale)
                 .timeTransition(digitTransition)
-                .timeTransitionProgress(ClockDigitTransitionTiming.easeOutCubic(
-                        transitionProgress))
+                .timeTransitionProgress(digitTransition == ClockState.TimeTransition.SCAN
+                        ? transitionProgress
+                        : ClockDigitTransitionTiming.easeOutCubic(transitionProgress))
                 .build();
         float right = Math.max(contentInsetLeft, getWidth() - contentInsetRight);
         float bottom = Math.max(contentInsetTop, getHeight() - contentInsetBottom);
@@ -800,6 +803,10 @@ public class UltimateClockView extends FrameLayout {
             digitTransition = ClockState.TimeTransition.SCALE;
         } else if (ClockPreferences.TRANSITION_FLIP.equals(transition)) {
             digitTransition = ClockState.TimeTransition.FLIP;
+        } else if (ClockPreferences.TRANSITION_SLIDE_RIGHT.equals(transition)) {
+            digitTransition = ClockState.TimeTransition.SLIDE_RIGHT;
+        } else if (ClockPreferences.TRANSITION_SCAN.equals(transition)) {
+            digitTransition = ClockState.TimeTransition.SCAN;
         } else {
             digitTransition = ClockState.TimeTransition.FADE;
         }

@@ -61,6 +61,8 @@
         <item>Slide down</item>
         <item>Scale</item>
         <item>Flip</item>
+        <item>Swipe right</item>
+        <item>Scan reveal</item>
     </string-array>
     <string name="background_settings">Settings</string>
     <string name="open_settings_accessibility">Open settings</string>

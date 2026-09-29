@@ -10,7 +10,7 @@ import java.util.TimeZone;
 /** Immutable clock data. It contains no layout, paint, or theme decisions. */
 public final class ClockState {
     public enum SecondHandMotion { OFF, TICK, SWEEP }
-    public enum TimeTransition { FADE, SLIDE_UP, SLIDE_DOWN, SCALE, FLIP }
+    public enum TimeTransition { FADE, SLIDE_UP, SLIDE_DOWN, SCALE, FLIP, SLIDE_RIGHT, SCAN }
 
     private final long timeMillis;
     private final TimeZone timeZone;

@@ -30,6 +30,8 @@ public class ClockPreferences {
     public static final String TRANSITION_SLIDE_DOWN = "slide_down";
     public static final String TRANSITION_SCALE = "scale";
     public static final String TRANSITION_FLIP = "flip";
+    public static final String TRANSITION_SLIDE_RIGHT = "slide_right";
+    public static final String TRANSITION_SCAN = "scan";
     public static final String CHIME_RADIAL = "radial";
     public static final String CHIME_RIPPLE = "ripple";
     public static final String CHIME_PULSE = "pulse";
@@ -413,7 +415,8 @@ public class ClockPreferences {
 
     public static String normalizeTimeTransition(String transition) {
         if (TRANSITION_SLIDE_UP.equals(transition) || TRANSITION_SLIDE_DOWN.equals(transition)
-                || TRANSITION_SCALE.equals(transition) || TRANSITION_FLIP.equals(transition)) {
+                || TRANSITION_SCALE.equals(transition) || TRANSITION_FLIP.equals(transition)
+                || TRANSITION_SLIDE_RIGHT.equals(transition) || TRANSITION_SCAN.equals(transition)) {
             return transition;
         }
         return TRANSITION_FADE;
