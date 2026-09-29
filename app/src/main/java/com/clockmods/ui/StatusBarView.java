@@ -510,7 +510,7 @@ public class StatusBarView extends View {
             cursor -= gap * 0.4f;
         }
 
-        // Network icon (always shown, including the "no network" globe).
+        // Network icon (always shown, including the offline Wi-Fi icon).
         float networkSize = iconHeight * 1.15f;
         cursor -= networkSize;
         switch (networkState) {
@@ -524,7 +524,7 @@ public class StatusBarView extends View {
                 drawIcon(canvas, MaterialIcon.ETHERNET, cursor, centerY, networkSize);
                 break;
             default:
-                drawIcon(canvas, MaterialIcon.GLOBE_CANCEL, cursor, centerY, networkSize);
+                drawIcon(canvas, MaterialIcon.SIGNAL_WIFI_OFF, cursor, centerY, networkSize);
                 break;
         }
         fillPaint.setAlpha(255);
@@ -537,7 +537,7 @@ public class StatusBarView extends View {
             case WIFI: drawWifi(canvas, cursor, centerY, networkSize); break;
             case MOBILE: drawMobile(canvas, cursor, centerY, networkSize); break;
             case ETHERNET: drawIcon(canvas, MaterialIcon.ETHERNET, cursor, centerY, networkSize); break;
-            default: drawIcon(canvas, MaterialIcon.GLOBE_CANCEL, cursor, centerY, networkSize); break;
+            default: drawIcon(canvas, MaterialIcon.SIGNAL_WIFI_OFF, cursor, centerY, networkSize); break;
         }
         cursor += networkSize + gap * 0.4f;
         if (batteryLevel < 0) return;
@@ -557,6 +557,10 @@ public class StatusBarView extends View {
     }
 
     private void drawIcon(Canvas canvas, MaterialIcon icon, float left, float centerY, float size) {
+        if (icon == MaterialIcon.SIGNAL_WIFI_OFF) {
+            icon.draw(canvas, left, centerY - size / 2f, size, fillPaint);
+            return;
+        }
         drawStyledIcon(canvas, icon, icon == MaterialIcon.ETHERNET
                 ? StatusSymbolRenderer.ETHERNET : StatusSymbolRenderer.GLOBE_CANCEL,
                 left, centerY, size);

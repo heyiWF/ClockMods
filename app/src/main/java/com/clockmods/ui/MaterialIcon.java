@@ -189,7 +189,13 @@ final class MaterialIcon {
                     + "480-520t28.5 11.5Q520-497 520-480t-11.5 28.5Q497-440 480-440t-28.5-11.5Zm160 0Q600-463 600-480t11.5-28.5Q623-520 "
                     + "640-520t28.5 11.5Q680-497 680-480t-11.5 28.5Q657-440 640-440t-28.5-11.5Z");
 
-    // --- No network (Globe 2 Cancel). ---
+    // --- No network (Signal Wifi Off). ---
+
+    static final MaterialIcon SIGNAL_WIFI_OFF = new MaterialIcon(
+            "M717-357 298-775q45-12 90-18.5t92-6.5q136 0 260.5 51.5T960-600L717-357ZM819-28 "
+                    + "604-244 480-120 0-600q32-32 66.5-59t72.5-49L27-820l57-57L876-85l-57 57Z");
+
+    // --- Globe 2 Cancel. ---
 
     static final MaterialIcon GLOBE_CANCEL = new MaterialIcon(
             "m696-80-56-56 84-84-84-84 56-56 84 84 84-84 56 56-83 84 83 84-56 56-84-83-84 "
