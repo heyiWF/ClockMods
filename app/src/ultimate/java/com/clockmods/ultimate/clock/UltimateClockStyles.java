@@ -302,10 +302,10 @@ public final class UltimateClockStyles {
         return new float[] {centerY, outerHeight, ribbonHeight};
     }
 
-    /** Splits the host's "solar / lunar" value without mistaking slashes in the date format. */
+    /** Splits the host's "solar | lunar" value without mistaking slashes in the date format. */
     static String[] splitDateAndLunar(String value) {
         String clean = value == null ? "" : value.trim();
-        int divider = clean.lastIndexOf(" / ");
+        int divider = clean.lastIndexOf(" | ");
         if (divider <= 0 || divider + 3 >= clean.length()) {
             return new String[] {clean, ""};
         }
@@ -941,7 +941,7 @@ public final class UltimateClockStyles {
         /**
          * Draws a date as two rows when requested or too wide at the chosen font size.
          * The host joins solar/lunar values with the
-         * final " / "; {@link #splitDateAndLunar(String)} deliberately preserves slashes that are
+         * final " | "; {@link #splitDateAndLunar(String)} deliberately preserves slashes that are
          * part of the user's Gregorian date format.
          */
         protected static void readableDate(Canvas canvas, ClockRenderContext context,

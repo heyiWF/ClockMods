@@ -94,7 +94,7 @@ public class UltimateClockRendererSmokeTest {
     @Test public void largerDateWrapsBeforeShrinkingAndReturnsToOneLine() throws Exception {
         String solar = "2026 年 9 月 13 日 星期日";
         String lunar = "丙午[马]年八月初三";
-        String combined = solar + " / " + lunar;
+        String combined = solar + " | " + lunar;
         ClockStyle style = UltimateClockStyles.createRegistry().find(UltimateClockStyles.STYLE_ORBIT);
         PaintPoolFixture paints = PaintPoolFixture.install();
         try {
@@ -136,7 +136,7 @@ public class UltimateClockRendererSmokeTest {
         String solar = "09 / 13 / 2026";
         String lunar = "丙午[马]年八月初三";
         Assert.assertArrayEquals(new String[] {solar, lunar}, UltimateClockStyles.dateLines(
-                solar + " / " + lunar, paint, 1000f, true, Locale.SIMPLIFIED_CHINESE));
+                solar + " | " + lunar, paint, 1000f, true, Locale.SIMPLIFIED_CHINESE));
     }
 
     /** A 90x64px capsule parked 20dp/16dp in from a corner, as the host computes it at 2x density. */

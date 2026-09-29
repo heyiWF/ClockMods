@@ -25,7 +25,7 @@ public class MigratedClockBehaviorTest {
     @Test
     public void blendDateSplitsOnlyTheAppendedLunarValue() {
         String[] split = UltimateClockStyles.splitDateAndLunar(
-                "2026 / 09 / 11 周五 / 丙午[马]年八月初一");
+                "2026 / 09 / 11 周五 | 丙午[马]年八月初一");
         Assert.assertArrayEquals(new String[] {
                 "2026 / 09 / 11 周五", "丙午[马]年八月初一"
         }, split);

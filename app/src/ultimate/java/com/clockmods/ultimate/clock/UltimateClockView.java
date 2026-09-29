@@ -825,7 +825,7 @@ public class UltimateClockView extends FrameLayout {
         String date = DateFormatter.format(datePattern, calendar, dateLanguage);
         if (!showLunar) return date;
         String lunar = LunarCalendar.format(calendar);
-        return lunar.length() == 0 ? date : date + " / " + lunar;
+        return lunar.length() == 0 ? date : date + " | " + lunar;
     }
 
     private String timeZoneText() {
@@ -864,7 +864,7 @@ public class UltimateClockView extends FrameLayout {
     private String combinedWeatherText() {
         if (weatherText.length() == 0) return customMessage;
         if (customMessage.length() == 0) return weatherText;
-        return weatherText + " / " + customMessage;
+        return weatherText + " | " + customMessage;
     }
 
     private boolean shouldDimBackground(long now) {
