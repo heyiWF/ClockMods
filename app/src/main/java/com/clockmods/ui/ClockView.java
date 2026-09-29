@@ -38,8 +38,9 @@ public class ClockView extends View {
     private static final long MILLIS_PER_SECOND = 1000L;
     private static final long WEATHER_DETAIL_HOLD_MILLIS = 3000L;
     private static final long WEATHER_DETAIL_SCROLL_PAUSE_MILLIS = 1000L;
+    // One half of the carousel swap; the swap runs over two of these.
     private static final long WEATHER_DETAIL_TRANSITION_MILLIS =
-            ClockDigitTransitionTiming.DURATION_MILLIS / 2L;
+            ClockDigitTransitionTiming.SUPPORTING_DURATION_MILLIS / 2L;
     private static final long WEATHER_DETAIL_FRAME_DELAY_MILLIS = 16L;
     private static final float WEATHER_DETAIL_SCROLL_DP_PER_SECOND = 40f;
     private static final float WEATHER_DETAIL_HORIZONTAL_PADDING_DP = 24f;
@@ -820,13 +821,14 @@ public class ClockView extends View {
                                 metrics, Math.round(255f * opacity),
                                 ClockPreferences.TRANSITION_FADE, 0f, elapsed));
             } else {
-                int save = canvas.save();
-                canvas.clipRect(left, 0f, right, getHeight());
+                // A sweep is translation and opacity, nothing else. Fencing it in with the
+                // available-width box is what used to shear the ends off the line, so instead each
+                // copy may travel only as far as the canvas edge it is heading for — and by then it
+                // has faded out, so the line is never seen cut.
                 drawWeatherDetailLine(canvas, current, centerX, baseline, metrics,
                         Math.round(255f * (1f - eased)), transition, eased, itemElapsed);
                 drawWeatherDetailLine(canvas, next, centerX, baseline, metrics,
                         Math.round(255f * eased), transition, eased - 1f, 0L);
-                canvas.restoreToCount(save);
             }
             return;
         }
@@ -868,9 +870,18 @@ public class ClockView extends View {
             drawWeatherLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
             canvas.restore();
         } else if (ClockPreferences.TRANSITION_SLIDE_RIGHT.equals(transition)) {
+            // A dozen glyphs of supporting text is far wider than one digit, so a travel measured
+            // against the font reads as no motion at all; measure it against the line instead.
+            float lineWidth = itemWidth(item);
+            float inkLeft = centerX - lineWidth / 2f;
+            float distance = ClockDigitTransitionTiming.supportingSlideDistance(
+                    lineWidth, datePaint.getTextSize());
+            float travel = phase >= 0f
+                    ? ClockDigitTransitionTiming.outwardSweepTravel(distance, inkLeft, lineWidth,
+                            canvas.getWidth())
+                    : ClockDigitTransitionTiming.inwardSweepTravel(distance, inkLeft);
             canvas.save();
-            canvas.translate(datePaint.getTextSize()
-                    * ClockDigitTransitionTiming.SLIDE_DISTANCE_FRACTION * phase, 0f);
+            canvas.translate(travel * phase, 0f);
             datePaint.setAlpha(Math.round(clampedAlpha / 255f * originalAlpha));
             drawWeatherLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
             canvas.restore();
@@ -1419,7 +1430,9 @@ public class ClockView extends View {
     private long timeTransitionDurationMillis() {
         return ClockPreferences.TRANSITION_SCAN.equals(timeTransition)
                 ? ClockDigitTransitionTiming.SCAN_DURATION_MILLIS
-                : ClockDigitTransitionTiming.DURATION_MILLIS;
+                : ClockPreferences.TRANSITION_SLIDE_RIGHT.equals(timeTransition)
+                        ? ClockDigitTransitionTiming.SLIDE_DURATION_MILLIS
+                        : ClockDigitTransitionTiming.DURATION_MILLIS;
     }
 
     private static float[] changedDigitBounds(String oldText, String newText,
@@ -1495,7 +1508,7 @@ public class ClockView extends View {
                         alignedCharacterBaseline(newCharacter, baseline, paint), paint);
             } else {
                 drawChangedCharacterTransition(canvas, oldCharacter, newCharacter,
-                    characterCenter, baseline, paint, progress);
+                    characterCenter, baseline, paint, progress, cursor, characterWidth);
             }
             cursor += characterWidth;
         }
@@ -1503,7 +1516,8 @@ public class ClockView extends View {
     }
 
             private void drawChangedCharacterTransition(Canvas canvas, String oldCharacter,
-                String newCharacter, float centerX, float baseline, Paint paint, float progress) {
+                String newCharacter, float centerX, float baseline, Paint paint, float progress,
+                float inkLeft, float inkWidth) {
             float pivotY = baseline - paint.getTextSize() / 2f;
             if (ClockPreferences.TRANSITION_SLIDE_UP.equals(timeTransition)
                 || ClockPreferences.TRANSITION_SLIDE_DOWN.equals(timeTransition)) {
@@ -1537,12 +1551,17 @@ public class ClockView extends View {
             if (ClockPreferences.TRANSITION_SLIDE_RIGHT.equals(timeTransition)) {
                 float distance = paint.getTextSize()
                         * ClockDigitTransitionTiming.SLIDE_DISTANCE_FRACTION;
+                // Translation and opacity only, never past the canvas edge: a glyph that slid off
+                // the screen reads exactly like one that was clipped.
+                float outward = ClockDigitTransitionTiming.outwardSweepTravel(distance, inkLeft,
+                        inkWidth, canvas.getWidth());
+                float inward = ClockDigitTransitionTiming.inwardSweepTravel(distance, inkLeft);
                 drawTranslatedCharacter(canvas, oldCharacter, centerX, baseline, paint,
-                        Math.round(255f * (1f - progress) * (1f - progress)),
-                        distance * progress);
+                        Math.round(255f * ClockDigitTransitionTiming.sweepAlpha(progress, true)),
+                        outward * progress);
                 drawTranslatedCharacter(canvas, newCharacter, centerX, baseline, paint,
-                        Math.round(255f * progress * progress),
-                        -distance * (1f - progress));
+                        Math.round(255f * ClockDigitTransitionTiming.sweepAlpha(progress, false)),
+                        -inward * (1f - progress));
                 return;
             }
             setClockTextAlpha(paint, Math.round(255f * (1f - progress)));

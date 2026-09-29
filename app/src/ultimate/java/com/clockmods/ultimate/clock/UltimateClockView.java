@@ -569,9 +569,7 @@ public class UltimateClockView extends FrameLayout {
         }
         float transitionProgress = transitionStartedUptime == 0L ? 1f
                 : Math.min(1f, (uptime - transitionStartedUptime)
-                        / (float) (digitTransition == ClockState.TimeTransition.SCAN
-                        ? ClockDigitTransitionTiming.SCAN_DURATION_MILLIS
-                        : ClockDigitTransitionTiming.DURATION_MILLIS));
+                        / (float) transitionDurationMillis(digitTransition));
         if (transitionProgress >= 1f) transitionStartedUptime = 0L;
         ClockState state = ClockState.builder(now)
                 .timeZone(timeZone)
@@ -619,6 +617,17 @@ public class UltimateClockView extends FrameLayout {
         }
         drawStatusOverlayPlate(canvas, renderContext, theme);
         updateContentDescription(state, style);
+    }
+
+    /** A sweep covers ground, so it is given longer than the in-place transitions. */
+    private static long transitionDurationMillis(ClockState.TimeTransition transition) {
+        if (transition == ClockState.TimeTransition.SCAN) {
+            return ClockDigitTransitionTiming.SCAN_DURATION_MILLIS;
+        }
+        if (transition == ClockState.TimeTransition.SLIDE_RIGHT) {
+            return ClockDigitTransitionTiming.SLIDE_DURATION_MILLIS;
+        }
+        return ClockDigitTransitionTiming.DURATION_MILLIS;
     }
 
     /**

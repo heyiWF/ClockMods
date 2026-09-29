@@ -1205,18 +1205,25 @@ public final class UltimateClockStyles {
                                             Math.max(.05f, (progress - .5f) * 2f), 0f);
                                 }
                                 break;
-                            case SLIDE_RIGHT:
+                            case SLIDE_RIGHT: {
+                                float sweepDistance = paint.getTextSize()
+                                        * ClockDigitTransitionTiming.SLIDE_DISTANCE_FRACTION;
+                                // Translation and opacity only, never past the canvas edge — a
+                                // glyph that slid off the screen would read as a clipped one.
+                                float outward = ClockDigitTransitionTiming.outwardSweepTravel(
+                                        sweepDistance, cursor, width, canvas.getWidth());
+                                float inward = ClockDigitTransitionTiming.inwardSweepTravel(
+                                        sweepDistance, cursor);
                                 drawTransitionGlyphX(canvas, paint, oldDigit, center, baseline,
-                                        originalAlpha, (1f - progress) * (1f - progress),
-                                        paint.getTextSize()
-                                                * ClockDigitTransitionTiming.SLIDE_DISTANCE_FRACTION
-                                                * progress);
+                                        originalAlpha,
+                                        ClockDigitTransitionTiming.sweepAlpha(progress, true),
+                                        outward * progress);
                                 drawTransitionGlyphX(canvas, paint, newDigit, center, baseline,
-                                        originalAlpha, progress * progress,
-                                        -paint.getTextSize()
-                                                * ClockDigitTransitionTiming.SLIDE_DISTANCE_FRACTION
-                                                * (1f - progress));
+                                        originalAlpha,
+                                        ClockDigitTransitionTiming.sweepAlpha(progress, false),
+                                        -inward * (1f - progress));
                                 break;
+                            }
                             case FADE:
                             default:
                                 drawTransitionGlyph(canvas, paint, oldDigit, center, baseline,
