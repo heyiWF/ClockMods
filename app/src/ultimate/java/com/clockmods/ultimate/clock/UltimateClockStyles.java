@@ -1430,12 +1430,13 @@ public final class UltimateClockStyles {
             Typeface display = displayTypeface(theme, Typeface.NORMAL);
             Typeface supporting = supportingTypeface(theme, Typeface.NORMAL);
             String time = timeText(state.newCalendar(), state, state.isShowSeconds());
+            float timePreferred = unit * .42f * state.getTimeScale();
             Paint timeMeasure = fill(Color.WHITE);
             timeMeasure.setTypeface(display);
-            timeMeasure.setTextSize(unit * .42f);
+            timeMeasure.setTextSize(timePreferred);
             float stableWidth = ClockTimeText.stableWidth(time, timeMeasure);
             float timeSize = stableWidth > width * .94f
-                    ? unit * .42f * width * .94f / stableWidth : unit * .42f;
+                    ? timePreferred * width * .94f / stableWidth : timePreferred;
             Paint timePaint = fill(theme.getPrimaryTextColor());
             timePaint.setTypeface(display);
             timePaint.setTextSize(timeSize);
@@ -1500,7 +1501,8 @@ public final class UltimateClockStyles {
                     !landscape);
             String time = timeText(state.newCalendar(), state, false);
             fittedTime(canvas, time, infoLeft, timeY, infoRight - infoLeft,
-                    unit * (landscape ? .145f : .12f), theme.getPrimaryTextColor(),
+                    unit * (landscape ? .145f : .12f) * state.getTimeScale(),
+                    theme.getPrimaryTextColor(),
                     Paint.Align.LEFT, bold);
             String contextLine = contextText(state);
             readableText(canvas, context, contextLine, infoLeft, contextY,
@@ -1658,7 +1660,8 @@ public final class UltimateClockStyles {
             fittedText(canvas, "INSTRUMENT / 24", infoLeft, titleY, infoRight - infoLeft,
                     small, theme.getAccentColor(), Paint.Align.LEFT, mono);
             fittedTime(canvas, timeText(c, state, false), infoLeft, timeY,
-                    infoRight - infoLeft, unit * (landscape ? .14f : .12f),
+                    infoRight - infoLeft,
+                    unit * (landscape ? .14f : .12f) * state.getTimeScale(),
                     theme.getPrimaryTextColor(), Paint.Align.LEFT, condensed);
             readableDate(canvas, context, state, infoLeft, dateY, infoRight - infoLeft,
                     unit * .030f, theme.getSecondaryTextColor(), Paint.Align.LEFT, mono,
@@ -1792,7 +1795,8 @@ public final class UltimateClockStyles {
             canvas.drawLine(infoLeft, dividerY, infoRight, dividerY,
                     stroke(theme.getAccentColor(), lineWidth(context, theme, 1f)));
             fittedTime(canvas, timeText(calendar, state, false), infoLeft, timeY,
-                    infoRight - infoLeft, unit * (landscape ? .14f : .12f),
+                    infoRight - infoLeft,
+                    unit * (landscape ? .14f : .12f) * state.getTimeScale(),
                     theme.getPrimaryTextColor(), Paint.Align.LEFT, sansBold);
             String contextLine = contextText(state);
             readableText(canvas, context, contextLine, infoLeft, contextY,
@@ -1857,7 +1861,8 @@ public final class UltimateClockStyles {
             String time = timeText(c, state, false);
             Typeface display = displayTypeface(theme, Typeface.NORMAL);
             Typeface mono = supportingTypeface(theme, Typeface.NORMAL);
-            float timeSize = fitText(time, inner * 1.62f, unit * .105f, display);
+            float timeSize = fitText(time, inner * 1.62f,
+                    unit * .105f * state.getTimeScale(), display);
             drawTime(canvas, time, cx, centeredBaseline(cy, timeSize, display), timeSize,
                     theme.getPrimaryTextColor(), Paint.Align.CENTER, display);
             String seconds = state.isShowSeconds()
@@ -1961,7 +1966,7 @@ public final class UltimateClockStyles {
             boolean landscape = w >= h * 1.2f;
             float blockTop = context.getTop() + h * (landscape ? .23f : .19f);
             float blockHeight = h * (landscape ? .39f : .29f);
-            float left = context.getLeft() + w * (landscape ? .075f : .075f);
+            float left = context.getLeft() + w * .075f;
             float right = context.getLeft() + w * (landscape ? .79f : .925f);
             float digitGap = Math.max(context.getDensity() * 4f, w * .012f);
             float colonGap = Math.max(context.getDensity() * 12f,
@@ -1975,6 +1980,17 @@ public final class UltimateClockStyles {
             };
             float panelPad = unit * .012f;
             float radius = unit * .010f;
+            // The digits here are segments rather than type, and this face is already full: the
+            // panels run edge to edge beside the seconds column and stop just above the date row.
+            // So the size slider scales each digit inside the panel that holds it, about that
+            // panel's own centre, and stops where the segments would reach the panel's edge — the
+            // same bargain the type-based faces strike when a row grows until it fills its width.
+            // Nothing is ever clipped, and no row can land on a neighbour. drawDigit keeps
+            // `digitPad` of its cell free on each side, which is what the limit is measured from.
+            float digitPad = Math.min(digitWidth, blockHeight) * .18f;
+            float segmentScale = Math.min(state.getTimeScale(), Math.min(
+                    (digitWidth + panelPad * 2f) / Math.max(1f, digitWidth - digitPad * 2f),
+                    (blockHeight + panelPad * 2f) / Math.max(1f, blockHeight - digitPad * 2f)));
             RectF hoursPanel = new RectF(positions[0] - panelPad, blockTop - panelPad,
                     positions[1] + digitWidth + panelPad, blockTop + blockHeight + panelPad);
             RectF minutesPanel = new RectF(positions[2] - panelPad, blockTop - panelPad,
@@ -1987,19 +2003,23 @@ public final class UltimateClockStyles {
                     stroke(alpha(theme.getLineColor(), 185), lineWidth(context, theme, .7f)));
             canvas.drawRoundRect(minutesPanel, radius, radius,
                     stroke(alpha(theme.getLineColor(), 185), lineWidth(context, theme, .7f)));
+            float digitCenterY = blockTop + blockHeight * .5f;
             for (int i = 0; i < 4; i++) {
-                float x = positions[i];
-                RectF cell = new RectF(x, blockTop, x + digitWidth, blockTop + blockHeight);
+                float cellCenterX = positions[i] + digitWidth * .5f;
+                float halfWidth = digitWidth * .5f * segmentScale;
+                float halfHeight = blockHeight * .5f * segmentScale;
+                RectF cell = new RectF(cellCenterX - halfWidth, digitCenterY - halfHeight,
+                        cellCenterX + halfWidth, digitCenterY + halfHeight);
                 drawDigit(canvas, digits.charAt(i) - '0', cell, theme);
             }
             float colonX = (positions[1] + digitWidth + positions[2]) * .5f;
-            float colonRadius = unit * .010f;
+            float colonRadius = unit * .010f * segmentScale;
             // drawDigit centres its segments on the cell, so the dots straddle the same
             // midpoint rather than sitting low the way a typeset ':' would.
-            canvas.drawCircle(colonX, blockTop + blockHeight * .375f, colonRadius,
-                    fill(theme.getAccentColor()));
-            canvas.drawCircle(colonX, blockTop + blockHeight * .625f, colonRadius,
-                    fill(theme.getAccentColor()));
+            canvas.drawCircle(colonX, digitCenterY - blockHeight * .125f * segmentScale,
+                    colonRadius, fill(theme.getAccentColor()));
+            canvas.drawCircle(colonX, digitCenterY + blockHeight * .125f * segmentScale,
+                    colonRadius, fill(theme.getAccentColor()));
 
             RectF secPanel;
             if (landscape) {
@@ -2125,9 +2145,9 @@ public final class UltimateClockStyles {
                 float minuteCenterX = divider + (context.getRight() - divider) * .50f;
                 float centerY = context.getTop() + h * .47f;
                 float hourSize = fitText(hours, (divider - context.getLeft()) * .78f,
-                        unit * .34f, display);
+                        unit * .34f * state.getTimeScale(), display);
                 float minuteSize = fitText(minutes, (context.getRight() - divider) * .72f,
-                        unit * .34f, display);
+                        unit * .34f * state.getTimeScale(), display);
                 text(canvas, hours, hourCenterX, centeredBaseline(centerY, hourSize, display),
                         hourSize, 0xFFF5F2EA, Paint.Align.CENTER, display);
                 text(canvas, minutes, minuteCenterX,
@@ -2139,8 +2159,10 @@ public final class UltimateClockStyles {
                         divider, fill(theme.getSurfaceColor()));
                 canvas.drawRect(context.getLeft(), divider, context.getRight(),
                         divider + unit * .008f, fill(theme.getAccentColor()));
-                float hourSize = fitText(hours, w * .76f, unit * .34f, display);
-                float minuteSize = fitText(minutes, w * .76f, unit * .34f, display);
+                float hourSize = fitText(hours, w * .76f,
+                        unit * .34f * state.getTimeScale(), display);
+                float minuteSize = fitText(minutes, w * .76f,
+                        unit * .34f * state.getTimeScale(), display);
                 float hourCenterY = context.getTop() + h * .27f;
                 float minuteCenterY = context.getTop() + h * .64f;
                 text(canvas, hours, context.getCenterX(),

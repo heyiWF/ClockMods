@@ -48,6 +48,7 @@ public class ClockPreferences {
     private static final String KEY_DIM_END_MINUTES = "dim_end_minutes";
     private static final String KEY_TIME_FONT_SCALE = "time_font_scale";
     private static final String KEY_DATE_FONT_SCALE = "date_font_scale";
+    private static final String KEY_SUPPORTING_FONT_SCALE = "supporting_font_scale";
     private static final String KEY_TIME_COLOR = "time_color";
     private static final String KEY_DATE_COLOR = "date_color";
     private static final String KEY_SHOW_STATUS_ICONS = "show_status_icons";
@@ -56,6 +57,7 @@ public class ClockPreferences {
     private static final String KEY_BLINK_COLON = "blink_colon";
     private static final String KEY_ANIMATE_TIME_CHANGES = "animate_time_changes";
     private static final String KEY_TIME_TRANSITION = "time_transition";
+    private static final String KEY_WEATHER_TRANSITION = "weather_transition";
     private static final String KEY_HOURLY_CHIME = "hourly_visual_chime";
     private static final String KEY_HALF_HOUR_CHIME = "half_hour_visual_chime";
     private static final String KEY_CHIME_ANIMATION = "chime_animation";
@@ -141,6 +143,7 @@ public class ClockPreferences {
     public static final boolean DEFAULT_BLINK_COLON = false;
     public static final boolean DEFAULT_ANIMATE_TIME_CHANGES = true;
     public static final String DEFAULT_TIME_TRANSITION = TRANSITION_FADE;
+    public static final String DEFAULT_WEATHER_TRANSITION = TRANSITION_FADE;
     public static final boolean DEFAULT_HOURLY_CHIME = true;
     public static final boolean DEFAULT_HALF_HOUR_CHIME = false;
     public static final boolean DEFAULT_HOURLY_CHIME_QUIET = true;
@@ -282,6 +285,17 @@ public class ClockPreferences {
         preferences.edit().putFloat(KEY_DATE_FONT_SCALE, clampDateScale(scale)).apply();
     }
 
+    /** Global size factor for labels, weather, status, and world-clock metadata. */
+    public float getSupportingFontScale() {
+        return normalizeSupportingScale(
+                preferences.getFloat(KEY_SUPPORTING_FONT_SCALE, DEFAULT_SUPPORTING_FONT_SCALE));
+    }
+
+    public void setSupportingFontScale(float scale) {
+        preferences.edit().putFloat(KEY_SUPPORTING_FONT_SCALE,
+                normalizeSupportingScale(scale)).apply();
+    }
+
     public int getTimeColor() {
         return preferences.getInt(KEY_TIME_COLOR, DEFAULT_TEXT_COLOR);
     }
@@ -352,6 +366,21 @@ public class ClockPreferences {
 
     public void setTimeTransition(String transition) {
         preferences.edit().putString(KEY_TIME_TRANSITION,
+                normalizeTimeTransition(transition)).apply();
+    }
+
+    /**
+     * Transition for the weather/supporting carousel, kept apart from {@link #getTimeTransition()}
+     * so the two rows of the face can be tuned independently: a quiet fade suits a line of weather
+     * detail that cycles every few seconds, while the digits read better with a sweep.
+     */
+    public String getWeatherTransition() {
+        return normalizeTimeTransition(preferences.getString(
+                KEY_WEATHER_TRANSITION, DEFAULT_WEATHER_TRANSITION));
+    }
+
+    public void setWeatherTransition(String transition) {
+        preferences.edit().putString(KEY_WEATHER_TRANSITION,
                 normalizeTimeTransition(transition)).apply();
     }
 
@@ -951,6 +980,7 @@ public class ClockPreferences {
                 .putInt(KEY_DIM_END_MINUTES, DEFAULT_DIM_END_MINUTES)
                 .putFloat(KEY_TIME_FONT_SCALE, DEFAULT_TIME_FONT_SCALE)
                 .putFloat(KEY_DATE_FONT_SCALE, DEFAULT_DATE_FONT_SCALE)
+                .putFloat(KEY_SUPPORTING_FONT_SCALE, DEFAULT_SUPPORTING_FONT_SCALE)
                 .putInt(KEY_TIME_COLOR, DEFAULT_TEXT_COLOR)
                 .putInt(KEY_DATE_COLOR, DEFAULT_TEXT_COLOR)
                 .putBoolean(KEY_SHOW_STATUS_ICONS, DEFAULT_SHOW_STATUS_ICONS)
@@ -959,6 +989,7 @@ public class ClockPreferences {
                 .putBoolean(KEY_BLINK_COLON, DEFAULT_BLINK_COLON)
                 .putBoolean(KEY_ANIMATE_TIME_CHANGES, DEFAULT_ANIMATE_TIME_CHANGES)
                 .putString(KEY_TIME_TRANSITION, DEFAULT_TIME_TRANSITION)
+                .putString(KEY_WEATHER_TRANSITION, DEFAULT_WEATHER_TRANSITION)
                 .putBoolean(KEY_HOURLY_CHIME, DEFAULT_HOURLY_CHIME)
                 .putBoolean(KEY_HALF_HOUR_CHIME, DEFAULT_HALF_HOUR_CHIME)
                 .putString(KEY_CHIME_ANIMATION, CHIME_RADIAL)

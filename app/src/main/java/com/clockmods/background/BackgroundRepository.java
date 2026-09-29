@@ -108,6 +108,14 @@ public class BackgroundRepository {
         return preferences.getDateFontScale(scopeId);
     }
 
+    public float getSupportingFontScale() {
+        return preferences.getSupportingFontScale();
+    }
+
+    public void setSupportingFontScale(float scale) {
+        preferences.setSupportingFontScale(scale);
+    }
+
     public void setDateFontScale(String scopeId, float scale) {
         preferences.setDateFontScale(scopeId, scale);
     }
@@ -178,6 +186,10 @@ public class BackgroundRepository {
 
     public String getTimeTransition() { return preferences.getTimeTransition(); }
     public void setTimeTransition(String transition) { preferences.setTimeTransition(transition); }
+    public String getWeatherTransition() { return preferences.getWeatherTransition(); }
+    public void setWeatherTransition(String transition) {
+        preferences.setWeatherTransition(transition);
+    }
     public boolean isHourlyChimeEnabled() { return preferences.isHourlyChimeEnabled(); }
     public void setHourlyChimeEnabled(boolean enabled) { preferences.setHourlyChimeEnabled(enabled); }
     public boolean isHalfHourChimeEnabled() { return preferences.isHalfHourChimeEnabled(); }

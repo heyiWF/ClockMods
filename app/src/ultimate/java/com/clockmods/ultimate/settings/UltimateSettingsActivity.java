@@ -1444,7 +1444,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                         },
                         "font_family", true));
         addWeightSlider(body, scopeId, pageToRefresh);
-        if (isMigratedClockStyle(scopeId) || scopeId.startsWith("calendar:")) {
+        // Every clock style sizes its own time, date, and supporting text. Pro Classic is the one
+        // exception: its three controls live in its own appearance sections below, because that
+        // face predates the per-style keys and the legacy view reads the global ones.
+        if (!UltimateClockStyles.STYLE_PRO_CLASSIC.equals(scopeId)) {
             addScaleSlider(body, R.string.ultimate_time_size,
                     repository.getTimeFontScale(scopeId), ClockPreferences.MIN_FONT_SCALE,
                     ClockPreferences.MAX_FONT_SCALE,
@@ -1462,14 +1465,6 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     value -> repository.setSupportingFontScale(scopeId, value),
                     "supporting_font_scale:" + scopeId, pageToRefresh);
         }
-    }
-
-    private static boolean isMigratedClockStyle(String styleId) {
-        return UltimateClockStyles.STYLE_DUAL_BLOCKS.equals(styleId)
-                || UltimateClockStyles.STYLE_ORBIT.equals(styleId)
-                || UltimateClockStyles.STYLE_BUBBLES.equals(styleId)
-                || UltimateClockStyles.STYLE_BLEND.equals(styleId)
-                || UltimateClockStyles.STYLE_RIBBON.equals(styleId);
     }
 
     /**
@@ -1573,6 +1568,19 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 });
     }
 
+    /** One name table for every transition chooser, so the two rows cannot drift apart. */
+    private String[] transitionNames() {
+        return new String[] {
+                getString(R.string.ultimate_transition_fade),
+                getString(R.string.ultimate_transition_slide_up),
+                getString(R.string.ultimate_transition_slide_down),
+                getString(R.string.ultimate_transition_scale),
+                getString(R.string.ultimate_transition_flip),
+                getString(R.string.ultimate_transition_slide_right),
+                getString(R.string.ultimate_transition_scan)
+        };
+    }
+
     private void addDigitTransitionControls(LinearLayout body, String styleId) {
         boolean proClassic = UltimateClockStyles.STYLE_PRO_CLASSIC.equals(styleId);
         boolean enabled = proClassic ? repository.isAnimateTimeChanges()
@@ -1587,15 +1595,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     markChanged("animate_time_changes");
                     if (transitionRow[0] != null) setViewTreeEnabled(transitionRow[0], value);
                 });
-        String[] transitionNames = {
-                getString(R.string.ultimate_transition_fade),
-                getString(R.string.ultimate_transition_slide_up),
-                getString(R.string.ultimate_transition_slide_down),
-                getString(R.string.ultimate_transition_scale),
-                getString(R.string.ultimate_transition_flip),
-                getString(R.string.ultimate_transition_slide_right),
-                getString(R.string.ultimate_transition_scan)
-        };
+        String[] transitionNames = transitionNames();
         transitionRow[0] = addActionRow(body, R.string.ultimate_time_transition,
                 transitionNames[transitionIndex(transition)],
                 R.drawable.ultimate_ic_chevron_right, () -> showSingleChoiceDialog(
@@ -1639,6 +1639,21 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     markChanged("weather_detailed");
                 });
         setSwitchPreferenceEnabled(detailed, repository.isWeatherEnabled());
+        // The weather summary and the detail carousel are the supporting rows here, so they get
+        // the supporting size; the date and lunar rows keep the date one.
+        addScaleSlider(body, R.string.ultimate_supporting_text_size,
+                repository.getSupportingFontScale(), ClockPreferences.MIN_SUPPORTING_FONT_SCALE,
+                ClockPreferences.MAX_SUPPORTING_FONT_SCALE, repository::setSupportingFontScale,
+                "supporting_font_scale", Page.STYLE);
+        String weatherTransition = repository.getWeatherTransition();
+        String[] names = transitionNames();
+        addActionRow(body, R.string.ultimate_weather_transition,
+                names[transitionIndex(weatherTransition)],
+                R.drawable.ultimate_ic_chevron_right, () -> showSingleChoiceDialog(
+                        R.string.ultimate_weather_transition, names,
+                        transitionIndex(repository.getWeatherTransition()), value ->
+                                repository.setWeatherTransition(transitionForIndex(value)),
+                        "weather_transition", true));
     }
 
     private View backgroundPage() {

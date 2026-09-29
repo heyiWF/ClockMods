@@ -17,8 +17,10 @@ import org.junit.Test;
 import java.lang.reflect.Field;
 import java.util.ArrayList;
 import java.util.Arrays;
+import java.util.HashMap;
 import java.util.List;
 import java.util.Locale;
+import java.util.Map;
 import java.util.TimeZone;
 
 public class UltimateClockRendererSmokeTest {
@@ -392,6 +394,108 @@ public class UltimateClockRendererSmokeTest {
         } finally {
             paints.restore();
         }
+    }
+
+    /**
+     * Every face sizes its time, date and supporting rows from that row's own slider and from
+     * nothing else: raising one has to grow its row and leave the other two exactly where they
+     * were. A row that has already filled the box it is given stops growing rather than spilling
+     * past it, which is why the digits are checked between two levels that still fit and only
+     * checked for "no smaller" once they have reached the edge.
+     *
+     * <p>数字网格 and the five card layouts are left to the emulator: the first draws its digits as
+     * segments instead of type, and the others anchor their frames with
+     * {@link android.graphics.RectF}, whose geometry is a stub in Gradle's mockable android.jar, so
+     * their rows land at x=0 on the JVM and are not recorded at all.</p>
+     */
+    @Test public void eachRowSizesFromItsOwnSliderOnly() throws Exception {
+        String[] styleIds = {
+                UltimateClockStyles.STYLE_PRO_CLASSIC,
+                UltimateClockStyles.STYLE_GLASS_ATELIER,
+                UltimateClockStyles.STYLE_NOIR_INSTRUMENT,
+                UltimateClockStyles.STYLE_PAPER_STATION,
+                UltimateClockStyles.STYLE_ORBIT_NEON,
+                UltimateClockStyles.STYLE_TYPOGRAPHIC
+        };
+        PaintPoolFixture paints = PaintPoolFixture.install();
+        try {
+            for (String styleId : styleIds) {
+                ClockStyle style = UltimateClockStyles.createRegistry().find(styleId);
+                Assert.assertNotNull(styleId, style);
+                // The date and the supporting row carry the fixture's own strings, so their
+                // recordings are unambiguous. The digits are whatever this style formats out of
+                // the clock, and they are the largest thing on any of these faces.
+                Map<String, Float> base = drawnSizes(style, 1f, 1f, 1f);
+                Map<String, Float> timeDown = drawnSizes(style, .5f, 1f, 1f);
+                Map<String, Float> timeUp = drawnSizes(style, 1.5f, 1f, 1f);
+                Map<String, Float> dateUp = drawnSizes(style, 1f, 2f, 1f);
+                Map<String, Float> supportUp = drawnSizes(style, 1f, 1f, 2f);
+                String clock = largest(base);
+                float digits = base.get(clock);
+                Assert.assertTrue(styleId + " time slider left the digits at "
+                                + timeDown.get(clock) + " -> " + digits,
+                        digits > timeDown.get(clock) * 1.05f);
+                Assert.assertTrue(styleId + " a wider time slider shrank the digits: "
+                                + digits + " -> " + timeUp.get(clock),
+                        timeUp.get(clock) >= digits * .999f);
+                Assert.assertTrue(styleId + " date slider left the date at "
+                                + base.get("DATE") + " -> " + dateUp.get("DATE"),
+                        dateUp.get("DATE") > base.get("DATE") * 1.05f);
+                Assert.assertTrue(styleId + " supporting slider left the supporting row at "
+                                + base.get("NOTE") + " -> " + supportUp.get("NOTE"),
+                        supportUp.get("NOTE") > base.get("NOTE") * 1.05f);
+                Assert.assertEquals(styleId + " time slider moved the date",
+                        base.get("DATE"), timeUp.get("DATE"), .01f);
+                Assert.assertEquals(styleId + " time slider moved the supporting row",
+                        base.get("NOTE"), timeUp.get("NOTE"), .01f);
+                Assert.assertEquals(styleId + " date slider moved the supporting row",
+                        base.get("NOTE"), dateUp.get("NOTE"), .01f);
+                Assert.assertEquals(styleId + " supporting slider moved the date",
+                        base.get("DATE"), supportUp.get("DATE"), .01f);
+                Assert.assertEquals(styleId + " date slider moved the digits",
+                        digits, dateUp.get(clock), .01f);
+                Assert.assertEquals(styleId + " supporting slider moved the digits",
+                        digits, supportUp.get(clock), .01f);
+            }
+        } finally {
+            paints.restore();
+        }
+    }
+
+    /** The largest size each string was drawn at, for one setting of the three sliders. */
+    private static Map<String, Float> drawnSizes(ClockStyle style, float timeScale,
+            float dateScale, float supportingScale) {
+        ClockState state = ClockState.builder(1787633430123L)
+                .timeZone(TimeZone.getTimeZone("Asia/Shanghai"))
+                .locale(Locale.SIMPLIFIED_CHINESE)
+                .showSeconds(false)
+                .dateText("DATE")
+                .weatherText("NOTE")
+                .timeScale(timeScale)
+                .dateScale(dateScale)
+                .supportingScale(supportingScale)
+                .build();
+        RecordingCanvas canvas = new RecordingCanvas(2560f, 1440f);
+        ClockRenderContext context = new ClockRenderContext(0f, 0f, 2560f, 1440f, 2f, 2f,
+                state.getTimeMillis(), ClockBackground.theme(false));
+        style.getRenderer().render(canvas, context, state, style.getThemeTokens());
+        Map<String, Float> sizes = new HashMap<String, Float>();
+        for (TextBounds bounds : canvas.textBounds) {
+            Float previous = sizes.get(bounds.text);
+            if (previous == null || previous < bounds.textSize) {
+                sizes.put(bounds.text, bounds.textSize);
+            }
+        }
+        return sizes;
+    }
+
+    private static String largest(Map<String, Float> sizes) {
+        String widest = null;
+        for (Map.Entry<String, Float> entry : sizes.entrySet()) {
+            if (widest == null || entry.getValue() > sizes.get(widest)) widest = entry.getKey();
+        }
+        Assert.assertNotNull("the style drew no text at all", widest);
+        return widest;
     }
 
     @Test public void portraitDateTextClearsWideStatusCapsule() throws Exception {

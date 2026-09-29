@@ -37,6 +37,26 @@ public final class ClockLayoutCalculator {
         return mainWidth + leftAccessoryWidth + rightAccessoryWidth;
     }
 
+    /**
+     * Caps a size so the row it is drawn at still fits the width. The sizes above are built to
+     * fit at their default factor, and the size sliders scale them from there; past 100% that
+     * would carry a long row off both edges of the frame, so growth stops where the row fills
+     * {@code maxWidthFraction} of the width instead. At or below the default factor this never
+     * binds, so an untouched face is unchanged.
+     *
+     * @param size                    size the row would otherwise be drawn at
+     * @param measuredWidthAtOnePixel text width measured with a text size of 1px
+     * @param width                   current view width in pixels
+     * @param maxWidthFraction        maximum fraction of the width the text may span
+     */
+    public static float capToWidth(float size, float measuredWidthAtOnePixel, int width,
+            float maxWidthFraction) {
+        if (measuredWidthAtOnePixel <= 0f) {
+            return size;
+        }
+        return Math.min(size, width * maxWidthFraction / measuredWidthAtOnePixel);
+    }
+
     public static float calculateMainCenterOffset(float leftAccessoryWidth,
             float rightAccessoryWidth) {
         return (leftAccessoryWidth - rightAccessoryWidth) / 2f;

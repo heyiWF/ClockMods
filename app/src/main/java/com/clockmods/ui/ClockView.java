@@ -94,9 +94,16 @@ public class ClockView extends View {
     private int contentInsetBottom;
     private float timeFontScale = ClockPreferences.DEFAULT_TIME_FONT_SCALE;
     private float dateFontScale = ClockPreferences.DEFAULT_DATE_FONT_SCALE;
+    // The weather summary and detail rows used to ride the date size, because one slider sized
+    // both. They have their own factor now, so the date and the supporting rows can be sized
+    // apart; it is applied on top of the date base, which leaves an untouched install unchanged.
+    private float supportingFontScale = ClockPreferences.DEFAULT_SUPPORTING_FONT_SCALE;
     private boolean blinkColon = ClockPreferences.DEFAULT_BLINK_COLON;
     private boolean animateTimeChanges = ClockPreferences.DEFAULT_ANIMATE_TIME_CHANGES;
     private String timeTransition = ClockPreferences.DEFAULT_TIME_TRANSITION;
+    // The carousel rows are set apart from the digits so a quiet fade can be used for a line of
+    // weather detail that cycles every few seconds while the digits keep their own motion.
+    private String weatherTransition = ClockPreferences.DEFAULT_WEATHER_TRANSITION;
     private boolean boldText = ClockPreferences.DEFAULT_BOLD_TEXT;
     private boolean showSeconds = ClockPreferences.DEFAULT_SHOW_SECONDS;
     private boolean showLunar = ClockPreferences.DEFAULT_SHOW_LUNAR;
@@ -353,8 +360,11 @@ public class ClockView extends View {
         float timeSize = ClockLayoutCalculator.calculateWidthBasedTextSize(
             width, height, measuredTimeWidth, timeFontScale,
             TIME_HEIGHT_FRACTION, TIME_MAX_WIDTH_FRACTION);
-        float dateSize = ClockLayoutCalculator.calculateWidthBasedTextSize(
-            width, height, measureSupportingText(widestDateText), dateFontScale, 0.14f, 0.92f);
+        float measuredDateWidth = measureSupportingText(widestDateText);
+        float dateSize = ClockLayoutCalculator.capToWidth(
+            ClockLayoutCalculator.calculateWidthBasedTextSize(
+                width, height, measuredDateWidth, dateFontScale, 0.14f, 0.92f),
+            measuredDateWidth, width, 0.92f);
         timePaint.setTextSize(timeSize);
         secondsPaint.setTextSize(timeSize * 0.6f);
         periodPaint.setTextSize(timeSize * 0.3f);
@@ -379,7 +389,9 @@ public class ClockView extends View {
                 * weatherDetailScale;
 
         drawAnimatedTime(canvas, displayTime, timeCenterX, timeBaseline);
-        drawWeather(canvas, centerX, timeBaseline, dateSize, timeMetrics, gap, weatherDetailScale);
+        drawWeather(canvas, centerX, timeBaseline,
+                supportingTextSize(width, height, widestDateText, 0.14f), timeMetrics, gap,
+                weatherDetailScale);
         if (lunarText.length() == 0) {
             applySupportingTypeface(dateText);
             drawSupportingText(canvas, dateText, centerX, dateBaseline, Paint.Align.CENTER);
@@ -434,8 +446,11 @@ public class ClockView extends View {
         datePaint.setTextSize(1f);
         String widestDate = lunarText.length() == 0 ? dateText : longerOf(dateText, lunarText);
         applySupportingTypeface(widestDate);
-        float dateSize = ClockLayoutCalculator.calculateWidthBasedTextSize(
-                width, height, measureSupportingText(widestDate), dateFontScale, 0.08f, 0.92f);
+        float measuredDateWidth = measureSupportingText(widestDate);
+        float dateSize = ClockLayoutCalculator.capToWidth(
+                ClockLayoutCalculator.calculateWidthBasedTextSize(
+                        width, height, measuredDateWidth, dateFontScale, 0.08f, 0.92f),
+                measuredDateWidth, width, 0.92f);
         datePaint.setTextSize(dateSize);
         Paint.FontMetrics dateMetrics = datePaint.getFontMetrics();
         float dateLineHeight = dateMetrics.descent - dateMetrics.ascent;
@@ -449,10 +464,19 @@ public class ClockView extends View {
         boolean weatherShown = (backgroundRepository != null
                 && backgroundRepository.isWeatherEnabled()) || hasMessage;
         float dateBlockHeight = hasLunar ? (lunarGap + dateLineHeight) : dateLineHeight;
+        // The weather rows carry their own factor, so the room reserved for them is measured at
+        // that size too — otherwise a larger weather row would be drawn over the digits, and a
+        // smaller one would leave a hole beneath them.
+        float supportingSize = supportingTextSize(width, height, widestDate, 0.08f);
+        datePaint.setTextSize(supportingSize);
+        Paint.FontMetrics supportingMetrics = datePaint.getFontMetrics();
+        float supportingLineHeight = supportingMetrics.descent - supportingMetrics.ascent;
+        datePaint.setTextSize(dateSize);
         float weatherBlockHeight = !weatherShown ? 0f
                 : (weatherTwoLines
-                    ? (dateLineHeight + dateMetrics.descent) * detailGapScale + dateLineHeight
-                    : dateLineHeight);
+                    ? (supportingLineHeight + supportingMetrics.descent) * detailGapScale
+                        + supportingLineHeight
+                    : supportingLineHeight);
 
         float topSafe = height * 0.06f;
         float bottomSafe = height * 0.94f;
@@ -527,8 +551,8 @@ public class ClockView extends View {
 
         // Weather: first row's top sits 'gap' below the seconds (symmetric with date).
         if (weatherShown) {
-            drawWeather(canvas, centerX, blockBottom + gap, dateSize, new Paint.FontMetrics(),
-                    0f, detailGapScale);
+            drawWeather(canvas, centerX, blockBottom + gap, supportingSize,
+                    new Paint.FontMetrics(), 0f, detailGapScale);
         }
     }
 
@@ -567,6 +591,26 @@ public class ClockView extends View {
         }
         stackedPrev[index] = null;
         return false;
+    }
+
+    /**
+     * Size of the weather summary and detail rows. They used to ride the date size, because a
+     * single control sized both; they have their own factor now, applied to the size the date row
+     * takes at its own default, so the date and the supporting rows size apart — and an untouched
+     * install, where the factor is 1, still draws exactly the size it drew before.
+     */
+    private float supportingTextSize(int width, int height, String widestText,
+            float minFraction) {
+        // The calculator wants the width the text would take at one pixel, and the paint is
+        // holding the date size by now, so measure on a temporary size and put it back.
+        float restore = datePaint.getTextSize();
+        datePaint.setTextSize(1f);
+        float measuredAtOnePixel = measureSupportingText(widestText);
+        datePaint.setTextSize(restore);
+        float base = ClockLayoutCalculator.calculateWidthBasedTextSize(
+                width, height, measuredAtOnePixel, ClockPreferences.DEFAULT_DATE_FONT_SCALE,
+                minFraction, 0.92f);
+        return base * supportingFontScale / ClockPreferences.DEFAULT_SUPPORTING_FONT_SCALE;
     }
 
         private void drawWeather(Canvas canvas, float centerX, float timeBaseline,
@@ -765,7 +809,7 @@ public class ClockView extends View {
             return;
         }
 
-        long transitionMillis = ClockPreferences.TRANSITION_SCAN.equals(timeTransition)
+        long transitionMillis = ClockPreferences.TRANSITION_SCAN.equals(weatherTransition)
                 ? ClockDigitTransitionTiming.SCAN_DURATION_MILLIS / 2L
                 : WEATHER_DETAIL_TRANSITION_MILLIS;
         long fadeOutEnd = displayDuration + transitionMillis;
@@ -797,7 +841,7 @@ public class ClockView extends View {
         postInvalidateDelayed(WEATHER_DETAIL_FRAME_DELAY_MILLIS);
     }
 
-    /** Draws both carousel items on the same eased timeline as the clock digits. */
+    /** Draws both carousel items on one eased timeline of their own, apart from the digits. */
     private void drawWeatherDetailItem(Canvas canvas, WeatherLineItem current, WeatherLineItem next,
             float centerX, float baseline, Paint.FontMetrics metrics, float progress,
             long itemElapsed) {
@@ -807,7 +851,7 @@ public class ClockView extends View {
                 ClockPreferences.TRANSITION_FADE, 0f, itemElapsed);
             return;
         }
-        String transition = timeTransition;
+        String transition = weatherTransition;
         float eased = ClockDigitTransitionTiming.easeOutCubic(progress);
         if (ClockPreferences.TRANSITION_SLIDE_RIGHT.equals(transition)
                 || ClockPreferences.TRANSITION_SCAN.equals(transition)) {
@@ -1210,6 +1254,7 @@ public class ClockView extends View {
         }
         timeFontScale = backgroundRepository.getTimeFontScale();
         dateFontScale = backgroundRepository.getDateFontScale();
+        supportingFontScale = backgroundRepository.getSupportingFontScale();
         timePaint.setColor(backgroundRepository.getTimeColor());
         secondsPaint.setColor(backgroundRepository.getTimeColor());
         periodPaint.setColor(backgroundRepository.getTimeColor());
@@ -1217,6 +1262,7 @@ public class ClockView extends View {
         blinkColon = backgroundRepository.isBlinkColon();
         animateTimeChanges = backgroundRepository.isAnimateTimeChanges();
         timeTransition = backgroundRepository.getTimeTransition();
+        weatherTransition = backgroundRepository.getWeatherTransition();
         boldText = backgroundRepository.isBoldText();
         String fontFamily = backgroundRepository.getFontFamily();
         Typeface timeTypeface = ClockTypefaceResolver.resolveTime(getContext(), fontFamily, boldText);

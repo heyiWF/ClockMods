@@ -93,4 +93,18 @@ public class ClockLayoutCalculatorTest {
         Assert.assertEquals(75f,
                 ClockLayoutCalculator.calculateMainCenterOffset(150f, 0f), 0.001f);
     }
+
+    @Test
+    public void capsASizeToTheWidthItIsDrawnIn() {
+        // Twenty-four half-width glyphs measure 12px at a 1px size, so a 1000px view can carry
+        // them at 92% of its width — 920 / 12.
+        Assert.assertEquals(76.666f,
+                ClockLayoutCalculator.capToWidth(120f, 12f, 1000, 0.92f), 0.01f);
+        // A row already inside the width is left exactly where it was, at any factor.
+        Assert.assertEquals(30f,
+                ClockLayoutCalculator.capToWidth(30f, 12f, 1000, 0.92f), 0f);
+        // Nothing measured means nothing to cap against, so the size stands.
+        Assert.assertEquals(120f,
+                ClockLayoutCalculator.capToWidth(120f, 0f, 1000, 0.92f), 0f);
+    }
 }
