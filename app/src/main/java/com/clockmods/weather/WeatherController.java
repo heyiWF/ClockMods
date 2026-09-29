@@ -87,7 +87,7 @@ public final class WeatherController {
             return;
         }
         if (!hasLocationPermission()) {
-            listener.onWeatherState(WeatherState.of(Status.PERMISSION_DENIED, msg(R.string.weather_permission_denied)));
+            reportFailure(Status.PERMISSION_DENIED, msg(R.string.weather_permission_denied));
             return;
         }
         listener.onWeatherState(WeatherState.of(Status.LOADING, msg(R.string.weather_fetching)));
@@ -120,7 +120,7 @@ public final class WeatherController {
             requested = true;
         }
         if (!requested) {
-            listener.onWeatherState(WeatherState.of(Status.LOCATION_UNAVAILABLE, msg(R.string.weather_location_unavailable)));
+            reportFailure(Status.LOCATION_UNAVAILABLE, msg(R.string.weather_location_unavailable));
             schedule(intervalMinutes * 60L * 1000L);
             return;
         }
@@ -131,7 +131,7 @@ public final class WeatherController {
                 removeLocationListener();
                 if (fallback != null) fetch(fallback, requestGeneration);
                 else {
-                    listener.onWeatherState(WeatherState.of(Status.LOCATION_UNAVAILABLE, msg(R.string.weather_location_unavailable)));
+                    reportFailure(Status.LOCATION_UNAVAILABLE, msg(R.string.weather_location_unavailable));
                     schedule(intervalMinutes * 60L * 1000L);
                 }
             }
@@ -140,7 +140,7 @@ public final class WeatherController {
 
     private void fetch(final Location location, final int requestGeneration) {
         if (!QWeatherConfig.isConfigured()) {
-            listener.onWeatherState(WeatherState.of(Status.CONFIG_ERROR, msg(R.string.weather_not_configured)));
+            reportFailure(Status.CONFIG_ERROR, msg(R.string.weather_not_configured));
             return;
         }
         executor.execute(new Runnable() {
@@ -161,8 +161,8 @@ public final class WeatherController {
                     handler.post(new Runnable() {
                         @Override public void run() {
                             if (!running || requestGeneration != generation) return;
-                            listener.onWeatherState(WeatherState.of(Status.NETWORK_ERROR,
-                                    msg(R.string.weather_fetch_failed, describeError(error))));
+                            reportFailure(Status.NETWORK_ERROR,
+                                    msg(R.string.weather_fetch_failed, describeError(error)));
                             schedule(intervalMinutes * 60L * 1000L);
                         }
                     });
@@ -173,7 +173,7 @@ public final class WeatherController {
 
     private void fetchManual(final int requestGeneration) {
         if (!QWeatherConfig.isConfigured()) {
-            listener.onWeatherState(WeatherState.of(Status.CONFIG_ERROR, msg(R.string.weather_not_configured)));
+            reportFailure(Status.CONFIG_ERROR, msg(R.string.weather_not_configured));
             return;
         }
         final String locationId = preferences.getWeatherLocationId();
@@ -218,8 +218,8 @@ public final class WeatherController {
                     handler.post(new Runnable() {
                         @Override public void run() {
                             if (!running || requestGeneration != generation) return;
-                            listener.onWeatherState(WeatherState.of(Status.NETWORK_ERROR,
-                                    msg(R.string.weather_fetch_failed, describeError(error))));
+                            reportFailure(Status.NETWORK_ERROR,
+                                    msg(R.string.weather_fetch_failed, describeError(error)));
                             schedule(intervalMinutes * 60L * 1000L);
                         }
                     });
@@ -270,6 +270,12 @@ public final class WeatherController {
         String message = error.getMessage();
         if (message != null && message.trim().length() > 0) return message.trim();
         return error.getClass().getSimpleName();
+    }
+
+    private void reportFailure(Status status, String detail) {
+        WeatherFailureFeedback.showOnce(context, detail);
+        listener.onWeatherState(WeatherState.of(status,
+                WeatherFailureFeedback.placeholder(context)));
     }
 
     private String msg(int resId) {

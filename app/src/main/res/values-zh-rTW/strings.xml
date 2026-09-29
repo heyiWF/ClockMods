@@ -189,6 +189,7 @@
     <string name="weather_location_unavailable">無法取得目前位置</string>
     <string name="weather_not_configured">天氣服務未設定</string>
     <string name="weather_fetch_failed">天氣取得失敗：%1$s</string>
+    <string name="weather_fetch_failed_placeholder">天氣取得失敗</string>
     <string name="forecast_fetching">正在取得天氣預報…</string>
     <string name="forecast_fetch_failed">天氣預報取得失敗：%1$s</string>
     <string name="weather_feels_format">體感 %1$s℃</string>

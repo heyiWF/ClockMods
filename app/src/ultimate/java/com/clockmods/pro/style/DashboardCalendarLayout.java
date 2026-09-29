@@ -690,9 +690,11 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
                     if (index == 1) column.addView(newForecastLoadingIndicator());
                     continue;
                 }
-                addForecastText(column, state.message == null
-                        ? context.getString(R.string.calendar_forecast_loading) : state.message,
-                        R.dimen.calendar_forecast_text_size, false);
+                if (index == 1) {
+                    addForecastText(column, state.message == null
+                            ? context.getString(R.string.calendar_forecast_loading) : state.message,
+                            R.dimen.calendar_forecast_text_size, false);
+                }
             }
             applyForecastSizing();
             return;
