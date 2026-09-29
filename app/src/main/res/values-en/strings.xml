@@ -188,6 +188,7 @@
     <string name="weather_location_unavailable">Unable to locate you</string>
     <string name="weather_not_configured">Weather service not set up</string>
     <string name="weather_fetch_failed">Weather failed: %1$s</string>
+    <string name="weather_fetch_failed_placeholder">Weather fetch failed</string>
     <string name="forecast_fetching">Fetching forecast…</string>
     <string name="forecast_fetch_failed">Forecast failed: %1$s</string>
     <string name="weather_feels_format">Feels %1$s℃</string>

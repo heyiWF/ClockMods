@@ -505,7 +505,8 @@ public final class ProCalendarFragment extends Fragment {
     private void bindCurrentWeather(WeatherModels.WeatherState state) {
         if (currentTemperature == null) return;
         if (state.data == null) {
-            weatherLoading.setVisibility(View.VISIBLE);
+            weatherLoading.setVisibility(state.status == WeatherModels.Status.LOADING
+                    ? View.VISIBLE : View.GONE);
             currentWeatherIcon.setVisibility(View.GONE);
             currentTemperature.setVisibility(View.GONE);
             feelsLike.setVisibility(View.GONE);
@@ -540,9 +541,19 @@ public final class ProCalendarFragment extends Fragment {
     private void bindForecast(WeatherModels.DailyForecastState state) {
         if (forecastColumns == null) return;
         if (state.data == null) {
-            forecastLoading.setVisibility(View.VISIBLE);
+            boolean loading = state.status == WeatherModels.Status.LOADING;
+            forecastLoading.setVisibility(loading ? View.VISIBLE : View.GONE);
             for (LinearLayout column : forecastColumns) {
+                column.removeAllViews();
                 column.setVisibility(View.GONE);
+            }
+            if (!loading) {
+                LinearLayout center = forecastColumns[1];
+                center.setVisibility(View.VISIBLE);
+                addForecastText(center, state.message == null
+                        ? getString(R.string.weather_fetch_failed_placeholder) : state.message,
+                        R.dimen.calendar_forecast_text_size, false);
+                applyForecastSizing();
             }
             return;
         }
