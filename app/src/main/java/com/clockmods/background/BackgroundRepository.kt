@@ -55,6 +55,8 @@ open class BackgroundRepository(context: Context) {
     fun setAnimateTimeChanges(value: Boolean) = preferences.setAnimateTimeChanges(value)
     fun getTimeTransition() = preferences.getTimeTransition()
     fun setTimeTransition(value: String?) = preferences.setTimeTransition(value)
+    fun getWeatherTransition() = preferences.getWeatherTransition()
+    fun setWeatherTransition(value: String?) = preferences.setWeatherTransition(value)
     fun isHourlyChimeEnabled() = preferences.isHourlyChimeEnabled()
     fun setHourlyChimeEnabled(value: Boolean) = preferences.setHourlyChimeEnabled(value)
     fun isHalfHourChimeEnabled() = preferences.isHalfHourChimeEnabled()

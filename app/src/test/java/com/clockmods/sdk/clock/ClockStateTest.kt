@@ -25,4 +25,23 @@ class ClockStateTest {
             assertEquals(input.toString(), expected, state.getTimeTransitionProgress(), 0f)
         }
     }
+
+    @Test
+    fun weatherTransitionTravelsApartFromTheDigitsTransition() {
+        val state = ClockState.builder(0L)
+            .timeTransition(ClockState.TimeTransition.SCAN)
+            .weatherTransition(ClockState.TimeTransition.SLIDE_RIGHT)
+            .build()
+
+        assertEquals(ClockState.TimeTransition.SCAN, state.getTimeTransition())
+        assertEquals(ClockState.TimeTransition.SLIDE_RIGHT, state.getWeatherTransition())
+    }
+
+    @Test
+    fun weatherTransitionDefaultsToAFade() {
+        val state = ClockState.builder(0L).build()
+
+        assertEquals(ClockState.TimeTransition.FADE, state.getWeatherTransition())
+        assertEquals(ClockState.TimeTransition.FADE, state.getTimeTransition())
+    }
 }

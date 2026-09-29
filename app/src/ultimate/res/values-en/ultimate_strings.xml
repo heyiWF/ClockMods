@@ -61,6 +61,8 @@
     <string name="ultimate_animate_time_changes">Animate digit changes</string>
     <string name="ultimate_animate_time_changes_summary">Use the selected transition when digits change.</string>
     <string name="ultimate_time_transition">Digit transition</string>
+    <string name="ultimate_weather_transition">Weather carousel</string>
+    <string name="ultimate_weather_transition_summary">Transition used when the weather line rotates, set apart from the digit transition.</string>
     <string name="ultimate_transition_fade">Fade</string>
     <string name="ultimate_transition_slide_up">Slide up</string>
     <string name="ultimate_transition_slide_down">Slide down</string>

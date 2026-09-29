@@ -488,7 +488,8 @@ object UltimateClockStyles {
                         horizontalDistance, inkLeft, inkWidth, canvas.width.toFloat())
                     val inwardTravel = ClockTransitionTiming.inwardSweepTravel(
                         horizontalDistance, inkLeft)
-                    val transition = state.getTimeTransition()
+                    // The carousel line travels on its own setting, not the digits'.
+                    val transition = state.getWeatherTransition()
                     when (transition) {
                         ClockState.TimeTransition.SLIDE_RIGHT -> {
                             val travel = ClockTransitionTiming.easeOutCubic(progress)
@@ -508,16 +509,15 @@ object UltimateClockStyles {
                             canvas.restoreToCount(incoming)
                         }
                         ClockState.TimeTransition.SCAN -> {
-                            val left = when (align) {
-                                Paint.Align.LEFT -> x
-                                Paint.Align.RIGHT -> x - maxWidth
-                                else -> x - maxWidth / 2f
-                            }
+                            // The wipe travels the line itself, the way it travels each changed
+                            // glyph on the digits. A band as wide as the whole row would empty the
+                            // line well before the halfway point and leave it blank for the rest
+                            // of the sweep, with the edge crossing nothing but empty space.
                             val feather = size * .22f
-                            val edge = ClockTransitionTiming.scanEdge(left, maxWidth,
+                            val edge = ClockTransitionTiming.scanEdge(inkLeft, inkWidth,
                                 feather, progress)
                             val reveal = progress >= .5f
-                            ClockScanTransition.draw(canvas, left, left + maxWidth,
+                            ClockScanTransition.draw(canvas, inkLeft, inkLeft + inkWidth,
                                 baseline - maxOf(oldSize, size) * 1.5f,
                                 baseline + maxOf(oldSize, size) * .5f,
                                 edge, feather, reveal) { opacity ->

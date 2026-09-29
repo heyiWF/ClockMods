@@ -26,6 +26,7 @@ class ClockState private constructor(
     dateScale: Float,
     supportingScale: Float,
     timeTransition: TimeTransition,
+    weatherTransition: TimeTransition,
     timeTransitionProgress: Float,
     previousWeatherText: String?,
     weatherTransitionProgress: Float,
@@ -52,6 +53,7 @@ class ClockState private constructor(
     private val dateScale = positiveScale(dateScale)
     private val supportingScale = positiveScale(supportingScale)
     private val timeTransition = timeTransition
+    private val weatherTransition = weatherTransition
     private val timeTransitionProgress = transitionProgress(timeTransitionProgress)
     private val previousWeatherText = clean(previousWeatherText)
     private val weatherTransitionProgress = transitionProgress(weatherTransitionProgress)
@@ -75,6 +77,11 @@ class ClockState private constructor(
     fun getDateScale() = dateScale
     fun getSupportingScale() = supportingScale
     fun getTimeTransition() = timeTransition
+    /**
+     * The transition the carousel line uses. It travels with the state, like the digit one, so
+     * a renderer can draw the outgoing item without knowing where the setting came from.
+     */
+    fun getWeatherTransition() = weatherTransition
     fun getTimeTransitionProgress() = timeTransitionProgress
     fun getPreviousWeatherText() = previousWeatherText
     fun getWeatherTransitionProgress() = weatherTransitionProgress
@@ -102,6 +109,7 @@ class ClockState private constructor(
         private var dateScale = 1f
         private var supportingScale = 1f
         private var timeTransition = TimeTransition.FADE
+        private var weatherTransition = TimeTransition.FADE
         private var timeTransitionProgress = 1f
         private var previousWeatherText = ""
         private var weatherTransitionProgress = 1f
@@ -143,6 +151,10 @@ class ClockState private constructor(
             timeTransition = requireNotNull(value) { "timeTransition must not be null" }
         }
 
+        fun weatherTransition(value: TimeTransition?) = apply {
+            weatherTransition = requireNotNull(value) { "weatherTransition must not be null" }
+        }
+
         fun timeTransitionProgress(value: Float) = apply { timeTransitionProgress = value }
         fun previousWeatherText(value: String?) = apply { previousWeatherText = value.orEmpty() }
         fun weatherTransitionProgress(value: Float) = apply { weatherTransitionProgress = value }
@@ -167,6 +179,7 @@ class ClockState private constructor(
             dateScale,
             supportingScale,
             timeTransition,
+            weatherTransition,
             timeTransitionProgress,
             previousWeatherText,
             weatherTransitionProgress,

@@ -61,6 +61,8 @@
     <string name="ultimate_animate_time_changes">數字切換動畫</string>
     <string name="ultimate_animate_time_changes_summary">時間變更時使用選定的數字轉場。</string>
     <string name="ultimate_time_transition">數字轉場</string>
+    <string name="ultimate_weather_transition">天氣輪播</string>
+    <string name="ultimate_weather_transition_summary">天氣行輪播時使用的轉場，與數字轉場相互獨立。</string>
     <string name="ultimate_transition_fade">淡入淡出</string>
     <string name="ultimate_transition_slide_up">向上滑動</string>
     <string name="ultimate_transition_slide_down">向下滑動</string>

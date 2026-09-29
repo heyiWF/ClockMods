@@ -210,7 +210,7 @@ internal class GlassAtelierRenderer : UltimateClockStyles.RendererBase() {
         readableDate(canvas, context, state, infoLeft, dateY, infoRight - infoLeft,
             unit * .034f, theme.getSecondaryTextColor(), Paint.Align.LEFT, sans, !landscape)
         fittedTime(canvas, timeText(state.newCalendar(), state, false), infoLeft, timeY,
-            infoRight - infoLeft, unit * if (landscape) .145f else .12f,
+            infoRight - infoLeft, unit * (if (landscape) .145f else .12f) * state.getTimeScale(),
             theme.getPrimaryTextColor(), Paint.Align.LEFT, bold)
         readableText(canvas, context, contextText(state), infoLeft, contextY, infoRight - infoLeft,
             unit * .034f * state.getSupportingScale(), 12f,
@@ -339,7 +339,8 @@ internal class NoirInstrumentRenderer : UltimateClockStyles.RendererBase() {
         fittedText(canvas, "INSTRUMENT / 24", infoLeft, titleY, infoRight - infoLeft, small,
             theme.getAccentColor(), Paint.Align.LEFT, mono)
         fittedTime(canvas, timeText(c, state, false), infoLeft, timeY, infoRight - infoLeft,
-            unit * if (landscape) .14f else .12f, theme.getPrimaryTextColor(), Paint.Align.LEFT, condensed)
+            unit * (if (landscape) .14f else .12f) * state.getTimeScale(),
+            theme.getPrimaryTextColor(), Paint.Align.LEFT, condensed)
         readableDate(canvas, context, state, infoLeft, dateY, infoRight - infoLeft, unit * .030f,
             theme.getSecondaryTextColor(), Paint.Align.LEFT, mono, !landscape)
         readableText(canvas, context, contextText(state), infoLeft, contextY, infoRight - infoLeft,
@@ -445,7 +446,7 @@ internal class PaperStationRenderer : UltimateClockStyles.RendererBase() {
         canvas.drawLine(infoLeft, dividerY, infoRight, dividerY,
             stroke(theme.getAccentColor(), lineWidth(context, theme, 1f)))
         fittedTime(canvas, timeText(calendar, state, false), infoLeft, timeY, infoRight - infoLeft,
-            unit * if (landscape) .14f else .12f,
+            unit * (if (landscape) .14f else .12f) * state.getTimeScale(),
             theme.getPrimaryTextColor(), Paint.Align.LEFT, sansBold)
         readableText(canvas, context, contextText(state), infoLeft, contextY, infoRight - infoLeft,
             unit * .032f * state.getSupportingScale(), 12f,
@@ -497,7 +498,7 @@ internal class OrbitNeonRenderer : UltimateClockStyles.RendererBase() {
         val time = timeText(c, state, false)
         val display = displayTypeface(theme, Typeface.NORMAL)
         val mono = supportingTypeface(theme, Typeface.NORMAL)
-        val timeSize = fitTime(time, inner * 1.62f, unit * .105f, display)
+        val timeSize = fitTime(time, inner * 1.62f, unit * .105f * state.getTimeScale(), display)
         drawTime(canvas, time, cx, centeredBaseline(cy, timeSize, display), timeSize,
             theme.getPrimaryTextColor(), Paint.Align.CENTER, display)
         val seconds = if (state.isShowSeconds() && state.getSecondHandMotion() != ClockState.SecondHandMotion.OFF) {
@@ -605,6 +606,17 @@ internal class DigitalGridRenderer : UltimateClockStyles.RendererBase() {
         )
         val panelPad = unit * .012f
         val radius = unit * .010f
+        // The digits here are segments rather than type, and this face is already full: the
+        // panels run edge to edge beside the seconds column and stop just above the date row.
+        // So the size slider scales each digit inside the panel that holds it, about that
+        // panel's own centre, and stops where the segments would reach the panel's edge — the
+        // same bargain the type-based faces strike when a row grows until it fills its width.
+        // Nothing is ever clipped, and no row can land on a neighbour. drawDigit keeps
+        // `digitPad` of its cell free on each side, which is what the limit is measured from.
+        val digitPad = minOf(digitWidth, blockHeight) * .18f
+        val segmentScale = minOf(state.getTimeScale(),
+            (digitWidth + panelPad * 2f) / maxOf(1f, digitWidth - digitPad * 2f),
+            (blockHeight + panelPad * 2f) / maxOf(1f, blockHeight - digitPad * 2f))
         val hoursPanel = RectF(positions[0] - panelPad, blockTop - panelPad,
             positions[1] + digitWidth + panelPad, blockTop + blockHeight + panelPad)
         val minutesPanel = RectF(positions[2] - panelPad, blockTop - panelPad,
@@ -613,14 +625,21 @@ internal class DigitalGridRenderer : UltimateClockStyles.RendererBase() {
             canvas.drawRoundRect(panel, radius, radius, fill(alpha(theme.getSurfaceColor(), 225)))
             canvas.drawRoundRect(panel, radius, radius, stroke(alpha(theme.getLineColor(), 185), lineWidth(context, theme, .7f)))
         }
+        val digitCenterY = blockTop + blockHeight * .5f
         repeat(4) { i ->
-            val box = RectF(positions[i], blockTop, positions[i] + digitWidth, blockTop + blockHeight)
+            val cellCenterX = positions[i] + digitWidth * .5f
+            val halfWidth = digitWidth * .5f * segmentScale
+            val halfHeight = blockHeight * .5f * segmentScale
+            val box = RectF(cellCenterX - halfWidth, digitCenterY - halfHeight,
+                cellCenterX + halfWidth, digitCenterY + halfHeight)
             drawDigit(canvas, timeDigits[i] - '0', box, theme)
         }
         val colonX = (positions[1] + digitWidth + positions[2]) * .5f
-        val colonRadius = unit * .010f
-        canvas.drawCircle(colonX, blockTop + blockHeight * .375f, colonRadius, fill(theme.getAccentColor()))
-        canvas.drawCircle(colonX, blockTop + blockHeight * .625f, colonRadius, fill(theme.getAccentColor()))
+        val colonRadius = unit * .010f * segmentScale
+        canvas.drawCircle(colonX, digitCenterY - blockHeight * .125f * segmentScale,
+            colonRadius, fill(theme.getAccentColor()))
+        canvas.drawCircle(colonX, digitCenterY + blockHeight * .125f * segmentScale,
+            colonRadius, fill(theme.getAccentColor()))
 
         val secPanel = if (landscape) {
             RectF(context.getLeft() + w * .835f, blockTop - panelPad,
@@ -722,8 +741,10 @@ internal class TypographicRenderer : UltimateClockStyles.RendererBase() {
             val hourCenterX = (context.getLeft() + divider) * .5f
             val minuteCenterX = divider + (context.getRight() - divider) * .50f
             val centerY = context.getTop() + h * .47f
-            val hourSize = fitTime(hours, (divider - context.getLeft()) * .78f, unit * .34f, display)
-            val minuteSize = fitTime(minutes, (context.getRight() - divider) * .72f, unit * .34f, display)
+            val hourSize = fitTime(hours, (divider - context.getLeft()) * .78f,
+                unit * .34f * state.getTimeScale(), display)
+            val minuteSize = fitTime(minutes, (context.getRight() - divider) * .72f,
+                unit * .34f * state.getTimeScale(), display)
             drawTime(canvas, hours, hourCenterX, centeredBaseline(centerY, hourSize, display), hourSize,
                 panelInk, Paint.Align.CENTER, display)
             drawTime(canvas, minutes, minuteCenterX, centeredBaseline(centerY, minuteSize, display), minuteSize,
@@ -732,8 +753,8 @@ internal class TypographicRenderer : UltimateClockStyles.RendererBase() {
             divider = context.getTop() + h * .48f
             canvas.drawRect(context.getLeft(), context.getTop(), context.getRight(), divider, fill(theme.getSurfaceColor()))
             canvas.drawRect(context.getLeft(), divider, context.getRight(), divider + unit * .008f, fill(theme.getAccentColor()))
-            val hourSize = fitTime(hours, w * .76f, unit * .34f, display)
-            val minuteSize = fitTime(minutes, w * .76f, unit * .34f, display)
+            val hourSize = fitTime(hours, w * .76f, unit * .34f * state.getTimeScale(), display)
+            val minuteSize = fitTime(minutes, w * .76f, unit * .34f * state.getTimeScale(), display)
             val hourCenterY = context.getTop() + h * .27f
             val minuteCenterY = context.getTop() + h * .64f
             drawTime(canvas, hours, context.getCenterX(), centeredBaseline(hourCenterY, hourSize, display), hourSize,

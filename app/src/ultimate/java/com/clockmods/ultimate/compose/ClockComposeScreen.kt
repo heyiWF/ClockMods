@@ -736,6 +736,13 @@ private fun ClockCanvas(
     } else {
         appearance.getDigitTransition(styleId)
     }
+    // The carousel line is set apart from the digits: a quiet fade suits a line of weather
+    // detail that cycles every few seconds, while the digits keep their own motion.
+    val weatherTransitionType = if (styleId == UltimateClockStyles.STYLE_PRO_CLASSIC) {
+        repository.getWeatherTransition()
+    } else {
+        appearance.getWeatherTransition(styleId)
+    }
     val scanTransition = transitionType == ClockPreferences.TRANSITION_SCAN
     val slideTransition = transitionType == ClockPreferences.TRANSITION_SLIDE_RIGHT
     val duration = when {
@@ -748,6 +755,16 @@ private fun ClockCanvas(
     val supportingDuration = if (slideTransition) {
         ClockTransitionTiming.SUPPORTING_DURATION_MILLIS
     } else duration
+    val weatherScan = weatherTransitionType == ClockPreferences.TRANSITION_SCAN
+    val weatherSlide = weatherTransitionType == ClockPreferences.TRANSITION_SLIDE_RIGHT
+    val weatherDuration = when {
+        weatherScan -> ClockTransitionTiming.SCAN_DURATION_MILLIS
+        weatherSlide -> ClockTransitionTiming.SLIDE_DURATION_MILLIS
+        else -> ClockTransitionTiming.DURATION_MILLIS
+    }
+    val weatherCarouselDuration = if (weatherSlide) {
+        ClockTransitionTiming.SUPPORTING_DURATION_MILLIS
+    } else weatherDuration
     val transitionProgress = remember(styleId, transitionKey, animateTime, transitionType) {
         Animatable(if (animateTime) 0f else 1f)
     }
@@ -764,7 +781,7 @@ private fun ClockCanvas(
     // briefly paints the new line at full opacity before snapping back to the old one.
     val committedWeatherText = remember(styleId) { arrayOf(weatherText) }
     val previousWeatherText = remember(styleId, weatherText) { committedWeatherText[0] }
-    val weatherProgress = remember(styleId, weatherText, animateTime, transitionType) {
+    val weatherProgress = remember(styleId, weatherText, animateTime, weatherTransitionType) {
         Animatable(if (animateTime && previousWeatherText.isNotEmpty() &&
             previousWeatherText != weatherText) 0f else 1f)
     }
@@ -772,8 +789,8 @@ private fun ClockCanvas(
     LaunchedEffect(weatherProgress) {
         if (weatherProgress.value < 1f) {
             weatherProgress.animateTo(1f,
-                if (scanTransition) tween(durationMillis = supportingDuration, easing = LinearEasing)
-                else tween(durationMillis = supportingDuration))
+                if (weatherScan) tween(durationMillis = weatherCarouselDuration, easing = LinearEasing)
+                else tween(durationMillis = weatherCarouselDuration))
         }
     }
     val canvasModifier = modifier
@@ -850,6 +867,7 @@ private fun ClockCanvas(
             .dateScale(dateFontScaleForStyle(repository, styleId))
             .supportingScale(repository.getSupportingFontScale(styleId))
             .timeTransition(clockTimeTransition(transitionType))
+            .weatherTransition(clockTimeTransition(weatherTransitionType))
             .timeTransitionProgress(if (animateTime) transitionProgress.value else 1f)
             .previousWeatherText(previousWeatherText)
             .weatherTransitionProgress(if (animateTime) weatherProgress.value else 1f)

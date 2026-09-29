@@ -81,6 +81,19 @@ class UltimateClockPreferences {
             ClockPreferences.normalizeTimeTransition(transition)).apply()
     }
 
+    /** The carousel row carries its own transition, keyed per style like the digit one. */
+    fun getWeatherTransition(styleId: String): String = ClockPreferences.normalizeTimeTransition(
+        preferences.getString(
+            KEY_WEATHER_TRANSITION_PREFIX + normalizeStyleId(styleId),
+            ClockPreferences.DEFAULT_WEATHER_TRANSITION,
+        ),
+    )
+
+    fun setWeatherTransition(styleId: String, transition: String?) {
+        preferences.edit().putString(KEY_WEATHER_TRANSITION_PREFIX + normalizeStyleId(styleId),
+            ClockPreferences.normalizeTimeTransition(transition)).apply()
+    }
+
     fun getBackgroundMode(): String = normalizeBackgroundMode(
         preferences.getString(KEY_BACKGROUND_MODE, DEFAULT_BACKGROUND_MODE)
     )
@@ -119,7 +132,8 @@ class UltimateClockPreferences {
         val editor = preferences.edit()
         preferences.all.keys.filter {
             it.startsWith("palette_") || it.startsWith(KEY_DIGIT_ANIMATION_PREFIX) ||
-                it.startsWith(KEY_DIGIT_TRANSITION_PREFIX)
+                it.startsWith(KEY_DIGIT_TRANSITION_PREFIX) ||
+                it.startsWith(KEY_WEATHER_TRANSITION_PREFIX)
         }.forEach(editor::remove)
         editor.putString(KEY_STYLE_ID, DEFAULT_STYLE_ID)
             .putString(KEY_SECOND_HAND_MOTION, "smooth")
@@ -142,6 +156,7 @@ class UltimateClockPreferences {
         private const val KEY_SECOND_HAND_MOTION = "second_motion"
         private const val KEY_DIGIT_ANIMATION_PREFIX = "digit_animation__"
         private const val KEY_DIGIT_TRANSITION_PREFIX = "digit_transition__"
+        private const val KEY_WEATHER_TRANSITION_PREFIX = "weather_transition__"
 
         @JvmStatic
         fun normalizeStyleId(styleId: String?): String {

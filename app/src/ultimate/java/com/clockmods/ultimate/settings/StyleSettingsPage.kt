@@ -158,6 +158,10 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
         mutableStateOf(if (styleId == UltimateClockStyles.STYLE_PRO_CLASSIC)
             preferences.getTimeTransition() else stylePreferences.getDigitTransition(styleId))
     }
+    var weatherTransition by remember(generation, styleId) {
+        mutableStateOf(if (styleId == UltimateClockStyles.STYLE_PRO_CLASSIC)
+            preferences.getWeatherTransition() else stylePreferences.getWeatherTransition(styleId))
+    }
     var smallSeconds by remember(generation) { mutableStateOf(preferences.isSmallSeconds()) }
     var portraitStacked by remember(generation) { mutableStateOf(preferences.isPortraitStacked()) }
     var dualLine by remember(generation) { mutableStateOf(preferences.isDateLunarDualLine()) }
@@ -176,10 +180,6 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
     }
     val capabilities = activeStyle.getMetadata().getCapabilities()
     val proClassic = styleId == UltimateClockStyles.STYLE_PRO_CLASSIC
-    val supportsTimeScale = proClassic || ClockPalette.supports(styleId)
-    val supportsDateScale = capabilities.supports(ClockStyleCapabilities.Capability.DATE)
-    val supportsSupportingScale = capabilities.supports(ClockStyleCapabilities.Capability.WEATHER) ||
-        capabilities.supports(ClockStyleCapabilities.Capability.STATUS)
     val supportsWorldClock = capabilities.supports(ClockStyleCapabilities.Capability.WORLD_CLOCK)
     val supportsDigitTransition = capabilities.supports(
         ClockStyleCapabilities.Capability.DIGIT_TRANSITION)
@@ -208,6 +208,12 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
                                 preferences.getDateFontScale(styleId)
                             }
                             supportingScale = preferences.getSupportingFontScale(styleId)
+                            weatherTransition = if (metadata.getId() ==
+                                UltimateClockStyles.STYLE_PRO_CLASSIC) {
+                                preferences.getWeatherTransition()
+                            } else {
+                                stylePreferences.getWeatherTransition(styleId)
+                            }
                             palette = stylePreferences.getPalette(styleId)
                         },
                         // Fixed card size keeps every tile in the gallery aligned regardless of
@@ -317,40 +323,36 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
                 valueRange = 0f..(weights.size - 1).coerceAtLeast(1).toFloat(),
                 steps = (weights.size - 2).coerceAtLeast(0),
             )
-            if (supportsTimeScale) {
-                SettingSlider(
-                    stringResource(R.string.ultimate_time_size),
-                    timeScale,
-                    ClockPreferences.MIN_FONT_SCALE..ClockPreferences.MAX_FONT_SCALE,
-                    stringResource(R.string.ultimate_percent_value, (timeScale * 100).toInt()),
-                ) {
-                    timeScale = it
-                    if (proClassic) preferences.setTimeFontScale(it)
-                    else preferences.setTimeFontScale(styleId, it)
-                }
+            // Every face draws a time, a date and a context line of its own, and each of them
+            // reads its own slider, so all three are always offered.
+            SettingSlider(
+                stringResource(R.string.ultimate_time_size),
+                timeScale,
+                ClockPreferences.MIN_FONT_SCALE..ClockPreferences.MAX_FONT_SCALE,
+                stringResource(R.string.ultimate_percent_value, (timeScale * 100).toInt()),
+            ) {
+                timeScale = it
+                if (proClassic) preferences.setTimeFontScale(it)
+                else preferences.setTimeFontScale(styleId, it)
             }
-            if (supportsDateScale) {
-                SettingSlider(
-                    stringResource(R.string.ultimate_date_size),
-                    dateScale,
-                    ClockPreferences.MIN_FONT_SCALE..ClockPreferences.MAX_DATE_FONT_SCALE,
-                    stringResource(R.string.ultimate_percent_value, (dateScale * 100).toInt()),
-                ) {
-                    dateScale = it
-                    if (proClassic) preferences.setDateFontScale(it)
-                    else preferences.setDateFontScale(styleId, it)
-                }
+            SettingSlider(
+                stringResource(R.string.ultimate_date_size),
+                dateScale,
+                ClockPreferences.MIN_FONT_SCALE..ClockPreferences.MAX_DATE_FONT_SCALE,
+                stringResource(R.string.ultimate_percent_value, (dateScale * 100).toInt()),
+            ) {
+                dateScale = it
+                if (proClassic) preferences.setDateFontScale(it)
+                else preferences.setDateFontScale(styleId, it)
             }
-            if (supportsSupportingScale) {
-                SettingSlider(
-                    stringResource(R.string.ultimate_supporting_text_size),
-                    supportingScale,
-                    ClockPreferences.MIN_SUPPORTING_FONT_SCALE..ClockPreferences.MAX_SUPPORTING_FONT_SCALE,
-                    stringResource(R.string.ultimate_percent_value, (supportingScale * 100).toInt()),
-                ) {
-                    supportingScale = it
-                    preferences.setSupportingFontScale(styleId, it)
-                }
+            SettingSlider(
+                stringResource(R.string.ultimate_supporting_text_size),
+                supportingScale,
+                ClockPreferences.MIN_SUPPORTING_FONT_SCALE..ClockPreferences.MAX_SUPPORTING_FONT_SCALE,
+                stringResource(R.string.ultimate_percent_value, (supportingScale * 100).toInt()),
+            ) {
+                supportingScale = it
+                preferences.setSupportingFontScale(styleId, it)
             }
         }
 
@@ -417,6 +419,16 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
                         stylePreferences.setDigitTransition(styleId, it)
                     },
                 )
+            }
+        }
+
+        if (capabilities.supports(ClockStyleCapabilities.Capability.WEATHER)) {
+            SettingSection(stringResource(R.string.ultimate_weather_appearance_section)) {
+                WeatherTransitionControls(weatherTransition, animateDigits) {
+                    weatherTransition = it
+                    if (proClassic) preferences.setWeatherTransition(it)
+                    else stylePreferences.setWeatherTransition(styleId, it)
+                }
             }
         }
 
@@ -504,6 +516,17 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
     }
 }
 
+/** One option list for every transition chooser, so the rows cannot drift apart. */
+private val TRANSITION_OPTIONS = listOf(
+    ClockPreferences.TRANSITION_FADE to R.string.ultimate_transition_fade,
+    ClockPreferences.TRANSITION_SLIDE_UP to R.string.ultimate_transition_slide_up,
+    ClockPreferences.TRANSITION_SLIDE_DOWN to R.string.ultimate_transition_slide_down,
+    ClockPreferences.TRANSITION_SCALE to R.string.ultimate_transition_scale,
+    ClockPreferences.TRANSITION_FLIP to R.string.ultimate_transition_flip,
+    ClockPreferences.TRANSITION_SLIDE_RIGHT to R.string.ultimate_transition_slide_right,
+    ClockPreferences.TRANSITION_SCAN to R.string.ultimate_transition_scan,
+)
+
 @Composable
 private fun DigitTransitionControls(
     animateDigits: Boolean,
@@ -513,25 +536,42 @@ private fun DigitTransitionControls(
 ) {
     SettingSwitch(stringResource(R.string.ultimate_animate_time_changes), animateDigits,
         onChange = onAnimateChange)
-    Text(stringResource(R.string.ultimate_time_transition))
+    TransitionChips(stringResource(R.string.ultimate_time_transition), transition,
+        animateDigits, onTransitionChange)
+}
+
+/**
+ * The carousel line's own transition. It is offered wherever the face can show a weather
+ * line, and it is the switch above that decides whether the line animates at all.
+ */
+@Composable
+private fun WeatherTransitionControls(
+    transition: String,
+    animate: Boolean,
+    onTransitionChange: (String) -> Unit,
+) {
+    TransitionChips(stringResource(R.string.ultimate_weather_transition), transition,
+        animate, onTransitionChange)
+}
+
+@Composable
+private fun TransitionChips(
+    label: String,
+    transition: String,
+    enabled: Boolean,
+    onTransitionChange: (String) -> Unit,
+) {
+    Text(label)
     Row(
         Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
         horizontalArrangement = Arrangement.spacedBy(8.dp),
     ) {
-        listOf(
-            ClockPreferences.TRANSITION_FADE to R.string.ultimate_transition_fade,
-            ClockPreferences.TRANSITION_SLIDE_UP to R.string.ultimate_transition_slide_up,
-            ClockPreferences.TRANSITION_SLIDE_DOWN to R.string.ultimate_transition_slide_down,
-            ClockPreferences.TRANSITION_SCALE to R.string.ultimate_transition_scale,
-            ClockPreferences.TRANSITION_FLIP to R.string.ultimate_transition_flip,
-            ClockPreferences.TRANSITION_SLIDE_RIGHT to R.string.ultimate_transition_slide_right,
-            ClockPreferences.TRANSITION_SCAN to R.string.ultimate_transition_scan,
-        ).forEach { (value, label) ->
+        TRANSITION_OPTIONS.forEach { (value, name) ->
             FilterChip(
                 selected = transition == value,
                 onClick = { onTransitionChange(value) },
-                enabled = animateDigits,
-                label = { Text(stringResource(label)) },
+                enabled = enabled,
+                label = { Text(stringResource(name)) },
             )
         }
     }
