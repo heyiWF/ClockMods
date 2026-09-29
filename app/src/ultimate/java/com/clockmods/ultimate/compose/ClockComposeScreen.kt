@@ -24,6 +24,7 @@ import android.telephony.TelephonyManager
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.animation.core.Animatable
+import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.exponentialDecay
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.Canvas
@@ -113,6 +114,7 @@ import com.clockmods.sdk.clock.ClockOverlayBounds
 import com.clockmods.sdk.clock.ClockRenderContext
 import com.clockmods.sdk.clock.ClockState
 import com.clockmods.sdk.clock.ClockStyleCapabilities
+import com.clockmods.ui.ClockTransitionTiming
 import com.clockmods.sdk.clock.ClockThemeTokens
 import com.clockmods.sdk.clock.WorldClockEntry
 import com.clockmods.time.NetworkTimeProvider
@@ -729,7 +731,15 @@ private fun ClockCanvas(
     } else {
         appearance.isDigitAnimationEnabled(styleId)
     }
-    val transitionProgress = remember(styleId, transitionKey, animateTime) {
+    val transitionType = if (styleId == UltimateClockStyles.STYLE_PRO_CLASSIC) {
+        repository.getTimeTransition()
+    } else {
+        appearance.getDigitTransition(styleId)
+    }
+    val scanTransition = transitionType == ClockPreferences.TRANSITION_SCAN
+    val duration = if (scanTransition) ClockTransitionTiming.SCAN_DURATION_MILLIS
+        else ClockTransitionTiming.DURATION_MILLIS
+    val transitionProgress = remember(styleId, transitionKey, animateTime, transitionType) {
         Animatable(if (animateTime) 0f else 1f)
     }
     val digitTracker = remember(
@@ -737,25 +747,25 @@ private fun ClockCanvas(
         canvasSize.width >= canvasSize.height, animateTime,
     ) { ClockDigitTransitionTracker() }
     LaunchedEffect(transitionProgress) {
-        if (animateTime) transitionProgress.animateTo(1f, tween(durationMillis = 280))
+        if (animateTime) transitionProgress.animateTo(1f,
+            if (scanTransition) tween(durationMillis = duration, easing = LinearEasing)
+            else tween(durationMillis = duration))
     }
     // Capture the outgoing line during composition. Starting the animation later in an effect
     // briefly paints the new line at full opacity before snapping back to the old one.
     val committedWeatherText = remember(styleId) { arrayOf(weatherText) }
     val previousWeatherText = remember(styleId, weatherText) { committedWeatherText[0] }
-    val weatherProgress = remember(styleId, weatherText) {
-        Animatable(if (previousWeatherText.isNotEmpty() && previousWeatherText != weatherText) 0f else 1f)
+    val weatherProgress = remember(styleId, weatherText, animateTime, transitionType) {
+        Animatable(if (animateTime && previousWeatherText.isNotEmpty() &&
+            previousWeatherText != weatherText) 0f else 1f)
     }
     SideEffect { committedWeatherText[0] = weatherText }
     LaunchedEffect(weatherProgress) {
         if (weatherProgress.value < 1f) {
-            weatherProgress.animateTo(1f, tween(durationMillis = 300))
+            weatherProgress.animateTo(1f,
+                if (scanTransition) tween(durationMillis = duration, easing = LinearEasing)
+                else tween(durationMillis = duration))
         }
-    }
-    val transitionType = if (styleId == UltimateClockStyles.STYLE_PRO_CLASSIC) {
-        repository.getTimeTransition()
-    } else {
-        appearance.getDigitTransition(styleId)
     }
     val canvasModifier = modifier
         .onSizeChanged { canvasSize = it }
@@ -833,7 +843,7 @@ private fun ClockCanvas(
             .timeTransition(clockTimeTransition(transitionType))
             .timeTransitionProgress(if (animateTime) transitionProgress.value else 1f)
             .previousWeatherText(previousWeatherText)
-            .weatherTransitionProgress(weatherProgress.value)
+            .weatherTransitionProgress(if (animateTime) weatherProgress.value else 1f)
             .build()
         val renderContext = ClockRenderContext(
             safeArea.contentLeft(size.width.toInt()).toFloat(),
@@ -872,6 +882,8 @@ internal fun clockTimeTransition(value: String?): ClockState.TimeTransition = wh
     ClockPreferences.TRANSITION_SLIDE_DOWN -> ClockState.TimeTransition.SLIDE_DOWN
     ClockPreferences.TRANSITION_SCALE -> ClockState.TimeTransition.SCALE
     ClockPreferences.TRANSITION_FLIP -> ClockState.TimeTransition.FLIP
+    ClockPreferences.TRANSITION_SLIDE_RIGHT -> ClockState.TimeTransition.SLIDE_RIGHT
+    ClockPreferences.TRANSITION_SCAN -> ClockState.TimeTransition.SCAN
     else -> ClockState.TimeTransition.FADE
 }
 

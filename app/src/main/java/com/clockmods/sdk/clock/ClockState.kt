@@ -31,7 +31,7 @@ class ClockState private constructor(
     weatherTransitionProgress: Float,
 ) {
     enum class SecondHandMotion { OFF, TICK, SWEEP }
-    enum class TimeTransition { FADE, SLIDE_UP, SLIDE_DOWN, SCALE, FLIP }
+    enum class TimeTransition { FADE, SLIDE_UP, SLIDE_DOWN, SCALE, FLIP, SLIDE_RIGHT, SCAN }
 
     private val timeMillis = timeMillis
     private val timeZone = timeZone.clone() as TimeZone

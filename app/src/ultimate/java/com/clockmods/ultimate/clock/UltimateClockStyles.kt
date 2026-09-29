@@ -19,6 +19,8 @@ import com.clockmods.sdk.clock.ClockStyleRegistry
 import com.clockmods.sdk.clock.ClockThemeTokens
 import com.clockmods.R
 import com.clockmods.ui.ClockTimeText
+import com.clockmods.ui.ClockTransitionTiming
+import com.clockmods.ui.ClockScanTransition
 import java.text.BreakIterator
 import java.util.Calendar
 import java.util.Locale
@@ -455,13 +457,100 @@ object UltimateClockStyles {
                     value == contextText(state)) {
                     val oldSize = maxOf(floor,
                         fitText(previous, maxWidth, maxOf(floor, preferredSize), face))
+                    val oldVisible = ellipsize(previous, maxWidth, oldSize, face)
                     val oldColor = alpha(readableColor,
                         (Color.alpha(readableColor) * (1f - progress)).toInt())
                     val newColor = alpha(readableColor,
                         (Color.alpha(readableColor) * progress).toInt())
-                    text(canvas, ellipsize(previous, maxWidth, oldSize, face), x, baseline, oldSize,
-                        oldColor, align, face)
-                    text(canvas, visible, x, baseline, size, newColor, align, face)
+                    val distance = maxOf(oldSize, size) *
+                        ClockTransitionTiming.SLIDE_DISTANCE_FRACTION
+                    val transition = state.getTimeTransition()
+                    when (transition) {
+                        ClockState.TimeTransition.SLIDE_RIGHT -> {
+                            val travel = ClockTransitionTiming.easeOutCubic(progress)
+                            val left = when (align) {
+                                Paint.Align.LEFT -> x
+                                Paint.Align.RIGHT -> x - maxWidth
+                                else -> x - maxWidth / 2f
+                            }
+                            val clip = canvas.save()
+                            canvas.clipRect(left, baseline - distance * 3f,
+                                left + maxWidth, baseline + distance)
+                            val outgoing = canvas.save()
+                            canvas.translate(distance * travel, 0f)
+                            text(canvas, oldVisible, x, baseline, oldSize,
+                                alpha(readableColor, (Color.alpha(readableColor) *
+                                    (1f - travel) * (1f - travel)).toInt()),
+                                align, face)
+                            canvas.restoreToCount(outgoing)
+                            val incoming = canvas.save()
+                            canvas.translate(-distance * (1f - travel), 0f)
+                            text(canvas, visible, x, baseline, size,
+                                alpha(readableColor, (Color.alpha(readableColor) *
+                                    travel * travel).toInt()),
+                                align, face)
+                            canvas.restoreToCount(incoming)
+                            canvas.restoreToCount(clip)
+                        }
+                        ClockState.TimeTransition.SCAN -> {
+                            val left = when (align) {
+                                Paint.Align.LEFT -> x
+                                Paint.Align.RIGHT -> x - maxWidth
+                                else -> x - maxWidth / 2f
+                            }
+                            val feather = size * .22f
+                            val edge = ClockTransitionTiming.scanEdge(left, maxWidth,
+                                feather, progress)
+                            val reveal = progress >= .5f
+                            ClockScanTransition.draw(canvas, left, left + maxWidth,
+                                baseline - maxOf(oldSize, size) * 1.5f,
+                                baseline + maxOf(oldSize, size) * .5f,
+                                edge, feather, reveal) { opacity ->
+                                text(canvas, if (reveal) visible else oldVisible, x, baseline,
+                                    if (reveal) size else oldSize,
+                                    alpha(readableColor,
+                                        (Color.alpha(readableColor) * opacity).toInt()),
+                                    align, face)
+                            }
+                        }
+                        ClockState.TimeTransition.SLIDE_UP,
+                        ClockState.TimeTransition.SLIDE_DOWN -> {
+                            val direction = if (transition == ClockState.TimeTransition.SLIDE_UP) -1f else 1f
+                            val oldSave = canvas.save()
+                            canvas.translate(0f, direction * distance * .3f * progress)
+                            text(canvas, oldVisible, x, baseline, oldSize, oldColor, align, face)
+                            canvas.restoreToCount(oldSave)
+                            val newSave = canvas.save()
+                            canvas.translate(0f, -direction * distance * .3f * (1f - progress))
+                            text(canvas, visible, x, baseline, size, newColor, align, face)
+                            canvas.restoreToCount(newSave)
+                        }
+                        ClockState.TimeTransition.SCALE -> {
+                            val oldSave = canvas.save()
+                            canvas.scale(1f + .08f * progress, 1f + .08f * progress, x, baseline)
+                            text(canvas, oldVisible, x, baseline, oldSize, oldColor, align, face)
+                            canvas.restoreToCount(oldSave)
+                            val newSave = canvas.save()
+                            val scale = .88f + .12f * progress
+                            canvas.scale(scale, scale, x, baseline)
+                            text(canvas, visible, x, baseline, size, newColor, align, face)
+                            canvas.restoreToCount(newSave)
+                        }
+                        ClockState.TimeTransition.FLIP -> {
+                            val save = canvas.save()
+                            val scale = if (progress < .5f) maxOf(.05f, 1f - progress * 2f)
+                                else maxOf(.05f, (progress - .5f) * 2f)
+                            canvas.scale(1f, scale, x, baseline - size / 2f)
+                            if (progress < .5f) text(canvas, oldVisible, x, baseline, oldSize,
+                                readableColor, align, face)
+                            else text(canvas, visible, x, baseline, size, readableColor, align, face)
+                            canvas.restoreToCount(save)
+                        }
+                        ClockState.TimeTransition.FADE -> {
+                            text(canvas, oldVisible, x, baseline, oldSize, oldColor, align, face)
+                            text(canvas, visible, x, baseline, size, newColor, align, face)
+                        }
+                    }
                 } else {
                     text(canvas, visible, x, baseline, size, readableColor, align, face)
                 }
@@ -693,28 +782,57 @@ object UltimateClockStyles {
         private fun drawTimeCharacters(canvas: Canvas, previous: String?, current: String,
             x: Float, baseline: Float, paint: Paint, progress: Float,
             transition: ClockState.TimeTransition) {
-            if (previous == null || progress >= 1f ||
-                changedDigitPositions(previous, current).isEmpty()) {
+            if (previous == null || progress >= 1f) {
                 ClockTimeText.draw(canvas, current, x, baseline, paint)
                 return
             }
             val changed = changedDigitPositions(previous, current).toSet()
+            if (changed.isEmpty()) {
+                ClockTimeText.draw(canvas, current, x, baseline, paint)
+                return
+            }
             val originalAlpha = paint.alpha
             val originalAlign = paint.textAlign
-            val characterWidths = current.indices.map { ClockTimeText.slotWidth(current, it, paint) }
-            val totalWidth = characterWidths.sum()
+            val widths = current.indices.map { ClockTimeText.slotWidth(current, it, paint) }
+            val totalWidth = widths.sum()
             var cursor = when (originalAlign) {
                 Paint.Align.CENTER -> x - totalWidth / 2f
                 Paint.Align.RIGHT -> x - totalWidth
                 else -> x
             }
-            paint.textAlign = Paint.Align.CENTER
+            var scanLeft = Float.POSITIVE_INFINITY
+            var scanRight = Float.NEGATIVE_INFINITY
+            if (transition == ClockState.TimeTransition.SCAN) {
+                var position = cursor
+                widths.forEachIndexed { index, width ->
+                    if (index in changed) {
+                        scanLeft = minOf(scanLeft, position)
+                        scanRight = maxOf(scanRight, position + width)
+                    }
+                    position += width
+                }
+            }
+            val scanEdge = if (transition == ClockState.TimeTransition.SCAN)
+                ClockTransitionTiming.scanEdge(scanLeft, scanRight - scanLeft,
+                    paint.textSize * .22f, progress) else 0f
             val colonOffset = if (':' in current) ClockTimeText.colonBaselineOffset(paint) else 0f
+            paint.textAlign = Paint.Align.CENTER
             try {
                 current.forEachIndexed { index, character ->
-                    val center = cursor + characterWidths[index] / 2f
+                    val width = widths[index]
+                    val center = cursor + width / 2f
                     val y = baseline + if (character == ':') colonOffset else 0f
-                    if (index !in changed) {
+                    if (transition == ClockState.TimeTransition.SCAN && index in changed) {
+                        val reveal = progress >= .5f
+                        val glyph = if (reveal) character else previous[index]
+                        ClockScanTransition.draw(canvas, cursor, cursor + width,
+                            y - paint.textSize * 1.4f, y + paint.textSize * .4f,
+                            scanEdge, paint.textSize * .22f, reveal) { opacity ->
+                            paint.alpha = (originalAlpha * opacity).toInt().coerceIn(0, 255)
+                            canvas.drawText(glyph.toString(), center, y, paint)
+                        }
+                    } else if (index !in changed && !(transition == ClockState.TimeTransition.SLIDE_RIGHT &&
+                        ClockTransitionTiming.changedDigitPair(previous, current, index))) {
                         paint.alpha = originalAlpha
                         canvas.drawText(character.toString(), center, y, paint)
                     } else {
@@ -722,11 +840,11 @@ object UltimateClockStyles {
                         val new = character.toString()
                         val pivot = baseline - paint.textSize / 2f
                         fun drawGlyph(value: String, fraction: Float, scaleY: Float = 1f,
-                            shiftY: Float = 0f) {
+                            shiftY: Float = 0f, shiftX: Float = 0f) {
                             if (fraction <= 0f) return
                             paint.alpha = (originalAlpha * fraction).toInt().coerceIn(0, 255)
                             val save = canvas.save()
-                            canvas.translate(0f, shiftY)
+                            canvas.translate(shiftX, shiftY)
                             canvas.scale(1f, scaleY, center, pivot)
                             canvas.drawText(value, center, baseline, paint)
                             canvas.restoreToCount(save)
@@ -744,16 +862,28 @@ object UltimateClockStyles {
                                 drawGlyph(new, progress, scaleY = .88f + .12f * progress)
                             }
                             ClockState.TimeTransition.FLIP -> {
-                                if (progress < .5f) drawGlyph(old, 1f, scaleY = maxOf(.05f, 1f - progress * 2f))
-                                else drawGlyph(new, 1f, scaleY = maxOf(.05f, (progress - .5f) * 2f))
+                                if (progress < .5f) drawGlyph(old, 1f,
+                                    scaleY = maxOf(.05f, 1f - progress * 2f))
+                                else drawGlyph(new, 1f,
+                                    scaleY = maxOf(.05f, (progress - .5f) * 2f))
                             }
+                            ClockState.TimeTransition.SLIDE_RIGHT -> {
+                                val travel = ClockTransitionTiming.easeOutCubic(progress)
+                                val distance = paint.textSize *
+                                    ClockTransitionTiming.SLIDE_DISTANCE_FRACTION
+                                drawGlyph(old, (1f - travel) * (1f - travel),
+                                    shiftX = distance * travel)
+                                drawGlyph(new, travel * travel,
+                                    shiftX = -distance * (1f - travel))
+                            }
+                            ClockState.TimeTransition.SCAN -> Unit
                             ClockState.TimeTransition.FADE -> {
                                 drawGlyph(old, 1f - progress)
                                 drawGlyph(new, progress)
                             }
                         }
                     }
-                    cursor += characterWidths[index]
+                    cursor += width
                 }
             } finally {
                 paint.alpha = originalAlpha

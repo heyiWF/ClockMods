@@ -524,6 +524,8 @@ private fun DigitTransitionControls(
             ClockPreferences.TRANSITION_SLIDE_DOWN to R.string.ultimate_transition_slide_down,
             ClockPreferences.TRANSITION_SCALE to R.string.ultimate_transition_scale,
             ClockPreferences.TRANSITION_FLIP to R.string.ultimate_transition_flip,
+            ClockPreferences.TRANSITION_SLIDE_RIGHT to R.string.ultimate_transition_slide_right,
+            ClockPreferences.TRANSITION_SCAN to R.string.ultimate_transition_scan,
         ).forEach { (value, label) ->
             FilterChip(
                 selected = transition == value,

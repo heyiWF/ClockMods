@@ -66,6 +66,8 @@
     <string name="ultimate_transition_slide_down">Slide down</string>
     <string name="ultimate_transition_scale">Scale</string>
     <string name="ultimate_transition_flip">Flip</string>
+    <string name="ultimate_transition_slide_right">Swipe right</string>
+    <string name="ultimate_transition_scan">Scan reveal</string>
     <string name="ultimate_small_seconds">Use smaller seconds</string>
     <string name="ultimate_small_seconds_summary">Keep hours and minutes as the focus in Pro Classic.</string>
     <string name="ultimate_portrait_stacked">Stack large time in portrait</string>

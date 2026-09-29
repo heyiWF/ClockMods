@@ -66,6 +66,8 @@
     <string name="ultimate_transition_slide_down">向下滑动</string>
     <string name="ultimate_transition_scale">缩放</string>
     <string name="ultimate_transition_flip">翻转</string>
+    <string name="ultimate_transition_slide_right">向右疾滑</string>
+    <string name="ultimate_transition_scan">扫描刷新</string>
     <string name="ultimate_small_seconds">缩小秒数</string>
     <string name="ultimate_small_seconds_summary">让小时和分钟成为 Pro 经典的视觉焦点。</string>
     <string name="ultimate_portrait_stacked">竖屏大字分行</string>
