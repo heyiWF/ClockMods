@@ -259,7 +259,7 @@ internal fun renderClockPreview(
         datePattern, calendar, LocaleManager.dateLang(repository.getClockLanguage()),
     )
     val dateText = if (repository.isShowLunar()) {
-        LunarCalendar.format(calendar).takeIf(String::isNotBlank)?.let { "$solarDate / $it" }
+        LunarCalendar.format(calendar).takeIf(String::isNotBlank)?.let { "$solarDate | $it" }
             ?: solarDate
     } else solarDate
     val state = ClockState.builder(now)
@@ -367,7 +367,7 @@ internal fun ClockScreen(
         LocaleManager.dateLang(repository.getClockLanguage()),
     )
     val dateText = if (!repository.isShowLunar()) solarDate else {
-        LunarCalendar.format(calendar).takeIf(String::isNotBlank)?.let { "$solarDate / $it" }
+        LunarCalendar.format(calendar).takeIf(String::isNotBlank)?.let { "$solarDate | $it" }
             ?: solarDate
     }
     val weatherState = rememberWeatherState(repository, refreshGeneration)
@@ -388,7 +388,7 @@ internal fun ClockScreen(
     )
     val supportingText = listOf(weatherText, repository.getCustomMessage())
         .filter(String::isNotBlank)
-        .joinToString(" / ")
+        .joinToString(" | ")
     val deviceStatus = rememberDeviceStatus()
     val showStatusIcons = repository.isShowStatusIcons()
     val statusFontFamily = repository.getFontFamily(styleId)

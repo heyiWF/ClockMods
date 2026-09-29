@@ -137,7 +137,7 @@ class UltimateClockRendererSmokeTest {
     fun largerDateWrapsBeforeShrinkingAndReturnsToOneLine() {
         val solar = "2026 年 9 月 13 日 星期日"
         val lunar = "丙午[马]年八月初三"
-        val combined = "$solar / $lunar"
+        val combined = "$solar | $lunar"
         val style = UltimateClockStyles.createRegistry().find(UltimateClockStyles.STYLE_ORBIT)!!
         val paints = PaintPoolFixture.install()
         try {
@@ -175,7 +175,7 @@ class UltimateClockRendererSmokeTest {
         assertArrayEquals(arrayOf("", ""), UltimateClockStyles.dateLines("", paint, 100f, false, Locale.US))
         val solar = "09 / 13 / 2026"
         val lunar = "丙午[马]年八月初三"
-        assertArrayEquals(arrayOf(solar, lunar), UltimateClockStyles.dateLines("$solar / $lunar", paint, 1000f, true, Locale.SIMPLIFIED_CHINESE))
+        assertArrayEquals(arrayOf(solar, lunar), UltimateClockStyles.dateLines("$solar | $lunar", paint, 1000f, true, Locale.SIMPLIFIED_CHINESE))
     }
 
     private fun capsuleAtEnd(): ClockOverlayBounds {
@@ -193,7 +193,7 @@ class UltimateClockRendererSmokeTest {
         val density = 2f
         val state = ClockState.builder(1787633430123L)
             .locale(Locale.SIMPLIFIED_CHINESE)
-            .dateText("2026 年 9 月 24 日 星期四 / 丙午[马]年八月十四")
+            .dateText("2026 年 9 月 24 日 星期四 | 丙午[马]年八月十四")
             .dateScale(1.15f)
             .build()
         val paints = PaintPoolFixture.install()
@@ -267,7 +267,7 @@ class UltimateClockRendererSmokeTest {
                 .use24Hour(true)
                 .showSeconds(true)
                 .portraitStacked(true)
-                .dateText("2026 年 9 月 25 日 星期五 / 丙午[马]年八月十五")
+                .dateText("2026 年 9 月 25 日 星期五 | 丙午[马]年八月十五")
                 .weatherText("东风 3 级")
                 .build()
             val canvas = RecordingCanvas(920f, 2048f)
@@ -294,7 +294,7 @@ class UltimateClockRendererSmokeTest {
         val style = UltimateClockStyles.createRegistry().find(UltimateClockStyles.STYLE_BUBBLES)!!
         val state = ClockState.builder(1787633430123L)
             .locale(Locale.SIMPLIFIED_CHINESE)
-            .dateText("2026 年 9 月 24 日 星期四 / 丙午[马]年八月十四")
+            .dateText("2026 年 9 月 24 日 星期四 | 丙午[马]年八月十四")
             .dateScale(1.15f)
             .build()
         val placement = UltimateClockStyles.statusCapsuleBounds(
@@ -453,7 +453,7 @@ class UltimateClockRendererSmokeTest {
             .use24Hour(true)
             .showSeconds(true)
             .secondHandMotion(ClockState.SecondHandMotion.SWEEP)
-            .dateText("2026 年 8 月 25 日 星期二 / 丙午[马]年七月十三 处暑 长中文日期压力测试")
+            .dateText("2026 年 8 月 25 日 星期二 | 丙午[马]年七月十三 处暑 长中文日期压力测试")
             .timeZoneText("GMT+08:00 中国标准时间")
             .weatherText("深圳宝安 30 阴 / 体感温度 34 摄氏度")
             .timeScale(1.5f)

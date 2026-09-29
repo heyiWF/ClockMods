@@ -172,7 +172,7 @@ object UltimateClockStyles {
     @JvmStatic
     fun splitDateAndLunar(value: String?): Array<String> {
         val clean = value?.trim().orEmpty()
-        val divider = clean.lastIndexOf(" / ")
+        val divider = clean.lastIndexOf(" | ")
         if (divider <= 0 || divider + 3 >= clean.length) return arrayOf(clean, "")
         val lunar = clean.substring(divider + 3).trim()
         if ('年' !in lunar || '月' !in lunar) return arrayOf(clean, "")

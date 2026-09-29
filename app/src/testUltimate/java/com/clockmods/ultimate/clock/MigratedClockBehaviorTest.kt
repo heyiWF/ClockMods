@@ -21,7 +21,7 @@ class MigratedClockBehaviorTest {
 
     @Test
     fun blendDateSplitsOnlyTheAppendedLunarValue() {
-        val split = UltimateClockStyles.splitDateAndLunar("2026 / 09 / 11 周五 / 丙午[马]年八月初一")
+        val split = UltimateClockStyles.splitDateAndLunar("2026 / 09 / 11 周五 | 丙午[马]年八月初一")
         assertArrayEquals(arrayOf("2026 / 09 / 11 周五", "丙午[马]年八月初一"), split)
         assertArrayEquals(arrayOf("09 / 11 / 2026", ""), UltimateClockStyles.splitDateAndLunar("09 / 11 / 2026"))
     }
