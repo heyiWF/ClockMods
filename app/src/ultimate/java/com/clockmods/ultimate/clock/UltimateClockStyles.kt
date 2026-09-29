@@ -464,6 +464,23 @@ object UltimateClockStyles {
                         (Color.alpha(readableColor) * progress).toInt())
                     val distance = maxOf(oldSize, size) *
                         ClockTransitionTiming.SLIDE_DISTANCE_FRACTION
+                    // A supporting line is a dozen glyphs wide, so a travel measured against its
+                    // font (about a third of one glyph) reads as no motion at all; measure it
+                    // against the line itself. The sweep box still has to hold the whole glyph box,
+                    // or it slices the tops off CJK characters for as long as the transition runs.
+                    val lineInk = fill(Color.WHITE)
+                    lineInk.typeface = face
+                    lineInk.textSize = maxOf(oldSize, size)
+                    val lineMetrics = lineInk.fontMetrics
+                    val lineAscent = if (lineMetrics.ascent < 0f) lineMetrics.ascent
+                        else -lineInk.textSize * 1.25f
+                    val lineDescent = if (lineMetrics.descent > 0f) lineMetrics.descent
+                        else lineInk.textSize * .35f
+                    val linePadding = maxOf(2f, lineInk.textSize * .12f)
+                    val horizontalDistance = ClockTransitionTiming.supportingSlideDistance(
+                        maxOf(lineInk.measureText(visible), lineInk.measureText(oldVisible)),
+                        lineInk.textSize,
+                    )
                     val transition = state.getTimeTransition()
                     when (transition) {
                         ClockState.TimeTransition.SLIDE_RIGHT -> {
@@ -474,17 +491,17 @@ object UltimateClockStyles {
                                 else -> x - maxWidth / 2f
                             }
                             val clip = canvas.save()
-                            canvas.clipRect(left, baseline - distance * 3f,
-                                left + maxWidth, baseline + distance)
+                            canvas.clipRect(left, baseline + lineAscent - linePadding,
+                                left + maxWidth, baseline + lineDescent + linePadding)
                             val outgoing = canvas.save()
-                            canvas.translate(distance * travel, 0f)
+                            canvas.translate(horizontalDistance * travel, 0f)
                             text(canvas, oldVisible, x, baseline, oldSize,
                                 alpha(readableColor, (Color.alpha(readableColor) *
                                     (1f - travel) * (1f - travel)).toInt()),
                                 align, face)
                             canvas.restoreToCount(outgoing)
                             val incoming = canvas.save()
-                            canvas.translate(-distance * (1f - travel), 0f)
+                            canvas.translate(-horizontalDistance * (1f - travel), 0f)
                             text(canvas, visible, x, baseline, size,
                                 alpha(readableColor, (Color.alpha(readableColor) *
                                     travel * travel).toInt()),

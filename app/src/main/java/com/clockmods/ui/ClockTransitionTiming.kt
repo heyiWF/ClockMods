@@ -6,6 +6,25 @@ object ClockTransitionTiming {
     const val SCAN_DURATION_MILLIS = 480
     const val SLIDE_DISTANCE_FRACTION = .18f
 
+    /** Share of a supporting line's own width that a horizontal sweep travels. */
+    const val SUPPORTING_SLIDE_SHARE = .12f
+
+    /** Clamp for [supportingSlideDistance], measured in em of the line's own font. */
+    const val SUPPORTING_SLIDE_MIN_EM = .5f
+    const val SUPPORTING_SLIDE_MAX_EM = 1.6f
+
+    /**
+     * Travel for a support line that swaps its whole content. [SLIDE_DISTANCE_FRACTION] of the font
+     * size is about a third of one glyph, which is plainly visible on a two-digit clock but all but
+     * invisible on a line a dozen glyphs wide, so the sweep is measured against the line and clamped
+     * to a font-relative range.
+     */
+    fun supportingSlideDistance(lineWidth: Float, fontSize: Float): Float {
+        if (fontSize <= 0f) return 0f
+        return (lineWidth * SUPPORTING_SLIDE_SHARE)
+            .coerceIn(fontSize * SUPPORTING_SLIDE_MIN_EM, fontSize * SUPPORTING_SLIDE_MAX_EM)
+    }
+
     fun easeOutCubic(progress: Float): Float {
         val remaining = 1f - progress.coerceIn(0f, 1f)
         return 1f - remaining * remaining * remaining
