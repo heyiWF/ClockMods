@@ -465,49 +465,47 @@ object UltimateClockStyles {
                     val distance = maxOf(oldSize, size) *
                         ClockTransitionTiming.SLIDE_DISTANCE_FRACTION
                     // A supporting line is a dozen glyphs wide, so a travel measured against its
-                    // font (about a third of one glyph) reads as no motion at all; measure it
-                    // against the line itself. The sweep box still has to hold the whole glyph box,
-                    // or it slices the tops off CJK characters for as long as the transition runs.
+                    // font (about a quarter of one glyph) reads as no motion at all; measure it
+                    // against the line itself.
                     val lineInk = fill(Color.WHITE)
                     lineInk.typeface = face
                     lineInk.textSize = maxOf(oldSize, size)
-                    val lineMetrics = lineInk.fontMetrics
-                    val lineAscent = if (lineMetrics.ascent < 0f) lineMetrics.ascent
-                        else -lineInk.textSize * 1.25f
-                    val lineDescent = if (lineMetrics.descent > 0f) lineMetrics.descent
-                        else lineInk.textSize * .35f
-                    val linePadding = maxOf(2f, lineInk.textSize * .12f)
+                    val inkWidth = maxOf(lineInk.measureText(visible),
+                        lineInk.measureText(oldVisible))
                     val horizontalDistance = ClockTransitionTiming.supportingSlideDistance(
-                        maxOf(lineInk.measureText(visible), lineInk.measureText(oldVisible)),
-                        lineInk.textSize,
+                        inkWidth, lineInk.textSize,
                     )
+                    // The sweep is translation and opacity, nothing else. Fencing it in with a clip
+                    // rectangle is what used to shear the tops off CJK glyphs, so instead each copy
+                    // may travel only as far as the canvas edge it is heading for — and by then it
+                    // has faded out, so the line is never seen cut.
+                    val inkLeft = when (align) {
+                        Paint.Align.LEFT -> x
+                        Paint.Align.RIGHT -> x - inkWidth
+                        else -> x - inkWidth / 2f
+                    }
+                    val outwardTravel = ClockTransitionTiming.outwardSweepTravel(
+                        horizontalDistance, inkLeft, inkWidth, canvas.width.toFloat())
+                    val inwardTravel = ClockTransitionTiming.inwardSweepTravel(
+                        horizontalDistance, inkLeft)
                     val transition = state.getTimeTransition()
                     when (transition) {
                         ClockState.TimeTransition.SLIDE_RIGHT -> {
                             val travel = ClockTransitionTiming.easeOutCubic(progress)
-                            val left = when (align) {
-                                Paint.Align.LEFT -> x
-                                Paint.Align.RIGHT -> x - maxWidth
-                                else -> x - maxWidth / 2f
-                            }
-                            val clip = canvas.save()
-                            canvas.clipRect(left, baseline + lineAscent - linePadding,
-                                left + maxWidth, baseline + lineDescent + linePadding)
                             val outgoing = canvas.save()
-                            canvas.translate(horizontalDistance * travel, 0f)
+                            canvas.translate(outwardTravel * travel, 0f)
                             text(canvas, oldVisible, x, baseline, oldSize,
                                 alpha(readableColor, (Color.alpha(readableColor) *
-                                    (1f - travel) * (1f - travel)).toInt()),
+                                    ClockTransitionTiming.sweepAlpha(travel, true)).toInt()),
                                 align, face)
                             canvas.restoreToCount(outgoing)
                             val incoming = canvas.save()
-                            canvas.translate(-horizontalDistance * (1f - travel), 0f)
+                            canvas.translate(-inwardTravel * (1f - travel), 0f)
                             text(canvas, visible, x, baseline, size,
                                 alpha(readableColor, (Color.alpha(readableColor) *
-                                    travel * travel).toInt()),
+                                    ClockTransitionTiming.sweepAlpha(travel, false)).toInt()),
                                 align, face)
                             canvas.restoreToCount(incoming)
-                            canvas.restoreToCount(clip)
                         }
                         ClockState.TimeTransition.SCAN -> {
                             val left = when (align) {
@@ -888,10 +886,16 @@ object UltimateClockStyles {
                                 val travel = ClockTransitionTiming.easeOutCubic(progress)
                                 val distance = paint.textSize *
                                     ClockTransitionTiming.SLIDE_DISTANCE_FRACTION
-                                drawGlyph(old, (1f - travel) * (1f - travel),
-                                    shiftX = distance * travel)
-                                drawGlyph(new, travel * travel,
-                                    shiftX = -distance * (1f - travel))
+                                // Translation and opacity only, and never past the canvas edge —
+                                // a glyph that slid off the screen would read as a clipped one.
+                                val outwardTravel = ClockTransitionTiming.outwardSweepTravel(
+                                    distance, cursor, width, canvas.width.toFloat())
+                                val inwardTravel = ClockTransitionTiming.inwardSweepTravel(
+                                    distance, cursor)
+                                drawGlyph(old, ClockTransitionTiming.sweepAlpha(travel, true),
+                                    shiftX = outwardTravel * travel)
+                                drawGlyph(new, ClockTransitionTiming.sweepAlpha(travel, false),
+                                    shiftX = -inwardTravel * (1f - travel))
                             }
                             ClockState.TimeTransition.SCAN -> Unit
                             ClockState.TimeTransition.FADE -> {

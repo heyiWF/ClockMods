@@ -737,8 +737,17 @@ private fun ClockCanvas(
         appearance.getDigitTransition(styleId)
     }
     val scanTransition = transitionType == ClockPreferences.TRANSITION_SCAN
-    val duration = if (scanTransition) ClockTransitionTiming.SCAN_DURATION_MILLIS
-        else ClockTransitionTiming.DURATION_MILLIS
+    val slideTransition = transitionType == ClockPreferences.TRANSITION_SLIDE_RIGHT
+    val duration = when {
+        scanTransition -> ClockTransitionTiming.SCAN_DURATION_MILLIS
+        slideTransition -> ClockTransitionTiming.SLIDE_DURATION_MILLIS
+        else -> ClockTransitionTiming.DURATION_MILLIS
+    }
+    // The carousel line sweeps a whole sentence where the clock sweeps one glyph, so it gets its
+    // own, longer run instead of finishing in step with the digits.
+    val supportingDuration = if (slideTransition) {
+        ClockTransitionTiming.SUPPORTING_DURATION_MILLIS
+    } else duration
     val transitionProgress = remember(styleId, transitionKey, animateTime, transitionType) {
         Animatable(if (animateTime) 0f else 1f)
     }
@@ -763,8 +772,8 @@ private fun ClockCanvas(
     LaunchedEffect(weatherProgress) {
         if (weatherProgress.value < 1f) {
             weatherProgress.animateTo(1f,
-                if (scanTransition) tween(durationMillis = duration, easing = LinearEasing)
-                else tween(durationMillis = duration))
+                if (scanTransition) tween(durationMillis = supportingDuration, easing = LinearEasing)
+                else tween(durationMillis = supportingDuration))
         }
     }
     val canvasModifier = modifier
