@@ -79,12 +79,17 @@ internal fun UltimateCalendarLayout(
     val safeTop = with(density) { safeArea.top.toDp() }
     val safeRight = with(density) { safeArea.right.toDp() }
     val safeBottom = with(density) { safeArea.bottom.toDp() }
-    var forecast by remember { mutableStateOf<WeatherModels.DailyForecastData?>(null) }
+    var forecastState by remember { mutableStateOf<WeatherModels.DailyForecastState?>(null) }
     val forecastController = remember(context) { DailyForecastController(context) { state ->
-        if (state.data != null) forecast = state.data
+        forecastState = state
     } }
+    val forecast = forecastState?.data
+    val forecastFailed = forecastState?.let {
+        it.data == null && it.status != WeatherModels.Status.IDLE &&
+            it.status != WeatherModels.Status.LOADING
+    } == true
     DisposableEffect(theme.showWeather, refreshGeneration, weatherState?.status) {
-        forecast = null
+        forecastState = null
         if (theme.showWeather && preferences.isWeatherEnabled()) forecastController.start()
         onDispose(forecastController::stop)
     }
@@ -124,14 +129,14 @@ internal fun UltimateCalendarLayout(
                     if (theme.layout == CalendarLayout.WALL) panel(Modifier.fillMaxSize().padding(gutter))
                     else if (landscape) {
                         Row(Modifier.fillMaxSize().padding(gutter), horizontalArrangement = Arrangement.spacedBy(gutter)) {
-                            DashboardReadings(theme, typography, preferences, weatherState, forecast,
+                            DashboardReadings(theme, typography, preferences, weatherState, forecast, forecastFailed,
                                 clockTick, timeZone, true, gutter.value,
                                 Modifier.weight(1f).fillMaxHeight())
                             panel(Modifier.weight(1f).fillMaxHeight())
                         }
                     } else {
                         Column(Modifier.fillMaxSize().padding(gutter), verticalArrangement = Arrangement.spacedBy(gutter)) {
-                            DashboardReadings(theme, typography, preferences, weatherState, forecast,
+                            DashboardReadings(theme, typography, preferences, weatherState, forecast, forecastFailed,
                                 clockTick, timeZone, false, gutter.value,
                                 Modifier.weight(.46f).fillMaxWidth())
                             panel(Modifier.weight(.54f).fillMaxWidth())
@@ -141,7 +146,7 @@ internal fun UltimateCalendarLayout(
                 CalendarLayout.POSTER -> PosterCalendar(theme, typography, selected, landscape, onToday, grid)
                 CalendarLayout.AGENDA -> AgendaCalendar(theme, typography, preferences, cells, selected,
                     adjacentCells,
-                    monthTitle, timeZone, landscape, weatherState, forecast, scheduleItems,
+                    monthTitle, timeZone, landscape, weatherState, forecast, forecastFailed, scheduleItems,
                     onPrevious, onNext, onToday, onSelect, onMonthPicker, onAddSchedule, onEditSchedule)
             }
         }
@@ -408,6 +413,7 @@ private fun PosterWordmark(year: Int, month: Int, theme: ComposeCalendarTheme,
 @Composable
 private fun DashboardReadings(theme: ComposeCalendarTheme, typography: CalendarTypography,
     preferences: ClockPreferences, weather: WeatherModels.WeatherState?, forecast: WeatherModels.DailyForecastData?,
+    forecastFailed: Boolean,
     tick: () -> Long, zone: TimeZone, landscape: Boolean, gutter: Float, modifier: Modifier) {
     val batteryTextStyle = typography.supportingStyle(
         TextStyle(fontSize = MaterialTheme.typography.labelMedium.fontSize), "100%",
@@ -481,7 +487,12 @@ private fun DashboardReadings(theme: ComposeCalendarTheme, typography: CalendarT
             val bodySize = Sizing.forecastTextSize(cw, h, 1f)
             val iconSize = Sizing.forecastIconSize(cw, h, 1f)
             val headings = listOf(R.string.calendar_today, R.string.calendar_tomorrow, R.string.calendar_after_tomorrow)
-            Row(Modifier.fillMaxSize().padding(horizontal = side.dp)) {
+            if (forecastFailed) {
+                Box(Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                    CalendarText(stringResource(R.string.weather_fetch_failed_placeholder),
+                        bodySize, theme.text, typography)
+                }
+            } else Row(Modifier.fillMaxSize().padding(horizontal = side.dp)) {
                 repeat(3) { index ->
                     val date = Calendar.getInstance(zone).apply { timeInMillis = tick(); add(Calendar.DAY_OF_MONTH, index) }
                     val key = SimpleDateFormat("yyyy-MM-dd", Locale.US).apply { timeZone = zone }.format(date.time)
@@ -577,7 +588,8 @@ private fun CalendarWeatherIcon(code: String?, color: Int, preferences: ClockPre
 private fun AgendaCalendar(theme: ComposeCalendarTheme, typography: CalendarTypography, preferences: ClockPreferences,
     cells: List<CalendarCellInfo>, selection: CalendarCellInfo,
     adjacentCells: (Int) -> List<CalendarCellInfo>, title: String, zone: TimeZone, landscape: Boolean,
-    weather: WeatherModels.WeatherState?, forecast: WeatherModels.DailyForecastData?, schedule: List<ScheduleItem>,
+    weather: WeatherModels.WeatherState?, forecast: WeatherModels.DailyForecastData?,
+    forecastFailed: Boolean, schedule: List<ScheduleItem>,
     previous: () -> Unit, next: () -> Unit, today: () -> Unit, select: (CalendarCellInfo) -> Unit,
     picker: () -> Unit, add: () -> Unit, edit: (ScheduleItem) -> Unit) {
     val week = cells.chunked(7).first { selection in it }
@@ -633,7 +645,7 @@ private fun AgendaCalendar(theme: ComposeCalendarTheme, typography: CalendarTypo
                 actions(fitStatusPillScale(preferences.getStatusIconScale(), maxWidth.value - 60f,
                     typography.supportingScale))
             }
-            Spacer(Modifier.height(8.dp)); AgendaCard(selection, theme, typography, preferences, weather, forecast, schedule, add, edit, Modifier.fillMaxWidth().weight(1f)) }
+            Spacer(Modifier.height(8.dp)); AgendaCard(selection, theme, typography, preferences, weather, forecast, forecastFailed, schedule, add, edit, Modifier.fillMaxWidth().weight(1f)) }
     } else Column(Modifier.fillMaxSize().padding(horizontal = 20.dp, vertical = 16.dp)) {
         BoxWithConstraints(Modifier.fillMaxWidth()) {
             val availableWidth = maxWidth.value
@@ -655,7 +667,7 @@ private fun AgendaCalendar(theme: ComposeCalendarTheme, typography: CalendarTypo
             }
         }
         Spacer(Modifier.height(14.dp)); strip(Modifier.fillMaxWidth().height(90.dp)); Spacer(Modifier.height(14.dp))
-        AgendaCard(selection, theme, typography, preferences, weather, forecast, schedule, add, edit, Modifier.fillMaxWidth().weight(1f))
+        AgendaCard(selection, theme, typography, preferences, weather, forecast, forecastFailed, schedule, add, edit, Modifier.fillMaxWidth().weight(1f))
     }
 }
 
@@ -695,6 +707,7 @@ private fun AgendaStripCell(cell: CalendarCellInfo, selected: Boolean, theme: Co
 @Composable
 private fun AgendaCard(cell: CalendarCellInfo, theme: ComposeCalendarTheme, typography: CalendarTypography,
     preferences: ClockPreferences, weather: WeatherModels.WeatherState?, forecast: WeatherModels.DailyForecastData?,
+    forecastFailed: Boolean,
     schedule: List<ScheduleItem>, add: () -> Unit, edit: (ScheduleItem) -> Unit, modifier: Modifier) {
     BoxWithConstraints(modifier.calendarPanel(theme).padding(18.dp).testTag("agenda-card")) {
         val titleSize = Sizing.agendaDetailTitleSize(maxWidth.value, maxHeight.value, 1f)
@@ -715,6 +728,11 @@ private fun AgendaCard(cell: CalendarCellInfo, theme: ComposeCalendarTheme, typo
                     if (data != null) CalendarText(temperature(data.temperature, preferences), 22f, theme.text, typography, emphasized = true)
                     CalendarText(if (entry == null) data?.text.orEmpty() else "${entry.textDay.orEmpty()} ${temperatureRange(entry, preferences)}", body, theme.secondary, typography, Modifier.weight(1f), maxLines = 2)
                 }
+            } else if (forecastFailed || (cell.day.today && weather?.data == null &&
+                    weather?.status != WeatherModels.Status.LOADING && weather != null)) {
+                Spacer(Modifier.height(14.dp)); HorizontalDivider(color = Color(theme.panelStroke)); Spacer(Modifier.height(14.dp))
+                CalendarText(stringResource(R.string.weather_fetch_failed_placeholder),
+                    body, theme.secondary, typography)
             }
             Spacer(Modifier.height(14.dp))
             PinnedAlmanac(stringResource(R.string.calendar_suitable_prefix), cell.suitable, theme.suitable, body, typography)

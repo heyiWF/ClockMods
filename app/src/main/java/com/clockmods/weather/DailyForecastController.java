@@ -65,7 +65,7 @@ public final class DailyForecastController {
             listener.onDailyForecastState(DailyForecastState.of(Status.LOADING, msg(R.string.forecast_fetching)));
             fetchManual(++generation);
         } else if (!hasLocationPermission()) {
-            listener.onDailyForecastState(DailyForecastState.of(Status.PERMISSION_DENIED, msg(R.string.weather_permission_denied)));
+            reportFailure(Status.PERMISSION_DENIED, msg(R.string.weather_permission_denied));
         } else {
             listener.onDailyForecastState(DailyForecastState.of(Status.LOADING, msg(R.string.forecast_fetching)));
             requestLocation();
@@ -108,15 +108,14 @@ public final class DailyForecastController {
             requested = true;
         }
         if (!requested) {
-            listener.onDailyForecastState(DailyForecastState.of(Status.LOCATION_UNAVAILABLE, msg(R.string.weather_location_unavailable)));
+            reportFailure(Status.LOCATION_UNAVAILABLE, msg(R.string.weather_location_unavailable));
             return;
         }
         handler.postDelayed(() -> {
             if (!running || requestGeneration != generation) return;
             stopLocation();
             if (fallback != null) fetchAutomatic(fallback, requestGeneration);
-            else listener.onDailyForecastState(DailyForecastState.of(
-                    Status.LOCATION_UNAVAILABLE, msg(R.string.weather_location_unavailable)));
+            else reportFailure(Status.LOCATION_UNAVAILABLE, msg(R.string.weather_location_unavailable));
         }, LOCATION_TIMEOUT_MS);
     }
 
@@ -137,7 +136,7 @@ public final class DailyForecastController {
 
     private void fetch(final int requestGeneration, final ForecastRequest request, final String source) {
         if (!QWeatherConfig.isConfigured()) {
-            listener.onDailyForecastState(DailyForecastState.of(Status.CONFIG_ERROR, msg(R.string.weather_not_configured)));
+            reportFailure(Status.CONFIG_ERROR, msg(R.string.weather_not_configured));
             return;
         }
         executor.execute(() -> {
@@ -152,8 +151,8 @@ public final class DailyForecastController {
             } catch (final Exception error) {
                 handler.post(() -> {
                     if (!running || requestGeneration != generation) return;
-                    listener.onDailyForecastState(DailyForecastState.of(Status.NETWORK_ERROR,
-                            msg(R.string.forecast_fetch_failed, describeError(error))));
+                    reportFailure(Status.NETWORK_ERROR,
+                            msg(R.string.forecast_fetch_failed, describeError(error)));
                 });
             }
         });
@@ -217,6 +216,12 @@ public final class DailyForecastController {
         String message = error.getMessage();
         return message == null || message.trim().length() == 0
                 ? error.getClass().getSimpleName() : message.trim();
+    }
+
+    private void reportFailure(Status status, String detail) {
+        WeatherFailureFeedback.showOnce(context, detail);
+        listener.onDailyForecastState(DailyForecastState.of(status,
+                WeatherFailureFeedback.placeholder(context)));
     }
 
     private String msg(int resId) {
