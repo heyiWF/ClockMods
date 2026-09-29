@@ -60,4 +60,22 @@ public class ClockViewTest {
         Assert.assertEquals(248f,
                 ClockView.oneShotMarqueeOffset(10000L, 1000L, 248f, 40f), 0f);
     }
+
+    @Test
+    public void textShadowFadesOutWithTheInkThatCastsIt() {
+        // A shadow layer keeps the alpha it was armed with, so a fading copy has to re-arm it:
+        // otherwise the carousel left a dark ghost of the line it had already faded away.
+        Assert.assertEquals(102, ClockView.textShadowAlpha(255));
+        Assert.assertEquals(0, ClockView.textShadowAlpha(0));
+        Assert.assertTrue(ClockView.textShadowAlpha(64)
+                < ClockView.textShadowAlpha(128));
+        Assert.assertTrue(ClockView.textShadowAlpha(128)
+                < ClockView.textShadowAlpha(192));
+    }
+
+    @Test
+    public void textShadowAlphaStaysInRangeForOutOfRangeInput() {
+        Assert.assertEquals(0, ClockView.textShadowAlpha(-1));
+        Assert.assertEquals(102, ClockView.textShadowAlpha(300));
+    }
 }

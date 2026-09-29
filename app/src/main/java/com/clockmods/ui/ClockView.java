@@ -116,6 +116,10 @@ public class ClockView extends View {
     private long timeTransitionStartedAt;
     private float clockShadowRadius;
     private float clockShadowDy;
+    // The supporting lines carry a tighter shadow than the digits, so they need their own
+    // geometry when the shadow has to be re-armed against a fading alpha.
+    private float supportingShadowRadius;
+    private float supportingShadowDy;
     private WeatherState weatherState;
     // Rotating carousel for the detailed-weather line (feels-like, humidity, …).
     private final Carousel weatherDetailCarousel = new Carousel();
@@ -154,9 +158,11 @@ public class ClockView extends View {
         periodPaint.setTextAlign(Paint.Align.CENTER);
         periodPaint.setShadowLayer(clockShadowRadius, 0f, clockShadowDy, 0x66000000);
 
+        supportingShadowRadius = 6f * density;
+        supportingShadowDy = 2f * density;
         datePaint.setColor(0xFFFFFFFF);
         datePaint.setTextAlign(Paint.Align.CENTER);
-        datePaint.setShadowLayer(6f * density, 0f, 2f * density, 0x66000000);
+        datePaint.setShadowLayer(supportingShadowRadius, 0f, supportingShadowDy, 0x66000000);
         marqueeFadePaint.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
     }
 
@@ -866,7 +872,7 @@ public class ClockView extends View {
             float distance = datePaint.getTextSize() * 0.4f;
             canvas.save();
             canvas.translate(0f, direction * distance * phase);
-            datePaint.setAlpha(Math.round(clampedAlpha / 255f * originalAlpha));
+            setSupportingTextAlpha(datePaint, Math.round(clampedAlpha / 255f * originalAlpha));
             drawWeatherLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
             canvas.restore();
         } else if (ClockPreferences.TRANSITION_SLIDE_RIGHT.equals(transition)) {
@@ -882,7 +888,7 @@ public class ClockView extends View {
                     : ClockDigitTransitionTiming.inwardSweepTravel(distance, inkLeft);
             canvas.save();
             canvas.translate(travel * phase, 0f);
-            datePaint.setAlpha(Math.round(clampedAlpha / 255f * originalAlpha));
+            setSupportingTextAlpha(datePaint, Math.round(clampedAlpha / 255f * originalAlpha));
             drawWeatherLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
             canvas.restore();
         } else if (ClockPreferences.TRANSITION_SCALE.equals(transition)) {
@@ -890,7 +896,7 @@ public class ClockView extends View {
             float pivotY = baseline + (metrics.ascent + metrics.descent) / 2f;
             canvas.save();
             canvas.scale(scale, scale, centerX, pivotY);
-            datePaint.setAlpha(Math.round(clampedAlpha / 255f * originalAlpha));
+            setSupportingTextAlpha(datePaint, Math.round(clampedAlpha / 255f * originalAlpha));
             drawWeatherLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
             canvas.restore();
         } else if (ClockPreferences.TRANSITION_FLIP.equals(transition)) {
@@ -898,14 +904,14 @@ public class ClockView extends View {
             float pivotY = baseline + (metrics.ascent + metrics.descent) / 2f;
             canvas.save();
             canvas.scale(1f, scaleY, centerX, pivotY);
-            datePaint.setAlpha(originalAlpha);
+            setSupportingTextAlpha(datePaint, originalAlpha);
             drawWeatherLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
             canvas.restore();
         } else {
-            datePaint.setAlpha(Math.round(clampedAlpha / 255f * originalAlpha));
+            setSupportingTextAlpha(datePaint, Math.round(clampedAlpha / 255f * originalAlpha));
             drawWeatherLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
         }
-        datePaint.setAlpha(originalAlpha);
+        setSupportingTextAlpha(datePaint, originalAlpha);
     }
 
     private long weatherDetailDisplayDuration(WeatherLineItem item) {
@@ -1693,9 +1699,31 @@ public class ClockView extends View {
     }
 
     private void setClockTextAlpha(Paint paint, int alpha) {
+        setShadowedTextAlpha(paint, alpha, clockShadowRadius, clockShadowDy);
+    }
+
+    private void setSupportingTextAlpha(Paint paint, int alpha) {
+        setShadowedTextAlpha(paint, alpha, supportingShadowRadius, supportingShadowDy);
+    }
+
+    /**
+     * Fades a paint whose shadow layer has to fade with it.
+     *
+     * <p>{@link Paint#setAlpha} dims the fill and nothing else: the shadow keeps the alpha it was
+     * given when it was armed. A copy of a line that fades out would therefore keep casting a
+     * full-strength shadow after its ink is gone — the carousel swap showed a dark ghost of the
+     * outgoing text, and the incoming text arrived as a shadow before its glyphs did. Re-arm the
+     * shadow against the same alpha so both disappear together.
+     */
+    private static void setShadowedTextAlpha(Paint paint, int alpha, float shadowRadius,
+            float shadowDy) {
         paint.setAlpha(alpha);
-        int shadowAlpha = Math.round(CLOCK_SHADOW_ALPHA * alpha / 255f);
-        paint.setShadowLayer(clockShadowRadius, 0f, clockShadowDy, shadowAlpha << 24);
+        paint.setShadowLayer(shadowRadius, 0f, shadowDy, textShadowAlpha(alpha) << 24);
+    }
+
+    /** Shadow alpha for text drawn at {@code alpha}: it has to reach 0 together with the ink. */
+    static int textShadowAlpha(int alpha) {
+        return Math.round(CLOCK_SHADOW_ALPHA * Math.max(0, Math.min(255, alpha)) / 255f);
     }
 
     private static float bottomAlignedBaseline(float mainBaseline, Paint mainPaint,
