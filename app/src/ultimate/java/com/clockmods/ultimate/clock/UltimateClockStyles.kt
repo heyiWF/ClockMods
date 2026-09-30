@@ -376,6 +376,11 @@ object UltimateClockStyles {
         protected fun text(canvas: Canvas, value: String?, x: Float, baseline: Float,
             size: Float, color: Int, align: Paint.Align, face: Typeface?) {
             if (value.isNullOrEmpty() || size <= 0f) return
+            val divider = value.lastIndexOf(DIVIDER)
+            if (divider > 0 && divider + DIVIDER.length < value.length) {
+                textWithDivider(canvas, value, divider, x, baseline, size, color, align, face)
+                return
+            }
             val paint = fill(color)
             paint.textSize = size
             paint.textAlign = align
@@ -386,6 +391,57 @@ object UltimateClockStyles {
                 photoTextFill(paint, color, size)
             }
             canvas.drawText(value, x, baseline, paint)
+        }
+
+        /**
+         * The " | " separator the host joins two fields with is rendered as a real, centred
+         * rule instead of the ASCII pipe, whose glyph is not vertical in every system font.
+         * The rule is drawn between the two segments so it sits on the optical centre of the
+         * line, exactly as tall as the surrounding text, and never depends on a font glyph.
+         */
+        private val DIVIDER = " | "
+
+        private fun textWithDivider(canvas: Canvas, value: String, divider: Int, x: Float,
+            baseline: Float, size: Float, color: Int, align: Paint.Align, face: Typeface?) {
+            val measure = fill(color)
+            measure.typeface = face
+            measure.textSize = size
+            val left = value.substring(0, divider)
+            val right = value.substring(divider + DIVIDER.length)
+            val leftWidth = measure.measureText(left)
+            val rightWidth = measure.measureText(right)
+            val spaceWidth = measure.measureText(" ")
+            val ruleWidth = maxOf(1f, size * .06f)
+            val totalWidth = leftWidth + spaceWidth * 2f + ruleWidth + rightWidth
+            val startX = when (align) {
+                Paint.Align.RIGHT -> x - totalWidth
+                Paint.Align.CENTER -> x - totalWidth * .5f
+                else -> x
+            }
+            val metrics = measure.fontMetrics
+            val ruleHeight = -metrics.ascent * .62f
+            val ruleTop = baseline + (metrics.ascent + metrics.descent) * .5f - ruleHeight * .5f
+            val rightX = startX + leftWidth + spaceWidth * 2f + ruleWidth
+            val photoText = PAINT_POOL.get().photoText
+            drawDividerSegment(canvas, left, startX, baseline, size, color, face, photoText)
+            val rule = fill(color)
+            canvas.drawRect(startX + leftWidth + spaceWidth, ruleTop,
+                startX + leftWidth + spaceWidth + ruleWidth, ruleTop + ruleHeight, rule)
+            drawDividerSegment(canvas, right, rightX, baseline, size, color, face, photoText)
+        }
+
+        private fun drawDividerSegment(canvas: Canvas, segment: String, x: Float,
+            baseline: Float, size: Float, color: Int, face: Typeface?, photoText: Boolean) {
+            val p = fill(color)
+            p.textSize = size
+            p.textAlign = Paint.Align.LEFT
+            p.typeface = face
+            if (photoText) {
+                photoTextOutline(p, size)
+                canvas.drawText(segment, x, baseline, p)
+                photoTextFill(p, color, size)
+            }
+            canvas.drawText(segment, x, baseline, p)
         }
 
         private fun photoTextOutline(paint: Paint, size: Float) {
