@@ -800,12 +800,65 @@ public final class UltimateClockStyles {
             p.setTextSize(size);
             p.setTextAlign(align);
             p.setTypeface(face);
+            int divider = value.lastIndexOf(DIVIDER);
+            if (divider > 0 && divider + DIVIDER.length() < value.length()) {
+                textWithDivider(canvas, value, divider, x, baseline, size, color, align, face);
+                return;
+            }
             if (PAINT_POOL.get().photoText) {
                 photoTextOutline(p, size);
                 canvas.drawText(value, x, baseline, p);
                 photoTextFill(p, color, size);
             }
             canvas.drawText(value, x, baseline, p);
+        }
+
+        /**
+         * The " | " separator the host joins two fields with is rendered as a real, centred
+         * rule instead of the ASCII pipe, whose glyph is not vertical in every system font.
+         * The rule is drawn between the two segments so it sits on the optical centre of the
+         * line, exactly as tall as the surrounding text, and never depends on a font glyph.
+         */
+        private static final String DIVIDER = " | ";
+
+        private static void textWithDivider(Canvas canvas, String value, int divider, float x,
+                float baseline, float size, int color, Paint.Align align, Typeface face) {
+            Paint measure = fill(color);
+            measure.setTypeface(face);
+            measure.setTextSize(size);
+            String left = value.substring(0, divider);
+            String right = value.substring(divider + DIVIDER.length());
+            float leftWidth = measure.measureText(left);
+            float rightWidth = measure.measureText(right);
+            float spaceWidth = measure.measureText(" ");
+            float ruleWidth = Math.max(1f, size * .06f);
+            float totalWidth = leftWidth + spaceWidth * 2f + ruleWidth + rightWidth;
+            float startX = align == Paint.Align.RIGHT ? x - totalWidth
+                    : align == Paint.Align.CENTER ? x - totalWidth * .5f : x;
+            Paint.FontMetrics metrics = measure.getFontMetrics();
+            float ruleHeight = (-metrics.ascent) * .62f;
+            float ruleTop = baseline + (metrics.ascent + metrics.descent) * .5f - ruleHeight * .5f;
+            float rightX = startX + leftWidth + spaceWidth * 2f + ruleWidth;
+            boolean photoText = PAINT_POOL.get().photoText;
+            drawDividerSegment(canvas, left, startX, baseline, size, color, face, photoText);
+            Paint rule = fill(color);
+            canvas.drawRect(startX + leftWidth + spaceWidth, ruleTop,
+                    startX + leftWidth + spaceWidth + ruleWidth, ruleTop + ruleHeight, rule);
+            drawDividerSegment(canvas, right, rightX, baseline, size, color, face, photoText);
+        }
+
+        private static void drawDividerSegment(Canvas canvas, String segment, float x,
+                float baseline, float size, int color, Typeface face, boolean photoText) {
+            Paint p = fill(color);
+            p.setTextSize(size);
+            p.setTextAlign(Paint.Align.LEFT);
+            p.setTypeface(face);
+            if (photoText) {
+                photoTextOutline(p, size);
+                canvas.drawText(segment, x, baseline, p);
+                photoTextFill(p, color, size);
+            }
+            canvas.drawText(segment, x, baseline, p);
         }
 
         private static void photoTextOutline(Paint paint, float size) {

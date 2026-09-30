@@ -1118,8 +1118,12 @@ public class ClockView extends View {
         for (int start = 0; start < text.length();) {
             int codePoint = text.codePointAt(start);
             int end = start + Character.charCount(codePoint);
-            datePaint.setTypeface(supportingTypefaceFor(codePoint));
-            width += datePaint.measureText(text, start, end);
+            if (codePoint == '|' && isDividerPipe(text, start)) {
+                width += Math.max(1f, datePaint.getTextSize() * .06f);
+            } else {
+                datePaint.setTypeface(supportingTypefaceFor(codePoint));
+                width += datePaint.measureText(text, start, end);
+            }
             if (hasSupportingTrackingAt(text, end)) width += spacing;
             start = end;
         }
@@ -1230,17 +1234,37 @@ public class ClockView extends View {
         Typeface originalTypeface = datePaint.getTypeface();
         datePaint.setTextAlign(Paint.Align.LEFT);
         float spacing = datePaint.getTextSize() * SUPPORTING_TEXT_LETTER_SPACING;
+        Paint.FontMetrics metrics = datePaint.getFontMetrics();
+        float ruleHeight = (-metrics.ascent) * .62f;
+        float ruleTop = baseline + (metrics.ascent + metrics.descent) * .5f - ruleHeight * .5f;
         for (int start = 0; start < text.length();) {
             int codePoint = text.codePointAt(start);
             int end = start + Character.charCount(codePoint);
-            datePaint.setTypeface(supportingTypefaceFor(codePoint));
-            canvas.drawText(text, start, end, cursor, baseline, datePaint);
-            cursor += datePaint.measureText(text, start, end);
+            if (codePoint == '|' && isDividerPipe(text, start)) {
+                // The " | " field separator is a drawn rule, not a font glyph, so it stays
+                // centred and vertical in every system font.
+                float ruleWidth = Math.max(1f, datePaint.getTextSize() * .06f);
+                canvas.drawRect(cursor, ruleTop, cursor + ruleWidth, ruleTop + ruleHeight,
+                        datePaint);
+                cursor += ruleWidth;
+            } else {
+                datePaint.setTypeface(supportingTypefaceFor(codePoint));
+                canvas.drawText(text, start, end, cursor, baseline, datePaint);
+                cursor += datePaint.measureText(text, start, end);
+            }
             if (hasSupportingTrackingAt(text, end)) cursor += spacing;
             start = end;
         }
         datePaint.setTypeface(originalTypeface);
         datePaint.setTextAlign(originalAlign);
+    }
+
+    /** True when {@code text} at {@code offset} is the pipe of a " | " field separator. */
+    private static boolean isDividerPipe(String text, int offset) {
+        return offset > 0 && offset < text.length() - 1
+                && text.charAt(offset) == '|'
+                && text.charAt(offset - 1) == ' '
+                && text.charAt(offset + 1) == ' ';
     }
 
     private Typeface supportingTypefaceFor(int codePoint) {

@@ -109,7 +109,9 @@ public class UltimateClockRendererSmokeTest {
                 style.getRenderer().render(canvas, context, state, style.getThemeTokens());
                 canvas.assertTextInside(UltimateClockStyles.STYLE_ORBIT);
                 if (scale < 1f) {
-                    Assert.assertTrue(canvas.textBounds.stream().anyMatch(b -> combined.equals(b.text)));
+                    // The " | " separator is drawn as a rule, so the date lands as two text runs.
+                    Assert.assertTrue(canvas.textBounds.stream().anyMatch(b -> solar.equals(b.text)));
+                    Assert.assertTrue(canvas.textBounds.stream().anyMatch(b -> lunar.equals(b.text)));
                 } else {
                     TextBounds first = canvas.textBounds.stream().filter(b -> solar.equals(b.text))
                             .findFirst().orElseThrow(() -> new AssertionError("Missing solar row"));
