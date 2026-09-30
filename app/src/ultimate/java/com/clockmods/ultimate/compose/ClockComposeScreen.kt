@@ -16,6 +16,9 @@ import android.net.wifi.WifiInfo
 import android.net.wifi.WifiManager
 import android.os.BatteryManager
 import android.os.Handler
+import android.os.SystemClock
+import com.clockmods.sdk.clock.MessageMarqueeLayout
+import com.clockmods.sdk.clock.WeatherCarousel
 import android.os.Looper
 import android.telephony.SignalStrength
 import android.telephony.SubscriptionManager
@@ -91,6 +94,8 @@ import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalWindowInfo
 import androidx.compose.ui.platform.testTag
 import androidx.compose.ui.res.painterResource
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.PlatformTextStyle
@@ -379,16 +384,18 @@ internal fun ClockScreen(
         stringResource(R.string.weather_air_format),
         stringResource(R.string.weather_warning_suffix),
     )
-    val weatherText = formatWeatherState(
+    val weatherItems = weatherCarouselItems(
         weatherState,
         repository.getWeatherTemperatureUnit(),
         repository.isWeatherDetailed(),
         weatherDetailLabels,
-        tick,
+        repository.getCustomMessage(),
     )
-    val supportingText = listOf(weatherText, repository.getCustomMessage())
-        .filter(String::isNotBlank)
-        .joinToString(" | ")
+    val messageLayout = remember(styleId) { MessageMarqueeLayout() }
+    val weatherTransition = clockTimeTransition(if (styleId == UltimateClockStyles.STYLE_PRO_CLASSIC)
+        repository.getWeatherTransition() else appearance.getWeatherTransition(styleId))
+    val weatherLine = rememberWeatherLine(weatherItems, repository.getCustomMessage().isNotBlank(),
+        messageLayout, weatherTransition, styleId)
     val deviceStatus = rememberDeviceStatus()
     val showStatusIcons = repository.isShowStatusIcons()
     val statusFontFamily = repository.getFontFamily(styleId)
@@ -440,7 +447,13 @@ internal fun ClockScreen(
             locale = locale,
             timeZone = zone,
             dateText = dateText,
-            weatherText = supportingText,
+            weatherText = weatherLine.text,
+            messageActive = weatherLine.messageActive,
+            messageInRotation = weatherLine.messageInRotation,
+            messageStarted = weatherLine.started,
+            previousMessageActive = weatherLine.previousMessageActive,
+            previousMessageElapsed = weatherLine.previousMessageElapsed,
+            messageLayout = messageLayout,
             worldClocks = worldClocks,
             repository = repository,
             appearance = appearance,
@@ -609,6 +622,12 @@ private fun ClockCanvas(
     timeZone: TimeZone,
     dateText: String,
     weatherText: String,
+    messageActive: Boolean,
+    messageInRotation: Boolean,
+    messageStarted: Long,
+    previousMessageActive: Boolean,
+    previousMessageElapsed: Long,
+    messageLayout: MessageMarqueeLayout,
     worldClocks: List<WorldClockEntry>,
     repository: BackgroundRepository,
     appearance: UltimateClockPreferences,
@@ -782,7 +801,7 @@ private fun ClockCanvas(
     val committedWeatherText = remember(styleId) { arrayOf(weatherText) }
     val previousWeatherText = remember(styleId, weatherText) { committedWeatherText[0] }
     val weatherProgress = remember(styleId, weatherText, animateTime, weatherTransitionType) {
-        Animatable(if (animateTime && previousWeatherText.isNotEmpty() &&
+        Animatable(if (previousWeatherText.isNotEmpty() &&
             previousWeatherText != weatherText) 0f else 1f)
     }
     SideEffect { committedWeatherText[0] = weatherText }
@@ -793,7 +812,17 @@ private fun ClockCanvas(
                 else tween(durationMillis = weatherCarouselDuration))
         }
     }
+    // The message marquee advances on the frame clock. Only the redraw is driven here — the scroll
+    // offset uses the monotonic item start, including its incoming animation.
+    var marqueeFrame by remember { mutableLongStateOf(0L) }
+    LaunchedEffect(messageActive) {
+        if (!messageActive) return@LaunchedEffect
+        while (true) {
+            withFrameMillis { frame -> marqueeFrame = frame }
+        }
+    }
     val canvasModifier = modifier
+        .semantics { contentDescription = weatherText }
         .onSizeChanged { canvasSize = it }
         .pointerInput(worldClocks, scrollMaximum, bottomOverlayInset, safeArea) {
             var draggingStrip = false
@@ -870,7 +899,15 @@ private fun ClockCanvas(
             .weatherTransition(clockTimeTransition(weatherTransitionType))
             .timeTransitionProgress(if (animateTime) transitionProgress.value else 1f)
             .previousWeatherText(previousWeatherText)
-            .weatherTransitionProgress(if (animateTime) weatherProgress.value else 1f)
+            .weatherTransitionProgress(weatherProgress.value)
+            .messageActive(messageActive)
+            .messageContinuous(!messageInRotation)
+            .previousMessageActive(previousMessageActive)
+            .previousMessageScrollElapsedMillis(previousMessageElapsed)
+            .messageScrollElapsedMillis(run {
+                @Suppress("UNUSED_EXPRESSION") marqueeFrame
+                if (messageActive) (SystemClock.uptimeMillis() - messageStarted).coerceAtLeast(0L) else 0L
+            })
             .build()
         val renderContext = ClockRenderContext(
             safeArea.contentLeft(size.width.toInt()).toFloat(),
@@ -895,7 +932,8 @@ private fun ClockCanvas(
             digitTracker.beginFrame()
             paintPool.digitTracker = if (animateTime) digitTracker else null
             try {
-                style.getRenderer().render(canvas, renderContext, state, theme)
+                UltimateClockStyles.renderWithMessageLayout(style.getRenderer(), canvas,
+                    renderContext, state, theme, messageLayout)
             } finally {
                 paintPool.digitTracker = previousTracker
                 canvas.restoreToCount(save)
@@ -1048,29 +1086,76 @@ internal fun rememberWeatherState(
     return state
 }
 
-internal fun formatWeatherState(
-    state: WeatherModels.WeatherState?,
-    temperatureUnit: String,
-    detailed: Boolean,
-    labels: WeatherModels.WeatherDetail.DetailLabels,
-    nowMillis: Long,
-): String {
-    state ?: return ""
-    val data = state.data ?: return state.message.orEmpty()
-    val summary = buildList {
-        WeatherModels.locationText(data.city, data.district).takeIf(String::isNotBlank)?.let(::add)
-        WeatherTemperatureFormatter.format(data.temperature, temperatureUnit)
-            .takeIf(String::isNotBlank)?.let(::add)
-        data.text?.takeIf(String::isNotBlank)?.let(::add)
-    }.joinToString(" ")
-    if (!detailed) return summary
-    val carousel = buildList {
-        summary.takeIf(String::isNotBlank)?.let(::add)
-        addAll(data.detail?.carouselItems(labels, temperatureUnit).orEmpty())
+/** One line of the supporting carousel: its text, whether it is the user's message, and its age. */
+internal data class WeatherLine(
+    @JvmField val text: String,
+    @JvmField val messageActive: Boolean,
+    @JvmField val messageInRotation: Boolean,
+    @JvmField val started: Long = 0L,
+    @JvmField val previousMessageActive: Boolean = false,
+    @JvmField val previousMessageElapsed: Long = 0L,
+    @JvmField val messageElapsedMillis: Long = 0L,
+)
+
+internal fun weatherCarouselItems(state: WeatherModels.WeatherState?, temperatureUnit: String,
+    detailed: Boolean, labels: WeatherModels.WeatherDetail.DetailLabels,
+    customMessage: String): List<String> {
+    return buildList {
+        if (state != null) {
+            val data = state.data
+            if (data != null) {
+                val summary = buildList {
+                    WeatherModels.locationText(data.city, data.district)
+                        .takeIf(String::isNotBlank)?.let(::add)
+                    WeatherTemperatureFormatter.format(data.temperature, temperatureUnit)
+                        .takeIf(String::isNotBlank)?.let(::add)
+                    data.text?.takeIf(String::isNotBlank)?.let(::add)
+                }.joinToString(" ")
+                summary.takeIf(String::isNotBlank)?.let(::add)
+                if (detailed) {
+                    addAll(data.detail?.carouselItems(labels, temperatureUnit).orEmpty())
+                }
+            } else {
+                state.message.orEmpty().takeIf(String::isNotBlank)?.let(::add)
+            }
+        }
+        customMessage.takeIf(String::isNotBlank)?.let(::add)
     }
-    if (carousel.isEmpty()) return summary
+}
+
+@Composable
+private fun rememberWeatherLine(items: List<String>, hasMessage: Boolean,
+    layout: MessageMarqueeLayout, transition: ClockState.TimeTransition, styleId: String): WeatherLine {
+    val carousel = remember(items, hasMessage, styleId) { WeatherCarousel(items, hasMessage) }
+    val transitionMillis = when (transition) {
+        ClockState.TimeTransition.SCAN -> ClockTransitionTiming.SCAN_DURATION_MILLIS
+        ClockState.TimeTransition.SLIDE_RIGHT -> ClockTransitionTiming.SUPPORTING_DURATION_MILLIS
+        else -> ClockTransitionTiming.DURATION_MILLIS
+    }.toLong()
+    fun line() = WeatherLine(carousel.text(), carousel.messageActive(), items.size > 1,
+        carousel.started, carousel.previousMessage, carousel.previousMessageElapsed)
+    var current by remember(carousel) {
+        carousel.advance(SystemClock.uptimeMillis(), layout.displayMillis, transitionMillis)
+        mutableStateOf(line())
+    }
+    LaunchedEffect(carousel, transitionMillis) {
+        while (true) withFrameMillis {
+            if (carousel.advance(SystemClock.uptimeMillis(), layout.displayMillis, transitionMillis))
+                current = line()
+        }
+    }
+    return current
+}
+
+internal fun formatWeatherState(state: WeatherModels.WeatherState?, temperatureUnit: String,
+    detailed: Boolean, labels: WeatherModels.WeatherDetail.DetailLabels, nowMillis: Long,
+    customMessage: String): WeatherLine {
+    val carousel = weatherCarouselItems(state, temperatureUnit, detailed, labels, customMessage)
+    if (carousel.isEmpty()) return WeatherLine("", false, false)
     val index = ((nowMillis.coerceAtLeast(0L) / WEATHER_DETAIL_HOLD_MILLIS) % carousel.size).toInt()
-    return carousel[index]
+    val messageActive = customMessage.isNotBlank() && index == carousel.size - 1
+    return WeatherLine(carousel[index], messageActive, carousel.size > 1,
+        messageElapsedMillis = if (messageActive) nowMillis % WEATHER_DETAIL_HOLD_MILLIS else 0L)
 }
 
 @Composable

@@ -5,12 +5,15 @@ import android.graphics.Canvas
 import android.graphics.Color
 import android.graphics.LinearGradient
 import android.graphics.Paint
+import android.graphics.PorterDuff
+import android.graphics.PorterDuffXfermode
 import android.graphics.RectF
 import android.graphics.Shader
 import android.graphics.Typeface
 import com.clockmods.sdk.clock.ClockBackground
 import com.clockmods.sdk.clock.ClockRenderContext
 import com.clockmods.sdk.clock.ClockRenderer
+import com.clockmods.sdk.clock.MessageMarqueeLayout
 import com.clockmods.sdk.clock.ClockState
 import com.clockmods.sdk.clock.ClockStyle
 import com.clockmods.sdk.clock.ClockStyleCapabilities
@@ -39,6 +42,18 @@ object UltimateClockStyles {
     const val STYLE_BUBBLES = "ultimate.bubbles"
     const val STYLE_BLEND = "ultimate.blend"
     const val STYLE_RIBBON = "ultimate.ribbon"
+
+    private val messageLayout = ThreadLocal<MessageMarqueeLayout?>()
+
+    @JvmStatic
+    fun renderWithMessageLayout(renderer: ClockRenderer, canvas: Canvas,
+        context: ClockRenderContext, state: ClockState, theme: ClockThemeTokens,
+        layout: MessageMarqueeLayout) {
+        val previous = messageLayout.get()
+        messageLayout.set(layout)
+        try { renderer.render(canvas, context, state, theme) }
+        finally { messageLayout.set(previous) }
+    }
 
     private val sharedRegistryHolder: ClockStyleRegistry by lazy(::createRegistry)
 
@@ -495,8 +510,39 @@ object UltimateClockStyles {
             applyImageDimming: Boolean = true) {
             if (maxWidth <= 0f || value.isEmpty()) return
             val floor = readableSize(context, 0f, minimumSp)
-            val size = maxOf(floor, fitText(value, maxWidth, maxOf(floor, preferredSize), face))
-            val visible = ellipsize(value, maxWidth, size, face)
+            val pool = PAINT_POOL.get()
+            val state = pool.motionState
+            val contextLine = state != null && value == contextText(state)
+            val settled = state == null || state.getWeatherTransitionProgress() >= 1f
+            if (state != null && contextLine && state.isMessageActive() && settled) {
+                // The user's message is a carousel item of its own: it never shrinks or
+                // ellipsizes, but marquee-scrolls when it overflows the line.
+                val messageSize = maxOf(floor, preferredSize)
+                val imageBackground = context.getBackground()?.takeIf { it.hasImage() }
+                var messageColor = color
+                if (imageBackground != null) {
+                    val metricsPaint = fill(Color.WHITE).apply {
+                        typeface = face; textSize = messageSize
+                    }
+                    messageColor = adaptiveImageTextColor(context, x, baseline,
+                        minOf(maxWidth, metricsPaint.measureText(value)), messageSize, align,
+                        color, applyImageDimming)
+                }
+                val previousPhotoText = pool.photoText
+                if (imageBackground != null) pool.photoText = true
+                try {
+                    textMessageMarquee(canvas, context, value, x, baseline, maxWidth,
+                        messageSize, messageColor, align, face,
+                        state.getMessageScrollElapsedMillis(), state.isMessageContinuous())
+                } finally {
+                    pool.photoText = previousPhotoText
+                }
+                return
+            }
+            val message = contextLine && state?.isMessageActive() == true
+            val size = if (message) maxOf(floor, preferredSize)
+                else maxOf(floor, fitText(value, maxWidth, maxOf(floor, preferredSize), face))
+            val visible = if (message) value else ellipsize(value, maxWidth, size, face)
             val imageBackground = context.getBackground()?.takeIf { it.hasImage() }
             val readableColor = if (imageBackground != null) {
                 val metricsPaint = fill(Color.WHITE).apply { typeface = face; textSize = size }
@@ -504,18 +550,17 @@ object UltimateClockStyles {
                     minOf(maxWidth, metricsPaint.measureText(visible)), size, align, color,
                     applyImageDimming)
             } else color
-            val pool = PAINT_POOL.get()
             val previousPhotoText = pool.photoText
             if (imageBackground != null) pool.photoText = true
             try {
-                val state = pool.motionState
                 val progress = state?.getWeatherTransitionProgress() ?: 1f
                 val previous = state?.getPreviousWeatherText().orEmpty()
                 if (state != null && progress < 1f && previous.isNotEmpty() &&
                     value == contextText(state)) {
-                    val oldSize = maxOf(floor,
-                        fitText(previous, maxWidth, maxOf(floor, preferredSize), face))
-                    val oldVisible = ellipsize(previous, maxWidth, oldSize, face)
+                    val oldSize = if (state.isPreviousMessageActive()) maxOf(floor, preferredSize)
+                        else maxOf(floor, fitText(previous, maxWidth, maxOf(floor, preferredSize), face))
+                    val oldVisible = if (state.isPreviousMessageActive()) previous
+                        else ellipsize(previous, maxWidth, oldSize, face)
                     val oldColor = alpha(readableColor,
                         (Color.alpha(readableColor) * (1f - progress)).toInt())
                     val newColor = alpha(readableColor,
@@ -528,8 +573,8 @@ object UltimateClockStyles {
                     val lineInk = fill(Color.WHITE)
                     lineInk.typeface = face
                     lineInk.textSize = maxOf(oldSize, size)
-                    val inkWidth = maxOf(lineInk.measureText(visible),
-                        lineInk.measureText(oldVisible))
+                    val inkWidth = minOf(maxWidth, maxOf(lineInk.measureText(visible),
+                        lineInk.measureText(oldVisible)))
                     val horizontalDistance = ClockTransitionTiming.supportingSlideDistance(
                         inkWidth, lineInk.textSize,
                     )
@@ -553,17 +598,17 @@ object UltimateClockStyles {
                             val travel = ClockTransitionTiming.easeOutCubic(progress)
                             val outgoing = canvas.save()
                             canvas.translate(outwardTravel * travel, 0f)
-                            text(canvas, oldVisible, x, baseline, oldSize,
+                            drawCarouselItem(canvas, context, state, true, oldVisible, x, baseline, oldSize,
                                 alpha(readableColor, (Color.alpha(readableColor) *
                                     ClockTransitionTiming.sweepAlpha(travel, true)).toInt()),
-                                align, face)
+                                align, face, maxWidth)
                             canvas.restoreToCount(outgoing)
                             val incoming = canvas.save()
                             canvas.translate(-inwardTravel * (1f - travel), 0f)
-                            text(canvas, visible, x, baseline, size,
+                            drawCarouselItem(canvas, context, state, false, visible, x, baseline, size,
                                 alpha(readableColor, (Color.alpha(readableColor) *
                                     ClockTransitionTiming.sweepAlpha(travel, false)).toInt()),
-                                align, face)
+                                align, face, maxWidth)
                             canvas.restoreToCount(incoming)
                         }
                         ClockState.TimeTransition.SCAN -> {
@@ -579,11 +624,11 @@ object UltimateClockStyles {
                                 baseline - maxOf(oldSize, size) * 1.5f,
                                 baseline + maxOf(oldSize, size) * .5f,
                                 edge, feather, reveal) { opacity ->
-                                text(canvas, if (reveal) visible else oldVisible, x, baseline,
+                                drawCarouselItem(canvas, context, state, !reveal, if (reveal) visible else oldVisible, x, baseline,
                                     if (reveal) size else oldSize,
                                     alpha(readableColor,
                                         (Color.alpha(readableColor) * opacity).toInt()),
-                                    align, face)
+                                    align, face, maxWidth)
                             }
                         }
                         ClockState.TimeTransition.SLIDE_UP,
@@ -591,22 +636,22 @@ object UltimateClockStyles {
                             val direction = if (transition == ClockState.TimeTransition.SLIDE_UP) -1f else 1f
                             val oldSave = canvas.save()
                             canvas.translate(0f, direction * distance * .3f * progress)
-                            text(canvas, oldVisible, x, baseline, oldSize, oldColor, align, face)
+                            drawCarouselItem(canvas, context, state, true, oldVisible, x, baseline, oldSize, oldColor, align, face, maxWidth)
                             canvas.restoreToCount(oldSave)
                             val newSave = canvas.save()
                             canvas.translate(0f, -direction * distance * .3f * (1f - progress))
-                            text(canvas, visible, x, baseline, size, newColor, align, face)
+                            drawCarouselItem(canvas, context, state, false, visible, x, baseline, size, newColor, align, face, maxWidth)
                             canvas.restoreToCount(newSave)
                         }
                         ClockState.TimeTransition.SCALE -> {
                             val oldSave = canvas.save()
                             canvas.scale(1f + .08f * progress, 1f + .08f * progress, x, baseline)
-                            text(canvas, oldVisible, x, baseline, oldSize, oldColor, align, face)
+                            drawCarouselItem(canvas, context, state, true, oldVisible, x, baseline, oldSize, oldColor, align, face, maxWidth)
                             canvas.restoreToCount(oldSave)
                             val newSave = canvas.save()
                             val scale = .88f + .12f * progress
                             canvas.scale(scale, scale, x, baseline)
-                            text(canvas, visible, x, baseline, size, newColor, align, face)
+                            drawCarouselItem(canvas, context, state, false, visible, x, baseline, size, newColor, align, face, maxWidth)
                             canvas.restoreToCount(newSave)
                         }
                         ClockState.TimeTransition.FLIP -> {
@@ -614,14 +659,14 @@ object UltimateClockStyles {
                             val scale = if (progress < .5f) maxOf(.05f, 1f - progress * 2f)
                                 else maxOf(.05f, (progress - .5f) * 2f)
                             canvas.scale(1f, scale, x, baseline - size / 2f)
-                            if (progress < .5f) text(canvas, oldVisible, x, baseline, oldSize,
-                                readableColor, align, face)
-                            else text(canvas, visible, x, baseline, size, readableColor, align, face)
+                            if (progress < .5f) drawCarouselItem(canvas, context, state, true, oldVisible, x, baseline, oldSize,
+                                readableColor, align, face, maxWidth)
+                            else drawCarouselItem(canvas, context, state, false, visible, x, baseline, size, readableColor, align, face, maxWidth)
                             canvas.restoreToCount(save)
                         }
                         ClockState.TimeTransition.FADE -> {
-                            text(canvas, oldVisible, x, baseline, oldSize, oldColor, align, face)
-                            text(canvas, visible, x, baseline, size, newColor, align, face)
+                            drawCarouselItem(canvas, context, state, true, oldVisible, x, baseline, oldSize, oldColor, align, face, maxWidth)
+                            drawCarouselItem(canvas, context, state, false, visible, x, baseline, size, newColor, align, face, maxWidth)
                         }
                     }
                 } else {
@@ -630,6 +675,87 @@ object UltimateClockStyles {
             } finally {
                 pool.photoText = previousPhotoText
             }
+        }
+
+        private fun drawCarouselItem(canvas: Canvas, context: ClockRenderContext,
+            state: ClockState, outgoing: Boolean, value: String, x: Float, baseline: Float,
+            size: Float, color: Int, align: Paint.Align, face: Typeface?, maxWidth: Float) {
+            val message = if (outgoing) state.isPreviousMessageActive() else state.isMessageActive()
+            if (message) textMessageMarquee(canvas, context, value, x, baseline, maxWidth, size,
+                color, align, face, if (outgoing) state.getPreviousMessageScrollElapsedMillis()
+                    else state.getMessageScrollElapsedMillis(), false)
+            else text(canvas, value, x, baseline, size, color, align, face)
+        }
+
+        /**
+         * Draws the user's message at a fixed size, marquee-scrolling as an endless belt when it is
+         * wider than the line. Mirrors Pro Classic's message overflow and the 宜/忌 belt: a pause at
+         * the head of each lap, then a steady leftward scroll with a feathered fade at both edges.
+         */
+        private fun textMessageMarquee(canvas: Canvas, context: ClockRenderContext,
+            value: String, x: Float, baseline: Float, maxWidth: Float, size: Float, color: Int,
+            align: Paint.Align, face: Typeface?, elapsedMillis: Long, continuous: Boolean) {
+            val measure = fill(color)
+            measure.typeface = face
+            measure.textSize = size
+            val textWidth = measure.measureText(value)
+            val measured = MessageMarqueeLayout().apply {
+                update(textWidth, maxWidth, size, context.getDensity(), elapsedMillis)
+            }
+            val state = PAINT_POOL.get().motionState
+            if (state?.isMessageActive() == true && value == contextText(state))
+                messageLayout.get()?.update(textWidth, maxWidth, size, context.getDensity(), elapsedMillis)
+            val left = when (align) {
+                Paint.Align.LEFT -> x
+                Paint.Align.RIGHT -> x - maxWidth
+                else -> x - maxWidth * .5f
+            }
+            if (textWidth <= maxWidth) {
+                text(canvas, value, x, baseline, size, color, align, face)
+                return
+            }
+            val metrics = measure.fontMetrics
+            val top = baseline + metrics.ascent - size * .12f
+            val bottom = baseline + metrics.descent + size * .12f
+            val layer = canvas.saveLayer(left, top, left + maxWidth, bottom, null)
+            canvas.clipRect(left, top, left + maxWidth, bottom)
+            val p = fill(color)
+            p.textSize = size
+            p.textAlign = Paint.Align.LEFT
+            p.typeface = face
+            if (continuous) {
+                val loopWidth = textWidth + maxOf(context.getDensity() * 24f, size * 1.5f)
+                val speed = MessageMarqueeLayout.SPEED_DP_PER_SECOND * context.getDensity()
+                val scrollMillis = kotlin.math.ceil(loopWidth / speed * 1000f).toLong().coerceAtLeast(1L)
+                val elapsed = elapsedMillis.coerceAtLeast(0L) % (1000L + scrollMillis)
+                val offset = if (elapsed < 1000L) 0f else loopWidth * (elapsed - 1000L) / scrollMillis
+                var drawX = left - offset
+                while (drawX + textWidth < left) drawX += loopWidth
+                while (drawX < left + maxWidth) {
+                    canvas.drawText(value, drawX, baseline, p)
+                    drawX += loopWidth
+                }
+            } else {
+                canvas.drawText(value, left + maxWidth * MessageMarqueeLayout.EDGE_FRACTION
+                    - measured.offset, baseline, p)
+            }
+            drawMessageEdgeFade(canvas, left, left + maxWidth, top, bottom)
+            canvas.restoreToCount(layer)
+        }
+
+        /** Feathers the marquee band's two edges so the message never appears clipped. */
+        private fun drawMessageEdgeFade(canvas: Canvas, left: Float, right: Float,
+            top: Float, bottom: Float) {
+            val edgeFraction = .08f
+            val fade = fill(Color.WHITE)
+            fade.xfermode = PorterDuffXfermode(PorterDuff.Mode.DST_IN)
+            fade.shader = LinearGradient(left, 0f, right, 0f,
+                intArrayOf(0x00FFFFFF, 0xFFFFFFFF.toInt(), 0xFFFFFFFF.toInt(), 0x00FFFFFF),
+                floatArrayOf(0f, edgeFraction, 1f - edgeFraction, 1f),
+                Shader.TileMode.CLAMP)
+            canvas.drawRect(left, top, right, bottom, fade)
+            fade.shader = null
+            fade.xfermode = null
         }
 
         /** Select ink from the visible image crop directly behind a single supporting line. */

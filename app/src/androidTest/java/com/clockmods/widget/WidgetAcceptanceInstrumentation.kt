@@ -40,6 +40,7 @@ import java.io.StringWriter
 
 /** Device tests deliberately exercise real RemoteViews reflection and launcher binding APIs. */
 class WidgetAcceptanceInstrumentation : Instrumentation() {
+    private var messageAcceptance = false
     private var calendarAcceptance = false
     private var calendarWeather = false
     private var calendarDashboardOnly = false
@@ -54,6 +55,7 @@ class WidgetAcceptanceInstrumentation : Instrumentation() {
 
     override fun onCreate(arguments: Bundle?) {
         super.onCreate(arguments)
+        messageAcceptance = arguments?.getString("message") == "true"
         calendarAcceptance = arguments?.getString("calendar") == "true"
         calendarWeather = arguments?.getString("weather") == "true"
         calendarDashboardOnly = arguments?.getString("dashboard") == "true"
@@ -62,6 +64,7 @@ class WidgetAcceptanceInstrumentation : Instrumentation() {
     }
 
     override fun onStart() {
+        if (messageAcceptance) { com.clockmods.ultimate.clock.MessageCarouselAcceptance.run(this); return }
         if (statusSymbols) {
             StatusSymbolAcceptance.run(this)
             return

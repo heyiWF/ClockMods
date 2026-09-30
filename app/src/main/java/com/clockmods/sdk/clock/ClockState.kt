@@ -30,6 +30,11 @@ class ClockState private constructor(
     timeTransitionProgress: Float,
     previousWeatherText: String?,
     weatherTransitionProgress: Float,
+    messageContinuous: Boolean,
+    previousMessageActive: Boolean,
+    previousMessageScrollElapsedMillis: Long,
+    messageActive: Boolean,
+    messageScrollElapsedMillis: Long,
 ) {
     enum class SecondHandMotion { OFF, TICK, SWEEP }
     enum class TimeTransition { FADE, SLIDE_UP, SLIDE_DOWN, SCALE, FLIP, SLIDE_RIGHT, SCAN }
@@ -57,6 +62,11 @@ class ClockState private constructor(
     private val timeTransitionProgress = transitionProgress(timeTransitionProgress)
     private val previousWeatherText = clean(previousWeatherText)
     private val weatherTransitionProgress = transitionProgress(weatherTransitionProgress)
+    private val messageContinuous = messageContinuous
+    private val previousMessageActive = previousMessageActive
+    private val previousMessageScrollElapsedMillis = previousMessageScrollElapsedMillis
+    private val messageActive = messageActive
+    private val messageScrollElapsedMillis = messageScrollElapsedMillis.coerceAtLeast(0L)
 
     fun getTimeMillis() = timeMillis
     fun getTimeZone() = timeZone.clone() as TimeZone
@@ -86,6 +96,15 @@ class ClockState private constructor(
     fun getPreviousWeatherText() = previousWeatherText
     fun getWeatherTransitionProgress() = weatherTransitionProgress
 
+    /** True when the current context line is the user's message (marquee-capable) rather than weather. */
+    fun isMessageContinuous() = messageContinuous
+    fun isPreviousMessageActive() = previousMessageActive
+    fun getPreviousMessageScrollElapsedMillis() = previousMessageScrollElapsedMillis
+    fun isMessageActive() = messageActive
+
+    /** Time the current message item has been on screen, for the marquee pause/scroll cycle. */
+    fun getMessageScrollElapsedMillis() = messageScrollElapsedMillis
+
     fun newCalendar(): Calendar = Calendar.getInstance(timeZone, locale).also {
         it.timeInMillis = timeMillis
     }
@@ -113,6 +132,11 @@ class ClockState private constructor(
         private var timeTransitionProgress = 1f
         private var previousWeatherText = ""
         private var weatherTransitionProgress = 1f
+        private var messageContinuous = false
+        private var previousMessageActive = false
+        private var previousMessageScrollElapsedMillis = 0L
+        private var messageActive = false
+        private var messageScrollElapsedMillis = 0L
 
         fun timeZone(value: TimeZone?): Builder = apply {
             requireNotNull(value) { "timeZone must not be null" }
@@ -158,6 +182,12 @@ class ClockState private constructor(
         fun timeTransitionProgress(value: Float) = apply { timeTransitionProgress = value }
         fun previousWeatherText(value: String?) = apply { previousWeatherText = value.orEmpty() }
         fun weatherTransitionProgress(value: Float) = apply { weatherTransitionProgress = value }
+        fun messageContinuous(value: Boolean) = apply { messageContinuous = value }
+        fun previousMessageActive(value: Boolean) = apply { previousMessageActive = value }
+        fun previousMessageScrollElapsedMillis(value: Long) = apply { previousMessageScrollElapsedMillis = value }
+        fun messageActive(value: Boolean) = apply { messageActive = value }
+        fun messageScrollElapsedMillis(value: Long) =
+            apply { messageScrollElapsedMillis = value }
 
         fun build() = ClockState(
             timeMillis,
@@ -183,6 +213,11 @@ class ClockState private constructor(
             timeTransitionProgress,
             previousWeatherText,
             weatherTransitionProgress,
+            messageContinuous,
+            previousMessageActive,
+            previousMessageScrollElapsedMillis,
+            messageActive,
+            messageScrollElapsedMillis,
         )
 
         internal companion object {

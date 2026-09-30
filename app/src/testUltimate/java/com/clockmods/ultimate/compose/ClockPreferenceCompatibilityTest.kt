@@ -7,7 +7,9 @@ import com.clockmods.ultimate.clock.UltimateClockStyles
 import com.clockmods.weather.WeatherModels
 import com.clockmods.weather.WeatherTemperatureFormatter
 import org.junit.Assert.assertEquals
+import org.junit.Assert.assertFalse
 import org.junit.Assert.assertSame
+import org.junit.Assert.assertTrue
 import org.junit.Test
 
 class ClockPreferenceCompatibilityTest {
@@ -82,7 +84,8 @@ class ClockPreferenceCompatibilityTest {
                 false,
                 weatherLabels,
                 15_000L,
-            ),
+                "",
+            ).text,
         )
     }
 
@@ -101,7 +104,8 @@ class ClockPreferenceCompatibilityTest {
                 true,
                 weatherLabels,
                 index * 3_000L,
-            )
+                "",
+            ).text
         }
 
         assertEquals(
@@ -125,7 +129,8 @@ class ClockPreferenceCompatibilityTest {
                 true,
                 weatherLabels,
                 0L,
-            ),
+                "",
+            ).text,
         )
         assertEquals(
             "Waiting for location",
@@ -138,7 +143,8 @@ class ClockPreferenceCompatibilityTest {
                 true,
                 weatherLabels,
                 0L,
-            ),
+                "",
+            ).text,
         )
         assertEquals(
             "",
@@ -148,8 +154,59 @@ class ClockPreferenceCompatibilityTest {
                 true,
                 weatherLabels,
                 0L,
+                "",
+            ).text,
+        )
+    }
+
+    @Test
+    fun customMessageRotatesAsItsOwnCarouselField() {
+        val state = weatherState(
+            detail = WeatherModels.WeatherDetail(
+                "27", null, null, null, null, null, null, null,
             ),
         )
+
+        val frames = (0..2).map { index ->
+            formatWeatherState(
+                state,
+                WeatherTemperatureFormatter.UNIT_CELSIUS,
+                true,
+                weatherLabels,
+                index * 3_000L,
+                "Hello message",
+            )
+        }
+
+        assertEquals(
+            listOf(
+                "Bao'an, Shenzhen 26\u2103 Clear",
+                "Feels 27\u2103",
+                "Hello message",
+            ),
+            frames.map { it.text },
+        )
+        assertFalse(frames[0].messageActive)
+        assertFalse(frames[1].messageActive)
+        assertTrue(frames[2].messageActive)
+        assertEquals(0L, frames[2].messageElapsedMillis)
+    }
+
+    @Test
+    fun messageAloneScrollsOffTheWallClockWithoutTheHoldReset() {
+        val line = formatWeatherState(
+            null,
+            WeatherTemperatureFormatter.UNIT_CELSIUS,
+            true,
+            weatherLabels,
+            61_234L,
+            "Hello message",
+        )
+
+        assertEquals("Hello message", line.text)
+        assertTrue(line.messageActive)
+        // A message with no weather beside it is the whole belt, so it does not restart per hold.
+        assertFalse(line.messageInRotation)
     }
 
     private fun weatherState(
