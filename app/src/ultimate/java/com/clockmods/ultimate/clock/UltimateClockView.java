@@ -89,13 +89,16 @@ public class UltimateClockView extends FrameLayout {
     private String weatherText = "";
     private String customMessage = "";
     private String statusText = "";
-    // Detailed-weather carousel: the summary followed by each detail metric. One entry means the
-    // line is static; more than one makes it rotate every {@link #WEATHER_DETAIL_HOLD_MILLIS}.
+    // Weather-only carousel: the summary followed by each detail metric (or a loading/error
+    // message). The user's message is appended as the final rotation item by
+    // {@link #rebuildWeatherCarousel()}.
+    private final List<String> weatherItems = new ArrayList<String>();
     private final List<String> weatherCarousel = new ArrayList<String>();
     private long lastWeatherTick = -1L;
     private long weatherTransitionStartedUptime;
     private String previousWeatherText = "";
     private ClockState.TimeTransition weatherTransition = ClockState.TimeTransition.FADE;
+    private boolean messageActive;
     private String lastContentDescription;
     private BackgroundRepository backgroundRepository;
     private final ClockTypography typography = new ClockTypography();
@@ -377,9 +380,9 @@ public class UltimateClockView extends FrameLayout {
     /** Compatibility bridge for the existing weather controller used by the Ultimate fragment. */
     public void setWeatherState(WeatherState state) {
         if (state == null) {
-            weatherCarousel.clear();
-            resetWeatherTransition();
-            setWeatherText("");
+            weatherItems.clear();
+            weatherText = "";
+            rebuildWeatherCarousel();
             invalidateAndReschedule();
             return;
         }
@@ -392,29 +395,41 @@ public class UltimateClockView extends FrameLayout {
                     weatherTemperatureUnit()));
             appendPart(text, data.text);
             String summary = text.toString();
-            List<String> carousel = new ArrayList<String>();
-            carousel.add(summary);
+            List<String> items = new ArrayList<String>();
+            items.add(summary);
             if (data.detail != null) {
-                carousel.addAll(data.detail.carouselItems(detailLabels(),
+                items.addAll(data.detail.carouselItems(detailLabels(),
                         weatherTemperatureUnit()));
             }
-            weatherCarousel.clear();
-            weatherCarousel.addAll(carousel);
-            resetWeatherTransition();
-            setWeatherText(summary);
+            weatherItems.clear();
+            weatherItems.addAll(items);
+            weatherText = summary;
         } else {
-            weatherCarousel.clear();
-            resetWeatherTransition();
-            setWeatherMessage(state.message);
+            weatherItems.clear();
+            if (state.message != null && state.message.length() > 0) {
+                weatherItems.add(state.message);
+            }
+            weatherText = state.message == null ? "" : state.message;
         }
+        rebuildWeatherCarousel();
         invalidateAndReschedule();
     }
 
     public void setWeatherMessage(String message) {
-        weatherCarousel.clear();
-        resetWeatherTransition();
-        setWeatherText(message);
+        weatherItems.clear();
+        if (message != null && message.length() > 0) weatherItems.add(message);
+        weatherText = message == null ? "" : message;
+        rebuildWeatherCarousel();
         invalidateAndReschedule();
+    }
+
+    /** The rotation is the weather items followed by the user's message as its own field. */
+    private void rebuildWeatherCarousel() {
+        weatherCarousel.clear();
+        weatherCarousel.addAll(weatherItems);
+        if (customMessage.length() > 0) weatherCarousel.add(customMessage);
+        resetWeatherTransition();
+        messageActive = false;
     }
 
     /** Localized labels/units for the detailed weather carousel (follows interface language). */
@@ -502,6 +517,7 @@ public class UltimateClockView extends FrameLayout {
             setStatusText("");
             String message = repository.getCustomMessage();
             customMessage = message == null ? "" : message.trim();
+            rebuildWeatherCarousel();
             configureNetworkTime(repository);
         }
         reloadPreferences();
@@ -611,17 +627,21 @@ public class UltimateClockView extends FrameLayout {
                 : Math.min(1f, (uptime - transitionStartedUptime)
                         / (float) transitionDurationMillis(digitTransition));
         if (transitionProgress >= 1f) transitionStartedUptime = 0L;
-        // The detailed weather line rotates its summary and detail items every hold interval. A
-        // change is animated with the carousel's own transition, which the user tunes apart from
-        // the digits.
-        String weatherItem = weatherCarousel.isEmpty() ? weatherText
-                : weatherCarousel.get((int) ((Math.max(0L, now) / WEATHER_DETAIL_HOLD_MILLIS)
-                        % weatherCarousel.size()));
+        // The detailed weather line rotates its summary, detail items and the user's message every
+        // hold interval. A change is animated with the carousel's own transition, which the user
+        // tunes apart from the digits.
         boolean weatherCarouselActive = weatherCarousel.size() > 1;
+        int weatherIndex = weatherCarousel.isEmpty() ? 0
+                : (int) ((Math.max(0L, now) / WEATHER_DETAIL_HOLD_MILLIS)
+                        % weatherCarousel.size());
+        String weatherItem = weatherCarousel.isEmpty() ? weatherText
+                : weatherCarousel.get(weatherIndex);
+        messageActive = !customMessage.isEmpty() && !weatherCarousel.isEmpty()
+                && weatherIndex == weatherCarousel.size() - 1;
         long weatherTick = Math.max(0L, now) / WEATHER_DETAIL_HOLD_MILLIS;
         if (weatherCarouselActive && weatherTick != lastWeatherTick) {
             if (lastWeatherTick >= 0L) {
-                previousWeatherText = combinedWeatherText();
+                previousWeatherText = weatherText;
                 weatherTransitionStartedUptime = uptime;
                 if (shouldRunFrames()) {
                     cancelTicker();
@@ -637,6 +657,10 @@ public class UltimateClockView extends FrameLayout {
                 : Math.min(1f, (uptime - weatherTransitionStartedUptime)
                         / (float) weatherTransitionDurationMillis(weatherTransition));
         if (weatherProgress >= 1f) weatherTransitionStartedUptime = 0L;
+        // The message marquee runs inside its own display window: within the rotation it restarts
+        // every hold, and as the only item it scrolls as an endless belt from wall-clock time.
+        long messageElapsed = messageActive
+                ? (weatherCarouselActive ? now % WEATHER_DETAIL_HOLD_MILLIS : now) : 0L;
         ClockState state = ClockState.builder(now)
                 .timeZone(timeZone)
                 .locale(locale)
@@ -647,7 +671,7 @@ public class UltimateClockView extends FrameLayout {
                 // The main face no longer exposes a GMT/zone badge. The actual zone remains in
                 // the accessibility description and in the world-clock editor.
                 .timeZoneText("")
-                .weatherText(combinedWeatherText())
+                .weatherText(weatherText)
                 .statusText(statusText)
                 .worldClocks(worldClocks)
                 .timeScale(timeScale)
@@ -660,6 +684,8 @@ public class UltimateClockView extends FrameLayout {
                 .weatherTransition(weatherTransition)
                 .previousWeatherText(previousWeatherText)
                 .weatherTransitionProgress(weatherProgress)
+                .messageActive(messageActive)
+                .messageScrollElapsedMillis(messageElapsed)
                 .build();
         float right = Math.max(contentInsetLeft, getWidth() - contentInsetRight);
         float bottom = Math.max(contentInsetTop, getHeight() - contentInsetBottom);
@@ -827,7 +853,8 @@ public class UltimateClockView extends FrameLayout {
 
     private void scheduleNextFrame() {
         if (!shouldRunFrames()) return;
-        if (transitionStartedUptime > 0L || weatherTransitionStartedUptime > 0L) {
+        if (transitionStartedUptime > 0L || weatherTransitionStartedUptime > 0L
+                || messageNeedsFrames()) {
             postOnAnimation(ticker);
             return;
         }
@@ -852,6 +879,16 @@ public class UltimateClockView extends FrameLayout {
             delay = Math.min(delay, Math.max(1L, carouselDelay));
         }
         handler.postDelayed(ticker, Math.max(1L, delay));
+    }
+
+    /**
+     * The message marquee needs a frame every animation tick while it is on screen. Inside the
+     * rotation the window is bounded, but a message that is the only item scrolls indefinitely, so
+     * it is only kept animated when it is plausibly long enough to overflow.
+     */
+    private boolean messageNeedsFrames() {
+        if (!messageActive) return false;
+        return weatherCarousel.size() > 1 || customMessage.length() > 12;
     }
 
     static ClockState.SecondHandMotion resolveSecondHandMotion(ClockStyle style,
@@ -976,12 +1013,6 @@ public class UltimateClockView extends FrameLayout {
             return ClockBackground.color(repository.getCurrentColor(), dimmed);
         }
         return ClockBackground.theme(dimmed);
-    }
-
-    private String combinedWeatherText() {
-        if (weatherText.length() == 0) return customMessage;
-        if (customMessage.length() == 0) return weatherText;
-        return weatherText + " | " + customMessage;
     }
 
     private boolean shouldDimBackground(long now) {

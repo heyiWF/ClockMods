@@ -5,6 +5,8 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.LinearGradient;
 import android.graphics.Paint;
+import android.graphics.PorterDuff;
+import android.graphics.PorterDuffXfermode;
 import android.graphics.RadialGradient;
 import android.graphics.RectF;
 import android.graphics.Shader;
@@ -924,6 +926,35 @@ public final class UltimateClockStyles {
                 boolean applyImageDimming) {
             if (maxWidth <= 0f || value == null || value.isEmpty()) return;
             float floor = readableSize(context, 0f, minimumSp);
+            PaintPool pool = PAINT_POOL.get();
+            ClockState state = pool.motionState;
+            boolean settled = state == null || state.getWeatherTransitionProgress() >= 1f;
+            if (state != null && state.isMessageActive() && settled) {
+                // The user's message is a carousel item of its own: it never shrinks or
+                // ellipsizes, but marquee-scrolls when it overflows the line.
+                float messageSize = Math.max(floor, preferredSize);
+                ClockBackground background = context.getBackground();
+                boolean imageBackground = background != null && background.hasImage();
+                int messageColor = color;
+                if (imageBackground) {
+                    Paint metrics = fill(Color.WHITE);
+                    metrics.setTypeface(face);
+                    metrics.setTextSize(messageSize);
+                    messageColor = adaptiveImageTextColor(context, x, baseline,
+                            Math.min(maxWidth, metrics.measureText(value)), messageSize, align,
+                            color, applyImageDimming);
+                }
+                boolean previousPhotoText = pool.photoText;
+                if (imageBackground) pool.photoText = true;
+                try {
+                    textMessageMarquee(canvas, context, value, x, baseline, maxWidth,
+                            messageSize, messageColor, align, face,
+                            state.getMessageScrollElapsedMillis());
+                } finally {
+                    pool.photoText = previousPhotoText;
+                }
+                return;
+            }
             float size = Math.max(floor,
                     fitText(value, maxWidth, Math.max(floor, preferredSize), face));
             String visible = ellipsize(value, maxWidth, size, face);
@@ -938,11 +969,9 @@ public final class UltimateClockStyles {
                         Math.min(maxWidth, metrics.measureText(visible)), size, align, color,
                         applyImageDimming);
             }
-            PaintPool pool = PAINT_POOL.get();
             boolean previousPhotoText = pool.photoText;
             if (imageBackground) pool.photoText = true;
             try {
-                ClockState state = pool.motionState;
                 float progress = state == null ? 1f : state.getWeatherTransitionProgress();
                 String previous = state == null ? "" : state.getPreviousWeatherText();
                 if (state != null && progress < 1f && previous.length() > 0
@@ -955,6 +984,68 @@ public final class UltimateClockStyles {
             } finally {
                 pool.photoText = previousPhotoText;
             }
+        }
+
+        /**
+         * Draws the user's message at a fixed size, marquee-scrolling as an endless belt when it is
+         * wider than the line. Mirrors Pro Classic's message overflow and the 宜/忌 belt: a pause at
+         * the head of each lap, then a steady leftward scroll with a feathered fade at both edges.
+         */
+        private static void textMessageMarquee(Canvas canvas, ClockRenderContext context,
+                String value, float x, float baseline, float maxWidth, float size, int color,
+                Paint.Align align, Typeface face, long elapsedMillis) {
+            Paint measure = fill(color);
+            measure.setTypeface(face);
+            measure.setTextSize(size);
+            float textWidth = measure.measureText(value);
+            float left = align == Paint.Align.LEFT ? x
+                    : align == Paint.Align.RIGHT ? x - maxWidth : x - maxWidth * .5f;
+            if (textWidth <= maxWidth) {
+                text(canvas, value, x, baseline, size, color, align, face);
+                return;
+            }
+            float density = context.getDensity();
+            float gap = Math.max(density * 24f, size * 1.5f);
+            float loopWidth = textWidth + gap;
+            float speed = 40f * density;
+            long pauseMillis = 1000L;
+            long scrollMillis = Math.max(1L, (long) Math.ceil(loopWidth / speed * 1000f));
+            long cycle = pauseMillis + scrollMillis;
+            long elapsed = Math.max(0L, elapsedMillis) % cycle;
+            float offset = elapsed < pauseMillis ? 0f
+                    : loopWidth * (elapsed - pauseMillis) / (float) scrollMillis;
+            Paint.FontMetrics metrics = measure.getFontMetrics();
+            float top = baseline + metrics.ascent - size * .12f;
+            float bottom = baseline + metrics.descent + size * .12f;
+            int layer = canvas.saveLayer(left, top, left + maxWidth, bottom, null);
+            canvas.clipRect(left, top, left + maxWidth, bottom);
+            Paint p = fill(color);
+            p.setTextSize(size);
+            p.setTextAlign(Paint.Align.LEFT);
+            p.setTypeface(face);
+            float drawX = left - offset;
+            while (drawX + textWidth < left) drawX += loopWidth;
+            while (drawX < left + maxWidth) {
+                canvas.drawText(value, drawX, baseline, p);
+                drawX += loopWidth;
+            }
+            drawMessageEdgeFade(canvas, left, left + maxWidth, top, bottom);
+            canvas.restoreToCount(layer);
+        }
+
+        /** Feathers the marquee band's two edges so the message never appears clipped. */
+        private static void drawMessageEdgeFade(Canvas canvas, float left, float right,
+                float top, float bottom) {
+            float edgeFraction = .08f;
+            Paint fade = fill(Color.WHITE);
+            fade.setXfermode(new PorterDuffXfermode(PorterDuff.Mode.DST_IN));
+            fade.setShader(new LinearGradient(left, 0f, right, 0f,
+                    new int[] {0x00FFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00FFFFFF},
+                    new float[] {0f, edgeFraction, 1f - edgeFraction, 1f},
+                    Shader.TileMode.CLAMP));
+            canvas.drawRect(left, top, right, bottom, fade);
+            fade.setShader(null);
+            fade.setXfermode(null);
         }
 
         /**

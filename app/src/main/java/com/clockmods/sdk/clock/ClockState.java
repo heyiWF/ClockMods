@@ -31,6 +31,8 @@ public final class ClockState {
     private final TimeTransition weatherTransition;
     private final String previousWeatherText;
     private final float weatherTransitionProgress;
+    private final boolean messageActive;
+    private final long messageScrollElapsedMillis;
 
     private ClockState(Builder builder) {
         timeMillis = builder.timeMillis;
@@ -53,6 +55,8 @@ public final class ClockState {
         weatherTransition = builder.weatherTransition;
         previousWeatherText = clean(builder.previousWeatherText);
         weatherTransitionProgress = transitionProgress(builder.weatherTransitionProgress);
+        messageActive = builder.messageActive;
+        messageScrollElapsedMillis = Math.max(0L, builder.messageScrollElapsedMillis);
     }
 
     public static Builder builder(long timeMillis) {
@@ -88,6 +92,12 @@ public final class ClockState {
     /** Progress of the weather carousel swap; 1 when no swap is running. */
     public float getWeatherTransitionProgress() { return weatherTransitionProgress; }
 
+    /** True when the current context line is the user's message (marquee-capable) rather than weather. */
+    public boolean isMessageActive() { return messageActive; }
+
+    /** Time the current message item has been on screen, for the marquee pause/scroll cycle. */
+    public long getMessageScrollElapsedMillis() { return messageScrollElapsedMillis; }
+
     public Calendar newCalendar() {
         Calendar calendar = Calendar.getInstance(timeZone, locale);
         calendar.setTimeInMillis(timeMillis);
@@ -118,6 +128,8 @@ public final class ClockState {
         private TimeTransition weatherTransition = TimeTransition.FADE;
         private String previousWeatherText = "";
         private float weatherTransitionProgress = 1f;
+        private boolean messageActive;
+        private long messageScrollElapsedMillis;
 
         private Builder(long timeMillis) {
             this.timeMillis = timeMillis;
@@ -185,6 +197,16 @@ public final class ClockState {
 
         public Builder weatherTransitionProgress(float value) {
             weatherTransitionProgress = value;
+            return this;
+        }
+
+        public Builder messageActive(boolean value) {
+            messageActive = value;
+            return this;
+        }
+
+        public Builder messageScrollElapsedMillis(long value) {
+            messageScrollElapsedMillis = value;
             return this;
         }
 
