@@ -28,6 +28,8 @@ import com.clockmods.sdk.clock.ClockBackground;
 import com.clockmods.sdk.clock.ClockOverlayBounds;
 import com.clockmods.sdk.clock.ClockRenderContext;
 import com.clockmods.sdk.clock.ClockState;
+import com.clockmods.sdk.clock.MessageMarqueeLayout;
+import com.clockmods.sdk.clock.WeatherCarousel;
 import com.clockmods.sdk.clock.ClockStyle;
 import com.clockmods.sdk.clock.ClockStyleCapabilities;
 import com.clockmods.sdk.clock.ClockStyleMetadata;
@@ -94,11 +96,13 @@ public class UltimateClockView extends FrameLayout {
     // {@link #rebuildWeatherCarousel()}.
     private final List<String> weatherItems = new ArrayList<String>();
     private final List<String> weatherCarousel = new ArrayList<String>();
-    private long lastWeatherTick = -1L;
+    private WeatherCarousel carousel = new WeatherCarousel(new ArrayList<>(), false);
+    private final MessageMarqueeLayout messageLayout = new MessageMarqueeLayout();
     private long weatherTransitionStartedUptime;
     private String previousWeatherText = "";
     private ClockState.TimeTransition weatherTransition = ClockState.TimeTransition.FADE;
     private boolean messageActive;
+    private boolean messageContinuous;
     private String lastContentDescription;
     private BackgroundRepository backgroundRepository;
     private final ClockTypography typography = new ClockTypography();
@@ -368,7 +372,7 @@ public class UltimateClockView extends FrameLayout {
     }
 
     public void setWeatherText(String value) {
-        weatherText = value == null ? "" : value.trim();
+        setWeatherMessage(value == null ? "" : value.trim());
         invalidate();
     }
 
@@ -429,7 +433,6 @@ public class UltimateClockView extends FrameLayout {
         weatherCarousel.addAll(weatherItems);
         if (customMessage.length() > 0) weatherCarousel.add(customMessage);
         resetWeatherTransition();
-        messageActive = false;
     }
 
     /** Localized labels/units for the detailed weather carousel (follows interface language). */
@@ -627,40 +630,23 @@ public class UltimateClockView extends FrameLayout {
                 : Math.min(1f, (uptime - transitionStartedUptime)
                         / (float) transitionDurationMillis(digitTransition));
         if (transitionProgress >= 1f) transitionStartedUptime = 0L;
-        // The detailed weather line rotates its summary, detail items and the user's message every
-        // hold interval. A change is animated with the carousel's own transition, which the user
-        // tunes apart from the digits.
-        boolean weatherCarouselActive = weatherCarousel.size() > 1;
-        int weatherIndex = weatherCarousel.isEmpty() ? 0
-                : (int) ((Math.max(0L, now) / WEATHER_DETAIL_HOLD_MILLIS)
-                        % weatherCarousel.size());
-        String weatherItem = weatherCarousel.isEmpty() ? weatherText
-                : weatherCarousel.get(weatherIndex);
-        messageActive = !customMessage.isEmpty() && !weatherCarousel.isEmpty()
-                && weatherIndex == weatherCarousel.size() - 1;
-        long weatherTick = Math.max(0L, now) / WEATHER_DETAIL_HOLD_MILLIS;
-        if (weatherCarouselActive && weatherTick != lastWeatherTick) {
-            if (lastWeatherTick >= 0L) {
-                previousWeatherText = weatherText;
-                weatherTransitionStartedUptime = uptime;
-                if (shouldRunFrames()) {
-                    cancelTicker();
-                    postOnAnimation(ticker);
-                }
-            }
-            lastWeatherTick = weatherTick;
-        } else if (!weatherCarouselActive) {
-            lastWeatherTick = -1L;
+        // The supporting line rotates its weather summary, detail items and the user's message.
+        // Each item holds for its own duration (longer for a message that has to scroll through),
+        // then a change is animated with the carousel's own transition, which the user tunes apart
+        // from the digits.
+        long weatherDuration = weatherTransitionDurationMillis(weatherTransition);
+        if (carousel.advance(uptime, messageLayout.displayMillis, weatherDuration)) {
+            weatherTransitionStartedUptime = uptime;
+            previousWeatherText = carousel.previous;
+            if (shouldRunFrames()) { cancelTicker(); postOnAnimation(ticker); }
         }
-        weatherText = weatherItem;
+        weatherText = carousel.text();
+        messageActive = carousel.messageActive();
+        messageContinuous = carousel.continuous();
         float weatherProgress = weatherTransitionStartedUptime == 0L ? 1f
-                : Math.min(1f, (uptime - weatherTransitionStartedUptime)
-                        / (float) weatherTransitionDurationMillis(weatherTransition));
+                : Math.min(1f, (uptime - weatherTransitionStartedUptime) / (float) weatherDuration);
         if (weatherProgress >= 1f) weatherTransitionStartedUptime = 0L;
-        // The message marquee runs inside its own display window: within the rotation it restarts
-        // every hold, and as the only item it scrolls as an endless belt from wall-clock time.
-        long messageElapsed = messageActive
-                ? (weatherCarouselActive ? now % WEATHER_DETAIL_HOLD_MILLIS : now) : 0L;
+        long messageElapsed = messageActive ? carousel.elapsed(uptime) : 0L;
         ClockState state = ClockState.builder(now)
                 .timeZone(timeZone)
                 .locale(locale)
@@ -684,7 +670,10 @@ public class UltimateClockView extends FrameLayout {
                 .weatherTransition(weatherTransition)
                 .previousWeatherText(previousWeatherText)
                 .weatherTransitionProgress(weatherProgress)
+                .previousMessageActive(carousel.previousMessage)
+                .previousMessageScrollElapsedMillis(carousel.previousMessageElapsed)
                 .messageActive(messageActive)
+                .messageContinuous(messageContinuous)
                 .messageScrollElapsedMillis(messageElapsed)
                 .build();
         float right = Math.max(contentInsetLeft, getWidth() - contentInsetRight);
@@ -704,7 +693,8 @@ public class UltimateClockView extends FrameLayout {
         worldClockCards.invalidate();
         int saveCount = canvas.save();
         try {
-            UltimateClockStyles.renderWithDigitTracker(style.getRenderer(), canvas,
+            UltimateClockStyles.renderWithDigitTracker((c, rc, st, th) ->
+                    UltimateClockStyles.renderWithMessageLayout(style.getRenderer(), c, rc, st, th, messageLayout), canvas,
                     renderContext, state, theme,
                     animateDigits && supportsDigitTransition ? digitTracker : null);
         } finally {
@@ -872,11 +862,12 @@ public class UltimateClockView extends FrameLayout {
         } else {
             delay = MILLIS_PER_SECOND - (now % MILLIS_PER_SECOND);
         }
-        // A rotating weather line needs a frame on every item change, even when the seconds hand
-        // is off and the digits are otherwise idle.
-        if (weatherCarousel.size() > 1) {
-            long carouselDelay = WEATHER_DETAIL_HOLD_MILLIS - (now % WEATHER_DETAIL_HOLD_MILLIS);
-            delay = Math.min(delay, Math.max(1L, carouselDelay));
+        // A rotating supporting line needs a frame on every item change, even when the seconds
+        // hand is off and the digits are otherwise idle. The item boundary is uptime-based because
+        // a scrolling message stretches its own window.
+        if (weatherCarousel.size() > 1 && weatherTransitionStartedUptime == 0L) {
+            long duration = messageActive ? messageLayout.displayMillis : WEATHER_DETAIL_HOLD_MILLIS;
+            delay = Math.min(delay, Math.max(1L, carousel.started + duration - SystemClock.uptimeMillis()));
         }
         handler.postDelayed(ticker, Math.max(1L, delay));
     }
@@ -888,7 +879,8 @@ public class UltimateClockView extends FrameLayout {
      */
     private boolean messageNeedsFrames() {
         if (!messageActive) return false;
-        return weatherCarousel.size() > 1 || customMessage.length() > 12;
+        return messageLayout.distance > 0f
+                && (messageContinuous || carousel.elapsed(SystemClock.uptimeMillis()) < messageLayout.displayMillis - 1000L);
     }
 
     static ClockState.SecondHandMotion resolveSecondHandMotion(ClockStyle style,
@@ -967,9 +959,12 @@ public class UltimateClockView extends FrameLayout {
     }
 
     private void resetWeatherTransition() {
-        lastWeatherTick = -1L;
+        carousel = new WeatherCarousel(new ArrayList<>(weatherCarousel), !customMessage.isEmpty());
+        messageLayout.displayMillis = 3000L;
         weatherTransitionStartedUptime = 0L;
         previousWeatherText = "";
+        messageActive = false;
+        messageContinuous = false;
     }
 
     private String dateText(long now) {

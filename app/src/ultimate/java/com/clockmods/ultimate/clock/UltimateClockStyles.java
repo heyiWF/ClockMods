@@ -17,6 +17,7 @@ import com.clockmods.sdk.clock.ClockBackground;
 import com.clockmods.sdk.clock.ClockOverlayBounds;
 import com.clockmods.sdk.clock.ClockRenderer;
 import com.clockmods.sdk.clock.ClockState;
+import com.clockmods.sdk.clock.MessageMarqueeLayout;
 import com.clockmods.sdk.clock.ClockStyle;
 import com.clockmods.sdk.clock.ClockStyleCapabilities;
 import com.clockmods.sdk.clock.ClockStyleMetadata;
@@ -52,6 +53,17 @@ public final class UltimateClockStyles {
     private static final ClockStyleRegistry SHARED_REGISTRY = createRegistry();
 
     private UltimateClockStyles() { }
+
+    private static final ThreadLocal<MessageMarqueeLayout> MESSAGE_LAYOUT = new ThreadLocal<>();
+
+    public static void renderWithMessageLayout(ClockRenderer renderer, Canvas canvas,
+            ClockRenderContext context, ClockState state, ClockThemeTokens theme,
+            MessageMarqueeLayout layout) {
+        MessageMarqueeLayout previous = MESSAGE_LAYOUT.get();
+        MESSAGE_LAYOUT.set(layout);
+        try { renderer.render(canvas, context, state, theme); }
+        finally { MESSAGE_LAYOUT.set(previous); }
+    }
 
     static float secondProgress(int second, int millisecond,
             ClockState.SecondHandMotion motion) {
@@ -928,8 +940,9 @@ public final class UltimateClockStyles {
             float floor = readableSize(context, 0f, minimumSp);
             PaintPool pool = PAINT_POOL.get();
             ClockState state = pool.motionState;
+            boolean contextLine = state != null && value.equals(contextText(state));
             boolean settled = state == null || state.getWeatherTransitionProgress() >= 1f;
-            if (state != null && state.isMessageActive() && settled) {
+            if (contextLine && state.isMessageActive() && settled) {
                 // The user's message is a carousel item of its own: it never shrinks or
                 // ellipsizes, but marquee-scrolls when it overflows the line.
                 float messageSize = Math.max(floor, preferredSize);
@@ -949,15 +962,17 @@ public final class UltimateClockStyles {
                 try {
                     textMessageMarquee(canvas, context, value, x, baseline, maxWidth,
                             messageSize, messageColor, align, face,
-                            state.getMessageScrollElapsedMillis());
+                            state.getMessageScrollElapsedMillis(),
+                            state.isMessageContinuous());
                 } finally {
                     pool.photoText = previousPhotoText;
                 }
                 return;
             }
-            float size = Math.max(floor,
+            boolean message = contextLine && state.isMessageActive();
+            float size = message ? Math.max(floor, preferredSize) : Math.max(floor,
                     fitText(value, maxWidth, Math.max(floor, preferredSize), face));
-            String visible = ellipsize(value, maxWidth, size, face);
+            String visible = message ? value : ellipsize(value, maxWidth, size, face);
             ClockBackground background = context.getBackground();
             boolean imageBackground = background != null && background.hasImage();
             int readableColor = color;
@@ -976,7 +991,7 @@ public final class UltimateClockStyles {
                 String previous = state == null ? "" : state.getPreviousWeatherText();
                 if (state != null && progress < 1f && previous.length() > 0
                         && value.equals(contextText(state))) {
-                    textWithWeatherTransition(canvas, state, previous, visible, x, baseline,
+                    textWithWeatherTransition(canvas, context, state, previous, visible, x, baseline,
                             size, floor, maxWidth, preferredSize, readableColor, align, face);
                 } else {
                     text(canvas, visible, x, baseline, size, readableColor, align, face);
@@ -987,17 +1002,25 @@ public final class UltimateClockStyles {
         }
 
         /**
-         * Draws the user's message at a fixed size, marquee-scrolling as an endless belt when it is
-         * wider than the line. Mirrors Pro Classic's message overflow and the 宜/忌 belt: a pause at
-         * the head of each lap, then a steady leftward scroll with a feathered fade at both edges.
+         * Draws the user's message at a fixed size, scrolling when it is wider than the line. A
+         * message that shares the rotation with weather scrolls once to its end (clearing the edge
+         * fade) and holds there; a message on its own scrolls as an endless belt with a pause at the
+         * head of each lap. Both carry a feathered fade at each edge.
          */
         private static void textMessageMarquee(Canvas canvas, ClockRenderContext context,
                 String value, float x, float baseline, float maxWidth, float size, int color,
-                Paint.Align align, Typeface face, long elapsedMillis) {
+                Paint.Align align, Typeface face, long elapsedMillis, boolean continuous) {
             Paint measure = fill(color);
             measure.setTypeface(face);
             measure.setTextSize(size);
             float textWidth = measure.measureText(value);
+            MessageMarqueeLayout measured = new MessageMarqueeLayout();
+            measured.update(textWidth, maxWidth, size, context.getDensity(), elapsedMillis);
+            ClockState current = PAINT_POOL.get().motionState;
+            if (MESSAGE_LAYOUT.get() != null && current != null && current.isMessageActive()
+                    && value.equals(contextText(current))) {
+                MESSAGE_LAYOUT.get().update(textWidth, maxWidth, size, context.getDensity(), elapsedMillis);
+            }
             float left = align == Paint.Align.LEFT ? x
                     : align == Paint.Align.RIGHT ? x - maxWidth : x - maxWidth * .5f;
             if (textWidth <= maxWidth) {
@@ -1005,15 +1028,8 @@ public final class UltimateClockStyles {
                 return;
             }
             float density = context.getDensity();
-            float gap = Math.max(density * 24f, size * 1.5f);
-            float loopWidth = textWidth + gap;
-            float speed = 40f * density;
+            float speed = MessageMarqueeLayout.SPEED_DP_PER_SECOND * density;
             long pauseMillis = 1000L;
-            long scrollMillis = Math.max(1L, (long) Math.ceil(loopWidth / speed * 1000f));
-            long cycle = pauseMillis + scrollMillis;
-            long elapsed = Math.max(0L, elapsedMillis) % cycle;
-            float offset = elapsed < pauseMillis ? 0f
-                    : loopWidth * (elapsed - pauseMillis) / (float) scrollMillis;
             Paint.FontMetrics metrics = measure.getFontMetrics();
             float top = baseline + metrics.ascent - size * .12f;
             float bottom = baseline + metrics.descent + size * .12f;
@@ -1023,11 +1039,32 @@ public final class UltimateClockStyles {
             p.setTextSize(size);
             p.setTextAlign(Paint.Align.LEFT);
             p.setTypeface(face);
-            float drawX = left - offset;
-            while (drawX + textWidth < left) drawX += loopWidth;
-            while (drawX < left + maxWidth) {
-                canvas.drawText(value, drawX, baseline, p);
-                drawX += loopWidth;
+            if (continuous) {
+                float gap = Math.max(density * 24f, size * 1.5f);
+                float loopWidth = textWidth + gap;
+                long scrollMillis = Math.max(1L, (long) Math.ceil(loopWidth / speed * 1000f));
+                long cycle = pauseMillis + scrollMillis;
+                long elapsed = Math.max(0L, elapsedMillis) % cycle;
+                float offset = elapsed < pauseMillis ? 0f
+                        : loopWidth * (elapsed - pauseMillis) / (float) scrollMillis;
+                float drawX = left - offset;
+                while (drawX + textWidth < left) drawX += loopWidth;
+                while (drawX < left + maxWidth) {
+                    canvas.drawText(value, drawX, baseline, p);
+                    drawX += loopWidth;
+                }
+            } else {
+                // One shot: the head starts just inside the left fade, scrolls left until the tail
+                // clears the right fade, then holds there — the last characters never rest in the
+                // gradient.
+                float fade = maxWidth * MessageMarqueeLayout.EDGE_FRACTION;
+                float distance = measured.distance;
+                if (distance <= 0f) {
+                    text(canvas, value, x, baseline, size, color, align, face);
+                } else {
+                    float offset = measured.offset;
+                    canvas.drawText(value, left + fade - offset, baseline, p);
+                }
             }
             drawMessageEdgeFade(canvas, left, left + maxWidth, top, bottom);
             canvas.restoreToCount(layer);
@@ -1053,15 +1090,16 @@ public final class UltimateClockStyles {
          * incoming one arrives, honouring the carousel's own transition — which the host keeps
          * apart from the digit transition so the two rows can move differently.
          */
-        private static void textWithWeatherTransition(Canvas canvas, ClockState state,
+        private static void textWithWeatherTransition(Canvas canvas, ClockRenderContext context, ClockState state,
                 String previous, String visible, float x, float baseline, float size, float floor,
                 float maxWidth, float preferredSize, int readableColor, Paint.Align align,
                 Typeface face) {
             float progress = state.getWeatherTransitionProgress();
             ClockState.TimeTransition transition = state.getWeatherTransition();
-            float oldSize = Math.max(floor,
-                    fitText(previous, maxWidth, Math.max(floor, preferredSize), face));
-            String oldVisible = ellipsize(previous, maxWidth, oldSize, face);
+            float oldSize = state.isPreviousMessageActive() ? Math.max(floor, preferredSize)
+                    : Math.max(floor, fitText(previous, maxWidth, Math.max(floor, preferredSize), face));
+            String oldVisible = state.isPreviousMessageActive() ? previous
+                    : ellipsize(previous, maxWidth, oldSize, face);
             int oldColor = alpha(readableColor,
                     (int) (Color.alpha(readableColor) * (1f - progress)));
             int newColor = alpha(readableColor,
@@ -1071,8 +1109,8 @@ public final class UltimateClockStyles {
             Paint lineInk = fill(Color.WHITE);
             lineInk.setTypeface(face);
             lineInk.setTextSize(Math.max(oldSize, size));
-            float inkWidth = Math.max(lineInk.measureText(visible),
-                    lineInk.measureText(oldVisible));
+            float inkWidth = Math.min(maxWidth, Math.max(lineInk.measureText(visible),
+                    lineInk.measureText(oldVisible)));
             float horizontalDistance = ClockDigitTransitionTiming.supportingSlideDistance(
                     inkWidth, lineInk.getTextSize());
             float inkLeft = align == Paint.Align.LEFT ? x
@@ -1086,17 +1124,17 @@ public final class UltimateClockStyles {
                     float travel = ClockDigitTransitionTiming.easeOutCubic(progress);
                     int outgoing = canvas.save();
                     canvas.translate(outwardTravel * travel, 0f);
-                    text(canvas, oldVisible, x, baseline, oldSize,
+                    drawCarouselItem(canvas, context, state, true, oldVisible, x, baseline, oldSize,
                             alpha(readableColor, (int) (Color.alpha(readableColor)
                                     * ClockDigitTransitionTiming.sweepAlpha(travel, true))),
-                            align, face);
+                            align, face, maxWidth);
                     canvas.restoreToCount(outgoing);
                     int incoming = canvas.save();
                     canvas.translate(-inwardTravel * (1f - travel), 0f);
-                    text(canvas, visible, x, baseline, size,
+                    drawCarouselItem(canvas, context, state, false, visible, x, baseline, size,
                             alpha(readableColor, (int) (Color.alpha(readableColor)
                                     * ClockDigitTransitionTiming.sweepAlpha(travel, false))),
-                            align, face);
+                            align, face, maxWidth);
                     canvas.restoreToCount(incoming);
                     break;
                 }
@@ -1111,10 +1149,10 @@ public final class UltimateClockStyles {
                     float shownSize = reveal ? size : oldSize;
                     ClockScanTransition.draw(canvas, inkLeft, inkLeft + inkWidth,
                             scanTop, scanBottom, edge, feather, reveal,
-                            opacity -> text(canvas, shown, x, baseline, shownSize,
+                            opacity -> drawCarouselItem(canvas, context, state, !reveal, shown, x, baseline, shownSize,
                                     alpha(readableColor,
                                             (int) (Color.alpha(readableColor) * opacity)),
-                                    align, face));
+                                    align, face, maxWidth));
                     break;
                 }
                 case SLIDE_UP:
@@ -1123,23 +1161,23 @@ public final class UltimateClockStyles {
                             ? -1f : 1f;
                     int oldSave = canvas.save();
                     canvas.translate(0f, direction * distance * .3f * progress);
-                    text(canvas, oldVisible, x, baseline, oldSize, oldColor, align, face);
+                    drawCarouselItem(canvas, context, state, true, oldVisible, x, baseline, oldSize, oldColor, align, face, maxWidth);
                     canvas.restoreToCount(oldSave);
                     int newSave = canvas.save();
                     canvas.translate(0f, -direction * distance * .3f * (1f - progress));
-                    text(canvas, visible, x, baseline, size, newColor, align, face);
+                    drawCarouselItem(canvas, context, state, false, visible, x, baseline, size, newColor, align, face, maxWidth);
                     canvas.restoreToCount(newSave);
                     break;
                 }
                 case SCALE: {
                     int oldSave = canvas.save();
                     canvas.scale(1f + .08f * progress, 1f + .08f * progress, x, baseline);
-                    text(canvas, oldVisible, x, baseline, oldSize, oldColor, align, face);
+                    drawCarouselItem(canvas, context, state, true, oldVisible, x, baseline, oldSize, oldColor, align, face, maxWidth);
                     canvas.restoreToCount(oldSave);
                     int newSave = canvas.save();
                     float scale = .88f + .12f * progress;
                     canvas.scale(scale, scale, x, baseline);
-                    text(canvas, visible, x, baseline, size, newColor, align, face);
+                    drawCarouselItem(canvas, context, state, false, visible, x, baseline, size, newColor, align, face, maxWidth);
                     canvas.restoreToCount(newSave);
                     break;
                 }
@@ -1149,19 +1187,30 @@ public final class UltimateClockStyles {
                             : Math.max(.05f, (progress - .5f) * 2f);
                     canvas.scale(1f, scale, x, baseline - size * .5f);
                     if (progress < .5f) {
-                        text(canvas, oldVisible, x, baseline, oldSize, readableColor, align, face);
+                        drawCarouselItem(canvas, context, state, true, oldVisible, x, baseline, oldSize, readableColor, align, face, maxWidth);
                     } else {
-                        text(canvas, visible, x, baseline, size, readableColor, align, face);
+                        drawCarouselItem(canvas, context, state, false, visible, x, baseline, size, readableColor, align, face, maxWidth);
                     }
                     canvas.restoreToCount(save);
                     break;
                 }
                 case FADE:
                 default:
-                    text(canvas, oldVisible, x, baseline, oldSize, oldColor, align, face);
-                    text(canvas, visible, x, baseline, size, newColor, align, face);
+                    drawCarouselItem(canvas, context, state, true, oldVisible, x, baseline, oldSize, oldColor, align, face, maxWidth);
+                    drawCarouselItem(canvas, context, state, false, visible, x, baseline, size, newColor, align, face, maxWidth);
                     break;
             }
+        }
+
+        private static void drawCarouselItem(Canvas canvas, ClockRenderContext context,
+                ClockState state, boolean outgoing, String value, float x, float baseline,
+                float size, int color, Paint.Align align, Typeface face, float maxWidth) {
+            boolean message = outgoing ? state.isPreviousMessageActive() : state.isMessageActive();
+            if (message) {
+                textMessageMarquee(canvas, context, value, x, baseline, maxWidth, size, color,
+                        align, face, outgoing ? state.getPreviousMessageScrollElapsedMillis()
+                                : state.getMessageScrollElapsedMillis(), false);
+            } else { text(canvas, value, x, baseline, size, color, align, face); }
         }
 
         /** Pick light or dark ink from the visible image crop beneath this supporting line. */

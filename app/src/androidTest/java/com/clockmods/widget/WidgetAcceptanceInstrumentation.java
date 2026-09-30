@@ -21,9 +21,11 @@ public final class WidgetAcceptanceInstrumentation extends Instrumentation {
     private int rendered;
     private boolean onlineWeather;
     private boolean fontProbe;
+    private boolean messageProbe;
     private void check(boolean value,String message) { checks++; if(!value) throw new AssertionError(message); }
-    @Override public void onCreate(Bundle args) { super.onCreate(args); onlineWeather=args!=null && "online".equals(args.getString("weather")); fontProbe=args!=null && "true".equals(args.getString("fonts")); start(); }
+    @Override public void onCreate(Bundle args) { super.onCreate(args); messageProbe = args != null && "true".equals(args.getString("message")); onlineWeather=args!=null && "online".equals(args.getString("weather")); fontProbe=args!=null && "true".equals(args.getString("fonts")); start(); }
     @Override public void onStart() {
+        if(messageProbe) { com.clockmods.ultimate.clock.MessageCarouselAcceptance.run(this); return; }
         if(fontProbe) { runFontProbe(); return; }
         Bundle report=new Bundle();
         AppWidgetHost host=null; int resultCode=Activity.RESULT_CANCELED;

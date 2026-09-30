@@ -31,7 +31,10 @@ public final class ClockState {
     private final TimeTransition weatherTransition;
     private final String previousWeatherText;
     private final float weatherTransitionProgress;
+    private final boolean previousMessageActive;
+    private final long previousMessageScrollElapsedMillis;
     private final boolean messageActive;
+    private final boolean messageContinuous;
     private final long messageScrollElapsedMillis;
 
     private ClockState(Builder builder) {
@@ -55,7 +58,10 @@ public final class ClockState {
         weatherTransition = builder.weatherTransition;
         previousWeatherText = clean(builder.previousWeatherText);
         weatherTransitionProgress = transitionProgress(builder.weatherTransitionProgress);
+        previousMessageActive = builder.previousMessageActive;
+        previousMessageScrollElapsedMillis = builder.previousMessageScrollElapsedMillis;
         messageActive = builder.messageActive;
+        messageContinuous = builder.messageContinuous;
         messageScrollElapsedMillis = Math.max(0L, builder.messageScrollElapsedMillis);
     }
 
@@ -93,7 +99,14 @@ public final class ClockState {
     public float getWeatherTransitionProgress() { return weatherTransitionProgress; }
 
     /** True when the current context line is the user's message (marquee-capable) rather than weather. */
+    public boolean isPreviousMessageActive() { return previousMessageActive; }
+
+    public long getPreviousMessageScrollElapsedMillis() { return previousMessageScrollElapsedMillis; }
+
     public boolean isMessageActive() { return messageActive; }
+
+    /** True when the message is the only item, so its marquee runs as an endless belt. */
+    public boolean isMessageContinuous() { return messageContinuous; }
 
     /** Time the current message item has been on screen, for the marquee pause/scroll cycle. */
     public long getMessageScrollElapsedMillis() { return messageScrollElapsedMillis; }
@@ -128,7 +141,10 @@ public final class ClockState {
         private TimeTransition weatherTransition = TimeTransition.FADE;
         private String previousWeatherText = "";
         private float weatherTransitionProgress = 1f;
+        private boolean previousMessageActive = false;
+        private long previousMessageScrollElapsedMillis = 0L;
         private boolean messageActive;
+        private boolean messageContinuous;
         private long messageScrollElapsedMillis;
 
         private Builder(long timeMillis) {
@@ -200,8 +216,17 @@ public final class ClockState {
             return this;
         }
 
+        public Builder previousMessageActive(boolean value) { previousMessageActive = value; return this; }
+
+        public Builder previousMessageScrollElapsedMillis(long value) { previousMessageScrollElapsedMillis = value; return this; }
+
         public Builder messageActive(boolean value) {
             messageActive = value;
+            return this;
+        }
+
+        public Builder messageContinuous(boolean value) {
+            messageContinuous = value;
             return this;
         }
 
