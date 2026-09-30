@@ -410,23 +410,25 @@ object UltimateClockStyles {
             val right = value.substring(divider + DIVIDER.length)
             val leftWidth = measure.measureText(left)
             val rightWidth = measure.measureText(right)
-            val spaceWidth = measure.measureText(" ")
+            // One-and-a-half spaces of breathing room on each side, so the rule reads as a
+            // deliberate divider instead of crowding the fields it separates.
+            val gap = measure.measureText(" ") * 1.5f
             val ruleWidth = maxOf(1f, size * .06f)
-            val totalWidth = leftWidth + spaceWidth * 2f + ruleWidth + rightWidth
+            val totalWidth = leftWidth + gap * 2f + ruleWidth + rightWidth
             val startX = when (align) {
                 Paint.Align.RIGHT -> x - totalWidth
                 Paint.Align.CENTER -> x - totalWidth * .5f
                 else -> x
             }
             val metrics = measure.fontMetrics
-            val ruleHeight = -metrics.ascent * .62f
+            val ruleHeight = -metrics.ascent * .8f
             val ruleTop = baseline + (metrics.ascent + metrics.descent) * .5f - ruleHeight * .5f
-            val rightX = startX + leftWidth + spaceWidth * 2f + ruleWidth
+            val rightX = startX + leftWidth + gap * 2f + ruleWidth
             val photoText = PAINT_POOL.get().photoText
             drawDividerSegment(canvas, left, startX, baseline, size, color, face, photoText)
             val rule = fill(color)
-            canvas.drawRect(startX + leftWidth + spaceWidth, ruleTop,
-                startX + leftWidth + spaceWidth + ruleWidth, ruleTop + ruleHeight, rule)
+            canvas.drawRect(startX + leftWidth + gap, ruleTop,
+                startX + leftWidth + gap + ruleWidth, ruleTop + ruleHeight, rule)
             drawDividerSegment(canvas, right, rightX, baseline, size, color, face, photoText)
         }
 
