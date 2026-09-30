@@ -55,6 +55,10 @@ public class ClockView extends View {
     private static final float SUPPORTING_TEXT_LETTER_SPACING = 0.025f;
     private static final int CLOCK_SHADOW_ALPHA = 0x66;
     private static final int DIM_BACKGROUND_OVERLAY_COLOR = 0x80000000;
+    // The " | " field separator is drawn as a rule taller than the original pipe and padded with
+    // more room on each side than a single space, so the two fields read as deliberately apart.
+    private static final float DIVIDER_RULE_HEIGHT_FRACTION = 0.8f;
+    private static final float DIVIDER_SIDE_GAP_EXTRA_FRACTION = 0.5f;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable ticker = new Runnable() {
@@ -1120,6 +1124,7 @@ public class ClockView extends View {
             int end = start + Character.charCount(codePoint);
             if (codePoint == '|' && isDividerPipe(text, start)) {
                 width += Math.max(1f, datePaint.getTextSize() * .06f);
+                width += datePaint.measureText(" ") * DIVIDER_SIDE_GAP_EXTRA_FRACTION * 2f;
             } else {
                 datePaint.setTypeface(supportingTypefaceFor(codePoint));
                 width += datePaint.measureText(text, start, end);
@@ -1235,7 +1240,7 @@ public class ClockView extends View {
         datePaint.setTextAlign(Paint.Align.LEFT);
         float spacing = datePaint.getTextSize() * SUPPORTING_TEXT_LETTER_SPACING;
         Paint.FontMetrics metrics = datePaint.getFontMetrics();
-        float ruleHeight = (-metrics.ascent) * .62f;
+        float ruleHeight = (-metrics.ascent) * DIVIDER_RULE_HEIGHT_FRACTION;
         float ruleTop = baseline + (metrics.ascent + metrics.descent) * .5f - ruleHeight * .5f;
         for (int start = 0; start < text.length();) {
             int codePoint = text.codePointAt(start);
@@ -1244,9 +1249,11 @@ public class ClockView extends View {
                 // The " | " field separator is a drawn rule, not a font glyph, so it stays
                 // centred and vertical in every system font.
                 float ruleWidth = Math.max(1f, datePaint.getTextSize() * .06f);
+                float extraGap = datePaint.measureText(" ") * DIVIDER_SIDE_GAP_EXTRA_FRACTION;
+                cursor += extraGap;
                 canvas.drawRect(cursor, ruleTop, cursor + ruleWidth, ruleTop + ruleHeight,
                         datePaint);
-                cursor += ruleWidth;
+                cursor += ruleWidth + extraGap;
             } else {
                 datePaint.setTypeface(supportingTypefaceFor(codePoint));
                 canvas.drawText(text, start, end, cursor, baseline, datePaint);

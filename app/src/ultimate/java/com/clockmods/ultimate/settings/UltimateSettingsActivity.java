@@ -1023,10 +1023,13 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             addProClassicTimeAppearanceSettings(body);
             addProClassicDateAppearanceSettings(body);
             addProClassicWeatherAppearanceSettings(body);
-        } else if (capabilities.supports(
-                ClockStyleCapabilities.Capability.DIGIT_TRANSITION)) {
-            addSectionLabel(body, R.string.ultimate_time_appearance_section, 22);
-            addDigitTransitionControls(body, selectedId);
+        } else {
+            if (capabilities.supports(
+                    ClockStyleCapabilities.Capability.DIGIT_TRANSITION)) {
+                addSectionLabel(body, R.string.ultimate_time_appearance_section, 22);
+                addDigitTransitionControls(body, selectedId);
+            }
+            addUltimateWeatherAppearanceSettings(body, selectedId);
         }
         return scrollable(body);
     }
@@ -1653,6 +1656,27 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                         R.string.ultimate_weather_transition, names,
                         transitionIndex(repository.getWeatherTransition()), value ->
                                 repository.setWeatherTransition(transitionForIndex(value)),
+                        "weather_transition", true));
+    }
+
+    /** Detailed weather and its carousel transition for the Ultimate faces, tuned per style. */
+    private void addUltimateWeatherAppearanceSettings(LinearLayout body, String styleId) {
+        addSectionLabel(body, R.string.ultimate_weather_appearance_section, 22);
+        MaterialSwitch detailed = addSwitch(body, R.string.ultimate_weather_detailed,
+                R.string.ultimate_weather_detailed_summary, repository.isWeatherDetailed(),
+                value -> {
+                    repository.setWeatherDetailed(value);
+                    markChanged("weather_detailed");
+                });
+        setSwitchPreferenceEnabled(detailed, repository.isWeatherEnabled());
+        String[] names = transitionNames();
+        addActionRow(body, R.string.ultimate_weather_transition,
+                names[transitionIndex(ultimatePreferences.getWeatherTransition(styleId))],
+                R.drawable.ultimate_ic_chevron_right, () -> showSingleChoiceDialog(
+                        R.string.ultimate_weather_transition, names,
+                        transitionIndex(ultimatePreferences.getWeatherTransition(styleId)),
+                        value -> ultimatePreferences.setWeatherTransition(styleId,
+                                transitionForIndex(value)),
                         "weather_transition", true));
     }
 

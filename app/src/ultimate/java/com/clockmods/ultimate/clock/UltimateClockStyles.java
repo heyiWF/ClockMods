@@ -830,20 +830,22 @@ public final class UltimateClockStyles {
             String right = value.substring(divider + DIVIDER.length());
             float leftWidth = measure.measureText(left);
             float rightWidth = measure.measureText(right);
-            float spaceWidth = measure.measureText(" ");
+            // One-and-a-half spaces of breathing room on each side, so the rule reads as a
+            // deliberate divider instead of crowding the fields it separates.
+            float gap = measure.measureText(" ") * 1.5f;
             float ruleWidth = Math.max(1f, size * .06f);
-            float totalWidth = leftWidth + spaceWidth * 2f + ruleWidth + rightWidth;
+            float totalWidth = leftWidth + gap * 2f + ruleWidth + rightWidth;
             float startX = align == Paint.Align.RIGHT ? x - totalWidth
                     : align == Paint.Align.CENTER ? x - totalWidth * .5f : x;
             Paint.FontMetrics metrics = measure.getFontMetrics();
-            float ruleHeight = (-metrics.ascent) * .62f;
+            float ruleHeight = (-metrics.ascent) * .8f;
             float ruleTop = baseline + (metrics.ascent + metrics.descent) * .5f - ruleHeight * .5f;
-            float rightX = startX + leftWidth + spaceWidth * 2f + ruleWidth;
+            float rightX = startX + leftWidth + gap * 2f + ruleWidth;
             boolean photoText = PAINT_POOL.get().photoText;
             drawDividerSegment(canvas, left, startX, baseline, size, color, face, photoText);
             Paint rule = fill(color);
-            canvas.drawRect(startX + leftWidth + spaceWidth, ruleTop,
-                    startX + leftWidth + spaceWidth + ruleWidth, ruleTop + ruleHeight, rule);
+            canvas.drawRect(startX + leftWidth + gap, ruleTop,
+                    startX + leftWidth + gap + ruleWidth, ruleTop + ruleHeight, rule);
             drawDividerSegment(canvas, right, rightX, baseline, size, color, face, photoText);
         }
 
@@ -940,9 +942,134 @@ public final class UltimateClockStyles {
             boolean previousPhotoText = pool.photoText;
             if (imageBackground) pool.photoText = true;
             try {
-                text(canvas, visible, x, baseline, size, readableColor, align, face);
+                ClockState state = pool.motionState;
+                float progress = state == null ? 1f : state.getWeatherTransitionProgress();
+                String previous = state == null ? "" : state.getPreviousWeatherText();
+                if (state != null && progress < 1f && previous.length() > 0
+                        && value.equals(contextText(state))) {
+                    textWithWeatherTransition(canvas, state, previous, visible, x, baseline,
+                            size, floor, maxWidth, preferredSize, readableColor, align, face);
+                } else {
+                    text(canvas, visible, x, baseline, size, readableColor, align, face);
+                }
             } finally {
                 pool.photoText = previousPhotoText;
+            }
+        }
+
+        /**
+         * Draws the weather carousel line mid-swap. The outgoing item travels out while the
+         * incoming one arrives, honouring the carousel's own transition — which the host keeps
+         * apart from the digit transition so the two rows can move differently.
+         */
+        private static void textWithWeatherTransition(Canvas canvas, ClockState state,
+                String previous, String visible, float x, float baseline, float size, float floor,
+                float maxWidth, float preferredSize, int readableColor, Paint.Align align,
+                Typeface face) {
+            float progress = state.getWeatherTransitionProgress();
+            ClockState.TimeTransition transition = state.getWeatherTransition();
+            float oldSize = Math.max(floor,
+                    fitText(previous, maxWidth, Math.max(floor, preferredSize), face));
+            String oldVisible = ellipsize(previous, maxWidth, oldSize, face);
+            int oldColor = alpha(readableColor,
+                    (int) (Color.alpha(readableColor) * (1f - progress)));
+            int newColor = alpha(readableColor,
+                    (int) (Color.alpha(readableColor) * progress));
+            float distance = Math.max(oldSize, size)
+                    * ClockDigitTransitionTiming.SLIDE_DISTANCE_FRACTION;
+            Paint lineInk = fill(Color.WHITE);
+            lineInk.setTypeface(face);
+            lineInk.setTextSize(Math.max(oldSize, size));
+            float inkWidth = Math.max(lineInk.measureText(visible),
+                    lineInk.measureText(oldVisible));
+            float horizontalDistance = ClockDigitTransitionTiming.supportingSlideDistance(
+                    inkWidth, lineInk.getTextSize());
+            float inkLeft = align == Paint.Align.LEFT ? x
+                    : align == Paint.Align.RIGHT ? x - inkWidth : x - inkWidth * .5f;
+            float outwardTravel = ClockDigitTransitionTiming.outwardSweepTravel(
+                    horizontalDistance, inkLeft, inkWidth, canvas.getWidth());
+            float inwardTravel = ClockDigitTransitionTiming.inwardSweepTravel(
+                    horizontalDistance, inkLeft);
+            switch (transition) {
+                case SLIDE_RIGHT: {
+                    float travel = ClockDigitTransitionTiming.easeOutCubic(progress);
+                    int outgoing = canvas.save();
+                    canvas.translate(outwardTravel * travel, 0f);
+                    text(canvas, oldVisible, x, baseline, oldSize,
+                            alpha(readableColor, (int) (Color.alpha(readableColor)
+                                    * ClockDigitTransitionTiming.sweepAlpha(travel, true))),
+                            align, face);
+                    canvas.restoreToCount(outgoing);
+                    int incoming = canvas.save();
+                    canvas.translate(-inwardTravel * (1f - travel), 0f);
+                    text(canvas, visible, x, baseline, size,
+                            alpha(readableColor, (int) (Color.alpha(readableColor)
+                                    * ClockDigitTransitionTiming.sweepAlpha(travel, false))),
+                            align, face);
+                    canvas.restoreToCount(incoming);
+                    break;
+                }
+                case SCAN: {
+                    float feather = size * .22f;
+                    float edge = ClockDigitTransitionTiming.scanEdge(
+                            inkLeft, inkWidth, feather, progress);
+                    boolean reveal = progress >= .5f;
+                    float scanTop = baseline - Math.max(oldSize, size) * 1.5f;
+                    float scanBottom = baseline + Math.max(oldSize, size) * .5f;
+                    String shown = reveal ? visible : oldVisible;
+                    float shownSize = reveal ? size : oldSize;
+                    ClockScanTransition.draw(canvas, inkLeft, inkLeft + inkWidth,
+                            scanTop, scanBottom, edge, feather, reveal,
+                            opacity -> text(canvas, shown, x, baseline, shownSize,
+                                    alpha(readableColor,
+                                            (int) (Color.alpha(readableColor) * opacity)),
+                                    align, face));
+                    break;
+                }
+                case SLIDE_UP:
+                case SLIDE_DOWN: {
+                    float direction = transition == ClockState.TimeTransition.SLIDE_UP
+                            ? -1f : 1f;
+                    int oldSave = canvas.save();
+                    canvas.translate(0f, direction * distance * .3f * progress);
+                    text(canvas, oldVisible, x, baseline, oldSize, oldColor, align, face);
+                    canvas.restoreToCount(oldSave);
+                    int newSave = canvas.save();
+                    canvas.translate(0f, -direction * distance * .3f * (1f - progress));
+                    text(canvas, visible, x, baseline, size, newColor, align, face);
+                    canvas.restoreToCount(newSave);
+                    break;
+                }
+                case SCALE: {
+                    int oldSave = canvas.save();
+                    canvas.scale(1f + .08f * progress, 1f + .08f * progress, x, baseline);
+                    text(canvas, oldVisible, x, baseline, oldSize, oldColor, align, face);
+                    canvas.restoreToCount(oldSave);
+                    int newSave = canvas.save();
+                    float scale = .88f + .12f * progress;
+                    canvas.scale(scale, scale, x, baseline);
+                    text(canvas, visible, x, baseline, size, newColor, align, face);
+                    canvas.restoreToCount(newSave);
+                    break;
+                }
+                case FLIP: {
+                    int save = canvas.save();
+                    float scale = progress < .5f ? Math.max(.05f, 1f - progress * 2f)
+                            : Math.max(.05f, (progress - .5f) * 2f);
+                    canvas.scale(1f, scale, x, baseline - size * .5f);
+                    if (progress < .5f) {
+                        text(canvas, oldVisible, x, baseline, oldSize, readableColor, align, face);
+                    } else {
+                        text(canvas, visible, x, baseline, size, readableColor, align, face);
+                    }
+                    canvas.restoreToCount(save);
+                    break;
+                }
+                case FADE:
+                default:
+                    text(canvas, oldVisible, x, baseline, oldSize, oldColor, align, face);
+                    text(canvas, visible, x, baseline, size, newColor, align, face);
+                    break;
             }
         }
 

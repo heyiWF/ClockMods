@@ -58,6 +58,7 @@ import java.util.concurrent.Executors;
 public class UltimateClockView extends FrameLayout {
     private static final long MILLIS_PER_SECOND = 1000L;
     private static final long MINUTE_REFRESH_MILLIS = 60_000L;
+    private static final long WEATHER_DETAIL_HOLD_MILLIS = 3_000L;
 
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable ticker = new Runnable() {
@@ -88,6 +89,13 @@ public class UltimateClockView extends FrameLayout {
     private String weatherText = "";
     private String customMessage = "";
     private String statusText = "";
+    // Detailed-weather carousel: the summary followed by each detail metric. One entry means the
+    // line is static; more than one makes it rotate every {@link #WEATHER_DETAIL_HOLD_MILLIS}.
+    private final List<String> weatherCarousel = new ArrayList<String>();
+    private long lastWeatherTick = -1L;
+    private long weatherTransitionStartedUptime;
+    private String previousWeatherText = "";
+    private ClockState.TimeTransition weatherTransition = ClockState.TimeTransition.FADE;
     private String lastContentDescription;
     private BackgroundRepository backgroundRepository;
     private final ClockTypography typography = new ClockTypography();
@@ -217,6 +225,7 @@ public class UltimateClockView extends FrameLayout {
         secondHandMotion = preferences.getSecondHandMotion();
         backgroundMode = preferences.getBackgroundMode();
         reloadDigitTransition();
+        reloadWeatherTransition();
         if (!styleId.equals(previousStyleId)) resetDigitTransition();
         if (worldClockRepository == null) {
             worldClockRepository = new WorldClockRepository(getContext());
@@ -282,6 +291,7 @@ public class UltimateClockView extends FrameLayout {
         if (styleId.length() == 0) styleId = UltimateClockPreferences.DEFAULT_STYLE_ID;
         if (preferences != null) preferences.setStyleId(styleId);
         reloadDigitTransition();
+        reloadWeatherTransition();
         if (!styleId.equals(previousStyleId)) resetDigitTransition();
         reloadTypography();
         requestLayout();
@@ -367,7 +377,10 @@ public class UltimateClockView extends FrameLayout {
     /** Compatibility bridge for the existing weather controller used by the Ultimate fragment. */
     public void setWeatherState(WeatherState state) {
         if (state == null) {
+            weatherCarousel.clear();
+            resetWeatherTransition();
             setWeatherText("");
+            invalidateAndReschedule();
             return;
         }
         if (state.data != null) {
@@ -378,14 +391,41 @@ public class UltimateClockView extends FrameLayout {
             appendPart(text, WeatherTemperatureFormatter.format(data.temperature,
                     weatherTemperatureUnit()));
             appendPart(text, data.text);
-            setWeatherText(text.toString());
+            String summary = text.toString();
+            List<String> carousel = new ArrayList<String>();
+            carousel.add(summary);
+            if (data.detail != null) {
+                carousel.addAll(data.detail.carouselItems(detailLabels(),
+                        weatherTemperatureUnit()));
+            }
+            weatherCarousel.clear();
+            weatherCarousel.addAll(carousel);
+            resetWeatherTransition();
+            setWeatherText(summary);
         } else {
+            weatherCarousel.clear();
+            resetWeatherTransition();
             setWeatherMessage(state.message);
         }
+        invalidateAndReschedule();
     }
 
     public void setWeatherMessage(String message) {
+        weatherCarousel.clear();
+        resetWeatherTransition();
         setWeatherText(message);
+        invalidateAndReschedule();
+    }
+
+    /** Localized labels/units for the detailed weather carousel (follows interface language). */
+    private WeatherModels.WeatherDetail.DetailLabels detailLabels() {
+        return new WeatherModels.WeatherDetail.DetailLabels(
+                getContext().getString(R.string.weather_feels_format),
+                getContext().getString(R.string.weather_humidity_format),
+                getContext().getString(R.string.weather_wind_scale_format),
+                getContext().getString(R.string.weather_precip_format),
+                getContext().getString(R.string.weather_air_format),
+                getContext().getString(R.string.weather_warning_suffix));
     }
 
     private String weatherTemperatureUnit() {
@@ -571,6 +611,32 @@ public class UltimateClockView extends FrameLayout {
                 : Math.min(1f, (uptime - transitionStartedUptime)
                         / (float) transitionDurationMillis(digitTransition));
         if (transitionProgress >= 1f) transitionStartedUptime = 0L;
+        // The detailed weather line rotates its summary and detail items every hold interval. A
+        // change is animated with the carousel's own transition, which the user tunes apart from
+        // the digits.
+        String weatherItem = weatherCarousel.isEmpty() ? weatherText
+                : weatherCarousel.get((int) ((Math.max(0L, now) / WEATHER_DETAIL_HOLD_MILLIS)
+                        % weatherCarousel.size()));
+        boolean weatherCarouselActive = weatherCarousel.size() > 1;
+        long weatherTick = Math.max(0L, now) / WEATHER_DETAIL_HOLD_MILLIS;
+        if (weatherCarouselActive && weatherTick != lastWeatherTick) {
+            if (lastWeatherTick >= 0L) {
+                previousWeatherText = combinedWeatherText();
+                weatherTransitionStartedUptime = uptime;
+                if (shouldRunFrames()) {
+                    cancelTicker();
+                    postOnAnimation(ticker);
+                }
+            }
+            lastWeatherTick = weatherTick;
+        } else if (!weatherCarouselActive) {
+            lastWeatherTick = -1L;
+        }
+        weatherText = weatherItem;
+        float weatherProgress = weatherTransitionStartedUptime == 0L ? 1f
+                : Math.min(1f, (uptime - weatherTransitionStartedUptime)
+                        / (float) weatherTransitionDurationMillis(weatherTransition));
+        if (weatherProgress >= 1f) weatherTransitionStartedUptime = 0L;
         ClockState state = ClockState.builder(now)
                 .timeZone(timeZone)
                 .locale(locale)
@@ -591,6 +657,9 @@ public class UltimateClockView extends FrameLayout {
                 .timeTransitionProgress(digitTransition == ClockState.TimeTransition.SCAN
                         ? transitionProgress
                         : ClockDigitTransitionTiming.easeOutCubic(transitionProgress))
+                .weatherTransition(weatherTransition)
+                .previousWeatherText(previousWeatherText)
+                .weatherTransitionProgress(weatherProgress)
                 .build();
         float right = Math.max(contentInsetLeft, getWidth() - contentInsetRight);
         float bottom = Math.max(contentInsetTop, getHeight() - contentInsetBottom);
@@ -626,6 +695,20 @@ public class UltimateClockView extends FrameLayout {
         }
         if (transition == ClockState.TimeTransition.SLIDE_RIGHT) {
             return ClockDigitTransitionTiming.SLIDE_DURATION_MILLIS;
+        }
+        return ClockDigitTransitionTiming.DURATION_MILLIS;
+    }
+
+    /**
+     * The carousel line sweeps a whole sentence where the clock sweeps one glyph, so it is given
+     * its own, longer run instead of finishing in step with the digits.
+     */
+    private static long weatherTransitionDurationMillis(ClockState.TimeTransition transition) {
+        if (transition == ClockState.TimeTransition.SCAN) {
+            return ClockDigitTransitionTiming.SCAN_DURATION_MILLIS;
+        }
+        if (transition == ClockState.TimeTransition.SLIDE_RIGHT) {
+            return ClockDigitTransitionTiming.SUPPORTING_DURATION_MILLIS;
         }
         return ClockDigitTransitionTiming.DURATION_MILLIS;
     }
@@ -744,7 +827,7 @@ public class UltimateClockView extends FrameLayout {
 
     private void scheduleNextFrame() {
         if (!shouldRunFrames()) return;
-        if (transitionStartedUptime > 0L) {
+        if (transitionStartedUptime > 0L || weatherTransitionStartedUptime > 0L) {
             postOnAnimation(ticker);
             return;
         }
@@ -752,15 +835,21 @@ public class UltimateClockView extends FrameLayout {
         ClockStyle style = styleRegistry.resolveForApi(styleId, Build.VERSION.SDK_INT);
         ClockState.SecondHandMotion motion = resolveSecondHandMotion(
                 style, showSeconds, secondHandMotion);
-        if (motion == ClockState.SecondHandMotion.OFF) {
-            long now = currentTimeMillis();
-            delay = MINUTE_REFRESH_MILLIS - (now % MINUTE_REFRESH_MILLIS);
-        } else if (motion == ClockState.SecondHandMotion.SWEEP) {
+        if (motion == ClockState.SecondHandMotion.SWEEP) {
             postOnAnimation(ticker);
             return;
+        }
+        long now = currentTimeMillis();
+        if (motion == ClockState.SecondHandMotion.OFF) {
+            delay = MINUTE_REFRESH_MILLIS - (now % MINUTE_REFRESH_MILLIS);
         } else {
-            long now = currentTimeMillis();
             delay = MILLIS_PER_SECOND - (now % MILLIS_PER_SECOND);
+        }
+        // A rotating weather line needs a frame on every item change, even when the seconds hand
+        // is off and the digits are otherwise idle.
+        if (weatherCarousel.size() > 1) {
+            long carouselDelay = WEATHER_DETAIL_HOLD_MILLIS - (now % WEATHER_DETAIL_HOLD_MILLIS);
+            delay = Math.min(delay, Math.max(1L, carouselDelay));
         }
         handler.postDelayed(ticker, Math.max(1L, delay));
     }
@@ -804,27 +893,46 @@ public class UltimateClockView extends FrameLayout {
                 : preferences.isDigitAnimationEnabled(styleId);
         String transition = proClassic ? repository.getTimeTransition()
                 : preferences.getDigitTransition(styleId);
+        digitTransition = transitionForName(transition);
+    }
+
+    private void reloadWeatherTransition() {
+        BackgroundRepository repository = backgroundRepository != null
+                ? backgroundRepository : new BackgroundRepository(getContext());
+        boolean proClassic = UltimateClockStyles.STYLE_PRO_CLASSIC.equals(styleId);
+        String transition = proClassic ? repository.getWeatherTransition()
+                : preferences.getWeatherTransition(styleId);
+        weatherTransition = transitionForName(transition);
+    }
+
+    private static ClockState.TimeTransition transitionForName(String transition) {
         if (ClockPreferences.TRANSITION_SLIDE_UP.equals(transition)) {
-            digitTransition = ClockState.TimeTransition.SLIDE_UP;
+            return ClockState.TimeTransition.SLIDE_UP;
         } else if (ClockPreferences.TRANSITION_SLIDE_DOWN.equals(transition)) {
-            digitTransition = ClockState.TimeTransition.SLIDE_DOWN;
+            return ClockState.TimeTransition.SLIDE_DOWN;
         } else if (ClockPreferences.TRANSITION_SCALE.equals(transition)) {
-            digitTransition = ClockState.TimeTransition.SCALE;
+            return ClockState.TimeTransition.SCALE;
         } else if (ClockPreferences.TRANSITION_FLIP.equals(transition)) {
-            digitTransition = ClockState.TimeTransition.FLIP;
+            return ClockState.TimeTransition.FLIP;
         } else if (ClockPreferences.TRANSITION_SLIDE_RIGHT.equals(transition)) {
-            digitTransition = ClockState.TimeTransition.SLIDE_RIGHT;
+            return ClockState.TimeTransition.SLIDE_RIGHT;
         } else if (ClockPreferences.TRANSITION_SCAN.equals(transition)) {
-            digitTransition = ClockState.TimeTransition.SCAN;
-        } else {
-            digitTransition = ClockState.TimeTransition.FADE;
+            return ClockState.TimeTransition.SCAN;
         }
+        return ClockState.TimeTransition.FADE;
     }
 
     private void resetDigitTransition() {
         transitionTimeKey = -1L;
         transitionStartedUptime = 0L;
         digitTracker = new ClockDigitTransitionTracker();
+        resetWeatherTransition();
+    }
+
+    private void resetWeatherTransition() {
+        lastWeatherTick = -1L;
+        weatherTransitionStartedUptime = 0L;
+        previousWeatherText = "";
     }
 
     private String dateText(long now) {

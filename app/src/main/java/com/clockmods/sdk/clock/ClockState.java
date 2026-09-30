@@ -28,6 +28,9 @@ public final class ClockState {
     private final float supportingScale;
     private final TimeTransition timeTransition;
     private final float timeTransitionProgress;
+    private final TimeTransition weatherTransition;
+    private final String previousWeatherText;
+    private final float weatherTransitionProgress;
 
     private ClockState(Builder builder) {
         timeMillis = builder.timeMillis;
@@ -47,6 +50,9 @@ public final class ClockState {
         supportingScale = positiveScale(builder.supportingScale);
         timeTransition = builder.timeTransition;
         timeTransitionProgress = transitionProgress(builder.timeTransitionProgress);
+        weatherTransition = builder.weatherTransition;
+        previousWeatherText = clean(builder.previousWeatherText);
+        weatherTransitionProgress = transitionProgress(builder.weatherTransitionProgress);
     }
 
     public static Builder builder(long timeMillis) {
@@ -69,6 +75,18 @@ public final class ClockState {
     public float getSupportingScale() { return supportingScale; }
     public TimeTransition getTimeTransition() { return timeTransition; }
     public float getTimeTransitionProgress() { return timeTransitionProgress; }
+
+    /**
+     * The transition the carousel line uses. It travels with the state, like the digit one, so a
+     * renderer can draw the outgoing item without knowing where the setting came from.
+     */
+    public TimeTransition getWeatherTransition() { return weatherTransition; }
+
+    /** The carousel item shown just before the current one, empty when there was no previous one. */
+    public String getPreviousWeatherText() { return previousWeatherText; }
+
+    /** Progress of the weather carousel swap; 1 when no swap is running. */
+    public float getWeatherTransitionProgress() { return weatherTransitionProgress; }
 
     public Calendar newCalendar() {
         Calendar calendar = Calendar.getInstance(timeZone, locale);
@@ -97,6 +115,9 @@ public final class ClockState {
         private float supportingScale = 1f;
         private TimeTransition timeTransition = TimeTransition.FADE;
         private float timeTransitionProgress = 1f;
+        private TimeTransition weatherTransition = TimeTransition.FADE;
+        private String previousWeatherText = "";
+        private float weatherTransitionProgress = 1f;
 
         private Builder(long timeMillis) {
             this.timeMillis = timeMillis;
@@ -146,6 +167,24 @@ public final class ClockState {
         }
         public Builder timeTransitionProgress(float value) {
             timeTransitionProgress = value;
+            return this;
+        }
+
+        public Builder weatherTransition(TimeTransition value) {
+            if (value == null) {
+                throw new IllegalArgumentException("weatherTransition must not be null");
+            }
+            weatherTransition = value;
+            return this;
+        }
+
+        public Builder previousWeatherText(String value) {
+            previousWeatherText = value;
+            return this;
+        }
+
+        public Builder weatherTransitionProgress(float value) {
+            weatherTransitionProgress = value;
             return this;
         }
 

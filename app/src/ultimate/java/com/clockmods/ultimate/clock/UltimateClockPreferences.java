@@ -25,6 +25,7 @@ public final class UltimateClockPreferences {
     private static final String KEY_SECOND_HAND_MOTION = KEY_SECOND_MOTION;
     private static final String KEY_DIGIT_ANIMATION_PREFIX = "digit_animation__";
     private static final String KEY_DIGIT_TRANSITION_PREFIX = "digit_transition__";
+    private static final String KEY_WEATHER_TRANSITION_PREFIX = "weather_transition__";
 
     private final SharedPreferences preferences;
 
@@ -108,6 +109,18 @@ public final class UltimateClockPreferences {
                 ClockPreferences.normalizeTimeTransition(transition)).apply();
     }
 
+    /** The carousel row keeps its own transition, keyed per style like the digit one. */
+    public String getWeatherTransition(String styleId) {
+        return ClockPreferences.normalizeTimeTransition(preferences.getString(
+                KEY_WEATHER_TRANSITION_PREFIX + normalizeStyleId(styleId),
+                ClockPreferences.DEFAULT_WEATHER_TRANSITION));
+    }
+
+    public void setWeatherTransition(String styleId, String transition) {
+        preferences.edit().putString(KEY_WEATHER_TRANSITION_PREFIX + normalizeStyleId(styleId),
+                ClockPreferences.normalizeTimeTransition(transition)).apply();
+    }
+
     public String getBackgroundMode() {
         return normalizeBackgroundMode(preferences.getString(
                 KEY_BACKGROUND_MODE, DEFAULT_BACKGROUND_MODE));
@@ -144,7 +157,8 @@ public final class UltimateClockPreferences {
         SharedPreferences.Editor editor = preferences.edit();
         for (String key : preferences.getAll().keySet()) {
             if (key.startsWith("palette_") || key.startsWith(KEY_DIGIT_ANIMATION_PREFIX)
-                    || key.startsWith(KEY_DIGIT_TRANSITION_PREFIX)) editor.remove(key);
+                    || key.startsWith(KEY_DIGIT_TRANSITION_PREFIX)
+                    || key.startsWith(KEY_WEATHER_TRANSITION_PREFIX)) editor.remove(key);
         }
         editor
                 .putString(KEY_STYLE_ID, DEFAULT_STYLE_ID)

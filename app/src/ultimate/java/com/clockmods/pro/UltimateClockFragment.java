@@ -73,7 +73,6 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
     private StatusBarView statusBarView;
     private View weatherAttribution;
     private WeatherController weatherController;
-    private boolean weatherControllerUsesDetailedPreference;
     private BackgroundRepository statusOverlayRepository;
     private WeatherState lastWeatherState;
     private String lastWeatherMessage;
@@ -352,18 +351,14 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
     }
 
     private void ensureWeatherController() {
-        boolean usesDetailedPreference = proClassicActive;
-        if (weatherController != null
-                && weatherControllerUsesDetailedPreference == usesDetailedPreference) {
-            return;
-        }
-        if (weatherController != null) weatherController.shutdown();
-        weatherControllerUsesDetailedPreference = usesDetailedPreference;
+        if (weatherController != null) return;
+        // Both clock hosts honour the detailed-weather preference now; the controller fetches the
+        // detail metrics whenever the switch is on so either renderer can rotate its carousel.
         weatherController = new WeatherController(requireContext(), state -> {
             lastWeatherState = state;
             lastWeatherMessage = null;
             deliverWeatherState(state);
-        }, usesDetailedPreference ? null : Boolean.FALSE);
+        }, null);
     }
 
     private void clearWeather() {
