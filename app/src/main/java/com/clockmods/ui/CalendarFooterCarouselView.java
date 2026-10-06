@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.os.SystemClock;
 import android.os.Build;
@@ -23,27 +24,44 @@ import java.util.List;
  * ({@link CalendarLabelCarouselView}) — one line is shown at a time. A line wider than the view
  * scrolls horizontally (as the clock's detailed-weather line does) instead of wrapping or
  * shrinking, and a single item is never split across frames.
+ *
+ * <p>A line that starts with its 宜/忌 hint keeps that glyph bold and pinned at the left edge
+ * while only the items scroll past it. The scroll stops at the tail rather than wrapping around:
+ * here the end of a line is the cue to hand over to the next one, which is the opposite of what
+ * permanent almanac lines do: they show 宜 and 忌 together, with nothing to hand over to,
+ * so they run as an endless belt.</p>
  */
 public final class CalendarFooterCarouselView extends View {
     /** One carousel line with its own colour. */
     public static final class Item {
         final String text;
         final int color;
+        /** When non-empty and {@code text} starts with it, drawn bold and never scrolled past. */
+        String pinnedPrefix = "";
 
         public Item(String text, int color) {
             this.text = text == null ? "" : text;
             this.color = color;
         }
+
+        /** Splits {@code hint} out of the head of the text as the bold pinned glyph. */
+        public Item withPinnedPrefix(String hint) {
+            if (hint != null && hint.length() > 0 && text.startsWith(hint)
+                    && text.length() > hint.length()) {
+                pinnedPrefix = hint;
+            }
+            return this;
+        }
     }
 
-    private static final long HOLD_MS = 3000L;
     private static final long TRANSITION_MS = 200L;
-    private static final long SCROLL_PAUSE_MS = 1000L;
     private static final long FRAME_DELAY_MS = 16L;
-    private static final float SCROLL_DP_PER_SECOND = 40f;
     private static final float HORIZONTAL_PADDING_DP = 8f;
 
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
+    private final Paint boldPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
+    private final Paint badgePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Rect badgeBounds = new Rect();
     private final float density;
     private List<Item> items = Collections.emptyList();
     private int index;
@@ -60,6 +78,8 @@ public final class CalendarFooterCarouselView extends View {
                 14f, getResources().getDisplayMetrics());
         paint.setTextSize(preferredTextSize);
         paint.setColor(Color.WHITE);
+        boldPaint.setTextSize(preferredTextSize);
+        boldPaint.setColor(Color.WHITE);
     }
 
     public void setItems(List<Item> values) {
@@ -75,11 +95,15 @@ public final class CalendarFooterCarouselView extends View {
     public void setTextSizePx(float size) {
         preferredTextSize = size;
         paint.setTextSize(size);
+        boldPaint.setTextSize(size);
         invalidate();
     }
 
     public void setTypeface(Typeface typeface) {
         paint.setTypeface(typeface);
+        // The pinned 宜/忌 glyph is the bold of whatever face the line itself runs in.
+        boldPaint.setTypeface(Typeface.create(typeface == null ? Typeface.DEFAULT : typeface,
+                Typeface.BOLD));
         invalidate();
     }
 
@@ -130,30 +154,43 @@ public final class CalendarFooterCarouselView extends View {
     }
 
     private void drawItem(Canvas canvas, Item item, float verticalOffset, long itemElapsed) {
-        if (item == null || item.text.length() == 0) return;
+        if (item == null || item.text.isEmpty()) return;
         paint.setColor(item.color);
         paint.setTextSize(preferredTextSize);
+        paint.setTextAlign(Paint.Align.LEFT);
+        boldPaint.setTextSize(preferredTextSize * .74f);
         float centerY = getHeight() / 2f;
         float lineHeight = paint.descent() - paint.ascent();
-        float bandTop = Math.max(0f, centerY - lineHeight / 2f);
-        float bandBottom = Math.min(getHeight(), centerY + lineHeight / 2f);
+        float top = Math.max(0f, centerY - lineHeight / 2f);
+        float bottom = Math.min(getHeight(), centerY + lineHeight / 2f);
         float baseline = centerY - (paint.descent() + paint.ascent()) / 2f + verticalOffset;
         float padding = HORIZONTAL_PADDING_DP * density;
-        float available = Math.max(1f, getWidth() - padding * 2f);
-        float textWidth = paint.measureText(item.text);
-        canvas.save();
-        if (textWidth <= available) {
-            canvas.clipRect(0f, bandTop, getWidth(), bandBottom);
-            paint.setTextAlign(Paint.Align.CENTER);
-            canvas.drawText(item.text, getWidth() / 2f, baseline, paint);
-        } else {
-            float overflow = textWidth - available;
-            canvas.clipRect(padding, bandTop, padding + available, bandBottom);
-            paint.setTextAlign(Paint.Align.LEFT);
-            canvas.drawText(item.text, padding - overflow * scrollProgress(itemElapsed, overflow),
-                    baseline, paint);
+        float leading = prefixWidth(item);
+        String body = item.text.substring(item.pinnedPrefix.length()).trim();
+        float room = Math.max(1f, getWidth() - padding * 2f - leading);
+        float width = paint.measureText(body);
+        float excess = Math.max(0f, width - room);
+        float x = excess == 0f ? (getWidth() - leading - width) / 2f : padding;
+        int save = canvas.save();
+        canvas.clipRect(0f, top, getWidth(), bottom);
+        if (leading > 0f) {
+            float diameter = lineHeight * .94f;
+            AlmanacBadge.draw(canvas, item.pinnedPrefix, x + diameter / 2f,
+                    centerY + verticalOffset, diameter, item.color,
+                    boldPaint, badgePaint, badgeBounds);
         }
+        canvas.save();
+        canvas.clipRect(x + leading, top, getWidth() - padding, bottom);
+        canvas.drawText(body, x + leading
+                - CalendarMarqueeTiming.scrollOffset(itemElapsed, excess, density), baseline, paint);
         canvas.restore();
+        canvas.restoreToCount(save);
+    }
+
+    private float prefixWidth(Item item) {
+        if (item.pinnedPrefix.isEmpty()) return 0f;
+        paint.setTextSize(preferredTextSize);
+        return (paint.descent() - paint.ascent()) * ( .94f + .30f );
     }
 
     /** Vertical travel of one carousel step: the text line height (matches the cell carousel). */
@@ -163,27 +200,25 @@ public final class CalendarFooterCarouselView extends View {
     }
 
     private boolean overflow(Item item) {
-        paint.setTextSize(preferredTextSize);
-        float padding = HORIZONTAL_PADDING_DP * density;
-        return paint.measureText(item.text) > Math.max(1f, getWidth() - padding * 2f);
+        return bodyWidth(item) > bodyRoom(item);
     }
 
-    private float scrollProgress(long itemElapsed, float overflow) {
-        if (overflow <= 0f) return 0f;
-        long scrollMs = (long) Math.ceil(overflow / (SCROLL_DP_PER_SECOND * density) * 1000f);
-        if (scrollMs <= 0L) return 1f;
-        return Math.max(0f, Math.min(1f, (itemElapsed - SCROLL_PAUSE_MS) / (float) scrollMs));
-    }
-
+    /** Read the head, scroll once, and hold the tail before sliding to the next line. */
     private long holdDurationFor(Item item) {
-        paint.setTextSize(preferredTextSize);
-        float padding = HORIZONTAL_PADDING_DP * density;
-        float overflow = paint.measureText(item.text) - Math.max(1f, getWidth() - padding * 2f);
-        if (overflow <= 0f) return HOLD_MS;
-        long scrollMs = (long) Math.ceil(overflow / (SCROLL_DP_PER_SECOND * density) * 1000f);
-        return Math.max(HOLD_MS, SCROLL_PAUSE_MS * 2L + scrollMs);
+        return CalendarMarqueeTiming.holdMillis(bodyWidth(item) - bodyRoom(item), density);
     }
 
+    /** Where the scrolling body of an item may draw: beside the pinned glyph, inside the padding. */
+    private float bodyRoom(Item item) {
+        float padding = HORIZONTAL_PADDING_DP * density;
+        float prefixWidth = prefixWidth(item);
+        return Math.max(1f, getWidth() - padding * 2f - prefixWidth);
+    }
+
+    private float bodyWidth(Item item) {
+        paint.setTextSize(preferredTextSize);
+        return paint.measureText(item.text.substring(item.pinnedPrefix.length()).trim());
+    }
     @SuppressWarnings("deprecation")
     private boolean animationsEnabled() {
         try {

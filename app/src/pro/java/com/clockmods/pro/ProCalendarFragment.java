@@ -981,14 +981,16 @@ public final class ProCalendarFragment extends Fragment {
         if (!yi.isEmpty()) {
             items.add(new CalendarFooterCarouselView.Item(
                     getString(R.string.calendar_suitable_prefix)
-                            + android.text.TextUtils.join(" ", yi),
-                    getColor(R.color.calendar_dashboard_green)));
+                            + android.text.TextUtils.join(" · ", yi),
+                    getColor(R.color.calendar_dashboard_green))
+                    .withPinnedPrefix(getString(R.string.calendar_suitable_prefix)));
         }
         if (!ji.isEmpty()) {
             items.add(new CalendarFooterCarouselView.Item(
                     getString(R.string.calendar_avoid_prefix)
-                            + android.text.TextUtils.join(" ", ji),
-                    getColor(R.color.calendar_dashboard_red)));
+                            + android.text.TextUtils.join(" · ", ji),
+                    getColor(R.color.calendar_dashboard_red))
+                    .withPinnedPrefix(getString(R.string.calendar_avoid_prefix)));
         }
         footer.setItems(items);
         footer.setActive(resumed);
