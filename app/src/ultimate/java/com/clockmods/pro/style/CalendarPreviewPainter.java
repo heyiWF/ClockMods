@@ -313,15 +313,20 @@ public final class CalendarPreviewPainter {
         canvas.drawRoundRect(shape, lineHeight * 0.5f, lineHeight * 0.5f, paint);
         y = shape.bottom + lineHeight * 0.85f;
 
-        // 宜 then 忌, the pair that sits tighter than the blocks around it.
-        paint.setColor(theme.suitable);
-        shape.set(lineLeft, y, lineRight - (lineRight - lineLeft) * 0.10f, y + lineHeight);
-        canvas.drawRoundRect(shape, lineHeight / 2f, lineHeight / 2f, paint);
-        y = shape.bottom + lineHeight * 0.55f;
-        paint.setColor(theme.avoid);
-        shape.set(lineLeft, y, lineRight - (lineRight - lineLeft) * 0.24f, y + lineHeight);
-        canvas.drawRoundRect(shape, lineHeight / 2f, lineHeight / 2f, paint);
-        y = shape.bottom + lineHeight * 1.25f;
+        // The same circular badges as the live almanac detail card.
+        for (int row = 0; row < 2; row++) {
+            int color = row == 0 ? theme.suitable : theme.avoid;
+            paint.setColor(withAlpha(color, .18f));
+            canvas.drawCircle(lineLeft + lineHeight / 2f, y + lineHeight / 2f,
+                    lineHeight / 2f, paint);
+            paint.setColor(color);
+            shape.set(lineLeft + lineHeight * 1.3f, y + lineHeight * .3f,
+                    lineRight - (lineRight - lineLeft) * (row == 0 ? .10f : .24f),
+                    y + lineHeight * .7f);
+            canvas.drawRoundRect(shape, lineHeight * .2f, lineHeight * .2f, paint);
+            y += lineHeight * 1.55f;
+        }
+        y += lineHeight * .7f;
 
         // Schedule rows: an accent time chip and a longer title, twice.
         float chipWidth = (lineRight - lineLeft) * 0.22f;

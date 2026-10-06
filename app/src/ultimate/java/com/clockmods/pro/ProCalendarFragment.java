@@ -437,9 +437,9 @@ public final class ProCalendarFragment extends Fragment implements CalendarLayou
         List<String> avoid = wantsTaboo ? almanac.avoid() : Collections.<String>emptyList();
         return new CalendarPageState.Selection(index, dateLine,
                 suitable.isEmpty() ? "" : getString(R.string.calendar_suitable_prefix)
-                        + android.text.TextUtils.join(" ", suitable),
+                        + android.text.TextUtils.join(" · ", suitable),
                 avoid.isEmpty() ? "" : getString(R.string.calendar_avoid_prefix)
-                        + android.text.TextUtils.join(" ", avoid),
+                        + android.text.TextUtils.join(" · ", avoid),
                 details.contains(CalendarPageState.DayDetail.LUNAR) ? almanac.naturalLabel() : "",
                 details.contains(CalendarPageState.DayDetail.FESTIVALS)
                         ? android.text.TextUtils.join(" · ", almanac.festivals()) : "");

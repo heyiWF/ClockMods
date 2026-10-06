@@ -27,7 +27,8 @@ android {
         applicationId "com.clockmods"
         minSdk = 31
         targetSdk = 36
-        testInstrumentationRunner providers.gradleProperty("clockmods.testRunner").getOrElse("com.clockmods.widget.WidgetAcceptanceInstrumentation")
+        testInstrumentationRunner providers.gradleProperty('clockmods.testRunner')
+                .getOrElse('com.clockmods.widget.WidgetAcceptanceInstrumentation')
         versionCode = 1
         versionName = "1.0"
         buildConfigField 'String', 'QWEATHER_API_HOST', '"' + qweatherValue('apiHost', 'devapi.qweather.com') + '"'

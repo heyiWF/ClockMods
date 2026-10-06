@@ -4,6 +4,7 @@ import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Color;
 import android.graphics.Paint;
+import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.os.SystemClock;
 import android.text.TextUtils;
@@ -51,15 +52,14 @@ public final class CalendarFooterCarouselView extends View {
         }
     }
 
-    private static final long HOLD_MS = 3000L;
     private static final long TRANSITION_MS = 200L;
-    private static final long SCROLL_PAUSE_MS = 1000L;
     private static final long FRAME_DELAY_MS = 16L;
-    private static final float SCROLL_DP_PER_SECOND = 40f;
     private static final float HORIZONTAL_PADDING_DP = 8f;
 
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
     private final Paint boldPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
+    private final Paint badgePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+    private final Rect badgeBounds = new Rect();
     private final float density;
     private List<Item> items = Collections.emptyList();
     private int index;
@@ -151,64 +151,43 @@ public final class CalendarFooterCarouselView extends View {
     }
 
     private void drawItem(Canvas canvas, Item item, float verticalOffset, long itemElapsed) {
-        if (item == null || item.text.length() == 0) return;
+        if (item == null || item.text.isEmpty()) return;
         paint.setColor(item.color);
-        boldPaint.setColor(item.color);
         paint.setTextSize(preferredTextSize);
-        boldPaint.setTextSize(preferredTextSize);
+        paint.setTextAlign(Paint.Align.LEFT);
+        boldPaint.setTextSize(preferredTextSize * .74f);
         float centerY = getHeight() / 2f;
         float lineHeight = paint.descent() - paint.ascent();
-        float bandTop = Math.max(0f, centerY - lineHeight / 2f);
-        float bandBottom = Math.min(getHeight(), centerY + lineHeight / 2f);
+        float top = Math.max(0f, centerY - lineHeight / 2f);
+        float bottom = Math.min(getHeight(), centerY + lineHeight / 2f);
         float baseline = centerY - (paint.descent() + paint.ascent()) / 2f + verticalOffset;
         float padding = HORIZONTAL_PADDING_DP * density;
-        float prefixWidth = item.pinnedPrefix.length() == 0 ? 0f
-                : boldPaint.measureText(item.pinnedPrefix);
-        String body = item.text.substring(item.pinnedPrefix.length());
-        float available = Math.max(1f, getWidth() - padding * 2f - prefixWidth);
-        float textWidth = paint.measureText(body);
-        canvas.save();
-        if (textWidth <= available) {
-            canvas.clipRect(0f, bandTop, getWidth(), bandBottom);
-            paint.setTextAlign(Paint.Align.CENTER);
-            if (prefixWidth > 0f) {
-                // A fitting line keeps its glyph bold but stays centred as a whole: measure both
-                // runs, then place them side by side around the same centre.
-                float totalWidth = prefixWidth
-                        + paint.measureText(body);
-                float startX = getWidth() / 2f - totalWidth / 2f;
-                boldPaint.setTextAlign(Paint.Align.LEFT);
-                canvas.drawText(item.pinnedPrefix, startX, baseline, boldPaint);
-                paint.setTextAlign(Paint.Align.LEFT);
-                canvas.drawText(body, startX + prefixWidth, baseline, paint);
-            } else {
-                canvas.drawText(item.text, getWidth() / 2f, baseline, paint);
-            }
-        } else {
-            // Scrolled to its end and left there — not wrapped. This is a carousel: reaching the
-            // end of a line is the cue to move on to the next one, and a line that looped would
-            // never reach an end to hand over at. The belt treatment belongs to AlmanacLineView,
-            // where 宜 and 忌 are both on screen for good and nothing follows them.
-            float overflow = textWidth - available;
-            canvas.clipRect(0f, bandTop, getWidth(), bandBottom);
-            // The body scrolls inside its own strip, which must be popped before the glyph is
-            // drawn: clipRect intersects rather than replaces, so a glyph clip to the left of the
-            // body clip would meet it only at the edge and come out empty — which is exactly how
-            // 宜 and 忌 went missing from long lines while short ones kept them.
-            canvas.save();
-            canvas.clipRect(padding + prefixWidth, bandTop, padding + prefixWidth + available,
-                    bandBottom);
-            paint.setTextAlign(Paint.Align.LEFT);
-            canvas.drawText(body, padding + prefixWidth
-                    - overflow * scrollProgress(itemElapsed, overflow), baseline, paint);
-            canvas.restore();
-            if (prefixWidth > 0f) {
-                // Outside the body strip, so the glyph never slides away with it.
-                boldPaint.setTextAlign(Paint.Align.LEFT);
-                canvas.drawText(item.pinnedPrefix, padding, baseline, boldPaint);
-            }
+        float leading = prefixWidth(item);
+        String body = item.text.substring(item.pinnedPrefix.length()).trim();
+        float room = Math.max(1f, getWidth() - padding * 2f - leading);
+        float width = paint.measureText(body);
+        float excess = Math.max(0f, width - room);
+        float x = excess == 0f ? (getWidth() - leading - width) / 2f : padding;
+        int save = canvas.save();
+        canvas.clipRect(0f, top, getWidth(), bottom);
+        if (leading > 0f) {
+            float diameter = lineHeight * .94f;
+            AlmanacBadge.draw(canvas, item.pinnedPrefix, x + diameter / 2f,
+                    centerY + verticalOffset, diameter, item.color,
+                    boldPaint, badgePaint, badgeBounds);
         }
+        canvas.save();
+        canvas.clipRect(x + leading, top, getWidth() - padding, bottom);
+        canvas.drawText(body, x + leading
+                - CalendarMarqueeTiming.scrollOffset(itemElapsed, excess, density), baseline, paint);
         canvas.restore();
+        canvas.restoreToCount(save);
+    }
+
+    private float prefixWidth(Item item) {
+        if (item.pinnedPrefix.isEmpty()) return 0f;
+        paint.setTextSize(preferredTextSize);
+        return (paint.descent() - paint.ascent()) * ( .94f + .30f );
     }
 
     /** Vertical travel of one carousel step: the text line height (matches the cell carousel). */
@@ -221,34 +200,20 @@ public final class CalendarFooterCarouselView extends View {
         return bodyWidth(item) > bodyRoom(item);
     }
 
-    private float scrollProgress(long itemElapsed, float overflow) {
-        if (overflow <= 0f) return 0f;
-        long scrollMs = (long) Math.ceil(overflow / (SCROLL_DP_PER_SECOND * density) * 1000f);
-        if (scrollMs <= 0L) return 1f;
-        return Math.max(0f, Math.min(1f, (itemElapsed - SCROLL_PAUSE_MS) / (float) scrollMs));
-    }
-
-    /**
-     * How long an item stays before the carousel slides to the next: long enough to read its head,
-     * travel to its tail, and rest there before handing over.
-     */
+    /** Read the head, scroll once, and hold the tail before sliding to the next line. */
     private long holdDurationFor(Item item) {
-        float overflow = bodyWidth(item) - bodyRoom(item);
-        if (overflow <= 0f) return HOLD_MS;
-        long scrollMs = (long) Math.ceil(overflow / (SCROLL_DP_PER_SECOND * density) * 1000f);
-        return Math.max(HOLD_MS, SCROLL_PAUSE_MS * 2L + scrollMs);
+        return CalendarMarqueeTiming.holdMillis(bodyWidth(item) - bodyRoom(item), density);
     }
 
     /** Where the scrolling body of an item may draw: beside the pinned glyph, inside the padding. */
     private float bodyRoom(Item item) {
         float padding = HORIZONTAL_PADDING_DP * density;
-        float prefixWidth = item.pinnedPrefix.length() == 0 ? 0f
-                : boldPaint.measureText(item.pinnedPrefix);
+        float prefixWidth = prefixWidth(item);
         return Math.max(1f, getWidth() - padding * 2f - prefixWidth);
     }
 
     private float bodyWidth(Item item) {
         paint.setTextSize(preferredTextSize);
-        return paint.measureText(item.text.substring(item.pinnedPrefix.length()));
+        return paint.measureText(item.text.substring(item.pinnedPrefix.length()).trim());
     }
 }
