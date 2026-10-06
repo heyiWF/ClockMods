@@ -107,4 +107,10 @@ public class ClockLayoutCalculatorTest {
         Assert.assertEquals(120f,
                 ClockLayoutCalculator.capToWidth(120f, 0f, 1000, 0.92f), 0f);
     }
+    @Test
+    public void maximumSettingsDoNotOverflowFittedWidthOrHeight() {
+        Assert.assertEquals(220f,ClockLayoutCalculator.calculateWidthBasedTextSize(1000,400,4f,2f,.55f,.98f),.001f);
+        Assert.assertEquals(245f,ClockLayoutCalculator.calculateWidthBasedTextSize(1000,1000,4f,1.5f,.55f,.98f),.001f);
+        Assert.assertEquals(245f,ClockLayoutCalculator.calculateWidthBasedTextSize(1000,1000,4f,Float.NaN,.55f,.98f),.001f);
+    }
 }

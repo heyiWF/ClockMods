@@ -284,12 +284,15 @@ public final class QWeatherClient {
                 ((HttpsURLConnection) connection).setSSLSocketFactory(socketFactory);
             }
             connection.setRequestMethod("GET");
+            // Never forward the bearer token to a redirected endpoint.
+            connection.setInstanceFollowRedirects(false);
             connection.setConnectTimeout(timeoutMs);
             connection.setReadTimeout(timeoutMs);
             connection.setRequestProperty("Authorization", "Bearer " + QWeatherSigner.token(
                     QWeatherConfig.credentialId(), QWeatherConfig.developerId(), QWeatherConfig.projectId(),
                     QWeatherConfig.privateKeyBase64(), System.currentTimeMillis() / 1000L));
             int status = connection.getResponseCode();
+            if (status >= 300 && status < 400) throw new IOException("QWeather redirect rejected");
             String response = read(status >= 200 && status < 300
                     ? connection.getInputStream() : connection.getErrorStream());
             JSONObject json = new JSONObject(response);
@@ -302,11 +305,17 @@ public final class QWeatherClient {
         }
     }
 
-    private static String read(InputStream input) throws IOException {
+    static String read(InputStream input) throws IOException {
         if (input == null) throw new IOException("Empty QWeather response");
         StringBuilder output = new StringBuilder();
         try (BufferedReader reader = new BufferedReader(new InputStreamReader(input, "UTF-8"))) {
-            String line; while ((line = reader.readLine()) != null) output.append(line);
+            char[] buffer = new char[4096];
+            int count;
+            while ((count = reader.read(buffer)) != -1) {
+                if (output.length() + count > 1024 * 1024)
+                    throw new IOException("QWeather response too large");
+                output.append(buffer, 0, count);
+            }
         }
         return output.toString();
     }
