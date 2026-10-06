@@ -39,6 +39,8 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.clockmods.ui.AlmanacBadge
+
 import com.clockmods.R
 import com.clockmods.background.ClockPreferences
 import com.clockmods.calendar.LunarCalendar
@@ -763,17 +765,22 @@ private fun PinnedAlmanac(prefix: String, items: List<String>, color: Int, textS
             typeface = ClockTypefaceResolver.resolve(context, typography.family, typography.emphasizedWeight)
         }
     }
-    Row(verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
-        Canvas(Modifier.size((textSizeSp * 1.55f).dp)) {
+    val badgeDiameter = with(LocalDensity.current) { (textSizeSp * typography.supportingScale * 1.55f).sp.toDp() }
+    val badgePaint = remember { Paint(Paint.ANTI_ALIAS_FLAG) }
+    val badgeBounds = remember { Rect() }
+    Row(Modifier.testTag("almanac:${prefix.trim()}").semantics(mergeDescendants = true) {
+        contentDescription = prefix + items.joinToString(" · ")
+    }, verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(4.dp)) {
+        Canvas(Modifier.size(badgeDiameter)) {
             val radius = minOf(this.size.width, this.size.height) / 2f
-            drawCircle(Color(color).copy(alpha = ALMANAC_BADGE_BACKGROUND_ALPHA), radius)
             glyphPaint.color = color
             glyphPaint.textSize = minOf(
                 textSizeSp * .85f * typography.supportingScale * density * fontScale,
                 radius * 1.25f,
             )
-            drawCenteredAlmanacGlyph(drawContext.canvas.nativeCanvas, prefix,
-                this.size.width / 2f, this.size.height / 2f, glyphPaint)
+            AlmanacBadge.draw(drawContext.canvas.nativeCanvas, prefix,
+                this.size.width / 2f, this.size.height / 2f, radius * 2f, color,
+                glyphPaint, badgePaint, badgeBounds)
         }
         MarqueeText(items.joinToString(" · "), Color(color),
             typography.supportingStyle(TextStyle(fontSize = textSizeSp.sp), items.first()), Modifier.weight(1f))

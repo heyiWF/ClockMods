@@ -2,10 +2,6 @@ package com.clockmods.ultimate.compose
 
 import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Animatable
-import androidx.compose.animation.core.RepeatMode
-import androidx.compose.animation.core.animateFloat
-import androidx.compose.animation.core.infiniteRepeatable
-import androidx.compose.animation.core.rememberInfiniteTransition
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectTapGestures
 import androidx.compose.foundation.layout.Arrangement
@@ -29,6 +25,7 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
+import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.Composable
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
@@ -59,6 +56,7 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import com.clockmods.LocaleManager
+import com.clockmods.ui.CalendarMarqueeTiming
 import com.clockmods.R
 import com.clockmods.background.BackgroundRepository
 import com.clockmods.background.ClockPreferences
@@ -511,7 +509,7 @@ private const val MAX_STATIC_CHARS = 3
 
 /**
  * A minimal single-line horizontal marquee with no external dependency.  When the text fits it
- * sits still; when it overflows it scrolls left continuously and wraps seamlessly.
+ * sits still; overflow follows the Ultimate belt, pausing one second after each lap.
  */
 @Composable
 internal fun MarqueeText(
@@ -524,22 +522,16 @@ internal fun MarqueeText(
     var containerWidth by remember { mutableIntStateOf(0) }
     var textWidth by remember(text, style) { mutableIntStateOf(0) }
     val overflow = textWidth > containerWidth && containerWidth > 0
-    val gapPx = with(density) { 48.dp.toPx() }
-    val progress = if (overflow) {
-        val transition = rememberInfiniteTransition(label = "almanac-marquee")
-        transition.animateFloat(
-        initialValue = 0f,
-        targetValue = 1f,
-        animationSpec = infiniteRepeatable(
-            animation = tween(
-                durationMillis = ((textWidth + gapPx).toInt() * 18).coerceAtLeast(4_000),
-                easing = LinearEasing,
-            ),
-            repeatMode = RepeatMode.Restart,
-        ),
-        label = "almanac-marquee-progress",
-        )
-    } else null
+    val textSizePx = with(density) { style.fontSize.toPx() }
+    val distance = CalendarMarqueeTiming.loopDistance(textWidth.toFloat(), textSizePx, density.density)
+    val gapPx = distance - textWidth
+    var elapsed by remember(text, style, containerWidth) { mutableLongStateOf(0L) }
+    LaunchedEffect(text, style, containerWidth, overflow, density.density) {
+        elapsed = 0L
+        if (!overflow) return@LaunchedEffect
+        val start = withFrameNanos { it }
+        while (true) withFrameNanos { elapsed = (it - start) / 1_000_000L }
+    }
     Box(
         modifier
             .fillMaxWidth()
@@ -547,7 +539,7 @@ internal fun MarqueeText(
             .onSizeChanged { containerWidth = it.width },
     ) {
         Row(Modifier.wrapContentWidth(align = Alignment.Start, unbounded = true).graphicsLayer {
-            translationX = -(progress?.value ?: 0f) * (textWidth + gapPx)
+            translationX = -CalendarMarqueeTiming.loopOffset(elapsed, distance, density.density)
         }) {
             Text(
                 text,
@@ -564,7 +556,7 @@ internal fun MarqueeText(
                     maxLines = 1,
                     softWrap = false,
                     style = style,
-                    modifier = Modifier.padding(start = 48.dp),
+                    modifier = Modifier.padding(start = with(density) { gapPx.toDp() }),
                 )
             }
         }

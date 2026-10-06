@@ -8,15 +8,18 @@ import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.nativeCanvas
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
+import androidx.compose.ui.semantics.contentDescription
+import androidx.compose.ui.semantics.semantics
+import com.clockmods.ui.CalendarMarqueeTiming
+import com.clockmods.ui.AlmanacBadge
 import com.clockmods.R
 import com.clockmods.background.ClockPreferences
 import com.clockmods.pro.CalendarDashboardSizing
 import com.clockmods.ui.ClockTypefaceResolver
-import kotlin.math.ceil
 import kotlin.math.max
 import kotlin.math.min
 
-internal const val ALMANAC_BADGE_BACKGROUND_ALPHA = .18f
+internal const val ALMANAC_BADGE_BACKGROUND_ALPHA = AlmanacBadge.BACKGROUND_ALPHA
 
 /** Centers the visible ink, including fonts whose Chinese glyphs sit off their line box center. */
 internal fun drawCenteredAlmanacGlyph(
@@ -42,12 +45,13 @@ internal fun CalendarFooterCarousel(cell: CalendarCellInfo, date: String, theme:
     val bold = remember(typography) { Paint(Paint.ANTI_ALIAS_FLAG or Paint.SUBPIXEL_TEXT_FLAG).apply {
         typeface = ClockTypefaceResolver.resolve(context, typography.family, typography.emphasizedWeight) } }
     val badgePaint = remember { Paint(Paint.ANTI_ALIAS_FLAG) }
+    val glyphBounds = remember { Rect() }
     var elapsed by remember(cell.day) { mutableLongStateOf(0L) }
     LaunchedEffect(cell.day) {
         val start = withFrameNanos { it }
         while (true) withFrameNanos { elapsed = (it - start) / 1_000_000 }
     }
-    Canvas(modifier) {
+    Canvas(modifier.semantics { contentDescription = lines.joinToString("，") { it.first + it.second } }) {
         paint.textSize = min(
             CalendarDashboardSizing.monthFooterSize(height * density, density) *
                 typography.dateScale / ClockPreferences.DEFAULT_DATE_FONT_SCALE,
@@ -65,8 +69,7 @@ internal fun CalendarFooterCarousel(cell: CalendarCellInfo, date: String, theme:
             val line = lines[index]
             return max(0f, paint.measureText(line.second) - (size.width - padding * 2 - prefixWidth(line.first)))
         }
-        fun scrollTime(index: Int) = ceil(overflow(index) / (40 * density) * 1000).toLong()
-        fun hold(index: Int) = max(3000L, if (overflow(index) > 0) 2000L + scrollTime(index) else 0L)
+        fun hold(index: Int) = CalendarMarqueeTiming.holdMillis(overflow(index), density)
         val total = lines.indices.sumOf { hold(it) + 200L }
         var phase = elapsed % total
         var index = 0
@@ -88,15 +91,13 @@ internal fun CalendarFooterCarousel(cell: CalendarCellInfo, date: String, theme:
             if (prefix.isNotEmpty()) {
                 val radius = badgeDiameter / 2f
                 val centerY = size.height / 2f + offset
-                badgePaint.color = (color and 0x00FFFFFF) or
-                    ((255 * ALMANAC_BADGE_BACKGROUND_ALPHA).toInt() shl 24)
-                canvas.drawCircle(x + radius, centerY, radius, badgePaint)
                 bold.textSize = paint.textSize * .74f
-                drawCenteredAlmanacGlyph(canvas, prefix, x + radius, centerY, bold)
+                AlmanacBadge.draw(canvas, prefix, x + radius, centerY, badgeDiameter,
+                    color, bold, badgePaint, glyphBounds)
             }
             canvas.save()
             canvas.clipRect(x + prefixWidth, top, size.width - if (excess > 0) padding else 0f, bottom)
-            val scroll = if (excess == 0f) 0f else excess * ((time - 1000f) / scrollTime(i).coerceAtLeast(1)).coerceIn(0f, 1f)
+            val scroll = CalendarMarqueeTiming.scrollOffset(time, excess, density)
             canvas.drawText(body, x + prefixWidth - scroll, baseline, paint)
             canvas.restore()
             canvas.restore()
