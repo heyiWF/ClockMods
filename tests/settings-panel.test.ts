@@ -94,8 +94,8 @@ describe('settings sheet', () => {
     setSwitch(sheet, '冒号每秒闪烁', true);
     setSwitch(sheet, '竖屏时钟竖排大字', true);
     const sliders = sheet.querySelectorAll<HTMLInputElement>('.settings-slider input');
-    sliders[0].value = '120';
-    const transition = sheet.querySelectorAll<HTMLSelectElement>('.settings-select')[1];
+    sliders[1].value = '120';
+    const transition = sheet.querySelectorAll<HTMLSelectElement>('.settings-select')[4];
     transition.value = TRANSITION_FLIP;
 
     apply(sheet);

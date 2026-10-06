@@ -109,6 +109,26 @@ export async function createToken(
 
 export class QWeatherError extends Error {}
 
+/** Bound decompressed data before JSON parsing, including chunked responses. */
+export async function readWeatherJson(response: Response): Promise<Record<string, unknown>> {
+  const limit = 1024 * 1024;
+  if (Number(response.headers.get('content-length')) > limit) throw new QWeatherError('response too large');
+  if (!response.body) throw new QWeatherError('empty response');
+  const reader = response.body.getReader();
+  const chunks: Uint8Array[] = []; let length = 0;
+  try {
+    while (true) {
+      const { done, value } = await reader.read(); if (done) break;
+      length += value.length;
+      if (length > limit) { await reader.cancel(); throw new QWeatherError('response too large'); }
+      chunks.push(value);
+    }
+  } finally { reader.releaseLock(); }
+  const bytes = new Uint8Array(length); let offset = 0;
+  for (const chunk of chunks) { bytes.set(chunk, offset); offset += chunk.length; }
+  return JSON.parse(new TextDecoder().decode(bytes)) as Record<string, unknown>;
+}
+
 async function requestRaw(
   config: QWeatherConfig,
   path: string,
@@ -130,8 +150,8 @@ async function requestRaw(
         nowSeconds
       )}`;
     }
-    const response = await fetch(url, { headers, signal: controller.signal });
-    const body = (await response.json()) as Record<string, unknown>;
+    const response = await fetch(url, { headers, signal: controller.signal, redirect: 'error' });
+    const body = await readWeatherJson(response);
     if (!response.ok) {
       throw new QWeatherError(`QWeather error: ${body.code ?? response.status}`);
     }

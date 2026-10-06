@@ -1,3 +1,5 @@
+import { themeSettings } from '../ui/theme-settings';
+import { transitionName } from '../core/clock-themes';
 /**
  * The settings sheet.
  *
@@ -52,6 +54,8 @@ import {
   ORIENTATION_LANDSCAPE,
   ORIENTATION_PORTRAIT,
   TRANSITION_FADE,
+  TRANSITION_SLIDE_RIGHT,
+  TRANSITION_SCAN,
   TRANSITION_FLIP,
   TRANSITION_SCALE,
   TRANSITION_SLIDE_DOWN,
@@ -118,6 +122,7 @@ export function openSettings(onApplied: SettingsApplied): void {
 
 class SettingsPanel {
   private readonly dialog = element('dialog', 'settings-sheet');
+  private readonly themes = themeSettings();
   private readonly styleBoard = element('div', 'settings-board');
   private readonly functionBoard = element('div', 'settings-board');
   private readonly dateFormatContainer = element('div', 'settings-date-format');
@@ -230,8 +235,8 @@ class SettingsPanel {
         percent
       ),
       transition: select(
-        [TRANSITION_FADE, TRANSITION_SLIDE_UP, TRANSITION_SLIDE_DOWN, TRANSITION_SCALE, TRANSITION_FLIP].map(
-          (value, index) => ({ value, label: ta('pro_time_transitions')[index] ?? value })
+        [TRANSITION_FADE, TRANSITION_SLIDE_UP, TRANSITION_SLIDE_DOWN, TRANSITION_SCALE, TRANSITION_FLIP, TRANSITION_SLIDE_RIGHT, TRANSITION_SCAN].map(
+          value => ({ value, label: transitionName(value, prefs.getClockLanguage()) })
         ),
         prefs.getTimeTransition()
       ),
@@ -419,6 +424,7 @@ class SettingsPanel {
     imageControls.hidden = this.backgroundMode !== MODE_IMAGE;
 
     this.styleBoard.append(
+      this.themes.root,
       card(t('background_settings_group'), c.modeGroup.row, colorControls, imageControls),
       card(
         t('font_settings_group'),
@@ -447,6 +453,17 @@ class SettingsPanel {
         c.dualLine.row
       )
     );
+    const syncThemeInk = () => {
+      const enabled = !this.themes.usesAutomaticInk();
+      setTreeEnabled(c.timePicker.root, enabled);
+      setTreeEnabled(c.datePicker.root, enabled);
+    };
+    this.themes.root.addEventListener('change', syncThemeInk);
+    this.themes.onThemeChanged(id => {
+      c.transition.value = prefs.getTimeTransition(id);
+      c.animate.input.checked = prefs.isAnimateTimeChanges(id);
+    });
+    syncThemeInk();
     const syncSmallSeconds = () => {
       c.smallSeconds.input.disabled = !c.showSeconds.input.checked;
       c.smallSeconds.row.classList.toggle('is-disabled', !c.showSeconds.input.checked);
@@ -758,6 +775,7 @@ class SettingsPanel {
       return;
     }
 
+    this.themes.apply();
     prefs.setBackgroundMode(this.backgroundMode);
     prefs.setBackgroundColor(this.backgroundColor);
     prefs.setDimBackground(c.dimBackground.input.checked);
@@ -845,6 +863,8 @@ class SettingsPanel {
 
   /** Restores the documented defaults in the sheet, without writing them yet. */
   private restoreDefaults(): void {
+    this.themes.reset();
+    this.themes.root.dispatchEvent(new Event('change', { bubbles: true }));
     const c = this.controls;
     this.backgroundMode = MODE_COLOR;
     this.backgroundColor = DEFAULT_BACKGROUND_COLOR;

@@ -42,6 +42,9 @@ export default {
 
     const url = new URL(request.url);
     const path = url.pathname + url.search;
+    if (request.method === 'HEAD' && url.pathname === '/') {
+      return new Response(null, { status: 204, headers: corsHeaders(origin) });
+    }
     if (!ALLOWED_PREFIXES.some((prefix) => url.pathname.startsWith(prefix))) {
       return json({ code: '404' }, 404, origin);
     }
@@ -61,11 +64,12 @@ export default {
         Math.floor(Date.now() / 1000)
       );
     } catch (error) {
-      return json({ code: '401', error: String(error) }, 500, origin);
+      return json({ code: '401', error: 'Weather proxy signing is not configured' }, 500, origin);
     }
 
     const upstream = await fetch(`https://${env.QWEATHER_API_HOST || DEFAULT_API_HOST}${path}`, {
       headers: { Authorization: `Bearer ${token}` },
+      redirect: 'error',
     });
     const body = await upstream.text();
     return new Response(body, {
@@ -87,6 +91,8 @@ function corsHeaders(origin) {
     'access-control-allow-methods': 'GET, HEAD, OPTIONS',
     'access-control-allow-headers': 'content-type',
     'access-control-max-age': '86400',
+    'access-control-expose-headers': 'date',
+    date: new Date().toUTCString(),
   };
 }
 

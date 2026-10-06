@@ -110,7 +110,9 @@ function registerServiceWorker(): void {
       onNeedRefresh() {
         const root = document.getElementById('toast-root');
         if (!root) return;
+        if (document.getElementById('pwa-update-banner')) return;
         const banner = document.createElement('div');
+        banner.id = 'pwa-update-banner';
         banner.className = 'toast';
         banner.style.pointerEvents = 'auto';
         banner.textContent = `${t('update_available')} `;

@@ -1,3 +1,4 @@
+import { readableInk, temperature } from '../core/clock-themes';
 /**
  * The full-screen clock.
  *
@@ -177,10 +178,22 @@ export class ClockPage implements Page {
 
   private applyStyles(): void {
     const style = this.stage.style;
+    const theme = prefs.getClockTheme();
+    const palette = prefs.getThemePalette();
+    this.root.dataset.clockTheme = theme;
+    this.root.classList.toggle('is-material', theme !== 'classic');
+    this.root.classList.toggle('has-card-shadow', prefs.isCardShadow());
+    style.setProperty('--theme-panel', palette.panel);
+    style.setProperty('--theme-background', palette.background);
+    style.setProperty('--theme-on-background', prefs.isThemeAutoInk() ? readableInk(palette.background) : cssColor(prefs.getTimeColor()));
+    style.setProperty('--theme-accent', palette.accent);
+    style.setProperty('--theme-ink', readableInk(palette.panel));
+    style.setProperty('--theme-on-accent', prefs.isThemeAutoInk() ? readableInk(palette.accent) : cssColor(prefs.getTimeColor()));
+    style.setProperty('--supporting-scale', String(prefs.getSupportingScale()));
     style.setProperty('--clock-font', fontStack(prefs.getFontFamily()));
     style.setProperty('--clock-weight', prefs.isBoldText() ? '700' : '400');
-    style.setProperty('--time-color', cssColor(prefs.getTimeColor()));
-    style.setProperty('--date-color', cssColor(prefs.getDateColor()));
+    style.setProperty('--time-color', theme !== 'classic' && prefs.isThemeAutoInk() ? readableInk(palette.panel) : cssColor(prefs.getTimeColor()));
+    style.setProperty('--date-color', theme !== 'classic' && prefs.isThemeAutoInk() ? readableInk(palette.panel) : cssColor(prefs.getDateColor()));
     style.setProperty('--supporting-tracking', `${SUPPORTING_LETTER_SPACING}em`);
     style.setProperty(
       '--weather-icon-color',
@@ -189,13 +202,13 @@ export class ClockPage implements Page {
     this.weather.setIconStyle(prefs.isWeatherIconFill());
     this.detail.setIconStyle(prefs.isWeatherIconFill());
     // Pro drives the detail line with the clock's transition style.
-    this.weather.setTransition(prefs.getTimeTransition());
-    this.detail.setTransition(prefs.getTimeTransition());
+    this.weather.setTransition(prefs.getWeatherTransition());
+    this.detail.setTransition(prefs.getWeatherTransition());
   }
 
   async applyBackground(): Promise<void> {
     const useImage = prefs.getBackgroundMode() === MODE_IMAGE;
-    this.background.style.backgroundColor = cssColor(prefs.getBackgroundColor());
+    this.background.style.backgroundColor = prefs.getClockTheme() === 'classic' ? cssColor(prefs.getBackgroundColor()) : prefs.getThemePalette().background;
     if (!useImage) {
       this.background.style.removeProperty('background-image');
       return;
@@ -310,6 +323,7 @@ export class ClockPage implements Page {
       this.periodLine = new CharacterLine(periodSpan);
       this.secondsLine = new CharacterLine(secondsSpan);
     }
+    main.dataset.materialGroups = String(['ultimate.dual_blocks', 'ultimate.bubbles', 'ultimate.blend'].includes(prefs.getClockTheme()));
     this.mainLine!.setText(displayTime.mainText, options);
     this.periodLine!.setText(period ? displayTime.periodText : '', {
       ...options,
@@ -383,7 +397,7 @@ export class ClockPage implements Page {
     if (enabled && state) {
       if (state.data) {
         const left = locationText(state.data.city, state.data.district);
-        const right = `${state.data.text} ${state.data.temperature}℃`;
+        const right = `${state.data.text} ${temperature(state.data.temperature, prefs.getTemperatureUnit())}`;
         items.push(weatherItem(left, state.data.icon, right));
       } else if (state.message) {
         items.push(plainItem(state.message));
@@ -402,7 +416,7 @@ export class ClockPage implements Page {
             precipFormat: t('weather_precip_format'),
             airFormat: t('weather_air_format'),
             warningSuffix: t('weather_warning_suffix'),
-          }).map(plainItem)
+          }).map(text => plainItem(text.replace(/(-?\d+(?:\.\d+)?)℃/g, (_, value: string) => temperature(value, prefs.getTemperatureUnit()))))
         : []
     );
     this.layoutSignature = '';
@@ -432,8 +446,11 @@ export class ClockPage implements Page {
       showSeconds: boolean;
     }
   ): void {
-    const width = this.stage.clientWidth;
-    const height = this.stage.clientHeight;
+    const themed = prefs.getClockTheme() !== 'classic';
+    const orbit = prefs.getClockTheme() === 'ultimate.orbit';
+    const orbitSize = Math.min(this.stage.clientWidth, this.stage.clientHeight) * 0.62;
+    const width = orbit ? orbitSize : this.stage.clientWidth * (themed ? 0.78 : 1);
+    const height = orbit ? orbitSize : this.stage.clientHeight * (themed ? 0.78 : 1);
     if (width === 0 || height === 0) return;
     const size = `${width}x${height}`;
     if (force) this.lastLayoutSize = '';

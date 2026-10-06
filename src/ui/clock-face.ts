@@ -18,6 +18,8 @@ import {
   TRANSITION_SCALE,
   TRANSITION_SLIDE_DOWN,
   TRANSITION_SLIDE_UP,
+  TRANSITION_SLIDE_RIGHT,
+  TRANSITION_SCAN,
 } from '../core/prefs';
 
 /** Matches TIME_TRANSITION_DURATION_MILLIS in ClockView. */
@@ -29,6 +31,8 @@ const TRANSITION_CLASSES: Record<string, string> = {
   [TRANSITION_SLIDE_DOWN]: 'slide-down',
   [TRANSITION_SCALE]: 'scale',
   [TRANSITION_FLIP]: 'flip',
+  [TRANSITION_SLIDE_RIGHT]: 'slide-right',
+  [TRANSITION_SCAN]: 'scan',
 };
 
 export interface LineOptions {
@@ -63,7 +67,8 @@ export class CharacterLine {
       }
       return;
     }
-    const sameShape = text.length === this.text.length && this.element.childElementCount === text.length;
+    const cells = this.element.querySelectorAll<HTMLElement>('.clock-char');
+    const sameShape = text.length === this.text.length && cells.length === text.length;
     if (!sameShape || !options.animate) {
       this.rebuild(text, options.colonVisible);
       this.text = text;
@@ -75,7 +80,7 @@ export class CharacterLine {
       const previous = this.text.charAt(index);
       const next = text.charAt(index);
       if (previous === next) continue;
-      this.replaceCharacter(this.element.children[index] as HTMLElement, previous, next, transitionClass);
+      this.replaceCharacter(cells[index], previous, next, transitionClass);
     }
     this.text = text;
     if (options.colonVisible !== this.colonVisible) {
@@ -106,7 +111,18 @@ export class CharacterLine {
       cell.appendChild(glyph);
       children.push(cell);
     }
-    this.element.replaceChildren(...children);
+    if (this.element.dataset.materialGroups === 'true') {
+      const groups: HTMLElement[] = [];
+      let section = document.createElement('span'); section.className = 'material-time-part material-hours'; groups.push(section);
+      let index = 0;
+      for (const cell of children) {
+        if (cell.hasAttribute('data-colon')) {
+          cell.classList.add('material-separator'); groups.push(cell);
+          section = document.createElement('span'); section.className = 'material-time-part ' + (++index === 1 ? 'material-minutes' : 'material-seconds'); groups.push(section);
+        } else section.appendChild(cell);
+      }
+      this.element.replaceChildren(...groups);
+    } else this.element.replaceChildren(...children);
   }
 
   /**
@@ -145,7 +161,7 @@ export class CharacterLine {
     incoming.addEventListener('animationend', cleanup, { once: true });
     // animationend never fires when animations are disabled (prefers-reduced-motion
     // or a background tab), so guarantee cleanup.
-    setTimeout(cleanup, TRANSITION_DURATION_MS + 80);
+    setTimeout(cleanup, (transitionClass === 'scan' || transitionClass === 'slide-right' ? 700 : TRANSITION_DURATION_MS) + 80);
   }
 
   private applyColonVisibility(animate: boolean): void {

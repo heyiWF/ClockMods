@@ -15,6 +15,10 @@ import {
 } from '../src/format/text-metrics';
 
 describe('calculateWidthBasedTextSize', () => {
+  it('keeps maximum settings inside the fitted width and height', () => {
+    expect(calculateWidthBasedTextSize(1000, 400, 4, 2, 0.55, 0.98)).toBeCloseTo(220, 5);
+    expect(calculateWidthBasedTextSize(1000, 1000, 4, 1.5, 0.55, 0.98)).toBeCloseTo(245, 5);
+  });
   it('takes the smaller of the width and height limits, then scales it', () => {
     // Width limit: 1000 * 0.98 / 4 = 245. Height limit: 400 * 0.55 = 220.
     expect(calculateWidthBasedTextSize(1000, 400, 4, 1, 0.55, 0.98)).toBeCloseTo(220, 5);

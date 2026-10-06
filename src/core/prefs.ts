@@ -1,3 +1,4 @@
+import { CLOCK_THEMES, clockTheme } from './clock-themes';
 /**
  * User preferences, backed by localStorage.
  *
@@ -22,6 +23,8 @@ export const TRANSITION_FADE = 'fade';
 export const TRANSITION_SLIDE_UP = 'slide_up';
 export const TRANSITION_SLIDE_DOWN = 'slide_down';
 export const TRANSITION_SCALE = 'scale';
+export const TRANSITION_SLIDE_RIGHT = 'slide_right';
+export const TRANSITION_SCAN = 'scan';
 export const TRANSITION_FLIP = 'flip';
 
 export const LANGUAGE_SIMPLIFIED = 'zh-Hans';
@@ -162,7 +165,7 @@ const K = {
  * the clock keeps working.
  */
 class Store {
-  private readonly memory = new Map<string, string>();
+  private readonly memory = new Map<string, string | null>();
   private readonly available: boolean;
 
   constructor() {
@@ -172,7 +175,7 @@ class Store {
   raw(key: string): string | null {
     if (!this.available) return this.memory.get(key) ?? null;
     try {
-      return localStorage.getItem(PREFIX + key);
+      return this.memory.has(key) ? this.memory.get(key)! : localStorage.getItem(PREFIX + key);
     } catch {
       return this.memory.get(key) ?? null;
     }
@@ -183,6 +186,7 @@ class Store {
     if (!this.available) return;
     try {
       localStorage.setItem(PREFIX + key, value);
+      this.memory.delete(key);
     } catch {
       // Quota or private-mode failure: the in-memory copy above still applies
       // for this session.
@@ -190,10 +194,11 @@ class Store {
   }
 
   remove(key: string): void {
-    this.memory.delete(key);
+    this.memory.set(key, null);
     if (!this.available) return;
     try {
       localStorage.removeItem(PREFIX + key);
+      this.memory.delete(key);
     } catch {
       /* ignore */
     }
@@ -248,7 +253,7 @@ export function normalizeTimeTransition(transition: string | null | undefined): 
     transition === TRANSITION_SLIDE_UP ||
     transition === TRANSITION_SLIDE_DOWN ||
     transition === TRANSITION_SCALE ||
-    transition === TRANSITION_FLIP
+    transition === TRANSITION_FLIP || transition === TRANSITION_SLIDE_RIGHT || transition === TRANSITION_SCAN
   ) {
     return transition;
   }
@@ -296,6 +301,35 @@ function normalizeCalendarWeekStart(firstDayOfWeek: number): number {
 }
 
 export const prefs = {
+  clearThemeOverrides: (): void => {
+    for (const theme of CLOCK_THEMES) {
+      store.remove('web_palette__' + theme.id);
+      store.remove('web_weather_transition__' + theme.id);
+      store.remove('web_digit_transition__' + theme.id);
+      store.remove('web_digit_animation__' + theme.id);
+    }
+  },
+  getClockTheme: (): string => clockTheme(store.string('web_clock_theme', 'classic')).id,
+  setClockTheme: (id: string): void => store.write('web_clock_theme', clockTheme(id).id),
+  getThemePalette: (id: string = prefs.getClockTheme()): { background: string; panel: string; accent: string } => {
+    const fallback = clockTheme(id);
+    let value: Record<string, unknown> = {};
+    try { value = JSON.parse(store.string('web_palette__' + id, '{}')) ?? {}; } catch { /* defaults */ }
+    const color = (key: 'background' | 'panel' | 'accent') => typeof value[key] === 'string' && /^#[0-9a-f]{6}$/i.test(value[key] as string) ? value[key] as string : fallback[key];
+    return { background: color('background'), panel: color('panel'), accent: color('accent') };
+  },
+  setThemePalette: (palette: { background: string; panel: string; accent: string }): void => store.write('web_palette__' + prefs.getClockTheme(), JSON.stringify(palette)),
+  isThemeAutoInk: (): boolean => store.bool('web_theme_auto_ink', true),
+  setThemeAutoInk: (value: boolean): void => store.write('web_theme_auto_ink', String(value)),
+  isCardShadow: (): boolean => store.bool('web_card_shadow', true),
+  setCardShadow: (value: boolean): void => store.write('web_card_shadow', String(value)),
+  getSupportingScale: (): number => Math.max(0.5, Math.min(2, store.float('web_supporting_scale', 1))),
+  setSupportingScale: (value: number): void => store.write('web_supporting_scale', String(Number.isFinite(value) ? Math.max(0.5, Math.min(2, value)) : 1)),
+  getWeatherTransition: (id: string = prefs.getClockTheme()): string => normalizeTimeTransition(store.string('web_weather_transition__' + id, TRANSITION_FADE)),
+  setWeatherTransition: (value: string): void => store.write('web_weather_transition__' + prefs.getClockTheme(), normalizeTimeTransition(value)),
+  getTemperatureUnit: (): string => store.string('weather_temperature_unit', 'celsius') === 'fahrenheit' ? 'fahrenheit' : 'celsius',
+  setTemperatureUnit: (value: string): void => store.write('weather_temperature_unit', value === 'fahrenheit' ? value : 'celsius'),
+
   // ---- Background ----
   getBackgroundMode: (): string => store.string(K.backgroundMode, MODE_COLOR),
   setBackgroundMode: (mode: string): void => store.write(K.backgroundMode, mode),
@@ -340,14 +374,14 @@ export const prefs = {
   isBlinkColon: (): boolean => store.bool(K.blinkColon, DEFAULT_BLINK_COLON),
   setBlinkColon: (value: boolean): void => store.write(K.blinkColon, String(value)),
 
-  isAnimateTimeChanges: (): boolean =>
-    store.bool(K.animateTimeChanges, DEFAULT_ANIMATE_TIME_CHANGES),
-  setAnimateTimeChanges: (value: boolean): void => store.write(K.animateTimeChanges, String(value)),
+  isAnimateTimeChanges: (id: string = prefs.getClockTheme()): boolean =>
+    store.bool(id === 'classic' ? K.animateTimeChanges : 'web_digit_animation__' + id, store.bool(K.animateTimeChanges, DEFAULT_ANIMATE_TIME_CHANGES)),
+  setAnimateTimeChanges: (value: boolean): void => store.write(prefs.getClockTheme() === 'classic' ? K.animateTimeChanges : 'web_digit_animation__' + prefs.getClockTheme(), String(value)),
 
-  getTimeTransition: (): string =>
-    normalizeTimeTransition(store.string(K.timeTransition, DEFAULT_TIME_TRANSITION)),
+  getTimeTransition: (id: string = prefs.getClockTheme()): string =>
+    normalizeTimeTransition(store.string(id === 'classic' ? K.timeTransition : 'web_digit_transition__' + id, store.string(K.timeTransition, DEFAULT_TIME_TRANSITION))),
   setTimeTransition: (transition: string): void =>
-    store.write(K.timeTransition, normalizeTimeTransition(transition)),
+    store.write(prefs.getClockTheme() === 'classic' ? K.timeTransition : 'web_digit_transition__' + prefs.getClockTheme(), normalizeTimeTransition(transition)),
 
   isShowSeconds: (): boolean => store.bool(K.showSeconds, DEFAULT_SHOW_SECONDS),
   setShowSeconds: (value: boolean): void => store.write(K.showSeconds, String(value)),

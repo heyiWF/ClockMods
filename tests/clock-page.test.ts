@@ -29,6 +29,24 @@ describe('CharacterLine', () => {
     vi.useRealTimers();
   });
 
+  it('updates grouped digits without replaying unchanged hours and clears scan layers', () => {
+    vi.useFakeTimers();
+    host.dataset.materialGroups = 'true';
+    const line = new CharacterLine(host);
+    line.setText('08:05:07', options({ transition: 'scan' }));
+    line.setText('08:05:08', options({ transition: 'scan' }));
+    expect(host.querySelector('.material-hours')?.textContent).toBe('08');
+    expect(host.querySelector('.material-hours .is-out')).toBeNull();
+    expect(host.querySelectorAll('.is-out')).toHaveLength(1);
+    vi.advanceTimersByTime(800);
+    expect(host.querySelector('.is-out')).toBeNull();
+    expect(host.textContent).toBe('08:05:08');
+    line.reset();
+    host.dataset.materialGroups = 'false';
+    line.setText('08:05', options());
+    expect(host.querySelector('.material-time-part')).toBeNull();
+  });
+
   it('emits one cell per character and marks digits and colons', () => {
     const line = new CharacterLine(host);
     line.setText('08:05', options());

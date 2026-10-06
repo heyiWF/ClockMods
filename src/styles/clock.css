@@ -1,3 +1,4 @@
+@import './clock-themes.css';
 /*
  * The full-screen clock.
  *
@@ -252,6 +253,14 @@
 }
 
 /* ---- Supporting lines: date, lunar, weather ---- */
+.glyph.anim-slide-right.is-out { animation: glyph-right-out 700ms ease-out forwards; }
+.glyph.anim-slide-right.is-in { animation: glyph-right-in 700ms ease-out; }
+.glyph.anim-scan.is-out { animation: glyph-scan-out 700ms linear forwards; }
+.glyph.anim-scan.is-in { animation: glyph-scan-in 700ms linear; }
+@keyframes glyph-right-out { to { opacity: 0; transform: translateX(.8em); } }
+@keyframes glyph-right-in { from { opacity: 0; transform: translateX(-.8em); } }
+@keyframes glyph-scan-out { to { clip-path: inset(0 0 0 100%); } }
+@keyframes glyph-scan-in { from { clip-path: inset(0 100% 0 0); } }
 
 .supporting-row {
   max-width: 100%;

@@ -12,6 +12,8 @@ import { createWeatherIcon } from '../weather/icons';
 import { renderSupportingText } from './clock-face';
 import {
   TRANSITION_FADE,
+  TRANSITION_SLIDE_RIGHT,
+  TRANSITION_SCAN,
   TRANSITION_FLIP,
   TRANSITION_SCALE,
   TRANSITION_SLIDE_DOWN,
@@ -40,7 +42,7 @@ export function weatherItem(left: string, iconCode: string, right: string): Caro
 
 export function sameItems(a: CarouselItem[], b: CarouselItem[]): boolean {
   if (a.length !== b.length) return false;
-  return a.every((item, index) => item.text === b[index].text);
+  return a.every((item, index) => item.text === b[index].text && item.weather?.iconCode === b[index].weather?.iconCode);
 }
 
 export class Carousel {
@@ -176,7 +178,7 @@ export class Carousel {
   }
 
   private overflowWidth(): number {
-    return Math.max(0, this.track.scrollWidth - this.viewport.clientWidth);
+    return Math.max(0, this.track.scrollWidth - this.viewport.clientWidth + (this.track.scrollWidth > this.viewport.clientWidth ? 24 : 0));
   }
 
   /** Marquee offset: pause, scroll at a constant speed, pause again. */
@@ -200,7 +202,14 @@ export class Carousel {
     const track = this.track;
     track.style.opacity = String(opacity);
     let transform = 'translateX(var(--scroll, 0px))';
+    track.style.clipPath = '';
     switch (this.transition) {
+      case TRANSITION_SLIDE_RIGHT:
+        transform += ` translateX(${phase * this.viewport.clientWidth}px)`;
+        break;
+      case TRANSITION_SCAN:
+        track.style.clipPath = `inset(0 ${Math.abs(phase) * 100}% 0 0)`;
+        break;
       case TRANSITION_SLIDE_UP:
       case TRANSITION_SLIDE_DOWN: {
         const direction = this.transition === TRANSITION_SLIDE_UP ? -1 : 1;
