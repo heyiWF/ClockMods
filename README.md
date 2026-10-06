@@ -2,144 +2,144 @@
 
 <img src="docs/media/app-icon-playstore.png" alt="ClockMods" width="120" />
 
-# ClockMods Ultimate
+# ClockMods Ultimate · Compose
 
-**一款高度可定制的 Android 全屏时钟**
+**把时间、日历与天气，变成属于你的桌面**
 
-优雅地让你的旧设备继续发光发热。（但你还得管它充电不是）
-
-模拟时钟 · 数字时钟 · 实用工具　|　Android 12+　|　离线优先 · 无广告 · 无账号
+十二套时钟主题 · 五套日历主题 · 世界时钟 · 桌面小组件 · 无广告
 
 </div>
 
----
+本分支以 **Kotlin、Jetpack Compose 与 Material 3** 实现 ClockMods Ultimate，提供可定制的全屏时钟、主题化日历与实用工具。适合希望在 Android 12+ 手机、平板或桌面屏幕上组合时间、日期和天气的用户。
 
-ClockMods Ultimate 以沉浸式全屏界面显示时间，并保持屏幕常亮。它同时呈现公历日期、星期与中国农历，可自由切换完整时钟主题，并定制背景、字体、时间格式、时区、网络校时与实时天气。
+[核心亮点](#核心亮点) · [版本选择](#版本选择) · [快速上手](#快速上手) · [开发与构建](#开发与构建) · [许可与致谢](#许可与致谢)
 
-## 主要功能
+## 核心亮点
 
-### 🕒 时钟与日期
+- **十二套完整时钟主题**：数字、模拟与混合布局，从经典大字、玻璃和纸张到五套 Material 风格；每套主题按自身能力提供外观与动效设置。
+- **五套日历布局**：深色仪表盘、纯黑、宣纸、排版海报与周程视图，结合离线农历、节气、节日、宜忌及天气信息。
+- **同一屏幕上的世界时间**：双块、轨道、气泡、混合、丝带支持最多六个城市，可按城市、国家或时区搜索并调整顺序。
+- **四类桌面小组件**：数字时钟、模拟时钟、时钟天气、日期日历；六套小组件主题，每个实例保存自己的时区与显示配置。
+- **细致的显示定制**：主题配色、自动文字对比色、卡片阴影、字体与比例，图片背景支持高斯模糊和压暗；提供可配置像素微移与自动压暗。
+- **信息与动效兼顾**：七种数字 / 天气过渡、自定义留言滚动、摄氏 / 华氏切换，以及整点 / 半点报时的六种视觉效果。
+- **常用工具就在手边**：全屏时钟、日历、番茄钟、闹钟、倒计时和秒表；简体 / 繁體 / English，无需账号。
 
-- 实时显示时、分、秒，按秒边界刷新；可隐藏秒数或以较小字号显示。
-- 支持 24 小时制与 12 小时制（12 小时制可显示「上午/下午」或 `AM/PM`）。
-- 冒号每秒闪烁，Pro Classic 支持渐变、滑动、缩放、翻转等多种数字过渡风格。
-- 显示公历日期、星期与中国农历。
-- 可用表达式与自定义分隔符自由组合中/英文日期与星期。
-- 横屏优先单行显示，竖屏自动分行；竖屏还可切换为时/分/秒竖排大字。
+## 主题与工具
 
-### 🎨 背景与外观
+### 十二套时钟主题
 
-- 纯色背景或自定义背景图片。
-- 图片背景可随时压暗，或设置定时压暗以减少对时间文字的干扰。
-- 可分别调整时间与日期的字号和颜色。
-- 内置多种字体。
+| 主题 | 类型 | 视觉特点 |
+| --- | --- | --- |
+| Pro Classic / Pro 经典 | 数字 | 熟悉的大字时间与完整基础设置 |
+| Glass Atelier / 光影工坊 | 模拟 | 玻璃质感与指针表盘 |
+| Noir Instrument / 黑曜仪表 | 模拟 | 深色仪表布局 |
+| Paper Station / 纸上车站 | 模拟 | 纸张与排版风格 |
+| Orbit Neon / 轨道霓虹 | 混合 | 霓虹轨道与数字时间 |
+| Digital Grid / 数字网格 | 数字 | 网格化数字布局 |
+| Typographic / 字形时刻 | 数字 | 以字体与排版呈现时间 |
+| 双块 | 数字 | 成组时间卡片，支持世界时钟 |
+| 轨道 | 混合 | 环形布局，支持世界时钟 |
+| 气泡 | 数字 | 圆润气泡布局，支持世界时钟 |
+| 混合 | 混合 | 几何块面与圆泡布局，支持世界时钟 |
+| 丝带 | 数字 | 横向条带布局，支持世界时钟 |
 
-### 🌐 时间与状态
+设置会根据当前主题能力显示。适用的数字布局可选淡变、上滑、下滑、缩放、翻转、右滑、扫描；天气过渡可独立配置，或跟随数字动效。适用的指针布局可选择平滑扫秒、跳秒或关闭秒针。
 
-- 默认使用设备系统时间，也可开启网络校时（SNTP/NTP）。
-- 网络校时，可选每 30 分钟、1 小时、6 小时或每天同步。
-- 可跟随系统时区，或从内置地区列表中选择其他时区。
-- 可选显示网络与电池状态图标。
-- 运行时保持屏幕常亮，采用沉浸式系统栏与边到边布局，横竖屏自动适配。
-- 可开机自启动。
+主题的配色与动效可以分别保存。图片模糊只作用于图片背景；纯色背景保持纯色显示。时间制、秒数、日期表达式、时区、字体和辅助文字比例等设置按布局能力提供。
 
-### 🌦️ 实时天气
+### 五套日历主题
 
-- 由 [和风天气（QWeather）](https://www.qweather.com) 提供数据。
-- 支持自动定位或手动指定省/市/区县；天气随界面语言显示为中文或英文。
-- 更新频率可选 10 分钟、30 分钟、1 小时、3 小时、6 小时、12 小时（默认 30 分钟）。
-- 可开启「详细天气」，轮播体感温度、相对湿度、风向风力与气象灾害预警等。
-- 可设置自定义留言。
+| 主题 | 布局与信息 |
+| --- | --- |
+| 石墨深空 | 深色仪表盘，结合时间、月历、天气、预报与日期详情 |
+| 纯黑碳素 | 纯黑风格仪表盘，适合深色显示偏好 |
+| 宣纸水墨 | 纸张风格月历与农历 / 宜忌信息 |
+| 墨白排版 | 以月份标题和日期网格为主体的海报式布局 |
+| 靛蓝周程 | 周视图，结合天气、预报和所选日期详情 |
 
-### ⭐ 工具与提醒
+不同主题的信息模块与导航方式各有侧重，可按布局切换月份 / 周、选择日期或回到今天。周起始日与周末高亮可配置。
 
-Ultimate 在全屏时钟之外提供一组工具：
+农历、二十四节气、传统与公历节日、数九 / 三伏和每日宜忌由 [tyme4j](https://github.com/6tail/tyme4j) 在设备端计算。法定节假日的「休 / 班」安排使用随应用打包的 [holiday-cn](https://github.com/NateScarlet/holiday-cn) 数据；只有已收录年份能显示对应安排，不能从农历推算未来的调休。日历本身无需联网。
 
-- **时钟**：全屏时钟主界面，支持整点报时。
-- **日历**：仪表盘式月历；二十四节气、传统与公历节日、法定节假日、「宜 / 忌」。
-- **番茄钟**：基于计时器的番茄工作法。
-- **闹钟**：全屏提醒 + 通知 + 振动响铃。
-- **倒计时**：设置倒计时并在结束时提醒。
-- **秒表**：计时与计次。
+### 四类桌面小组件
 
-### 🧩 桌面小组件
+在桌面长按添加数字时钟、模拟时钟、时钟天气或日期日历卡片。可选系统动态色、玻璃、深色仪表、纸张、霓虹、透明六套主题；小组件外观独立于全屏时钟主题。
 
-- 数字时钟、模拟时钟、时钟天气、日期日历四个独立入口，长按桌面即可添加。
-- 六套小组件主题：系统动态色、玻璃、深色仪表、纸张、霓虹、透明；独立于全屏时钟样式。
-- 每个实例独立设置时区、系统或固定时间制、显示模块、背景透明度、文字比例和点击行为。
-- 点击卡片右上角的设置按钮可重新配置；取消不会覆盖原配置。
-- 实时时间由系统 TextClock / AnalogClock 驱动；日期按实例时区跨日刷新。
-- 天气每 30 分钟尝试更新，点击天气区域可刷新；离线保留缓存与更新时间，无配置时引导进入天气设置。
-- 日期日历第一版采用大日期卡，显示农历、节气和节假日，不含完整月历网格。
+每个实例可配置时区、系统或固定时间制、显示模块、透明度、文字比例及点击行为。卡片设置按钮用于重新配置，取消不会覆盖原配置。小组件使用适合桌面宿主的系统字体，与全屏时钟的字体选择有所区别。
 
-开发与扩展约定见 [Widget contract](docs/WIDGET_CONTRACT.md)。
+时间由系统 `TextClock` / `AnalogClock` 驱动，日期按实例时区更新；天气每 30 分钟尝试刷新，也可点击天气区域手动刷新，离线保留缓存与更新时间。日期日历小组件显示大日期、农历、节气和节假日，不含完整月历网格。
 
-### ✨ Ultimate 主题
+### 天气、留言与提醒
 
-- 内置 Pro Classic、Glass Atelier、Noir Instrument、Paper Station、Orbit Neon、Digital Grid、Typographic、双块、轨道、气泡、混合、丝带共十二套样式，涵盖原版 Pro、模拟、数字与混合时钟。
-- 秒针支持平滑扫秒、跳秒和关闭。
+天气支持自动定位或手动城市、10 分钟至 12 小时的更新间隔、摄氏 / 华氏显示及详细信息轮播。自定义留言可独立参加轮播；过长时横向滚动，保持设定字号。有关行为见 [留言与天气轮播说明](docs/message-weather-carousel.md)。
 
-## 应用信息
+整点与半点报时可分别启用，并设置跨午夜勿扰时段。六种视觉效果为经典扩散、金色涟漪、柔和脉冲、极光光幕、星轨光环、流星掠影。像素微移可设置周期与幅度，并结合自动压暗调整长时间显示效果。
 
-| 版本 | 最低系统 | 应用 ID | 界面与能力 |
-| --- | --- | --- | --- |
-| Ultimate `ultimate` / ClockMods Ultimate | Android 12（API 31） | `com.clockmods.ultimate` | 完整继承 Pro 工具页与相关能力，提供十二套完整时钟样式、模拟/数字样式切换、二级设置导航与可扩展 Clock Style SDK |
+闹钟提供响铃、振动、通知与全屏提醒；番茄钟、倒计时和秒表提供专门的计时页面。提醒方式受 Android 权限与后台策略影响。
 
-## 使用方法
+## 版本选择
 
-1. 打开应用即进入全屏时钟界面。
-2. **双击**时钟区域打开设置。
-3. 从分类首页进入对应二级页面；Pro Classic 的字体、颜色和数字动效等选项已归入「时钟样式」，其他功能按其所属分类设置。
+| 分支 | 适用环境 | 主要定位 |
+| --- | --- | --- |
+| [main](https://github.com/heyiWF/ClockMods/tree/main) | Android 4.0 / 6.0 / 12 起，按 flavor 区分 | 兼容版、现代版、专业版；功能冻结，继续修复问题与安全维护 |
+| [ultimate](https://github.com/heyiWF/ClockMods/tree/ultimate) | Android 12+ | 十二套时钟主题、五套日历主题、世界时钟与桌面小组件 |
+| [ultimate-compose](https://github.com/heyiWF/ClockMods/tree/ultimate-compose) | Android 12+ | Ultimate 的 Kotlin / Jetpack Compose 实现 |
+| [web](https://github.com/heyiWF/ClockMods/tree/web) | 支持现代 Web API 的浏览器 | 六套时钟主题、六个工具页面、可安装 PWA |
+| [web-legacy](https://github.com/heyiWF/ClockMods/tree/web-legacy) | IE 11 / Trident 及现代浏览器 | 保留六套时钟主题与常用设置的兼容网页时钟 |
 
-## 权限与隐私
+本分支最低支持 Android 12 / API 31，应用包名为 `com.clockmods.ultimate`。`ultimate` 与 `ultimate-compose` 使用相同包名，不能作为两个独立应用同时安装；替换安装还需满足签名要求。Main 的三个 flavor 使用各自包名，安装时仍需满足对应系统要求。
 
-ClockMods 不含账号、广告、云同步或用户行为统计，所有数据仅保存在应用私有存储中。
+## 快速上手
 
-- `INTERNET`：仅在启用网络时间或天气后访问 NTP / QWeather 服务器。
-- `ACCESS_NETWORK_STATE`、`ACCESS_WIFI_STATE`：用于显示网络状态图标。
-- `ACCESS_COARSE_LOCATION`、`ACCESS_FINE_LOCATION`：仅在开启天气且使用自动定位时获取当前地区，不进行后台定位。
-- 背景图片只处理用户主动选择的单张图片，不申请读取整个相册的权限。
-- `POST_NOTIFICATIONS`、`SCHEDULE_EXACT_ALARM`、`USE_FULL_SCREEN_INTENT`、`RECEIVE_BOOT_COMPLETED`、`VIBRATE`、`FOREGROUND_SERVICE`、`FOREGROUND_SERVICE_MEDIA_PLAYBACK`：用于闹钟精确排程、到点全屏提醒、响铃前台服务、振动，以及设备重启或时间变化后重新排程。
+1. 从本分支成功的 [APK 构建任务](https://github.com/heyiWF/ClockMods/actions/workflows/build-apk.yml?query=branch%3Aultimate-compose) 下载产物，或按下文自行构建。
+2. 首次启动按引导选择语言、时钟主题与基本显示选项；之后**双击时钟区域**打开分类设置，从「时钟样式」定制当前主题。
+3. 左右滑动切换日历、番茄钟、闹钟、倒计时和秒表；在日历设置中选择适合的布局。
+4. 支持世界时钟的五套主题可添加城市并调整顺序。需要天气时配置城市或自动定位，并确保构建中已有有效的 QWeather 配置。
+5. 长按系统桌面添加小组件。使用闹钟时按系统提示允许通知、精确闹钟与全屏提醒。
 
-## QWeather 配置
+应用可保持全屏常亮、跟随或指定屏幕方向、显示网络与电池状态。开机自启动需要把应用设为默认桌面。可选网络校时会尝试多个 NTP 服务器，失败时保留有效样本，没有有效样本则回退设备时间。
 
-复制 `qweather.properties.example` 为 `qweather.properties`，填写 API Host、凭据 ID、项目 ID 及 PKCS#8 Ed25519 私钥的 Base64 内容。天气图标来自 [QWeather Icons](https://icons.qweather.com)（CC BY 4.0），已随项目打包 fill 与 line 两种风格。
+[专业版基础工具演示](docs/media/pro-features-overview.mp4) · [中文报时演示](docs/media/pro-chime-12h-zh.mp4) · [英文报时演示](docs/media/pro-chime-12h-en.mp4)。这些视频展示基础工具与报时，不是十二套 Ultimate 主题的完整预览。
 
-## 日历数据
+## 权限与数据
 
-主时钟农历与专业版日历的农历、二十四节气、传统与公历节日、数九/三伏以及每日「宜/忌」，均由离线农历引擎 [tyme4j](https://github.com/6tail/tyme4j)（`cn.6tail:tyme4j`，MIT 许可）实时计算，天文算法可准确覆盖 1–9999 年，宜忌依据《钦定协纪辨方书》神煞规则推算。
+无需账号，不含广告、云同步或用户行为统计。设置与选取的背景图片保存在设备上；系统备份行为由系统与应用配置决定。启用网络校时会联系时间服务器；启用天气会向 QWeather 发送所选城市或定位坐标。
 
-法定节假日「休/班」安排每年由国务院公布、无法算法推导，故使用随应用打包的离线数据 [holiday-cn](https://github.com/NateScarlet/holiday-cn)（MIT 许可，见 `app/src/ultimate/assets/holidays`）。应用运行时不会联网抓取任何日历数据。
+- **网络权限**：用于可选校时、天气请求，以及网络状态显示。
+- **位置权限**：仅自动定位天气需要；手动选城市可以不授予位置权限，不进行后台定位。
+- **背景图片**：通过系统选择器处理主动选择的单张图片。
+- **提醒权限**：通知、精确闹钟、全屏提醒、振动、响铃前台服务与开机广播，用于提醒及恢复排程。
 
-## 构建
+## 开发与构建
 
-环境要求：Android Studio 或 JDK 17+、Android SDK Platform 37、Build Tools 37.0.0、Gradle Wrapper 9.4.1。本项目使用 Kotlin DSL、Jetpack Compose 与 Material 3；当前 `compileSdk` / `targetSdk` 均为 37，最低支持 Android 12（API 31）。
+推荐使用 Android Studio 或 JDK 21（CI 使用版本），安装 Android SDK Platform 37 与 Build Tools 37.0.0，使用仓库的 Gradle Wrapper。最低运行系统保持为 API 31。
 
 ```powershell
-# 运行单元测试
-.\gradlew.bat testUltimateDebugUnitTest
-
-# 构建 Debug APK
-.\gradlew.bat assembleUltimateDebug
-
-# Lint 检查
-.\gradlew.bat lintUltimateDebug
+.\gradlew.bat --no-daemon testUltimateDebugUnitTest lintUltimateDebug assembleUltimateDebug
 ```
 
-构建产物位于 `app/build/outputs/apk/ultimate/debug/`。
+Debug APK 位于 `app/build/outputs/apk/ultimate/debug/`。组合所需任务可复用共享依赖，避免为同一变更分别启动多次 Gradle；设备行为、动态画面和桌面小组件需在相应宿主中验证。
 
-## 项目结构
+### 天气构建配置
+
+天气为可选功能。自行构建时，将 [`qweather.properties.example`](qweather.properties.example) 复制为 `qweather.properties`，填写 `apiHost`、`credentialId`、`developerId`、`projectId` 和 PKCS#8 Ed25519 私钥的 Base64 内容。
+
+GitHub Actions 的非 PR 构建会写入天气配置：`QWEATHER_API_HOST` 来自仓库 Variables，其余四项分别来自 `QWEATHER_CREDENTIAL_ID`、`QWEATHER_DEVELOPER_ID`、`QWEATHER_PROJECT_ID`、`QWEATHER_PRIVATE_KEY_BASE64` Secrets。PR 构建跳过这一步，任务结束后清理临时配置文件。该配置参与 APK 构建；未提供有效配置时，基础时钟和离线工具仍可使用。
+
+### 源码与扩展
 
 ```text
-app/src/main/    Kotlin 核心层、Compose Material 3 主题、农历、时间、天气、背景与共享资源
-app/src/ultimate/ Compose 宿主、十二套 Canvas 时钟样式、设置、工具页面、提醒组件、RemoteViews 小组件与离线资产
-app/src/main/java/com/clockmods/sdk/clock/ 公开的时钟样式 SDK 契约
-app/src/test/    核心逻辑单元测试
-app/src/testUltimate/ Ultimate 主题、SDK 与工具功能测试
+app/src/main/       Kotlin 核心逻辑、Compose 主题与共享资源
+app/src/ultimate/   Compose 页面、Canvas 时钟、提醒、RemoteViews 与离线资产
+app/src/main/java/com/clockmods/sdk/clock/  时钟样式契约
+app/src/test/       核心逻辑单元测试
+app/src/testUltimate/  主题与工具测试
 ```
 
-## 致谢
+时钟主题通过元数据、能力声明与渲染器接入，见 [Clock Style SDK](docs/clock-style-sdk.md)；这是源码扩展机制，新增主题需要编译。桌面小组件继续使用 Android RemoteViews，见 [小组件契约](docs/WIDGET_CONTRACT.md)。
 
-- 天气数据与图标：[QWeather 和风天气](https://www.qweather.com) · [QWeather Icons](https://icons.qweather.com)
-- 农历与宜忌引擎：[tyme4j](https://github.com/6tail/tyme4j)
-- 法定节假日数据：[holiday-cn](https://github.com/NateScarlet/holiday-cn)
+Compose 日历的布局对应关系见 [日历主题说明](docs/ultimate-calendar-parity.md)，缓存与滑动优化见 [日历性能说明](docs/calendar-swipe-performance.md)。反馈问题时请注明本分支、主题、Android 版本和复现步骤；涉及走秒、滚动或切换动画请附短录像。
+
+## 许可与致谢
+
+项目采用 [MIT 许可证](LICENSE)。天气数据来自 [QWeather](https://www.qweather.com)，[QWeather Icons](https://icons.qweather.com) 图标采用 CC BY 4.0；农历引擎 [tyme4j](https://github.com/6tail/tyme4j) 与节假日数据 [holiday-cn](https://github.com/NateScarlet/holiday-cn) 采用 MIT。字体及其他资源以各自随附许可为准。
