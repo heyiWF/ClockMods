@@ -1,30 +1,83 @@
+<div align="center">
+
+<img src="public/icons/icon-192.png" alt="ClockMods" width="120" />
+
 # ClockMods Web Legacy
 
-`web-legacy` 是从 `web` 分支创建的 IE 内核兼容版本。该分支只提供全屏网页时钟，不加载月历、番茄钟、闹钟、倒计时和秒表页面。
+**为 IE 内核保留一块清晰、可定制的时钟屏幕**
 
-## 兼容目标
+IE 11 / Trident · 六套时钟主题 · 离线农历 · ES5 入口 · 无账号
 
-- IE 11 / Trident，以及使用 IE 内核的旧版 WebView。
-- 页面使用经典 `<script>`，业务代码采用 ES5 语法。
-- 不依赖 ES module、Promise、`fetch`、`ResizeObserver`、CSS 自定义属性、CSS Grid、`dvh` 或 `<dialog>`。
-- 不生成 PWA / service worker 引导代码，避免 IE 解析构建工具产生的现代 JavaScript。
-- 现代浏览器同样可用；旧浏览器不支持的全屏能力会自动降级，不影响时钟刷新。
+</div>
 
-## 时钟功能
+`web-legacy` 是 ClockMods 的兼容网页时钟，面向 IE 11 / Trident、相应旧版 WebView 与现代浏览器。它保留常用显示设置，并用传统脚本和普通 CSS 呈现五套 Material 风格主题，适合仍使用旧内核的设备或嵌入式屏幕。
 
-- 秒边界实时刷新，12/24 小时制，可隐藏秒数或使用小字号秒数。
-- 冒号闪烁，淡入淡出、上滑、缩放和翻页切换动效。
-- 横竖屏自适应；竖屏可使用时、分、秒三行大字。
-- 公历日期格式表达式，中国农历，简体中文、繁體中文和 English。
-- 本地时间、UTC、中国、日本、纽约和伦敦时区。
-- 字体、粗细、字号、时间颜色和日期颜色设置。
-- 纯色或本地图片背景，立即压暗或跨午夜定时压暗。
-- 自定义留言，整点视觉报时及勿扰时段。
-- 通过 XHR 请求天气代理，显示城市、天气、温度、体感、湿度和风力，并缓存最后一次结果。
-- 通过 HTTP `Date` 响应头进行可选网络校时。
-- `localStorage` 设置持久化，并迁移现代 `web` 分支中常用的 `clock_prefs.*` 设置。
+[核心亮点](#核心亮点) · [版本选择](#版本选择) · [快速上手](#快速上手) · [开发与构建](#开发与构建) · [许可与致谢](#许可与致谢)
 
-天气服务建议使用同源服务端代理。IE 中不保存和风天气私钥；代理可返回以下任一结构：
+## 核心亮点
+
+- **兼容内核也能选择主题**：经典、双区块、轨道、气泡、融合、丝带六套布局，支持卡片 / 强调色、自动文字对比色与阴影。
+- **时间显示按需定制**：12 / 24 小时制、隐藏或缩小秒数、闪烁冒号、横竖屏自适应和竖排大字；字体、粗细、字号、日期与时间颜色可调整。
+- **日期无需在线接口**：公历格式表达式与中国农历在本地运行，界面支持简体 / 繁體 / English。
+- **保留常用环境设置**：纯色或本地图片背景、立即 / 跨午夜定时压暗、自定义留言滚动、整点视觉报时与勿扰时段。
+- **天气和校时按需接入**：通过 XHR 连接天气代理，支持缓存、详细轮播与摄氏 / 华氏；可从 HTTP `Date` 头校时。
+- **兼容性从入口保证**：ES5 经典脚本，不依赖 ES module、Promise、fetch、Map / Set、ResizeObserver 或 CSS 自定义属性；未支持的全屏功能可降级。
+
+本分支只提供全屏时钟，不加载月历、番茄钟、闹钟、倒计时和秒表页面。没有 PWA / service worker 安装流程；基础时钟与农历在页面资源加载后不依赖天气或校时网络。
+
+## 主题与兼容性
+
+| 主题 | 视觉特点 |
+| --- | --- |
+| 经典 | 清晰的大字时间与传统全屏布局 |
+| 双区块 | 成组时间卡片 |
+| 轨道 | 环形时间布局 |
+| 气泡 | 圆润数字气泡 |
+| 融合 | 层叠卡片布局 |
+| 丝带 | 横向时间条带 |
+
+主题用 ES5 DOM、普通 CSS 和 IE flex 前缀实现。支持辅助文字比例及独立天气轮播动效；设置先编辑再应用，取消保留原配置。配色等选项按当前兼容入口保存，切换主题会初始化对应配色，不提供现代 Web 的完整逐主题偏好存储。
+
+基础数字动效为淡变、上滑、缩放、翻页；天气可选择淡变、上滑、下滑、右滑、缩放、翻页。扫描裁剪、图片模糊、世界时钟与桌面小组件没有引入此入口。
+
+| 项目 | 支持边界 |
+| --- | --- |
+| 浏览器目标 | IE 11 / Trident 与现代浏览器；更早 IE 版本不在目标内 |
+| 样式与脚本 | 经典 script、ES5、普通 CSS；不依赖 CSS Grid、CSS 变量、dvh 或 dialog |
+| 颜色与字体 | 不支持原生颜色选择器时使用文本输入；字体使用设备可用的系统字体栈 |
+| 时间与时区 | 本地、UTC、中国、日本、纽约、伦敦 |
+| 屏幕常亮 | 由操作系统或宿主设置控制，不依赖现代 Screen Wake Lock |
+| 本地保存 | 尝试 localStorage；存储受限时当前会话仍可使用，但不能保证刷新后保留配置或图片 |
+| 离线与提醒 | 无 service worker 缓存；报时依赖页面运行，不能作为关闭页面后的系统提醒 |
+
+## 版本选择
+
+| 分支 | 适用环境 | 主要定位 |
+| --- | --- | --- |
+| [main](https://github.com/heyiWF/ClockMods/tree/main) | Android 4.0 / 6.0 / 12 起，按 flavor 区分 | 兼容版、现代版、专业版；功能冻结，继续修复问题与安全维护 |
+| [ultimate](https://github.com/heyiWF/ClockMods/tree/ultimate) | Android 12+ | 十二套时钟主题、五套日历主题、世界时钟与桌面小组件 |
+| [ultimate-compose](https://github.com/heyiWF/ClockMods/tree/ultimate-compose) | Android 12+ | Ultimate 的 Kotlin / Jetpack Compose 实现 |
+| [web](https://github.com/heyiWF/ClockMods/tree/web) | 支持现代 Web API 的浏览器 | 六套时钟主题、六个工具页面、可安装 PWA |
+| [web-legacy](https://github.com/heyiWF/ClockMods/tree/web-legacy) | IE 11 / Trident 及现代浏览器 | 保留六套时钟主题与常用设置的兼容网页时钟 |
+
+使用现代浏览器并需要完整工具页、PWA 或扫描等动效时，可以选择 `web`；使用 Android 原生提醒与小组件时，选择对应 Android 分支。
+
+## 快速上手
+
+1. 打开部署的生产页面。自行运行时先构建，再通过 HTTP / HTTPS 服务打开 `dist/`；IE 内核验证不要使用 Vite 热更新入口。
+2. 双击时钟或点击设置按钮，选择主题、字体、时间制、日期与背景，点击「应用」。
+3. 需要天气时，填写城市 ID 和天气代理 URL；无需在 IE 页面中配置 QWeather 私钥。
+4. 需要持续显示时，在设备或宿主设置中调整自动锁屏；整点报时和动效需要页面保持运行。
+
+从现代 `web` 的本地配置切换时，兼容入口会迁移常用的 `clock_prefs.*` 选项，未支持的功能不会因此出现在页面中。
+
+## 天气与校时配置
+
+### XHR 天气代理
+
+建议使用同源代理，避免旧内核的跨域与服务端 TLS 支持差异。代理地址中的 `{location}` 会替换为配置的城市 ID；没有占位符时会追加 `location` 查询参数。
+
+代理可以直接返回以下结构，也支持数据位于 `data`、`now` 或 `results[0].now`：
 
 ```json
 {
@@ -38,35 +91,47 @@
 }
 ```
 
-也兼容对象位于 `data`、`now` 或 `results[0].now` 的返回结构。代理地址中的 `{location}` 会被替换为设置的城市 ID；没有占位符时会追加 `location` 查询参数。
+天气缓存用于请求失败时继续显示最近一次结果。旧内核是否能连接服务，还取决于代理的 HTTPS、跨域响应与宿主网络能力。
+
+### HTTP 校时
+
+校时地址需要允许 HEAD 并返回 `Date` 头。跨域服务还应允许来源，并设置 `Access-Control-Expose-Headers: Date`；HTTPS 页面需选择 HTTPS 地址。这是 HTTP 时间估算，不是原生 UDP NTP。网络失败不阻止基础时钟继续运行。
+
+## 本地数据与隐私
+
+无需账号，不含广告或行为统计，没有内置云同步。设置、图片和天气缓存尝试保存在当前浏览器本地；存储容量或权限不足时不能保证跨刷新保存。天气代理会收到配置的城市 ID，校时会请求所选服务器；QWeather 签名与私钥由代理服务端处理。
 
 ## 开发与构建
 
+开发环境推荐 Node.js 22.12+ 与 npm，使用仓库锁文件安装依赖：
+
 ```bash
-npm install
+npm ci
 npm run dev
+npm run typecheck
 npm test
 npm run build
 npm run preview
 ```
 
-生产文件输出到 `dist/`。兼容入口由以下文件组成：
+生产文件输出到 `dist/`，可部署到静态站点服务。天气代理是可选的独立服务，不属于静态页面部署的必需组件。
+
+### IE 内核验证
+
+`npm run dev` 用于现代开发环境，Vite 会注入模块化热更新脚本。IE 验证请执行 `npm run build`，然后用 `npm run preview` 或其他静态服务访问生产页面。
 
 ```text
-index.html                  单时钟页面和设置面板
-public/legacy-clock.css     IE11 兼容样式
-public/legacy-clock.js      ES5 时钟、设置和网络逻辑
-public/legacy-lunar.js      lunar-javascript 1.7.7 UMD 农历引擎
+index.html                  单时钟页面与设置面板
+public/legacy-clock.css     IE 11 兼容主题与布局
+public/legacy-clock.js      ES5 时钟、设置、XHR 与存储逻辑
+public/legacy-lunar.js      lunar-javascript UMD 农历引擎
+tests/                      共享逻辑与兼容入口契约测试
 ```
 
-需要用 IE 内核验收时，请先执行 `npm run build`，再使用 `npm run preview` 打开生产文件。Vite 开发服务器会注入仅供热更新使用的模块脚本；生产构建不会包含该脚本。
+测试包含生产入口与 ES5 兼容契约，并在禁用部分现代 API 的环境中验证启动。此类检查及现代浏览器预览不能替代真实 IE 11 / Trident 验收；发布兼容性变更前应检查目标内核中的设置、布局、天气与校时。
 
-`npm test` 会排除已经从此分支入口移除的月历页面集成测试，但继续运行日期、农历、时钟和共享模型测试，并包含 legacy HTML/CSS/JavaScript 的兼容契约检查。
+反馈问题请注明宿主、IE 文档模式、系统版本、主题、窗口尺寸和复现步骤。贡献时优先保留兼容入口的语法与 API 边界，不应直接引入现代 Web 的构建入口。
 
-农历引擎采用 MIT 许可证，见 `public/licenses/lunar-LICENSE.txt`。
+## 许可与致谢
 
-## Material 兼容移植
-
-新增双区块、轨道、气泡、融合、丝带主题，提供卡片/强调色、自动文字对比色、阴影、辅助文字字号、独立天气轮播动效和摄氏/华氏切换。留言保持独立轮播与滚动尾部间距。扫描裁剪、图片模糊及现代浏览器 API 不引入此入口。主题使用 ES5 DOM、XHR、普通 CSS 和 IE flex 前缀；IE 不支持的颜色输入自动使用文本输入降级。
-
-补回入口所引用的运行脚本、样式和 MIT 许可农历库。192 项测试、TypeScript 检查和生产构建通过；生产脚本按 ES5 解析，并在禁用 Promise/fetch/Map/Set/ResizeObserver 的测试环境启动。五个主题经现代浏览器截图检查，窄屏轨道布局通过。当前验证设备没有 IE/Trident 引擎，因此这些结果不能替代 IE 11 实机验收；更早 IE 版本不在兼容目标内。
+ClockMods 项目采用 [MIT 许可证](https://github.com/heyiWF/ClockMods/blob/main/LICENSE)。兼容入口的农历引擎为 [lunar-javascript](https://github.com/6tail/lunar-javascript)，许可见 [lunar-LICENSE.txt](public/licenses/lunar-LICENSE.txt)。天气数据来自 [QWeather](https://www.qweather.com)，图标采用 [QWeather Icons](https://icons.qweather.com) 的 CC BY 4.0 许可；其他资源以随附许可为准。
