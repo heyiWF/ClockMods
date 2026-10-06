@@ -89,15 +89,15 @@ object CalendarAcceptance {
                     if (id == "graphite") {
                         val dashboard = tree.first { it.viewIdResourceName == "dashboard-readings" }
                         val clockCard = Rect().also { dashboard.getChild(0).getBoundsInScreen(it) }
-                        val timeNode = tree.first { it.text?.toString()?.matches(Regex("\\d{2}:\\d{2}")) == true }
+                        val timeNode = tree.first { (it.text ?: it.contentDescription)?.toString()?.matches(Regex("\\d{2}:\\d{2}")) == true }
                         val timeBounds = Rect().also { timeNode.getBoundsInScreen(it) }
                         check(kotlin.math.abs(timeBounds.exactCenterY() - clockCard.exactCenterY()) < clockCard.height() * .08f) {
                             "dashboard clock is not vertically centered: time=$timeBounds card=$clockCard"
                         }
-                        val seconds = tree.first { it.text?.toString()?.matches(Regex(":\\d{2}")) == true }.text.toString()
+                        val seconds = tree.first { (it.text ?: it.contentDescription)?.toString()?.matches(Regex(":\\d{2}")) == true }.let { (it.text ?: it.contentDescription).toString() }
                         await("dashboard clock advances") {
                             nodes(instrumentation).any {
-                                it.text?.toString()?.matches(Regex(":\\d{2}")) == true && it.text.toString() != seconds
+                                (it.text ?: it.contentDescription)?.toString()?.matches(Regex(":\\d{2}")) == true && (it.text ?: it.contentDescription).toString() != seconds
                             }
                         }
                     }

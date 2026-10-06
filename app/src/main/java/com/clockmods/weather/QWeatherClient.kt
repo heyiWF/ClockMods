@@ -34,9 +34,24 @@ class QWeatherClient @JvmOverloads constructor(context: Context, private val hos
     }
     private fun getLocation(latitude: Double, longitude: Double): JSONObject { val locations = request("/geo/v2/city/lookup?location=${formatLocation(latitude, longitude)}&range=cn&number=1&lang=$lang").getJSONArray("location"); if (locations.length() == 0) throw IOException("No QWeather location"); return locations.getJSONObject(0) }
     private fun request(path: String): JSONObject = requestRaw(path).also { if (it.optString("code") != "200") throw IOException("QWeather error: ${it.optString("code")}") }
-    private fun requestRaw(path: String): JSONObject { val connection = URL("https://$host$path").openConnection() as HttpURLConnection; try { if (connection is HttpsURLConnection && socketFactory != null) connection.sslSocketFactory = socketFactory; connection.requestMethod = "GET"; connection.connectTimeout = timeoutMs; connection.readTimeout = timeoutMs; connection.setRequestProperty("Authorization", "Bearer " + QWeatherSigner.token(QWeatherConfig.credentialId(), QWeatherConfig.developerId(), QWeatherConfig.projectId(), QWeatherConfig.privateKeyBase64(), System.currentTimeMillis() / 1000L)); val status = connection.responseCode; val response = (if (status in 200..299) connection.inputStream else connection.errorStream)?.bufferedReader(Charsets.UTF_8)?.use { it.readText() } ?: throw IOException("Empty QWeather response"); val json = JSONObject(response); if (status !in 200..299) throw IOException("QWeather error: ${json.optString("code", status.toString())}"); return json } finally { connection.disconnect() } }
+    private fun requestRaw(path: String): JSONObject { val connection = URL("https://$host$path").openConnection() as HttpURLConnection; try { if (connection is HttpsURLConnection && socketFactory != null) connection.sslSocketFactory = socketFactory; connection.requestMethod = "GET"; connection.instanceFollowRedirects = false; connection.connectTimeout = timeoutMs; connection.readTimeout = timeoutMs; connection.setRequestProperty("Authorization", "Bearer " + QWeatherSigner.token(QWeatherConfig.credentialId(), QWeatherConfig.developerId(), QWeatherConfig.projectId(), QWeatherConfig.privateKeyBase64(), System.currentTimeMillis() / 1000L)); val status = connection.responseCode; if (status in 300..399) throw IOException("QWeather redirect rejected"); val response = read(if (status in 200..299) connection.inputStream else connection.errorStream); val json = JSONObject(response); if (status !in 200..299) throw IOException("QWeather error: ${json.optString("code", status.toString())}"); return json } finally { connection.disconnect() } }
 
     companion object {
+        @JvmStatic @Throws(IOException::class) fun read(input: java.io.InputStream?): String {
+            if (input == null) throw IOException("Empty QWeather response")
+            return input.bufferedReader(Charsets.UTF_8).use { reader ->
+                val output = StringBuilder()
+                val buffer = CharArray(4096)
+                var count = reader.read(buffer)
+                while (count != -1) {
+                    if (output.length + count > 1024 * 1024) throw IOException("QWeather response too large")
+                    output.append(buffer, 0, count)
+                    count = reader.read(buffer)
+                }
+                output.toString()
+            }
+        }
+
         @JvmStatic fun apiLang(clockLanguage: String?): String = when (clockLanguage) { ClockPreferences.LANGUAGE_ENGLISH -> "en"; ClockPreferences.LANGUAGE_TRADITIONAL -> "zh-hant"; else -> "zh" }
         @JvmStatic @Throws(Exception::class) fun parseDailyForecast(body: JSONObject, locationId: String, city: String, district: String, updatedAt: Long): WeatherModels.DailyForecastData { val daily = body.optJSONArray("daily") ?: throw IOException("Empty daily forecast"); val entries = ArrayList<WeatherModels.DailyForecast>(); for (index in 0 until daily.length()) { val day = daily.optJSONObject(index) ?: continue; val date = day.optString("fxDate", "").trim(); if (date.isNotEmpty()) entries += WeatherModels.DailyForecast(date, day.optString("tempMin", ""), day.optString("tempMax", ""), day.optString("iconDay", ""), day.optString("textDay", ""), day.optString("windDirDay", ""), day.optString("windScaleDay", ""), day.optString("humidity", "")) }; if (entries.isEmpty()) throw IOException("Empty daily forecast"); return WeatherModels.DailyForecastData(locationId, city, district, updatedAt, entries) }
         @JvmStatic fun formatWarnings(alerts: JSONArray?): String? = formatWarnings(alerts, "zh")

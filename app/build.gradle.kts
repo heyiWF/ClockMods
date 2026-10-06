@@ -32,7 +32,7 @@ android {
         applicationId = "com.clockmods"
         minSdk = 31
         targetSdk = 37
-        testInstrumentationRunner = "com.clockmods.widget.WidgetAcceptanceInstrumentation"
+        testInstrumentationRunner = providers.gradleProperty("clockmods.testRunner").getOrElse("com.clockmods.widget.WidgetAcceptanceInstrumentation")
         versionCode = 1
         versionName = "1.0"
 

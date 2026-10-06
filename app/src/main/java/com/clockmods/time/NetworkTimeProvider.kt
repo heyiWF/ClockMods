@@ -5,6 +5,7 @@ import android.os.Looper
 import android.os.SystemClock
 import java.util.concurrent.ExecutorService
 import java.util.concurrent.Executors
+import java.util.concurrent.RejectedExecutionException
 import java.util.concurrent.atomic.AtomicBoolean
 
 /** Provides local or monotonic-projected NTP time without blocking the UI thread. */
@@ -14,6 +15,7 @@ open class NetworkTimeProvider {
     private val sntpClient = SntpClient()
     private val syncInFlight = AtomicBoolean(false)
     @Volatile private var enabled = false
+    @Volatile private var closed = false
     @Volatile private var syncIntervalMs = DEFAULT_SYNC_INTERVAL_MS
     @Volatile private var hasSample = false
     @Volatile private var ntpTime = 0L
@@ -23,6 +25,7 @@ open class NetworkTimeProvider {
     @Volatile private var preferredHostIndex = 0
 
     fun setEnabled(enabled: Boolean) {
+        if (closed) return
         this.enabled = enabled
         if (enabled) maybeSync()
     }
@@ -49,14 +52,14 @@ open class NetworkTimeProvider {
     }
 
     private fun maybeSync() {
-        if (!enabled || syncInFlight.get() || !isSyncDue()) return
+        if (closed || !enabled || syncInFlight.get() || !isSyncDue()) return
         if (!syncInFlight.compareAndSet(false, true)) return
-        executor.execute {
+        val syncTask = Runnable {
             var success = false
             var serverTime = 0L
             var reference = 0L
             for (offset in NTP_HOSTS.indices) {
-                if (success) break
+                if (success || closed) break
                 val index = (preferredHostIndex + offset) % NTP_HOSTS.size
                 try {
                     if (sntpClient.requestTime(NTP_HOSTS[index])) {
@@ -72,6 +75,7 @@ open class NetworkTimeProvider {
             val capturedTime = serverTime
             val capturedReference = reference
             mainHandler.post {
+                if (closed) return@post
                 if (success) {
                     ntpTime = capturedTime
                     ntpTimeReference = capturedReference
@@ -81,6 +85,11 @@ open class NetworkTimeProvider {
                 lastAttemptSucceeded = success
                 syncInFlight.set(false)
             }
+        }
+        try {
+            executor.execute(syncTask)
+        } catch (_: RejectedExecutionException) {
+            syncInFlight.set(false)
         }
     }
 
@@ -92,6 +101,8 @@ open class NetworkTimeProvider {
     }
 
     fun shutdown() {
+        closed = true
+        enabled = false
         executor.shutdownNow()
         mainHandler.removeCallbacksAndMessages(null)
     }
