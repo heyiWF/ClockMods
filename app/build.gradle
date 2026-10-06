@@ -26,6 +26,7 @@ android {
         applicationId "com.clockmods"
         minSdk = 14
         targetSdk = 36
+        testInstrumentationRunner providers.gradleProperty("clockmods.testRunner").getOrElse("com.clockmods.ui.FlavorSettingsAcceptance")
         versionCode = 1
         versionName = "1.0"
     }

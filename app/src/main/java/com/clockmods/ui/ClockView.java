@@ -884,7 +884,7 @@ public class ClockView extends View {
         float top = Math.max(0f, baseline + metrics.ascent - datePaint.getTextSize() * 0.12f);
         float bottom = Math.min(getHeight(), baseline + metrics.descent
                 + datePaint.getTextSize() * 0.12f);
-        int layer = canvas.saveLayer(left, top, right, bottom, null);
+        int layer = canvas.saveLayer(left, top, right, bottom, null, Canvas.ALL_SAVE_FLAG);
         canvas.clipRect(left, top, right, bottom);
         float drawX = left - offset;
         while (drawX + textWidth < left) drawX += cycleDistance;
@@ -917,7 +917,7 @@ public class ClockView extends View {
         float top = Math.max(0f, baseline + metrics.ascent - datePaint.getTextSize() * 0.12f);
         float bottom = Math.min(getHeight(), baseline + metrics.descent
                 + datePaint.getTextSize() * 0.12f);
-        int layer = canvas.saveLayer(left, top, right, bottom, null);
+        int layer = canvas.saveLayer(left, top, right, bottom, null, Canvas.ALL_SAVE_FLAG);
         canvas.clipRect(left, top, right, bottom);
         drawSupportingText(canvas, text, left + fadeWidth - offset, baseline, Paint.Align.LEFT);
         drawMessageEdgeFade(canvas, left, right, top, bottom);

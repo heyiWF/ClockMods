@@ -6,6 +6,7 @@ import android.os.SystemClock;
 
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
+import java.util.concurrent.RejectedExecutionException;
 import java.util.concurrent.atomic.AtomicBoolean;
 
 /**
@@ -52,6 +53,7 @@ public class NetworkTimeProvider {
     private final AtomicBoolean syncInFlight = new AtomicBoolean(false);
 
     private volatile boolean enabled;
+    private volatile boolean closed;
     /** Configured re-sync interval, in milliseconds. */
     private volatile long syncIntervalMs = DEFAULT_SYNC_INTERVAL_MS;
     /** Whether {@link #ntpTimeReference} / {@link #ntpTime} hold a valid sample. */
@@ -68,6 +70,7 @@ public class NetworkTimeProvider {
 
     /** Enables or disables the use of network time. Triggers a sync when enabling. */
     public void setEnabled(boolean enabled) {
+        if (closed) return;
         this.enabled = enabled;
         if (enabled) {
             maybeSync();
@@ -115,13 +118,13 @@ public class NetworkTimeProvider {
 
     /** Starts a background sync if enabled, not already running, and due. */
     private void maybeSync() {
-        if (!enabled || syncInFlight.get() || !isSyncDue()) {
+        if (closed || !enabled || syncInFlight.get() || !isSyncDue()) {
             return;
         }
         if (!syncInFlight.compareAndSet(false, true)) {
             return;
         }
-        executor.execute(new Runnable() {
+        Runnable syncTask = new Runnable() {
             @Override
             public void run() {
                 boolean success = false;
@@ -130,7 +133,7 @@ public class NetworkTimeProvider {
                 // Try each server in turn, starting from the last known-good one,
                 // until one responds — so a single dead server does not stop sync.
                 int hostCount = NTP_HOSTS.length;
-                for (int i = 0; i < hostCount && !success; i++) {
+                for (int i = 0; i < hostCount && !success && !closed; i++) {
                     int index = (preferredHostIndex + i) % hostCount;
                     try {
                         if (sntpClient.requestTime(NTP_HOSTS[index])) {
@@ -149,6 +152,7 @@ public class NetworkTimeProvider {
                 mainHandler.post(new Runnable() {
                     @Override
                     public void run() {
+                        if (closed) return;
                         if (ok) {
                             ntpTime = capturedTime;
                             ntpTimeReference = capturedReference;
@@ -160,7 +164,12 @@ public class NetworkTimeProvider {
                     }
                 });
             }
-        });
+        };
+        try {
+            executor.execute(syncTask);
+        } catch (RejectedExecutionException shutdownRace) {
+            syncInFlight.set(false);
+        }
     }
 
     private boolean isSyncDue() {
@@ -174,6 +183,8 @@ public class NetworkTimeProvider {
 
     /** Releases the background executor. Call from the owner's teardown. */
     public void shutdown() {
+        closed = true;
+        enabled = false;
         executor.shutdownNow();
         mainHandler.removeCallbacksAndMessages(null);
     }

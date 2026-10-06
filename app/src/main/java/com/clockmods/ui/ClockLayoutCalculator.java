@@ -29,7 +29,9 @@ public final class ClockLayoutCalculator {
         float widthLimited = width * maxWidthFraction / measuredWidthAtOnePixel;
         float heightLimited = height * heightFraction;
         float maxFittingSize = Math.min(widthLimited, heightLimited);
-        return Math.max(1f, maxFittingSize * sizeFraction);
+        float fraction = Float.isNaN(sizeFraction) || Float.isInfinite(sizeFraction)
+                ? 1f : Math.max(0f, Math.min(1f, sizeFraction));
+        return Math.max(1f, maxFittingSize * fraction);
     }
 
     public static float calculateTimeGroupWidth(float mainWidth, float leftAccessoryWidth,

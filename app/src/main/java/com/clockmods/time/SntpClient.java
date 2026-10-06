@@ -22,7 +22,6 @@ class SntpClient {
     private static final int NTP_PACKET_SIZE = 48;
     private static final int NTP_MODE_CLIENT = 3;
     private static final int NTP_MODE_SERVER = 4;
-    private static final int NTP_MODE_BROADCAST = 5;
     private static final int NTP_VERSION = 3;
     private static final int NTP_LEAP_NOSYNC = 3;
     private static final int NTP_STRATUM_MAX = 15;
@@ -51,6 +50,8 @@ class SntpClient {
             socket = new DatagramSocket();
             socket.setSoTimeout(TIMEOUT_MS);
             InetAddress address = InetAddress.getByName(host);
+            // A connected UDP socket only accepts replies from the queried peer.
+            socket.connect(address, NTP_PORT);
             byte[] buffer = new byte[NTP_PACKET_SIZE];
             DatagramPacket request = new DatagramPacket(buffer, buffer.length, address, NTP_PORT);
 
@@ -60,28 +61,22 @@ class SntpClient {
             long requestTime = System.currentTimeMillis();
             long requestTicks = SystemClock.elapsedRealtime();
             writeTimeStamp(buffer, TRANSMIT_TIME_OFFSET, requestTime);
+            byte[] requestTimestamp = java.util.Arrays.copyOfRange(buffer,
+                    TRANSMIT_TIME_OFFSET, TRANSMIT_TIME_OFFSET + 8);
 
             socket.send(request);
 
             DatagramPacket response = new DatagramPacket(buffer, buffer.length);
             socket.receive(response);
+            if (!isValidResponse(buffer, response.getLength(), requestTimestamp)) return false;
             long responseTicks = SystemClock.elapsedRealtime();
             long responseTime = requestTime + (responseTicks - requestTicks);
-
-            // Reject unsynchronized / kiss-of-death / malformed responses so the
-            // caller can fall back to the next server (RFC 4330 §5, per AOSP).
-            int leap = (buffer[0] >> 6) & 0x3;
-            int mode = buffer[0] & 0x7;
-            int stratum = buffer[1] & 0xFF;
-            if (leap == NTP_LEAP_NOSYNC
-                    || (mode != NTP_MODE_SERVER && mode != NTP_MODE_BROADCAST)
-                    || stratum < 1 || stratum > NTP_STRATUM_MAX) {
-                return false;
-            }
 
             long originateTime = readTimeStamp(buffer, ORIGINATE_TIME_OFFSET);
             long receiveTime = readTimeStamp(buffer, RECEIVE_TIME_OFFSET);
             long transmitTime = readTimeStamp(buffer, TRANSMIT_TIME_OFFSET);
+            if (transmitTime < receiveTime
+                    || transmitTime - receiveTime > responseTicks - requestTicks + 1L) return false;
 
             // Round-trip delay and clock offset per RFC 4330.
             long roundTripTime = (responseTicks - requestTicks) - (transmitTime - receiveTime);
@@ -107,6 +102,25 @@ class SntpClient {
     /** @return {@link SystemClock#elapsedRealtime()} when {@link #getNtpTime()} was captured. */
     long getNtpTimeReference() {
         return ntpTimeReference;
+    }
+
+    static boolean isValidResponse(byte[] packet, int length, byte[] requestTimestamp) {
+        if (packet == null || length < NTP_PACKET_SIZE || packet.length < NTP_PACKET_SIZE
+                || requestTimestamp == null || requestTimestamp.length != 8) return false;
+        int leap = (packet[0] >>> 6) & 3;
+        int version = (packet[0] >>> 3) & 7;
+        int mode = packet[0] & 7;
+        int stratum = packet[1] & 255;
+        if (leap == NTP_LEAP_NOSYNC || (version != 3 && version != 4)
+                || mode != NTP_MODE_SERVER || stratum < 1 || stratum > NTP_STRATUM_MAX)
+            return false;
+        boolean receivePresent = false, transmitPresent = false;
+        for (int i = 0; i < 8; i++) {
+            if (packet[ORIGINATE_TIME_OFFSET + i] != requestTimestamp[i]) return false;
+            receivePresent |= packet[RECEIVE_TIME_OFFSET + i] != 0;
+            transmitPresent |= packet[TRANSMIT_TIME_OFFSET + i] != 0;
+        }
+        return receivePresent && transmitPresent;
     }
 
     /** Reads an unsigned 32-bit value from the buffer at the given offset. */

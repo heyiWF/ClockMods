@@ -172,7 +172,9 @@ public final class ProCalendarFragment extends Fragment {
                 oldLeft, oldTop, oldRight, oldBottom) -> applyForecastSizing());
         monthPanel.addOnLayoutChangeListener((view, left, top, right, bottom,
                 oldLeft, oldTop, oldRight, oldBottom) -> applyMonthSizing());
-        root.post(this::applyResponsiveSizing);
+        root.post(() -> {
+            if (isAdded() && getView() == root) applyResponsiveSizing();
+        });
     }
 
     private void restoreState(Bundle state) {
@@ -257,6 +259,7 @@ public final class ProCalendarFragment extends Fragment {
     }
 
     private void applyClockSizing() {
+        if (!isAdded() || getView() == null) return;
         if (clockCard == null || clockCard.getWidth() <= 0 || clockCard.getHeight() <= 0) return;
         float density = getResources().getDisplayMetrics().density;
         float timeSize = CalendarDashboardSizing.clockTimeSize(clockCard.getWidth(),
@@ -279,6 +282,7 @@ public final class ProCalendarFragment extends Fragment {
     }
 
     private void applyCurrentWeatherSizing() {
+        if (!isAdded() || getView() == null) return;
         if (currentWeatherCard == null || currentWeatherCard.getWidth() <= 0
                 || currentWeatherCard.getHeight() <= 0) return;
         float width = currentWeatherCard.getWidth();
@@ -317,6 +321,7 @@ public final class ProCalendarFragment extends Fragment {
     }
 
     private void applyForecastSizing() {
+        if (!isAdded() || getView() == null) return;
         if (forecastCard == null || forecastCard.getWidth() <= 0 || forecastCard.getHeight() <= 0) {
             return;
         }
@@ -373,6 +378,7 @@ public final class ProCalendarFragment extends Fragment {
     }
 
     private void applyMonthSizing() {
+        if (!isAdded() || getView() == null) return;
         if (monthPanel == null || monthPanel.getWidth() <= 0 || monthPanel.getHeight() <= 0) return;
         int panelWidth = monthPanel.getWidth() - monthPanel.getPaddingLeft()
                 - monthPanel.getPaddingRight();
