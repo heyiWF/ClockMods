@@ -64,3 +64,9 @@ public/legacy-lunar.js      lunar-javascript 1.7.7 UMD 农历引擎
 `npm test` 会排除已经从此分支入口移除的月历页面集成测试，但继续运行日期、农历、时钟和共享模型测试，并包含 legacy HTML/CSS/JavaScript 的兼容契约检查。
 
 农历引擎采用 MIT 许可证，见 `public/licenses/lunar-LICENSE.txt`。
+
+## Material 兼容移植
+
+新增双区块、轨道、气泡、融合、丝带主题，提供卡片/强调色、自动文字对比色、阴影、辅助文字字号、独立天气轮播动效和摄氏/华氏切换。留言保持独立轮播与滚动尾部间距。扫描裁剪、图片模糊及现代浏览器 API 不引入此入口。主题使用 ES5 DOM、XHR、普通 CSS 和 IE flex 前缀；IE 不支持的颜色输入自动使用文本输入降级。
+
+补回入口所引用的运行脚本、样式和 MIT 许可农历库。192 项测试、TypeScript 检查和生产构建通过；生产脚本按 ES5 解析，并在禁用 Promise/fetch/Map/Set/ResizeObserver 的测试环境启动。五个主题经现代浏览器截图检查，窄屏轨道布局通过。当前验证设备没有 IE/Trident 引擎，因此这些结果不能替代 IE 11 实机验收；更早 IE 版本不在兼容目标内。

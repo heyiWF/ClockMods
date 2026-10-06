@@ -49,6 +49,34 @@
 
           <div class="settings-scroll">
             <fieldset class="settings-section">
+              <legend>Material 主题</legend>
+              <label class="field-label">时钟主题
+                <select id="pref-theme" class="field-control">
+                  <option value="classic">经典 / Classic</option>
+                  <option value="ultimate.dual_blocks">双区块 / Dual blocks</option>
+                  <option value="ultimate.orbit">轨道 / Orbit</option>
+                  <option value="ultimate.bubbles">气泡 / Bubbles</option>
+                  <option value="ultimate.blend">融合 / Blend</option>
+                  <option value="ultimate.ribbon">丝带 / Ribbon</option>
+                </select>
+              </label>
+              <div class="settings-grid settings-grid--two">
+                <label class="field-label">卡片颜色 <input id="pref-panel-color" class="color-control" type="color" value="#1d2631" /></label>
+                <label class="field-label">强调色 <input id="pref-accent-color" class="color-control" type="color" value="#a8c7fa" /></label>
+              </div>
+              <label class="check-label"><input id="pref-card-shadow" type="checkbox" /> 卡片阴影</label>
+              <label class="check-label"><input id="pref-auto-ink" type="checkbox" /> 自动文字颜色</label>
+              <label class="field-label">辅助文字字号 (%) <input id="pref-supporting-scale" class="field-control" type="number" min="50" max="200" value="100" /></label>
+              <label class="field-label">天气轮播动效
+                <select id="pref-weather-transition" class="field-control">
+                  <option value="fade">淡入淡出</option><option value="slide_up">上滑</option>
+                  <option value="slide_down">下滑</option><option value="slide_right">右滑</option>
+                  <option value="scale">缩放</option><option value="flip">翻页</option>
+                </select>
+              </label>
+              <label class="field-label">温度单位 <select id="pref-temperature-unit" class="field-control"><option value="celsius">℃</option><option value="fahrenheit">℉</option></select></label>
+            </fieldset>
+            <fieldset class="settings-section">
               <legend>时间显示</legend>
               <div class="settings-grid settings-grid--two">
                 <label class="field-label">时间制式
@@ -128,7 +156,7 @@
               </div>
               <p class="field-help">支持 yyyy、yy、M、MM、MMM、MMMM、d、dd、E、EEEE；文字可用单引号包住。</p>
               <label class="field-label">自定义留言
-                <input id="pref-message" class="field-control" type="text" maxlength="120" placeholder="留空则隐藏，例如：专注当下" />
+                <input id="pref-message" class="field-control" type="text" maxlength="200" placeholder="留空则隐藏，例如：专注当下" />
               </label>
               <div class="settings-grid settings-grid--two">
                 <label class="range-label">时间字号 <span id="pref-time-scale-value">88%</span>
