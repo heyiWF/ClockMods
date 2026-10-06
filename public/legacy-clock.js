@@ -206,10 +206,13 @@
       for(index=0;index<values.length;index++) {
         if(index) {var separator=doc.createElement('span');separator.className='material-separator';text(separator,colon);main.appendChild(separator);}
         group=doc.createElement('span');group.className='material-part material-'+(index===0?'hours':index===1?'minutes':'seconds');text(group,values[index]);
-        var fill=index===1?color(prefs['accent-color'],themes[prefs.theme][2]):color(prefs['panel-color'],themes[prefs.theme][1]);
+        var fill=index===1?color(prefs['accent-color'],themes[prefs.theme][2]):color(prefs['background-color'],themes[prefs.theme][0]);
         group.style.backgroundColor=fill;group.style.color=automatic?ink(fill):color(prefs['time-color'],'#ffffff');main.appendChild(group);
       }
-    } else if(!grouped) {main.removeAttribute('data-groups');text(main,value);}
+    } else if(!grouped) {
+      if(main.getAttribute('data-groups')!==null) {while(main.firstChild)main.removeChild(main.firstChild);main.className='';}
+      main.removeAttribute('data-groups');text(main,value);
+    }
     text(node('clock-small-seconds'), prefs['show-seconds'] && prefs['small-seconds'] ? pad(second) : '');
     text(node('clock-period'), twelve ? (prefs.language === 'en' ? hour<12?'AM':'PM' : hour<12?'上午':'下午') : '');
     var lunar=lunarText(date), separate=prefs['dual-line'] || win.innerHeight >= win.innerWidth;

@@ -29,6 +29,8 @@ it('boots without modern APIs and persists all theme controls', () => {
       (win.document.getElementById('settings-apply') as HTMLButtonElement).click();
       expect(win.localStorage.getItem('clockmods_legacy.theme')).toBe(theme);
       expect(win.document.getElementById('clock-lines')!.className).toContain('theme-' + theme.replace('ultimate.', ''));
+      const grouped = ['ultimate.dual_blocks','ultimate.bubbles','ultimate.blend'].includes(theme);
+      expect(win.document.querySelectorAll('#clock-main .material-part').length > 0).toBe(grouped);
     }
     (win.document.getElementById('settings-button') as HTMLButtonElement).click();
     (win.document.getElementById('pref-message') as HTMLInputElement).value = '<img src=x onerror=alert(1)>';
