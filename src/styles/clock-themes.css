@@ -8,7 +8,7 @@
   text-shadow: none;
 }
 .page.has-card-shadow.is-material .clock-lines { box-shadow: 0 12px 40px #0002; }
-.material-separator { display: none; }
+.clock-time .clock-char.material-separator { display: none; }
 .time-main[data-material-groups='true'] { display: inline-flex; align-items: center; gap: .06em; }
 .material-time-part { display: inline-flex; align-items: center; justify-content: center; padding: .28em .08em; border-radius: 18%; }
 .material-minutes { background: var(--theme-accent); color: var(--theme-on-accent); }
