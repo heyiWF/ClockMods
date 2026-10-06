@@ -16,7 +16,7 @@ Gradle build and configuration caching are enabled. CI requests explicit Debug u
 
 On an unchanged Compose tree, the final testUltimateDebugUnitTest/lintUltimateDebug/assembleUltimateDebug run reused configuration cache, completed in 28 seconds and reported 56 actionable tasks (55 up-to-date, one lint wrapper). Timings are local observations, not guaranteed CI speedups.
 
-Public CI artifacts and task caches no longer receive QWeather signing credentials. Weather therefore reports not configured unless credentials are provided for a personal local build. Previously distributed signing keys must be rotated at QWeather; this repository change does not revoke them. Keep local qweather.properties untracked and do not distribute an APK containing a private signing key.
+At the maintainer's explicit request, push and manual CI builds embed QWeather signing credentials from repository secrets in the generated APK. The maintainer accepts public distribution of these credentials. Pull-request builds still skip credential injection. The temporary qweather.properties file is removed after the job; local personal-build configuration remains untracked. This policy does not alter the network validation fixes or Debug quality checks.
 
 ## Verification and boundaries
 
