@@ -23,13 +23,44 @@ import android.view.View;
  * nothing to move on to.
  */
 public final class AlmanacLineView extends View {
-    private static final long FRAME_DELAY_MS = 16L;
     private static final float HORIZONTAL_PADDING_DP = 2f;
 
     private final Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
     private final Paint glyphPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
     private final Paint badgePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Rect badgeBounds = new Rect();
+    private com.clockmods.sdk.style.MarqueeSpec marquee = com.clockmods.sdk.style.MarqueeSpec.DEFAULT;
+    private final Runnable redraw = this::invalidate;
+
+    public void setMarqueeSpec(com.clockmods.sdk.style.MarqueeSpec value) {
+        if (value == null) value = com.clockmods.sdk.style.MarqueeSpec.DEFAULT;
+        if (marquee.equals(value)) return;
+        marquee = value;
+        shownAt = 0L;
+        removeCallbacks(redraw);
+        invalidate();
+    }
+
+    private void scheduleFrame(long delay) {
+        removeCallbacks(redraw);
+        if (active && isShown() && getWindowVisibility() == VISIBLE
+                && delay != com.clockmods.sdk.style.MarqueeSpec.IDLE) postDelayed(redraw, delay);
+    }
+
+    @Override protected void onWindowVisibilityChanged(int visibility) {
+        super.onWindowVisibilityChanged(visibility);
+        if (redraw == null) return;
+        removeCallbacks(redraw);
+        if (visibility == VISIBLE && active) invalidate();
+    }
+
+    @Override protected void onVisibilityChanged(View changedView, int visibility) {
+        super.onVisibilityChanged(changedView, visibility);
+        if (redraw == null) return;
+        removeCallbacks(redraw);
+        if (isShown() && active) invalidate();
+    }
+
     private final float density;
 
     private String prefix = "";
@@ -60,6 +91,10 @@ public final class AlmanacLineView extends View {
     public void setLine(String line, String leadingHint) {
         line = line == null ? "" : line;
         String hint = leadingHint == null ? "" : leadingHint;
+        String resolvedPrefix = hint.length() > 0 && line.startsWith(hint)
+                && line.length() > hint.length() ? hint : "";
+        String resolvedContent = resolvedPrefix.isEmpty() ? line : line.substring(hint.length()).trim();
+        if (prefix.equals(resolvedPrefix) && content.equals(resolvedContent)) return;
         if (hint.length() > 0 && line.startsWith(hint) && line.length() > hint.length()) {
             prefix = hint;
             content = line.substring(hint.length()).trim();
@@ -94,6 +129,7 @@ public final class AlmanacLineView extends View {
     public void setActive(boolean value) {
         if (value == active) return;
         active = value;
+        removeCallbacks(redraw);
         if (active) {
             shownAt = 0L;
             invalidate();
@@ -104,16 +140,19 @@ public final class AlmanacLineView extends View {
         paint.setTextSize(preferredTextSize);
         float lineHeight = paint.descent() - paint.ascent();
         setMeasuredDimension(getDefaultSize(getSuggestedMinimumWidth(), widthMeasureSpec),
-                Math.max(Math.round(Math.max(lineHeight, preferredTextSize * 1.55f)), getSuggestedMinimumHeight()));
+                resolveSize(Math.max(Math.round(Math.max(lineHeight, preferredTextSize * 1.55f)),
+                        getSuggestedMinimumHeight()), heightMeasureSpec));
     }
 
     @Override protected void onDetachedFromWindow() {
         active = false;
+        removeCallbacks(redraw);
         super.onDetachedFromWindow();
     }
 
     @Override protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
+        removeCallbacks(redraw);
         if (prefix.isEmpty() && content.isEmpty()) return;
         long now = SystemClock.uptimeMillis();
         if (shownAt == 0L) shownAt = now;
@@ -128,9 +167,9 @@ public final class AlmanacLineView extends View {
         float leading = prefix.isEmpty() ? 0f : diameter + density * 4f;
         float room = Math.max(1f, getWidth() - padding * 2f - leading);
         float contentWidth = paint.measureText(content);
-        float distance = CalendarMarqueeTiming.loopDistance(contentWidth, preferredTextSize, density);
+        float distance = marquee.loopDistance(contentWidth, preferredTextSize, density);
         boolean scroll = active && contentWidth > room;
-        float offset = scroll ? CalendarMarqueeTiming.loopOffset(now - shownAt, distance, density) : 0f;
+        float offset = scroll ? marquee.loopOffset(now - shownAt, distance, density) : 0f;
         int save = canvas.save();
         canvas.clipRect(padding + leading, 0f, getWidth() - padding, getHeight());
         canvas.drawText(content, padding + leading - offset, baseline, paint);
@@ -142,6 +181,6 @@ public final class AlmanacLineView extends View {
             AlmanacBadge.draw(canvas, prefix, padding + diameter / 2f, centerY,
                     diameter, lineColor, glyphPaint, badgePaint, badgeBounds);
         }
-        if (scroll) postInvalidateDelayed(FRAME_DELAY_MS);
+        if (scroll) scheduleFrame(marquee.loopFrameDelay(now - shownAt, distance, density));
     }
 }

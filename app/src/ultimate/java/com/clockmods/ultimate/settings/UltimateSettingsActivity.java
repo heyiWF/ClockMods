@@ -1959,7 +1959,39 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         String selectedId = addCalendarThemes(body);
         String scopeId = ClockPreferences.calendarScope(selectedId);
         addTypographySettings(body, scopeId, Page.CALENDAR_STYLE);
+        addCalendarMotionSettings(body, selectedId);
         return scrollable(body);
+    }
+
+    private void addCalendarMotionSettings(LinearLayout body, String themeId) {
+        com.clockmods.sdk.style.MarqueeSpec motion = repository.getCalendarMarquee(themeId);
+        addSectionLabel(body, R.string.calendar_marquee_speed);
+        addSegmented(body, new int[] {R.string.calendar_marquee_slow, R.string.calendar_marquee_normal,
+                R.string.calendar_marquee_fast}, motion.speedDpPerSecond < 30f ? 0
+                : motion.speedDpPerSecond > 50f ? 2 : 1, choice -> {
+            com.clockmods.sdk.style.MarqueeSpec current = repository.getCalendarMarquee(themeId);
+            repository.setCalendarMarquee(themeId, new com.clockmods.sdk.style.MarqueeSpec(
+                    new float[] {20f, 40f, 80f}[choice], current.pauseMillis, current.gapDp));
+            markChanged("calendar_marquee_speed");
+        });
+        addSectionLabel(body, R.string.calendar_marquee_pause);
+        addSegmented(body, new int[] {R.string.calendar_marquee_pause_none,
+                R.string.calendar_marquee_pause_normal, R.string.calendar_marquee_pause_long},
+                motion.pauseMillis < 500 ? 0 : motion.pauseMillis > 1500 ? 2 : 1, choice -> {
+            com.clockmods.sdk.style.MarqueeSpec current = repository.getCalendarMarquee(themeId);
+            repository.setCalendarMarquee(themeId, new com.clockmods.sdk.style.MarqueeSpec(
+                    current.speedDpPerSecond, new long[] {0L, 1000L, 2000L}[choice], current.gapDp));
+            markChanged("calendar_marquee_pause");
+        });
+        addSectionLabel(body, R.string.calendar_marquee_gap);
+        addSegmented(body, new int[] {R.string.calendar_marquee_gap_small,
+                R.string.calendar_marquee_gap_normal, R.string.calendar_marquee_gap_large},
+                motion.gapDp < 18f ? 0 : motion.gapDp > 36f ? 2 : 1, choice -> {
+            com.clockmods.sdk.style.MarqueeSpec current = repository.getCalendarMarquee(themeId);
+            repository.setCalendarMarquee(themeId, new com.clockmods.sdk.style.MarqueeSpec(
+                    current.speedDpPerSecond, current.pauseMillis, new float[] {12f, 24f, 48f}[choice]));
+            markChanged("calendar_marquee_gap");
+        });
     }
 
     /** What the calendar does, not how it looks; the themes moved to {@link #calendarStylePage()}. */

@@ -60,6 +60,38 @@ public final class CalendarFooterCarouselView extends View {
     private final Paint boldPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
     private final Paint badgePaint = new Paint(Paint.ANTI_ALIAS_FLAG);
     private final Rect badgeBounds = new Rect();
+    private com.clockmods.sdk.style.MarqueeSpec marquee = com.clockmods.sdk.style.MarqueeSpec.DEFAULT;
+    private final Runnable redraw = this::invalidate;
+
+    public void setMarqueeSpec(com.clockmods.sdk.style.MarqueeSpec value) {
+        if (value == null) value = com.clockmods.sdk.style.MarqueeSpec.DEFAULT;
+        if (marquee.equals(value)) return;
+        marquee = value;
+        cycleStartedAt = 0L;
+        removeCallbacks(redraw);
+        invalidate();
+    }
+
+    private void scheduleFrame(long delay) {
+        removeCallbacks(redraw);
+        if (active && isShown() && getWindowVisibility() == VISIBLE
+                && delay != com.clockmods.sdk.style.MarqueeSpec.IDLE) postDelayed(redraw, delay);
+    }
+
+    @Override protected void onWindowVisibilityChanged(int visibility) {
+        super.onWindowVisibilityChanged(visibility);
+        if (redraw == null) return;
+        removeCallbacks(redraw);
+        if (visibility == VISIBLE && active) invalidate();
+    }
+
+    @Override protected void onVisibilityChanged(View changedView, int visibility) {
+        super.onVisibilityChanged(changedView, visibility);
+        if (redraw == null) return;
+        removeCallbacks(redraw);
+        if (isShown() && active) invalidate();
+    }
+
     private final float density;
     private List<Item> items = Collections.emptyList();
     private int index;
@@ -81,6 +113,13 @@ public final class CalendarFooterCarouselView extends View {
     }
 
     public void setItems(List<Item> values) {
+        boolean unchanged = items.size() == values.size();
+        for (int i = 0; unchanged && i < items.size(); i++) {
+            Item before = items.get(i), after = values.get(i);
+            unchanged = before.text.equals(after.text) && before.color == after.color
+                    && before.pinnedPrefix.equals(after.pinnedPrefix);
+        }
+        if (unchanged) return;
         items = Collections.unmodifiableList(new ArrayList<>(values));
         index = 0;
         cycleStartedAt = 0L;
@@ -108,6 +147,7 @@ public final class CalendarFooterCarouselView extends View {
     public void setActive(boolean value) {
         if (value == active) return;
         active = value;
+        removeCallbacks(redraw);
         if (active) {
             cycleStartedAt = 0L;
             invalidate();
@@ -116,11 +156,13 @@ public final class CalendarFooterCarouselView extends View {
 
     @Override protected void onDetachedFromWindow() {
         active = false;
+        removeCallbacks(redraw);
         super.onDetachedFromWindow();
     }
 
     @Override protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
+        removeCallbacks(redraw);
         if (items.isEmpty()) return;
         long now = SystemClock.uptimeMillis();
         if (cycleStartedAt == 0L) cycleStartedAt = now;
@@ -128,7 +170,8 @@ public final class CalendarFooterCarouselView extends View {
 
         if (items.size() == 1 || !active) {
             drawItem(canvas, current, 0f, active ? now - cycleStartedAt : 0L);
-            if (active && overflow(current)) postInvalidateDelayed(FRAME_DELAY_MS);
+            if (active) scheduleFrame(marquee.scrollFrameDelay(now - cycleStartedAt,
+                    bodyWidth(current) - bodyRoom(current), density));
             return;
         }
 
@@ -147,7 +190,12 @@ public final class CalendarFooterCarouselView extends View {
             cycleStartedAt = now;
             drawItem(canvas, items.get(index), 0f, 0L);
         }
-        postInvalidateDelayed(FRAME_DELAY_MS);
+        long itemElapsed = now - cycleStartedAt;
+        Item visible = items.get(index);
+        long holdRemaining = holdDurationFor(visible) - itemElapsed;
+        scheduleFrame(holdRemaining > 0L
+                ? Math.min(holdRemaining, marquee.scrollFrameDelay(itemElapsed,
+                        bodyWidth(visible) - bodyRoom(visible), density)) : FRAME_DELAY_MS);
     }
 
     private void drawItem(Canvas canvas, Item item, float verticalOffset, long itemElapsed) {
@@ -179,7 +227,7 @@ public final class CalendarFooterCarouselView extends View {
         canvas.save();
         canvas.clipRect(x + leading, top, getWidth() - padding, bottom);
         canvas.drawText(body, x + leading
-                - CalendarMarqueeTiming.scrollOffset(itemElapsed, excess, density), baseline, paint);
+                - marquee.scrollOffset(itemElapsed, excess, density), baseline, paint);
         canvas.restore();
         canvas.restoreToCount(save);
     }
@@ -202,7 +250,7 @@ public final class CalendarFooterCarouselView extends View {
 
     /** Read the head, scroll once, and hold the tail before sliding to the next line. */
     private long holdDurationFor(Item item) {
-        return CalendarMarqueeTiming.holdMillis(bodyWidth(item) - bodyRoom(item), density);
+        return marquee.holdMillis(bodyWidth(item) - bodyRoom(item), density);
     }
 
     /** Where the scrolling body of an item may draw: beside the pinned glyph, inside the padding. */

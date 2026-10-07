@@ -602,6 +602,22 @@ public class ClockPreferences {
         preferences.edit().putBoolean(KEY_AUTO_START, autoStart).apply();
     }
 
+    /** Per-theme motion policy; the host resolves preferences before calling renderers. */
+    public com.clockmods.sdk.style.MarqueeSpec getCalendarMarquee(String themeId) {
+        String key = "calendar_marquee__" + normalizeScope(calendarScope(themeId));
+        return new com.clockmods.sdk.style.MarqueeSpec(
+                preferences.getFloat(key + "_speed", 40f),
+                preferences.getLong(key + "_pause", 1000L),
+                preferences.getFloat(key + "_gap", 24f));
+    }
+
+    public void setCalendarMarquee(String themeId, com.clockmods.sdk.style.MarqueeSpec value) {
+        if (value == null) value = com.clockmods.sdk.style.MarqueeSpec.DEFAULT;
+        String key = "calendar_marquee__" + normalizeScope(calendarScope(themeId));
+        preferences.edit().putFloat(key + "_speed", value.speedDpPerSecond)
+                .putLong(key + "_pause", value.pauseMillis).putFloat(key + "_gap", value.gapDp).apply();
+    }
+
     public int getCalendarWeekStart() {
         return normalizeCalendarWeekStart(preferences.getInt(
                 KEY_CALENDAR_WEEK_START, DEFAULT_CALENDAR_WEEK_START));

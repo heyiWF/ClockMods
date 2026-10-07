@@ -229,6 +229,7 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
             BackgroundRepository background) {
         this.theme = theme;
         this.preferences = preferences;
+        footer.setMarqueeSpec(preferences.getCalendarMarquee(theme.id));
         statusBar.setBackgroundRepository(background);
         statusBar.setTypographyScope(ClockPreferences.calendarScope(theme.id));
         statusBar.setContentAlignedStart(true);

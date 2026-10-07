@@ -214,6 +214,8 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
             BackgroundRepository background) {
         this.theme = theme;
         this.preferences = preferences;
+        suitableView.setMarqueeSpec(preferences.getCalendarMarquee(theme.id));
+        avoidView.setMarqueeSpec(preferences.getCalendarMarquee(theme.id));
         float density = context.getResources().getDisplayMetrics().density;
         root.setBackground(theme.newPageBackground());
         applyPanelBackground(card);

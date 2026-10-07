@@ -57,6 +57,12 @@ public final class CalendarAlmanacAcceptance extends Instrumentation {
             getUiAutomation().setServiceInfo(service);
             for (String name : new String[] {"clock_prefs", "clockmods_onboarding"})
                 original.put(name, new HashMap<>(context.getSharedPreferences(name, 0).getAll()));
+            com.clockmods.background.ClockPreferences settings = new com.clockmods.background.ClockPreferences(context);
+            com.clockmods.sdk.style.MarqueeSpec custom = new com.clockmods.sdk.style.MarqueeSpec(80, 2000, 48);
+            settings.setCalendarMarquee("calendar.audit", custom);
+            check(custom.equals(new com.clockmods.background.ClockPreferences(context)
+                    .getCalendarMarquee("calendar.audit")), "motion settings survive host recreation");
+            check(!custom.equals(settings.getCalendarMarquee("calendar.other")), "motion settings are theme scoped");
             boolean pro = context.getPackageName().endsWith(".pro");
             String activityName = pro ? "com.clockmods.pro.ProMainActivity" : "com.clockmods.ultimate.UltimateMainActivity";
             String[] themes = pro ? new String[] {"pro"} : new String[] {"agenda", "graphite", "carbon", "paper"};
@@ -72,6 +78,7 @@ public final class CalendarAlmanacAcceptance extends Instrumentation {
                         .putBoolean("weather_enabled", false).putBoolean("show_status_icons", false)
                         .putBoolean("hourly_visual_chime", false).putBoolean("half_hour_visual_chime", false)
                         .putBoolean("use_network_time", false).commit();
+                settings.setCalendarMarquee("calendar." + theme, custom);
                 context.getSharedPreferences("clockmods_onboarding", 0).edit().putBoolean("completed", true).commit();
                 ActivityMonitor monitor = addMonitor(activityName, null, false);
                 context.startActivity(new Intent().setClassName(context.getPackageName(), activityName)
@@ -87,13 +94,7 @@ public final class CalendarAlmanacAcceptance extends Instrumentation {
                         pager.getClass().getMethod("setCurrentItem", int.class, boolean.class).invoke(pager, 1, false);
                     } catch (Exception e) { throw new RuntimeException(e); }
                 });
-                SystemClock.sleep(4300L);
-                Bitmap screen = getUiAutomation().takeScreenshot();
-                save(screen, theme + "-" + orientation + ".png");
-                check((screen.getWidth() > screen.getHeight()) == (orientation == 2), theme + " orientation " + screen.getWidth() + "x" + screen.getHeight());
-                screen.recycle();
-                AccessibilityNodeInfo node = findAlmanac(getUiAutomation().getRootInActiveWindow(), theme.equals("agenda"));
-                check(node != null, theme + " dotted almanac items exposed");
+                AccessibilityNodeInfo node = awaitAlmanac(theme, orientation, activityName);
                 if (theme.equals("agenda") && orientation == 1) observeLap(node);
             }
             report.putInt("calendar_almanac_checks", checks);
@@ -107,6 +108,58 @@ public final class CalendarAlmanacAcceptance extends Instrumentation {
             if (originalAutoRotation != 0) getUiAutomation().setRotation(UiAutomation.ROTATION_UNFREEZE);
         }
         finish(result, report);
+    }
+
+    /** Wait for visible coloured almanac ink, not a startup frame or the date-only footer phase. */
+    private AccessibilityNodeInfo awaitAlmanac(String theme, int orientation, String activityName) throws Exception {
+        long deadline = SystemClock.uptimeMillis() + 30000L;
+        int visibleFrames = 0;
+        while (SystemClock.uptimeMillis() < deadline) {
+            getUiAutomation().setRotation(orientation == 1
+                    ? UiAutomation.ROTATION_FREEZE_0 : UiAutomation.ROTATION_FREEZE_90);
+            runOnMainSync(() -> {
+                for (Activity running : new ArrayList<>(activities)) {
+                    if (running.isFinishing() || running.isDestroyed()) continue;
+                    running.setRequestedOrientation(orientation == 1
+                            ? android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                            : android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+                }
+            });
+            AccessibilityNodeInfo node = findAlmanac(getUiAutomation().getRootInActiveWindow(), theme.equals("agenda"));
+            if (node != null) {
+                Bitmap screen = getUiAutomation().takeScreenshot();
+                Rect bounds = new Rect(); node.getBoundsInScreen(bounds);
+                int coloured = 0;
+                for (int y = Math.max(0, bounds.top); y < Math.min(screen.getHeight(), bounds.bottom); y += 2)
+                    for (int x = Math.max(0, bounds.left); x < Math.min(screen.getWidth(), bounds.right); x += 2) {
+                        int pixel = screen.getPixel(x, y);
+                        int r = Color.red(pixel), g = Color.green(pixel), b = Color.blue(pixel);
+                        if ((g > r + 20 && g > b + 20) || (r > g + 20 && r > b + 20)) coloured++;
+                    }
+                boolean ready = (screen.getWidth() > screen.getHeight()) == (orientation == 2) && coloured > 20;
+                visibleFrames = ready ? visibleFrames + 1 : 0;
+                if (visibleFrames >= 2) {
+                    save(screen, theme + "-" + orientation + ".png"); screen.recycle();
+                    check(true, theme + " dotted almanac visible in orientation " + orientation);
+                    return node;
+                }
+                screen.recycle();
+            } else {
+                visibleFrames = 0;
+                // An orientation recreation can happen before the initial navigation effect runs.
+                runOnMainSync(() -> {
+                    for (Activity running : new ArrayList<>(activities)) {
+                        if (!running.getClass().getName().equals(activityName) || running.isFinishing() || running.isDestroyed()) continue;
+                        callActivityOnNewIntent(running, new Intent(running.getIntent())
+                                .putExtra("com.clockmods.ultimate.extra.DESTINATION", "calendar"));
+                    }
+                });
+            }
+            SystemClock.sleep(500L);
+        }
+        Bitmap failed = getUiAutomation().takeScreenshot();
+        save(failed, theme + "-" + orientation + "-failed.png"); failed.recycle();
+        throw new AssertionError(theme + " dotted almanac did not become visible in orientation " + orientation);
     }
 
     private void probeViews(Context context) throws Exception {

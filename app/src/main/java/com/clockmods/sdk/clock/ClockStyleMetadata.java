@@ -3,7 +3,7 @@ package com.clockmods.sdk.clock;
 import java.util.Locale;
 
 /** Stable identity and compatibility information for a clock style. */
-public final class ClockStyleMetadata {
+public final class ClockStyleMetadata implements com.clockmods.sdk.style.StyleIdentity {
     public enum Kind { ANALOG, DIGITAL, HYBRID }
 
     private final String id;

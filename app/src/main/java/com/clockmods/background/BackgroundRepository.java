@@ -276,6 +276,14 @@ public class BackgroundRepository {
         preferences.setCalendarHighlightWeekends(highlightWeekends);
     }
 
+    public com.clockmods.sdk.style.MarqueeSpec getCalendarMarquee(String themeId) {
+        return preferences.getCalendarMarquee(themeId);
+    }
+
+    public void setCalendarMarquee(String themeId, com.clockmods.sdk.style.MarqueeSpec value) {
+        preferences.setCalendarMarquee(themeId, value);
+    }
+
     public String getCalendarTheme() {
         return preferences.getCalendarTheme();
     }

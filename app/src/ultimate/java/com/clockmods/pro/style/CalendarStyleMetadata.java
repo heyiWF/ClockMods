@@ -14,7 +14,7 @@ import java.util.regex.Pattern;
  * been localised through {@code ultimate_strings.xml} and there is no plugin surface that would
  * need to supply raw text.</p>
  */
-public final class CalendarStyleMetadata {
+public final class CalendarStyleMetadata implements com.clockmods.sdk.style.StyleIdentity {
     /** Composition family. Purely descriptive — behaviour comes from {@link #getCapabilities()}. */
     public enum Kind { DASHBOARD, WALL, ALMANAC, AGENDA, POSTER }
 
