@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="calendar_marquee_speed">宜忌捲動速度</string>
+    <string name="calendar_marquee_slow">慢速</string>
+    <string name="calendar_marquee_normal">標準</string>
+    <string name="calendar_marquee_fast">快速</string>
+    <string name="calendar_marquee_pause">每次捲動停頓</string>
+    <string name="calendar_marquee_pause_none">不停頓</string>
+    <string name="calendar_marquee_pause_normal">1 秒</string>
+    <string name="calendar_marquee_pause_long">2 秒</string>
+    <string name="calendar_marquee_gap">循環文字接縫間距（至少一個半字寬）</string>
+    <string name="calendar_marquee_gap_small">緊湊</string>
+    <string name="calendar_marquee_gap_normal">標準</string>
+    <string name="calendar_marquee_gap_large">寬鬆</string>
+</resources>

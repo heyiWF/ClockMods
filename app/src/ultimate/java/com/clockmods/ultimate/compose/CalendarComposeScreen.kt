@@ -56,7 +56,6 @@ import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.isSpecified
 import com.clockmods.LocaleManager
-import com.clockmods.ui.CalendarMarqueeTiming
 import com.clockmods.R
 import com.clockmods.background.BackgroundRepository
 import com.clockmods.background.ClockPreferences
@@ -110,6 +109,7 @@ internal data class CalendarTypography(
         emphasized: Boolean,
     ): TextStyle = base.copy(
         fontSize = base.fontSize * scale,
+        lineHeight = if (base.lineHeight.isSpecified) base.lineHeight * scale else base.lineHeight,
         // Let Android fall back per missing glyph. A Chinese character in a mixed string must
         // not force its year, temperature, Latin labels and digits back to the system face.
         fontFamily = if (emphasized) emphasizedDisplayFamily else displayFamily,
@@ -339,22 +339,24 @@ internal fun CalendarScreen(
         month = cursor.get(Calendar.MONTH)
         selectedKey = dayKey(year, month, cursor.get(Calendar.DAY_OF_MONTH))
     }
-    UltimateCalendarLayout(
-        modifier = modifier.pointerInput(Unit) {
-            detectTapGestures(onTap = { onToggleChrome() })
-        }, theme = theme, typography = typography,
-        preferences = preferences, cells = cells, selected = selected,
-        adjacentCells = adjacentCells,
-        weekdays = weekdays, monthTitle = monthTitle, timeZone = timeZone,
-        clockTick = { clockTick }, weatherState = weatherState,
-        refreshGeneration = refreshGeneration, scheduleItems = selectedSchedule,
-        immersive = immersive,
-        onPrevious = { movePage(-1) }, onNext = { movePage(1) },
-        onToday = ::goToday, onSelect = ::selectDay,
-        onMonthPicker = { monthPickerVisible = true },
-        onAddSchedule = { editingItem = null; editorVisible = true },
-        onEditSchedule = { editingItem = it; editorVisible = true },
-    )
+    CalendarMotionProvider(preferences.getCalendarMarquee(theme.id)) {
+        UltimateCalendarLayout(
+            modifier = modifier.pointerInput(Unit) {
+                detectTapGestures(onTap = { onToggleChrome() })
+            }, theme = theme, typography = typography,
+            preferences = preferences, cells = cells, selected = selected,
+            adjacentCells = adjacentCells,
+            weekdays = weekdays, monthTitle = monthTitle, timeZone = timeZone,
+            clockTick = { clockTick }, weatherState = weatherState,
+            refreshGeneration = refreshGeneration, scheduleItems = selectedSchedule,
+            immersive = immersive,
+            onPrevious = { movePage(-1) }, onNext = { movePage(1) },
+            onToday = ::goToday, onSelect = ::selectDay,
+            onMonthPicker = { monthPickerVisible = true },
+            onAddSchedule = { editingItem = null; editorVisible = true },
+            onEditSchedule = { editingItem = it; editorVisible = true },
+        )
+    }
     if (monthPickerVisible) {
         CalendarMonthPicker(year, month, onDismiss = { monthPickerVisible = false }) { y, m ->
             year = y
@@ -411,8 +413,7 @@ private object CalendarCarouselTimeline {
  *
  * <p>Faithful port of the Java `CalendarLabelCarouselView`: the motion is a pure upward slide
  * of one line height (never a horizontal shift), driven by the shared [CalendarCarouselTimeline].
- * A label longer than [MAX_STATIC_CHARS] characters scrolls horizontally while it is shown;
- * shorter labels stay centred (never scroll).</p>
+ * A label scrolls horizontally when its measured width overflows; fitting labels stay centred.</p>
  */
 @Composable
 internal fun LunarCarouselText(
@@ -436,11 +437,12 @@ internal fun LunarCarouselText(
     val progress = remember { Animatable(0f) }
     var cycle by remember { mutableIntStateOf(0) }
     var transitioning by remember { mutableStateOf(false) }
-    LaunchedEffect(distinct) {
+    val motionActive = LocalCalendarMotionActive.current
+    LaunchedEffect(distinct, motionActive) {
         progress.snapTo(0f)
         cycle = 0
         transitioning = false
-        if (distinct.size == 1) return@LaunchedEffect
+        if (distinct.size == 1 || !motionActive) return@LaunchedEffect
         while (true) {
             delay(CalendarCarouselTimeline.HOLD_MS)
             transitioning = true
@@ -485,27 +487,8 @@ private fun LunarCarouselLine(
     style: TextStyle,
     modifier: Modifier = Modifier,
 ) {
-    val scrollable = text.codePointCount(0, text.length) > MAX_STATIC_CHARS
-    if (!scrollable) {
-        Text(
-            text,
-            color = color,
-            maxLines = 1,
-            softWrap = false,
-            overflow = TextOverflow.Clip,
-            textAlign = TextAlign.Center,
-            style = style,
-            modifier = modifier.fillMaxWidth(),
-        )
-        return
-    }
-    Box(modifier.fillMaxWidth().clipToBounds()) {
-        MarqueeText(text, color, style, modifier = Modifier.fillMaxWidth())
-    }
+    MarqueeText(text, color, style, modifier = modifier.fillMaxWidth(), centerWhenFits = true)
 }
-
-/** A label scrolls horizontally only when it is longer than this many characters. */
-private const val MAX_STATIC_CHARS = 3
 
 /**
  * A minimal single-line horizontal marquee with no external dependency.  When the text fits it
@@ -517,29 +500,37 @@ internal fun MarqueeText(
     color: Color,
     style: TextStyle,
     modifier: Modifier = Modifier,
+    centerWhenFits: Boolean = false,
 ) {
     val density = LocalDensity.current
+    val marquee = LocalCalendarMarquee.current
+    val active = LocalCalendarMotionActive.current
     var containerWidth by remember { mutableIntStateOf(0) }
     var textWidth by remember(text, style) { mutableIntStateOf(0) }
     val overflow = textWidth > containerWidth && containerWidth > 0
     val textSizePx = with(density) { style.fontSize.toPx() }
-    val distance = CalendarMarqueeTiming.loopDistance(textWidth.toFloat(), textSizePx, density.density)
+    val distance = marquee.loopDistance(textWidth.toFloat(), textSizePx, density.density)
     val gapPx = distance - textWidth
     var elapsed by remember(text, style, containerWidth) { mutableLongStateOf(0L) }
-    LaunchedEffect(text, style, containerWidth, overflow, density.density) {
+    LaunchedEffect(text, style, containerWidth, textWidth, overflow, density, marquee, active) {
         elapsed = 0L
-        if (!overflow) return@LaunchedEffect
-        val start = withFrameNanos { it }
-        while (true) withFrameNanos { elapsed = (it - start) / 1_000_000L }
+        if (!overflow || !active) return@LaunchedEffect
+        val start = android.os.SystemClock.uptimeMillis()
+        while (true) {
+            val wait = marquee.loopFrameDelay(elapsed, distance, density.density)
+            if (wait > 16L) delay(wait) else withFrameNanos { }
+            elapsed = android.os.SystemClock.uptimeMillis() - start
+        }
     }
     Box(
         modifier
             .fillMaxWidth()
             .clipToBounds()
             .onSizeChanged { containerWidth = it.width },
+        contentAlignment = if (centerWhenFits && !overflow) Alignment.Center else Alignment.CenterStart,
     ) {
         Row(Modifier.wrapContentWidth(align = Alignment.Start, unbounded = true).graphicsLayer {
-            translationX = -CalendarMarqueeTiming.loopOffset(elapsed, distance, density.density)
+            translationX = -marquee.loopOffset(elapsed, distance, density.density)
         }) {
             Text(
                 text,

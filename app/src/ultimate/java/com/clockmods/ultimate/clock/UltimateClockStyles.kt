@@ -501,7 +501,10 @@ object UltimateClockStyles {
             val unit = minOf(context.getWidth(), context.getHeight())
             val compactFloor = unit * if (minimumSp >= 12f) .045f else .038f
             val scaledFloor = context.getScaledDensity() * minimumSp
-            return maxOf(preferredSize, minOf(scaledFloor, compactFloor))
+            val limit = com.clockmods.sdk.style.ResponsiveTextPolicy.secondaryLimit(
+                context.getWidth(), context.getHeight(), context.getScaledDensity(),
+                PAINT_POOL.get().motionState?.getTimeScale() ?: 1f)
+            return minOf(limit, maxOf(preferredSize, minOf(scaledFloor, compactFloor)))
         }
 
         protected fun readableText(canvas: Canvas, context: ClockRenderContext,
@@ -509,6 +512,7 @@ object UltimateClockStyles {
             minimumSp: Float, color: Int, align: Paint.Align, face: Typeface?,
             applyImageDimming: Boolean = true) {
             if (maxWidth <= 0f || value.isEmpty()) return
+            val targetSize = readableSize(context, preferredSize, minimumSp)
             val floor = readableSize(context, 0f, minimumSp)
             val pool = PAINT_POOL.get()
             val state = pool.motionState
@@ -517,7 +521,7 @@ object UltimateClockStyles {
             if (state != null && contextLine && state.isMessageActive() && settled) {
                 // The user's message is a carousel item of its own: it never shrinks or
                 // ellipsizes, but marquee-scrolls when it overflows the line.
-                val messageSize = maxOf(floor, preferredSize)
+                val messageSize = maxOf(floor, targetSize)
                 val imageBackground = context.getBackground()?.takeIf { it.hasImage() }
                 var messageColor = color
                 if (imageBackground != null) {
@@ -540,8 +544,8 @@ object UltimateClockStyles {
                 return
             }
             val message = contextLine && state?.isMessageActive() == true
-            val size = if (message) maxOf(floor, preferredSize)
-                else maxOf(floor, fitText(value, maxWidth, maxOf(floor, preferredSize), face))
+            val size = if (message) maxOf(floor, targetSize)
+                else maxOf(floor, fitText(value, maxWidth, maxOf(floor, targetSize), face))
             val visible = if (message) value else ellipsize(value, maxWidth, size, face)
             val imageBackground = context.getBackground()?.takeIf { it.hasImage() }
             val readableColor = if (imageBackground != null) {
@@ -557,8 +561,8 @@ object UltimateClockStyles {
                 val previous = state?.getPreviousWeatherText().orEmpty()
                 if (state != null && progress < 1f && previous.isNotEmpty() &&
                     value == contextText(state)) {
-                    val oldSize = if (state.isPreviousMessageActive()) maxOf(floor, preferredSize)
-                        else maxOf(floor, fitText(previous, maxWidth, maxOf(floor, preferredSize), face))
+                    val oldSize = if (state.isPreviousMessageActive()) maxOf(floor, targetSize)
+                        else maxOf(floor, fitText(previous, maxWidth, maxOf(floor, targetSize), face))
                     val oldVisible = if (state.isPreviousMessageActive()) previous
                         else ellipsize(previous, maxWidth, oldSize, face)
                     val oldColor = alpha(readableColor,
@@ -692,7 +696,7 @@ object UltimateClockStyles {
          * wider than the line. Mirrors Pro Classic's message overflow and the 宜/忌 belt: a pause at
          * the head of each lap, then a steady leftward scroll with a feathered fade at both edges.
          */
-        private fun textMessageMarquee(canvas: Canvas, context: ClockRenderContext,
+        protected fun textMessageMarquee(canvas: Canvas, context: ClockRenderContext,
             value: String, x: Float, baseline: Float, maxWidth: Float, size: Float, color: Int,
             align: Paint.Align, face: Typeface?, elapsedMillis: Long, continuous: Boolean) {
             val measure = fill(color)
@@ -836,7 +840,7 @@ object UltimateClockStyles {
             val floor = readableSize(context, 0f, 12f)
             val minimumSize = if (constrainedByOverlay)
                 minOf(floor, context.getScaledDensity() * 10f) else floor
-            val requested = maxOf(floor, preferredSize * state.getDateScale())
+            val requested = readableSize(context, preferredSize * state.getDateScale(), 12f)
             val growth = (state.getDateScale() - 1f).coerceAtLeast(0f)
             val raisedBaseline = if (lowerBaseline < context.getCenterY()) {
                 lowerBaseline - minOf(preferredSize * growth * .38f, context.getDensity() * 14f)
@@ -1241,6 +1245,7 @@ object UltimateClockStyles {
     }
 
     private class IsolatedRenderer(private val delegate: ClockRenderer) : ClockRenderer {
+        private val compact = CompactClockRenderer()
         override fun render(canvas: Canvas, context: ClockRenderContext, state: ClockState,
             theme: ClockThemeTokens) {
             val marker = RendererBase.beginPaintFrame()
@@ -1253,7 +1258,9 @@ object UltimateClockStyles {
             paintPool.motionState = state
             val saveCount = canvas.save()
             try {
-                delegate.render(canvas, context, state, theme)
+                val renderer = if (com.clockmods.sdk.style.ResponsiveTextPolicy.needsCompactLayout(
+                    context.getWidth(), context.getHeight(), context.getScaledDensity())) compact else delegate
+                renderer.render(canvas, context, state, theme)
             } finally {
                 canvas.restoreToCount(saveCount)
                 RendererBase.endPaintFrame(marker)

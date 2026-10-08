@@ -96,69 +96,79 @@ internal fun UltimateCalendarLayout(
         onDispose(forecastController::stop)
     }
     DisposableEffect(forecastController) { onDispose(forecastController::shutdown) }
-    BoxWithConstraints(modifier.fillMaxSize().background(Brush.verticalGradient(
-        listOf(Color(theme.backgroundStart), Color(theme.backgroundEnd)))).semantics { testTagsAsResourceId = true }.testTag("calendar:${theme.id}")) {
-        val landscape = maxWidth > maxHeight
-        val gutter = if (landscape) 8.dp else 5.dp
-        val grid: @Composable (Modifier) -> Unit = { gridModifier ->
-            CalendarSwipePager("${theme.id}:${selected.day.year}-${selected.day.month}",
-                gridModifier, onPrevious, onNext,
-                adjacent = { direction ->
-                    val page = adjacentCells(direction)
-                    val targetDay = selected.day.dayOfMonth.coerceAtMost(
-                        page.last { it.day.currentMonth }.day.dayOfMonth)
-                    val selectedDay = page.firstOrNull {
-                        it.day.currentMonth && it.day.dayOfMonth == targetDay
-                    } ?: page.first { it.day.currentMonth }
-                    val preview: @Composable () -> Unit = {
-                        OriginalMonthGrid(page, weekdays, selectedDay, theme, typography,
-                            preferences.isCalendarHighlightWeekends(), {}, Modifier.fillMaxSize())
-                    }
-                    preview
-                },
-                current = { OriginalMonthGrid(cells, weekdays, selected, theme, typography,
-                    preferences.isCalendarHighlightWeekends(), onSelect, Modifier.fillMaxSize()) })
-        }
-        val showAttribution = theme.showWeather && preferences.isWeatherEnabled()
-        Box(Modifier.fillMaxSize().padding(start = safeLeft, top = safeTop,
-            end = safeRight, bottom = safeBottom + if (showAttribution) 14.dp else 0.dp)) {
-            when (theme.layout) {
-                CalendarLayout.DASHBOARD, CalendarLayout.WALL -> {
-                    val panel: @Composable (Modifier) -> Unit = { panelModifier ->
-                        OriginalMonthPanel(theme, typography, selected, monthTitle,
-                            onPrevious, onNext, onToday, onMonthPicker, panelModifier, grid)
-                    }
-                    if (theme.layout == CalendarLayout.WALL) panel(Modifier.fillMaxSize().padding(gutter))
-                    else if (landscape) {
-                        Row(Modifier.fillMaxSize().padding(gutter), horizontalArrangement = Arrangement.spacedBy(gutter)) {
-                            DashboardReadings(theme, typography, preferences, weatherState, forecast, forecastFailed,
-                                clockTick, timeZone, true, gutter.value,
-                                Modifier.weight(1f).fillMaxHeight())
-                            panel(Modifier.weight(1f).fillMaxHeight())
+    BoxWithConstraints(modifier.fillMaxSize()) {
+        val contentHeight = maxOf(maxHeight, if (maxWidth > maxHeight) 320.dp else 480.dp)
+        val spaceForGrowth = ((minOf(maxWidth.value / 360f, maxHeight.value / 480f) - 1f)
+            .coerceIn(0f, 1f))
+        val adaptedTypography = typography.copy(supportingScale = minOf(typography.supportingScale,
+            1f + spaceForGrowth))
+        Box(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+            BoxWithConstraints(Modifier.fillMaxWidth().height(contentHeight).background(Brush.verticalGradient(
+                listOf(Color(theme.backgroundStart), Color(theme.backgroundEnd)))).semantics { testTagsAsResourceId = true }.testTag("calendar:${theme.id}")) {
+                val typography = adaptedTypography
+                val landscape = maxWidth > maxHeight
+                val gutter = if (landscape) 8.dp else 5.dp
+                val grid: @Composable (Modifier) -> Unit = { gridModifier ->
+                    CalendarSwipePager("${theme.id}:${selected.day.year}-${selected.day.month}",
+                        gridModifier, onPrevious, onNext,
+                        adjacent = { direction ->
+                            val page = adjacentCells(direction)
+                            val targetDay = selected.day.dayOfMonth.coerceAtMost(
+                                page.last { it.day.currentMonth }.day.dayOfMonth)
+                            val selectedDay = page.firstOrNull {
+                                it.day.currentMonth && it.day.dayOfMonth == targetDay
+                            } ?: page.first { it.day.currentMonth }
+                            val preview: @Composable () -> Unit = {
+                                OriginalMonthGrid(page, weekdays, selectedDay, theme, typography,
+                                    preferences.isCalendarHighlightWeekends(), {}, Modifier.fillMaxSize())
+                            }
+                            preview
+                        },
+                        current = { OriginalMonthGrid(cells, weekdays, selected, theme, typography,
+                            preferences.isCalendarHighlightWeekends(), onSelect, Modifier.fillMaxSize()) })
+                }
+                val showAttribution = theme.showWeather && preferences.isWeatherEnabled()
+                Box(Modifier.fillMaxSize().padding(start = safeLeft, top = safeTop,
+                    end = safeRight, bottom = safeBottom + if (showAttribution) 14.dp else 0.dp)) {
+                    when (theme.layout) {
+                        CalendarLayout.DASHBOARD, CalendarLayout.WALL -> {
+                            val panel: @Composable (Modifier) -> Unit = { panelModifier ->
+                                OriginalMonthPanel(theme, typography, selected, monthTitle,
+                                    onPrevious, onNext, onToday, onMonthPicker, panelModifier, grid)
+                            }
+                            if (theme.layout == CalendarLayout.WALL) panel(Modifier.fillMaxSize().padding(gutter))
+                            else if (landscape) {
+                                Row(Modifier.fillMaxSize().padding(gutter), horizontalArrangement = Arrangement.spacedBy(gutter)) {
+                                    DashboardReadings(theme, typography, preferences, weatherState, forecast, forecastFailed,
+                                        clockTick, timeZone, true, gutter.value,
+                                        Modifier.weight(1f).fillMaxHeight())
+                                    panel(Modifier.weight(1f).fillMaxHeight())
+                                }
+                            } else {
+                                Column(Modifier.fillMaxSize().padding(gutter), verticalArrangement = Arrangement.spacedBy(gutter)) {
+                                    DashboardReadings(theme, typography, preferences, weatherState, forecast, forecastFailed,
+                                        clockTick, timeZone, false, gutter.value,
+                                        Modifier.weight(.46f).fillMaxWidth())
+                                    panel(Modifier.weight(.54f).fillMaxWidth())
+                                }
+                            }
                         }
-                    } else {
-                        Column(Modifier.fillMaxSize().padding(gutter), verticalArrangement = Arrangement.spacedBy(gutter)) {
-                            DashboardReadings(theme, typography, preferences, weatherState, forecast, forecastFailed,
-                                clockTick, timeZone, false, gutter.value,
-                                Modifier.weight(.46f).fillMaxWidth())
-                            panel(Modifier.weight(.54f).fillMaxWidth())
-                        }
+                        CalendarLayout.POSTER -> PosterCalendar(theme, typography, selected, landscape, onToday, grid)
+                        CalendarLayout.AGENDA -> AgendaCalendar(theme, typography, preferences, cells, selected,
+                            adjacentCells,
+                            monthTitle, timeZone, landscape, weatherState, forecast, forecastFailed, scheduleItems,
+                            onPrevious, onNext, onToday, onSelect, onMonthPicker, onAddSchedule, onEditSchedule)
                     }
                 }
-                CalendarLayout.POSTER -> PosterCalendar(theme, typography, selected, landscape, onToday, grid)
-                CalendarLayout.AGENDA -> AgendaCalendar(theme, typography, preferences, cells, selected,
-                    adjacentCells,
-                    monthTitle, timeZone, landscape, weatherState, forecast, forecastFailed, scheduleItems,
-                    onPrevious, onNext, onToday, onSelect, onMonthPicker, onAddSchedule, onEditSchedule)
-            }
-        }
-        if (showAttribution) {
-            Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
-                .padding(start = safeLeft, end = safeRight, bottom = safeBottom).height(14.dp),
-                contentAlignment = Alignment.Center) {
-                WeatherAttribution(Color(theme.backgroundEnd))
-            }
-        }
+                if (showAttribution) {
+                    Box(Modifier.align(Alignment.BottomCenter).fillMaxWidth()
+                        .padding(start = safeLeft, end = safeRight, bottom = safeBottom).height(14.dp),
+                        contentAlignment = Alignment.Center) {
+                        WeatherAttribution(Color(theme.backgroundEnd))
+                    }
+                }
+    }
+    }
     }
 }
 
@@ -256,12 +266,19 @@ private fun OriginalDayCell(cell: CalendarCellInfo, selected: Boolean, theme: Co
         val h = maxHeight.value
         val number = if (theme.flatGrid) Sizing.posterCellNumberSize(w, h, 1f) else Sizing.monthDaySize(w, h + 4, 1f)
         val lunar = Sizing.monthLunarSize(w, h + 4, 1f)
-        val labelHeight = if (theme.flatGrid) Sizing.posterMarkHeight(number, 1f) else Sizing.monthLabelHeight(h + 4, lunar)
-        val numberHeight = (if (theme.flatGrid) h - labelHeight else min(number * 1.5f, h - labelHeight)).coerceAtLeast(1f)
+        val fontScale = LocalDensity.current.fontScale
+        val dateFactor = typography.dateScale / ClockPreferences.DEFAULT_DATE_FONT_SCALE
+        // The day number owns most of the cell; supporting zoom consumes only its own line box.
+        val lunarSize = minOf(lunar * typography.supportingScale, number * dateFactor * .72f,
+            h * .34f / (fontScale * 1.2f)).coerceAtLeast(.1f)
+        val labelHeight = if (theme.flatGrid) Sizing.posterMarkHeight(number, 1f)
+            else maxOf(Sizing.monthLabelHeight(h + 4, lunar), lunarSize * fontScale * 1.2f)
+                .coerceAtMost(h * .35f)
+        val numberHeight = (h - labelHeight).coerceAtLeast(1f)
         val weekend = cell.day.dayOfWeek in listOf(Calendar.SATURDAY, Calendar.SUNDAY)
         val color = when { cell.day.today -> theme.today; weekend && highlightWeekends -> theme.weekend; else -> theme.day }
         Column(horizontalAlignment = Alignment.CenterHorizontally) {
-            CalendarNumber(cell, color, theme, typography, if (theme.flatGrid) number else 0f,
+            CalendarNumber(cell, color, theme, typography, number,
                 Modifier.fillMaxWidth().height(numberHeight.dp))
             if (theme.flatGrid) {
                 Canvas(Modifier.fillMaxWidth().height(labelHeight.dp)) {
@@ -273,7 +290,7 @@ private fun OriginalDayCell(cell: CalendarCellInfo, selected: Boolean, theme: Co
             } else Box(Modifier.fillMaxWidth().height(labelHeight.dp), contentAlignment = Alignment.Center) {
                 LunarCarouselText(listOf(cell.lunar) + cell.festivals,
                     Color(if (cell.festivals.isEmpty()) theme.secondary else theme.text),
-                    typography.supportingStyle(TextStyle(fontSize = lunar.sp), cell.lunar))
+                    typography.supportingStyle(TextStyle(fontSize = (lunarSize / typography.supportingScale).sp), cell.lunar))
             }
         }
     }
@@ -668,7 +685,7 @@ private fun AgendaCalendar(theme: ComposeCalendarTheme, typography: CalendarTypo
                 }
             }
         }
-        Spacer(Modifier.height(14.dp)); strip(Modifier.fillMaxWidth().height(90.dp)); Spacer(Modifier.height(14.dp))
+        Spacer(Modifier.height(14.dp)); strip(Modifier.fillMaxWidth().height((90f * maxOf(1f, typography.supportingScale * LocalDensity.current.fontScale)).dp)); Spacer(Modifier.height(14.dp))
         AgendaCard(selection, theme, typography, preferences, weather, forecast, forecastFailed, schedule, add, edit, Modifier.fillMaxWidth().weight(1f))
     }
 }

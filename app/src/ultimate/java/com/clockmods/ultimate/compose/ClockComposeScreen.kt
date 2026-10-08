@@ -983,8 +983,9 @@ private fun dateFontScaleForStyle(repository: BackgroundRepository, styleId: Str
     } else {
         repository.getDateFontScale(styleId)
     }
-    // Date and supporting text sliders use the same percentage scale in the renderers.
-    return value
+    // Classic keeps the legacy screen-fraction preference; theme renderers receive multipliers.
+    return if (styleId == UltimateClockStyles.STYLE_PRO_CLASSIC)
+        value / ClockPreferences.DEFAULT_DATE_FONT_SCALE else value
 }
 
 private fun shouldDimBackground(

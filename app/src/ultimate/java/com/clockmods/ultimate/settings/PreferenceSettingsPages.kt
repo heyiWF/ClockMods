@@ -1233,6 +1233,11 @@ internal fun CalendarSettingsPage(modifier: Modifier, generation: Int) {
         mutableFloatStateOf(preferences.getSupportingFontScale(typographyScope))
     }
 
+    var marquee by remember(generation, themeId) { mutableStateOf(preferences.getCalendarMarquee(themeId)) }
+    fun updateMarquee(value: com.clockmods.sdk.style.MarqueeSpec) {
+        marquee = value
+        preferences.setCalendarMarquee(themeId, value)
+    }
     SettingsColumn(modifier) {
         SettingSection(stringResource(R.string.ultimate_style_gallery)) {
             LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
@@ -1366,6 +1371,33 @@ internal fun CalendarSettingsPage(modifier: Modifier, generation: Int) {
             ) {
                 supportingScale = it
                 preferences.setSupportingFontScale(typographyScope, it)
+            }
+        }
+        SettingSection(stringResource(R.string.calendar_marquee_speed)) {
+            SettingChoices(options = listOf(
+                SettingOption(20f, stringResource(R.string.calendar_marquee_slow)),
+                SettingOption(40f, stringResource(R.string.calendar_marquee_normal)),
+                SettingOption(80f, stringResource(R.string.calendar_marquee_fast))),
+                selected = marquee.speedDpPerSecond) {
+                updateMarquee(com.clockmods.sdk.style.MarqueeSpec(it, marquee.pauseMillis, marquee.gapDp))
+            }
+        }
+        SettingSection(stringResource(R.string.calendar_marquee_pause)) {
+            SettingChoices(options = listOf(
+                SettingOption(0L, stringResource(R.string.calendar_marquee_pause_none)),
+                SettingOption(1000L, stringResource(R.string.calendar_marquee_pause_normal)),
+                SettingOption(2000L, stringResource(R.string.calendar_marquee_pause_long))),
+                selected = marquee.pauseMillis) {
+                updateMarquee(com.clockmods.sdk.style.MarqueeSpec(marquee.speedDpPerSecond, it, marquee.gapDp))
+            }
+        }
+        SettingSection(stringResource(R.string.calendar_marquee_gap)) {
+            SettingChoices(options = listOf(
+                SettingOption(12f, stringResource(R.string.calendar_marquee_gap_small)),
+                SettingOption(24f, stringResource(R.string.calendar_marquee_gap_normal)),
+                SettingOption(48f, stringResource(R.string.calendar_marquee_gap_large))),
+                selected = marquee.gapDp) {
+                updateMarquee(com.clockmods.sdk.style.MarqueeSpec(marquee.speedDpPerSecond, marquee.pauseMillis, it))
             }
         }
     }

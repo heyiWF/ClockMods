@@ -10,7 +10,10 @@ import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.contentDescription
 import androidx.compose.ui.semantics.semantics
-import com.clockmods.ui.CalendarMarqueeTiming
+import androidx.compose.ui.platform.LocalDensity
+import androidx.compose.ui.layout.onSizeChanged
+import androidx.compose.ui.unit.IntSize
+import kotlinx.coroutines.delay
 import com.clockmods.ui.AlmanacBadge
 import com.clockmods.R
 import com.clockmods.background.ClockPreferences
@@ -46,42 +49,61 @@ internal fun CalendarFooterCarousel(cell: CalendarCellInfo, date: String, theme:
         typeface = ClockTypefaceResolver.resolve(context, typography.family, typography.emphasizedWeight) } }
     val badgePaint = remember { Paint(Paint.ANTI_ALIAS_FLAG) }
     val glyphBounds = remember { Rect() }
-    var elapsed by remember(cell.day) { mutableLongStateOf(0L) }
-    LaunchedEffect(cell.day) {
-        val start = withFrameNanos { it }
-        while (true) withFrameNanos { elapsed = (it - start) / 1_000_000 }
-    }
-    Canvas(modifier.semantics { contentDescription = lines.joinToString("，") { it.first + it.second } }) {
+    val density = LocalDensity.current.density
+    val marquee = LocalCalendarMarquee.current
+    val active = LocalCalendarMotionActive.current
+    var viewport by remember { mutableStateOf(IntSize.Zero) }
+    // Measure once per content/font/viewport change, not on every animation frame.
+    val metrics = remember(lines, typography, height, density, viewport, marquee) {
         paint.textSize = min(
             CalendarDashboardSizing.monthFooterSize(height * density, density) *
                 typography.dateScale / ClockPreferences.DEFAULT_DATE_FONT_SCALE,
-            size.height * .78f,
+            viewport.height * .78f,
         )
         paint.textSize *= min(1f,
-            size.height * .55f / (paint.descent() - paint.ascent()).coerceAtLeast(1f))
+            viewport.height * .55f / (paint.descent() - paint.ascent()).coerceAtLeast(1f))
+        val lineHeight = paint.descent() - paint.ascent()
+        val widths = lines.map { paint.measureText(it.second) }
+        val overflows = lines.mapIndexed { i, line ->
+            max(0f, widths[i] - max(1f, viewport.width - 16f * density -
+                if (line.first.isEmpty()) 0f else lineHeight * 1.24f))
+        }
+        FooterMetrics(paint.textSize, lineHeight, widths, overflows,
+            overflows.map { marquee.holdMillis(it, density) })
+    }
+    var elapsed by remember(metrics) { mutableLongStateOf(0L) }
+    LaunchedEffect(metrics, marquee, active) {
+        elapsed = 0L
+        if (!active || viewport.width == 0) return@LaunchedEffect
+        val start = android.os.SystemClock.uptimeMillis()
+        while (true) {
+            val (index, phase) = footerPhase(elapsed, metrics.holds)
+            val remaining = metrics.holds[index] - phase
+            val wait = if (remaining > 0L) min(remaining,
+                marquee.scrollFrameDelay(phase, metrics.overflows[index], density)) else 16L
+            if (wait > 16L) delay(wait) else withFrameNanos { }
+            elapsed = android.os.SystemClock.uptimeMillis() - start
+        }
+    }
+    Canvas(modifier.onSizeChanged { viewport = it }
+        .semantics { contentDescription = lines.joinToString("，") { it.first + it.second } }) {
+        paint.textSize = metrics.textSize
         bold.textSize = paint.textSize
         val padding = 8 * density
-        val lineHeight = paint.descent() - paint.ascent()
+        val lineHeight = metrics.lineHeight
         val badgeDiameter = lineHeight * .94f
         val badgeGap = lineHeight * .30f
         fun prefixWidth(prefix: String) = if (prefix.isEmpty()) 0f else badgeDiameter + badgeGap
-        fun overflow(index: Int): Float {
-            val line = lines[index]
-            return max(0f, paint.measureText(line.second) - (size.width - padding * 2 - prefixWidth(line.first)))
-        }
-        fun hold(index: Int) = CalendarMarqueeTiming.holdMillis(overflow(index), density)
-        val total = lines.indices.sumOf { hold(it) + 200L }
-        var phase = elapsed % total
-        var index = 0
-        while (phase >= hold(index) + 200) { phase -= hold(index) + 200; index++ }
-        val travel = if (phase <= hold(index)) 0f else (phase - hold(index)) / 200f * lineHeight
+        val (index, phase) = footerPhase(elapsed, metrics.holds)
+        val hold = metrics.holds[index]
+        val travel = if (phase <= hold) 0f else (phase - hold) / 200f * lineHeight
         val canvas = drawContext.canvas.nativeCanvas
         fun drawLine(i: Int, offset: Float, time: Long) {
             val (prefix, body, color) = lines[i]
             paint.color = color; bold.color = color
             val prefixWidth = prefixWidth(prefix)
-            val width = paint.measureText(body)
-            val excess = overflow(i)
+            val width = metrics.widths[i]
+            val excess = metrics.overflows[i]
             val baseline = size.height / 2 - (paint.ascent() + paint.descent()) / 2 + offset
             val top = max(0f, (size.height - lineHeight) / 2)
             val bottom = min(size.height, (size.height + lineHeight) / 2)
@@ -97,7 +119,7 @@ internal fun CalendarFooterCarousel(cell: CalendarCellInfo, date: String, theme:
             }
             canvas.save()
             canvas.clipRect(x + prefixWidth, top, size.width - if (excess > 0) padding else 0f, bottom)
-            val scroll = CalendarMarqueeTiming.scrollOffset(time, excess, density)
+            val scroll = marquee.scrollOffset(time, excess, density)
             canvas.drawText(body, x + prefixWidth - scroll, baseline, paint)
             canvas.restore()
             canvas.restore()
@@ -105,4 +127,15 @@ internal fun CalendarFooterCarousel(cell: CalendarCellInfo, date: String, theme:
         drawLine(index, -travel, phase)
         if (travel > 0) drawLine((index + 1) % lines.size, lineHeight - travel, 0)
     }
+}
+
+private data class FooterMetrics(val textSize: Float, val lineHeight: Float,
+    val widths: List<Float>, val overflows: List<Float>, val holds: List<Long>)
+
+internal fun footerPhase(elapsed: Long, holds: List<Long>): Pair<Int, Long> {
+    require(holds.isNotEmpty())
+    var phase = elapsed.coerceAtLeast(0L) % holds.sumOf { it + 200L }
+    var index = 0
+    while (phase >= holds[index] + 200L) { phase -= holds[index] + 200L; index++ }
+    return index to phase
 }

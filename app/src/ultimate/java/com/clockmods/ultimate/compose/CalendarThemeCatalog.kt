@@ -38,6 +38,13 @@ internal data class ComposeCalendarTheme(
     /** Show a weather strip inside the detail surface. */
     val showWeather: Boolean = false,
 ) {
+    val identity: com.clockmods.sdk.style.StyleIdentity = object : com.clockmods.sdk.style.StyleIdentity {
+        override fun getId(): String = this@ComposeCalendarTheme.id
+        override fun getVersion() = 1
+        override fun getMinApi() = 31
+        override fun supportsApi(apiLevel: Int) = apiLevel >= getMinApi()
+    }
+
     companion object {
         const val ID_GRAPHITE = "calendar.graphite"
         const val ID_PAPER = "calendar.paper"

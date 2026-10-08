@@ -11,7 +11,7 @@ class ClockStyleMetadata(
     capabilities: ClockStyleCapabilities?,
     version: Int,
     minApi: Int,
-) {
+) : com.clockmods.sdk.style.StyleIdentity {
     enum class Kind { ANALOG, DIGITAL, HYBRID }
 
     private val id = requireStyleId(id)
@@ -22,14 +22,14 @@ class ClockStyleMetadata(
     private val version = version.also { require(it >= 1) { "version must be at least 1" } }
     private val minApi = minApi.also { require(it >= 1) { "minApi must be at least 1" } }
 
-    fun getId() = id
+    override fun getId() = id
     fun getName() = name
     fun getDescription() = description
     fun getKind() = kind
     fun getCapabilities() = capabilities
-    fun getVersion() = version
-    fun getMinApi() = minApi
-    fun supportsApi(apiLevel: Int) = apiLevel >= minApi
+    override fun getVersion() = version
+    override fun getMinApi() = minApi
+    override fun supportsApi(apiLevel: Int) = apiLevel >= minApi
 
     override fun equals(other: Any?): Boolean = other is ClockStyleMetadata &&
         id == other.id && name == other.name && description == other.description &&

@@ -1,0 +1,15 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="calendar_marquee_speed">Almanac scroll speed</string>
+    <string name="calendar_marquee_slow">Slow</string>
+    <string name="calendar_marquee_normal">Normal</string>
+    <string name="calendar_marquee_fast">Fast</string>
+    <string name="calendar_marquee_pause">Pause per scroll</string>
+    <string name="calendar_marquee_pause_none">No pause</string>
+    <string name="calendar_marquee_pause_normal">1 second</string>
+    <string name="calendar_marquee_pause_long">2 seconds</string>
+    <string name="calendar_marquee_gap">Loop seam spacing (at least 1.5 characters)</string>
+    <string name="calendar_marquee_gap_small">Compact</string>
+    <string name="calendar_marquee_gap_normal">Normal</string>
+    <string name="calendar_marquee_gap_large">Wide</string>
+</resources>

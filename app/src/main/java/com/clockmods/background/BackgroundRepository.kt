@@ -87,6 +87,9 @@ open class BackgroundRepository(context: Context) {
     fun setCalendarWeekStart(value: Int) = preferences.setCalendarWeekStart(value)
     fun isCalendarHighlightWeekends() = preferences.isCalendarHighlightWeekends()
     fun setCalendarHighlightWeekends(value: Boolean) = preferences.setCalendarHighlightWeekends(value)
+    fun getCalendarMarquee(themeId: String?) = preferences.getCalendarMarquee(themeId)
+    fun setCalendarMarquee(themeId: String?, value: com.clockmods.sdk.style.MarqueeSpec?) =
+        preferences.setCalendarMarquee(themeId, value)
     fun getCalendarTheme() = preferences.getCalendarTheme()
     fun setCalendarTheme(value: String?) = preferences.setCalendarTheme(value)
     fun isSmallSeconds() = preferences.isSmallSeconds()

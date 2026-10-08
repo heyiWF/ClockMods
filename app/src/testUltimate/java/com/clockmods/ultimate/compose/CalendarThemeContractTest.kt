@@ -6,6 +6,25 @@ import org.junit.Test
 
 /** The shipped ultimate catalogue at 1abc6b8 is the migration contract. */
 class CalendarThemeContractTest {
+    @Test fun descriptorsExposeTheSharedIdentityContract() {
+        CalendarThemeCatalog.presets().forEach { theme ->
+            assertEquals(theme.id, theme.identity.id)
+            assertEquals(1, theme.identity.version)
+            assertFalse(theme.identity.supportsApi(30))
+            assertTrue(theme.identity.supportsApi(31))
+        }
+    }
+
+    @Test fun footerKeepsLongLinesAndTransitionsInTheirOwnTimeSlots() {
+        val holds = listOf(3000L, 7000L, 5000L)
+        assertEquals(0 to 0L, footerPhase(0L, holds))
+        assertEquals(0 to 3100L, footerPhase(3100L, holds))
+        assertEquals(1 to 0L, footerPhase(3200L, holds))
+        assertEquals(1 to 6999L, footerPhase(10199L, holds))
+        assertEquals(2 to 0L, footerPhase(10400L, holds))
+        assertEquals(0 to 0L, footerPhase(15600L, holds))
+    }
+
     @Test fun originalCatalogueAndFallback() {
         val themes = CalendarThemeCatalog.presets()
         assertEquals(listOf("calendar.graphite", "calendar.carbon", "calendar.paper", "calendar.poster", "calendar.agenda"), themes.map { it.id })
