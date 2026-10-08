@@ -38,3 +38,28 @@ it('boots without modern APIs and persists all theme controls', () => {
     expect(win.localStorage.getItem('clockmods_legacy.message')).toBe('');
   } finally { win.close(); }
 });
+
+it('reflows immediately on extreme resize and resets matching date and support sizes', () => {
+  const dom = new JSDOM(html, { url: 'https://clock.example/', runScripts: 'outside-only' });
+  const win = dom.window;
+  try {
+    win.eval(readFileSync('public/legacy-lunar.js', 'utf8')); win.eval(script);
+    Object.defineProperty(win, 'innerWidth', { value: 240, configurable: true });
+    Object.defineProperty(win, 'innerHeight', { value: 1600, configurable: true });
+    win.dispatchEvent(new win.Event('resize'));
+    expect(win.document.getElementById('clock-time')!.className).toContain('is-stacked');
+    Object.defineProperty(win, 'innerWidth', { value: 1600, configurable: true });
+    Object.defineProperty(win, 'innerHeight', { value: 240, configurable: true });
+    win.dispatchEvent(new win.Event('resize'));
+    expect(win.document.getElementById('clock-time')!.className).not.toContain('is-stacked');
+    (win.document.getElementById('settings-button') as HTMLButtonElement).click();
+    (win.document.getElementById('pref-supporting-scale') as HTMLInputElement).value = '200';
+    (win.document.getElementById('settings-apply') as HTMLButtonElement).click();
+    (win.document.getElementById('settings-button') as HTMLButtonElement).click();
+    (win.document.getElementById('settings-reset') as HTMLButtonElement).click();
+    (win.document.getElementById('settings-apply') as HTMLButtonElement).click();
+    expect(win.localStorage.getItem('clockmods_legacy.supporting-scale')).toBe('100');
+    expect(win.document.getElementById('clock-date')!.style.fontSize)
+      .toBe(win.document.getElementById('clock-extra')!.style.fontSize);
+  } finally { win.close(); }
+});

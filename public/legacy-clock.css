@@ -10,7 +10,8 @@ html,body { margin:0; width:100%; height:100%; font-family:'Segoe UI','Microsoft
 .clock-time { white-space:nowrap; line-height:1.2; font-variant-numeric:tabular-nums; margin:20px 0; }
 #clock-period { font-size:.3em; margin-right:.3em; }
 #clock-small-seconds { font-size:.6em; margin-left:.12em; }
-.clock-date,.clock-lunar { margin:8px 0; }
+.clock-date,.clock-lunar { margin:0; white-space:nowrap; }
+.clock-date,.clock-lunar,.clock-extra { line-height:1.2; }
 .clock-extra { max-width:100%; overflow:hidden; }
 #clock-weather { display:block; overflow:hidden; width:100%; }
 .carousel-track { display:inline-block; white-space:nowrap; }
@@ -66,3 +67,11 @@ button:focus,input:focus,select:focus { outline:2px solid #435f91; outline-offse
 @keyframes digit-flip { from { transform:scaleY(.1); } to { transform:scaleY(1); } }
 @keyframes chime { 50% { transform:scale(1.04); } }
 @media (max-width:600px) { .settings-overlay { padding:6px; } .settings-panel { padding:12px; border-radius:20px; } .settings-grid--three > * { width:50%; } .settings-grid--two > * { width:100%; } .clock-lines { width:96%; padding:14px; } }
+
+/* Keep persistent controls outside the fitted clock canvas, including short windows. */
+.clock-face { bottom:64px; }
+@media (max-width:360px) {
+  .settings-header h1 { font-size:18px; }
+  .settings-footer { flex-wrap:wrap; -ms-flex-wrap:wrap; }
+  .primary-button,.secondary-button,.text-button { padding:10px 12px; }
+}

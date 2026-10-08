@@ -190,11 +190,12 @@
     var now = Date.now()+offset, date = clockDate(now), hour = date.getHours(), second = date.getSeconds(), current = hour*60+date.getMinutes();
     var twelve = prefs['hour-format'] === '12', displayHour = twelve ? hour%12 || 12 : hour;
     var colon = prefs['blink-colon'] && second%2 ? '\u00a0' : ':';
-    var stacked = prefs.stacked && win.innerHeight >= win.innerWidth;
+    var stacked = (prefs.stacked && win.innerHeight >= win.innerWidth) || win.innerWidth < win.innerHeight * .4;
     if (stacked) colon = '\n';
     var value = pad(displayHour)+colon+pad(date.getMinutes());
     if (prefs['show-seconds'] && !prefs['small-seconds']) value += colon+pad(second);
     var main = node('clock-main'), changed = main.textContent !== value;
+    if (stacked) main.style.color = prefs['auto-ink'] && prefs.theme !== 'classic' ? ink(color(prefs['panel-color'],themes[prefs.theme][1])) : '';
     var grouped = !stacked && (prefs.theme === 'ultimate.dual_blocks' || prefs.theme === 'ultimate.bubbles' || prefs.theme === 'ultimate.blend');
     var groupKey=prefs.theme+'|'+prefs['panel-color']+'|'+prefs['accent-color']+'|'+prefs['auto-ink']+'|'+prefs['time-color']+'|'+value;
     if (grouped && main.getAttribute('data-groups')!==groupKey) {
@@ -232,20 +233,49 @@
     }
     tickTimer = win.setTimeout(render,1000-((Date.now()+offset)%1000));
   }
+  var layoutSignature = '';
   function fit() {
     var width = node('clock-face').clientWidth || win.innerWidth || 800;
     var height = node('clock-face').clientHeight || win.innerHeight || 600;
-    var lines = node('clock-lines'), scale = finite(prefs['time-scale'],88,20,150);
-    lines.style.width=prefs.theme==='ultimate.orbit'?Math.min(width,height)*.8+'px':'';
-    lines.style.height=prefs.theme==='ultimate.orbit'?Math.min(width,height)*.8+'px':'';
-    var style=win.getComputedStyle(lines), available=(lines.clientWidth || width*.9)-parseFloat(style.paddingLeft||0)-parseFloat(style.paddingRight||0);
-    var time = node('clock-time'), size = Math.min(available*scale/100/(prefs['show-seconds']?5.4:3.6),height*0.32);
+    var date = node('clock-date'), lunar = node('clock-lunar'), extra = node('clock-extra');
+    var signature = [width,height,prefs.theme,prefs['time-scale'],prefs['date-scale'],prefs['supporting-scale'],
+      prefs.font,prefs.bold,prefs['show-seconds'],prefs['small-seconds'],prefs['hour-format'],prefs.stacked,
+      date.textContent,lunar.textContent,(lunar.style.display === 'none'),(extra.style.display === 'none')].join('|');
+    if (signature === layoutSignature) return;
+    layoutSignature = signature;
+    var lines = node('clock-lines'), time = node('clock-time');
+    var compact = width < height*.4 || width > height*2.8 || Math.min(width,height) < 240;
+    var orbit = prefs.theme === 'ultimate.orbit' && !compact;
+    var diameter = Math.min(width,height)*.8;
+    var padding = orbit ? diameter*.12 : Math.min(24,Math.min(width,height)*.03);
+    lines.style.width = orbit ? diameter+'px' : '96%';
+    lines.style.height = orbit ? diameter+'px' : '';
+    lines.style.padding = padding+'px';
+    lines.style.borderRadius = compact ? Math.min(width,height)*.06+'px' : '';
+    var available = Math.max(1,(lines.clientWidth || width*.96)-padding*2-6);
+    var usableHeight = Math.max(1,(orbit ? diameter : height*.92)-padding*2-6);
+    var stacked = time.className.indexOf('is-stacked') >= 0;
+    var count = stacked ? (prefs['show-seconds'] && !prefs['small-seconds'] ? 3 : 2) : 1;
+    var size = Math.min(available*finite(prefs['time-scale'],88,20,150)/100/(stacked?1.4:(prefs['show-seconds']?5.4:3.6)),
+      usableHeight*.62/count);
     time.style.fontSize = size+'px';
-    if (time.scrollWidth > available*.96) time.style.fontSize = (size*available*.96/time.scrollWidth)+'px';
-    var dateSize = Math.max(14,Math.min(available*finite(prefs['date-scale'],55,20,200)/100/18,height*0.085));
-    node('clock-date').style.fontSize = dateSize+'px'; node('clock-lunar').style.fontSize = dateSize+'px';
-    node('clock-extra').style.fontSize = (dateSize*finite(prefs['supporting-scale'],100,50,200)/100)+'px';
-    if (lines.scrollHeight > height*0.88) time.style.fontSize = Math.max(12,parseFloat(time.style.fontSize)-(lines.scrollHeight-height*0.88))+'px';
+    time.style.margin = '0';
+    var primaryHeight = time.offsetHeight || size*count*1.2;
+    var shrink = Math.min(1,available/Math.max(available,time.scrollWidth),usableHeight*.74/Math.max(1,primaryHeight));
+    size *= shrink; primaryHeight *= shrink; time.style.fontSize = size+'px';
+    var dateSize = Math.min(available*finite(prefs['date-scale'],55,20,200)/100/18,usableHeight*.085);
+    date.style.fontSize = dateSize+'px'; lunar.style.fontSize = dateSize+'px';
+    // Fit long date formats before allocating remaining vertical space.
+    dateSize *= Math.min(1,available/Math.max(available,date.scrollWidth,(lunar.style.display === 'none')?0:lunar.scrollWidth));
+    var supportSize = dateSize*finite(prefs['supporting-scale'],100,50,200)/100;
+    var dateRows = (lunar.style.display === 'none') ? 1 : 2, supportRows = (extra.style.display === 'none') ? 0 : 1;
+    var gap = Math.min(usableHeight*.025,dateSize*.6), rowGap = Math.min(usableHeight*.015,dateSize*.35);
+    var requested = (dateSize*dateRows+supportSize*supportRows)*1.2+gap*2+rowGap*(dateRows-1);
+    var secondaryScale = Math.min(1,Math.max(0,usableHeight-primaryHeight)/Math.max(1,requested));
+    date.style.fontSize = dateSize*secondaryScale+'px'; lunar.style.fontSize = dateSize*secondaryScale+'px';
+    extra.style.fontSize = supportSize*secondaryScale+'px';
+    time.style.margin = gap*secondaryScale+'px 0';
+    lunar.style.marginTop = rowGap*secondaryScale+'px';
   }
   function safeUrl(value) {
     var anchor = doc.createElement('a'); anchor.href = value;
@@ -283,6 +313,7 @@
     }; xhr.send(null);
   }
   function configure() {
+    layoutSignature = '';
     generation++; if (request) request.abort();
     win.clearInterval(weatherTimer); win.clearInterval(syncTimer);
     var theme = own(themes,prefs.theme) ? prefs.theme : 'classic', colors = themes[theme];
@@ -342,7 +373,7 @@
     }
   };
   track = doc.createElement('span'); track.className = 'carousel-track'; node('clock-weather').appendChild(track);
-  win.onresize = fit;
+  win.onresize = render;
   show(node('clock-message'),false); show(node('settings-overlay'),false);
   load(); configure(); render(); win.setInterval(function () { carousel(Date.now()); },40);
 }());
