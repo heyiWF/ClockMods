@@ -610,6 +610,10 @@ export const prefs = {
 
   /** Restores all user-configurable settings to their defaults. */
   restoreDefaults(): void {
+    prefs.clearThemeOverrides();
+    prefs.setSupportingScale(1);
+    prefs.setThemeAutoInk(true);
+    prefs.setCardShadow(true);
     store.write(K.backgroundMode, MODE_COLOR);
     store.write(K.backgroundColor, String(DEFAULT_BACKGROUND_COLOR));
     store.write(K.dimBackground, String(DEFAULT_DIM_BACKGROUND));

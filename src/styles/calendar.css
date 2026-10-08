@@ -533,3 +533,20 @@
   line-height: 1.6;
   letter-spacing: var(--md-sys-typescale-body-medium-tracking);
 }
+
+/* Short windows scroll a readable calendar; narrow windows keep all seven columns. */
+.page[data-page='calendar'] { overflow-y: auto; }
+.cal-layout { min-height: 420px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
+.cal-left, .cal-right, .cal-panel { min-width: 0; }
+@media (orientation: portrait), (max-width: 560px) {
+  .cal-layout { grid-template-columns: minmax(0, 1fr); min-height: 620px;
+    grid-template-rows: minmax(88px, auto) minmax(390px, 1fr); }
+}
+@media (max-width: 360px) {
+  .cal-month-panel { padding: 6px 3px; }
+  .cal-header { gap: 2px; }
+  .cal-month-title { padding: 2px; font-size: 14px; }
+  .cal-today { padding: 0 4px; min-width: 0; }
+  .cal-weekday { font-size: 12px; }
+  .cal-day-label { font-size: 11px; }
+}

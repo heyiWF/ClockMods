@@ -27,8 +27,14 @@
 .page[data-clock-theme='ultimate.ribbon'] .clock-time {
   border-top: 0.07em solid var(--theme-accent); border-bottom: 0.07em solid var(--theme-accent); padding: 0.1em 0;
 }
-#clock-weather, #clock-detail { font-size: calc(var(--date-size, 24px) * var(--supporting-scale, 1)); }
+#clock-weather, #clock-detail { font-size: var(--supporting-size, var(--date-size, 24px)); }
 @media (max-width: 600px) {
   .page.is-material .clock-lines { width: 94%; border-radius: 24px; }
   .page[data-clock-theme='ultimate.orbit'] .clock-lines { width: min(88vw, 72vh); height: min(88vw, 72vh); border-radius: 50%; }
 }
+
+/* Extreme windows retain the theme palette while making the content rectangle usable. */
+.page.is-compact.is-material .clock-lines {
+  width: 96%; height: auto; padding: 2vmin; border-radius: 4vmin;
+}
+.page.is-compact .clock-time { flex-shrink: 0; }

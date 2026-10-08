@@ -135,6 +135,8 @@ describe('restoreDefaults', () => {
     prefs.setTimeFontScale(1.4);
     prefs.setCustomMessage('keep me out');
     prefs.setWeatherEnabled(true);
+    prefs.setSupportingScale(2);
+    prefs.setThemeAutoInk(false);
     prefs.setQWeatherCredentials('host', 'cred', 'proj', 'key', '');
 
     prefs.restoreDefaults();
@@ -142,6 +144,8 @@ describe('restoreDefaults', () => {
     expect(prefs.getTimeFontScale()).toBeCloseTo(DEFAULT_TIME_FONT_SCALE, 5);
     expect(prefs.getCustomMessage()).toBe('');
     expect(prefs.isWeatherEnabled()).toBe(false);
+    expect(prefs.getSupportingScale()).toBe(1);
+    expect(prefs.isThemeAutoInk()).toBe(true);
     expect(prefs.getQWeatherCredentialId()).toBe('cred');
   });
 });

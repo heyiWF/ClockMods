@@ -1,3 +1,4 @@
+import { fitSupportingRows } from '../format/responsive-layout';
 import { readableInk, temperature } from '../core/clock-themes';
 /**
  * The full-screen clock.
@@ -233,7 +234,8 @@ export class ClockPage implements Page {
     const smallSeconds = prefs.isSmallSeconds();
     const use24Hour = prefs.isUse24Hour();
     const english = prefs.isClockUseEnglish();
-    const stacked = prefs.isPortraitStacked() && this.isPortrait();
+    const stacked = (prefs.isPortraitStacked() && this.isPortrait())
+      || this.stage.clientWidth < this.stage.clientHeight * .4;
 
     const displayTime = formatTime(
       fields.hour,
@@ -447,7 +449,11 @@ export class ClockPage implements Page {
     }
   ): void {
     const themed = prefs.getClockTheme() !== 'classic';
-    const orbit = prefs.getClockTheme() === 'ultimate.orbit';
+    const compact = this.stage.clientWidth < this.stage.clientHeight * .4
+      || this.stage.clientWidth > this.stage.clientHeight * 2.8
+      || Math.min(this.stage.clientWidth, this.stage.clientHeight) < 240;
+    this.root.classList.toggle('is-compact', compact);
+    const orbit = !compact && prefs.getClockTheme() === 'ultimate.orbit';
     const orbitSize = Math.min(this.stage.clientWidth, this.stage.clientHeight) * 0.62;
     const width = orbit ? orbitSize : this.stage.clientWidth * (themed ? 0.78 : 1);
     const height = orbit ? orbitSize : this.stage.clientHeight * (themed ? 0.78 : 1);
@@ -475,6 +481,7 @@ export class ClockPage implements Page {
       prefs.isBoldText(),
       prefs.getTimeFontScale(),
       prefs.getDateFontScale(),
+      prefs.getSupportingScale(),
       this.weather.isEmpty,
       this.detail.isEmpty,
     ].join('|');
@@ -487,7 +494,7 @@ export class ClockPage implements Page {
     const style = this.stage.style;
     style.setProperty('--colon-shift', `${measureColonShift(font.family, font.weight)}em`);
 
-    // Date size first: the stacked layout caps the digits against it.
+    // Measure desired secondary type, but reserve the primary clock before allocating its space.
     const widestDate =
       context.singleDateLine || !context.lunarText
         ? context.dateText + (context.lunarText && context.singleDateLine ? ` ${context.lunarText}` : '')
@@ -501,21 +508,26 @@ export class ClockPage implements Page {
       context.stacked ? 0.08 : DATE_HEIGHT_FRACTION,
       DATE_MAX_WIDTH_FRACTION
     );
-    style.setProperty('--date-size', `${dateSize}px`);
-
-    const timeSize = context.stacked
-      ? this.stackedTimeSize(width, height, dateSize, context.showSeconds, font)
+    let timeSize = context.stacked
+      ? this.stackedTimeSize(width, height, 0, context.showSeconds, font)
       : this.inlineTimeSize(width, height, context.displayTime, font);
     style.setProperty('--time-size', `${timeSize}px`);
     style.setProperty('--digit-w', `${widestDigitWidth(font) * timeSize}px`);
-
-    // Gaps: ClockView derives them from the date size, wider in portrait.
-    const gapFactor = portrait ? 0.9 : 0.35;
-    const gap = Math.max(portrait ? 32 : 12, dateSize * gapFactor);
-    style.setProperty('--time-gap', `${gap}px`);
-    // The date<->lunar and weather<->detail gaps are deliberately identical.
-    const supportingGap = Math.max(portrait ? 10 : 6, dateSize * (portrait ? 0.5 : 0.35));
-    style.setProperty('--supporting-gap', `${supportingGap}px`);
+    // Theme chrome contributes real em padding; measure it only when layout inputs change.
+    const measured = this.timeRow.getBoundingClientRect();
+    const primaryHeight = measured.height || timeSize * (context.stacked ? (context.showSeconds ? 3 : 2) * 1.06 : 1);
+    const fit = Math.min(1, measured.width > 0 ? width / measured.width : 1,
+      height * .74 / Math.max(1, primaryHeight));
+    timeSize *= fit;
+    style.setProperty('--time-size', `${timeSize}px`);
+    style.setProperty('--digit-w', `${widestDigitWidth(font) * timeSize}px`);
+    const rows = fitSupportingRows(height, primaryHeight * fit, dateSize,
+      dateSize * prefs.getSupportingScale(), context.singleDateLine ? 1 : 2,
+      Number(!this.weather.isEmpty) + Number(!this.detail.isEmpty), portrait);
+    style.setProperty('--date-size', `${rows.dateSize}px`);
+    style.setProperty('--supporting-size', `${rows.supportingSize}px`);
+    style.setProperty('--time-gap', `${rows.timeGap}px`);
+    style.setProperty('--supporting-gap', `${rows.rowGap}px`);
   }
 
   private inlineTimeSize(
