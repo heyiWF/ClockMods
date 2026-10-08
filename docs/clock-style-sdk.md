@@ -282,3 +282,7 @@ Ultimate 会使用 `resolveForApi()` 过滤不兼容样式。不要仅依赖设�
 6. 正确处理 `null/THEME`、`COLOR`、`IMAGE` 和 dimmed 背景。
 7. 通过 `ClockStyleRegistry` 驱动选择器和 fallback，不复制 ID 清单。
 8. 在目标最低 API 上运行，并确认 renderer 不产生跨帧对象泄漏或后台任务。
+
+## Shared style contract
+
+See [style-design-contract.md](style-design-contract.md) for identity, typography, responsive sizing and motion contracts.

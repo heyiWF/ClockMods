@@ -526,7 +526,8 @@ public class ClockPreferences {
     /** Per-style date size, falling back to the pre-theme global preference. */
     public float getDateFontScale(String scopeId) {
         return clampDateScale(preferences.getFloat(
-                KEY_DATE_FONT_SCALE_PREFIX + normalizeScope(scopeId), getDateFontScale()));
+                KEY_DATE_FONT_SCALE_PREFIX + normalizeScope(scopeId),
+                normalizeScope(scopeId).startsWith(CALENDAR_SCOPE_PREFIX) ? getDateFontScale() : 1f));
     }
 
     public void setDateFontScale(String scopeId, float scale) {
@@ -986,6 +987,9 @@ public class ClockPreferences {
     public void restoreDefaults() {
         SharedPreferences.Editor editor = preferences.edit();
         clearPerThemeTypography(editor);
+        for (String key : preferences.getAll().keySet()) {
+            if (key.startsWith("calendar_marquee__")) editor.remove(key);
+        }
         StatusIconStyle.reset(editor);
         editor
                 .putString(KEY_BACKGROUND_MODE, MODE_COLOR)

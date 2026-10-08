@@ -372,6 +372,9 @@ public class ClockView extends View {
         timePaint.setTextSize(timeSize);
         secondsPaint.setTextSize(timeSize * 0.6f);
         periodPaint.setTextSize(timeSize * 0.3f);
+        datePaint.setTextSize(1f);
+        dateSize = ClockLayoutCalculator.capSupportingSize(dateSize, height,
+                timePaint.descent() - timePaint.ascent(), datePaint.descent() - datePaint.ascent());
         datePaint.setTextSize(dateSize);
 
         float centerX = width / 2f;
@@ -383,7 +386,7 @@ public class ClockView extends View {
         float timeBaseline = centerY - (timeMetrics.ascent + timeMetrics.descent) / 2f;
         boolean portrait = height >= width;
         float gapFactor = portrait ? 0.9f : 0.35f;
-        float gap = Math.max(portrait ? 32f : 12f, dateSize * gapFactor);
+        float gap = Math.min(height * .025f, dateSize * gapFactor);
         float dateBaseline = timeBaseline + timeMetrics.ascent - gap - dateMetrics.descent;
         // Portrait stacks date/lunar and weather/detail as two rows each, so give those
         // rows more breathing room than a plain line (landscape keeps the tight default).

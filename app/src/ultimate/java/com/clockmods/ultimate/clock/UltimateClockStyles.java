@@ -638,6 +638,7 @@ public final class UltimateClockStyles {
 
     private static final class IsolatedRenderer implements ClockRenderer {
         private final ClockRenderer delegate;
+        private final ClockRenderer compact = new CompactClockRenderer();
 
         IsolatedRenderer(ClockRenderer delegate) {
             this.delegate = delegate;
@@ -655,7 +656,9 @@ public final class UltimateClockStyles {
             pool.motionState = state;
             int saveCount = canvas.save();
             try {
-                delegate.render(canvas, context, state, theme);
+                ClockRenderer renderer = com.clockmods.sdk.style.ResponsiveTextPolicy.needsCompactLayout(
+                        context.getWidth(), context.getHeight(), context.getScaledDensity()) ? compact : delegate;
+                renderer.render(canvas, context, state, theme);
             } finally {
                 canvas.restoreToCount(saveCount);
                 RendererBase.endPaintFrame(paintMarker);
@@ -666,7 +669,7 @@ public final class UltimateClockStyles {
         }
     }
 
-    private abstract static class RendererBase implements ClockRenderer {
+    abstract static class RendererBase implements ClockRenderer {
         private static final ThreadLocal<PaintPool> PAINT_POOL = new ThreadLocal<PaintPool>() {
             @Override protected PaintPool initialValue() {
                 return new PaintPool();
@@ -921,7 +924,11 @@ public final class UltimateClockStyles {
             float unit = Math.min(context.getWidth(), context.getHeight());
             float compactFloor = unit * (minimumSp >= 12f ? .045f : .038f);
             float scaledFloor = context.getScaledDensity() * minimumSp;
-            return Math.max(preferredSize, Math.min(scaledFloor, compactFloor));
+            ClockState state = PAINT_POOL.get().motionState;
+            float limit = com.clockmods.sdk.style.ResponsiveTextPolicy.secondaryLimit(
+                    context.getWidth(), context.getHeight(), context.getScaledDensity(),
+                    state == null ? 1f : state.getTimeScale());
+            return Math.min(limit, Math.max(preferredSize, Math.min(scaledFloor, compactFloor)));
         }
 
         /** Keeps metadata readable and ellipsizes overflow instead of shrinking it indefinitely. */
@@ -937,6 +944,7 @@ public final class UltimateClockStyles {
                 float minimumSp, int color, Paint.Align align, Typeface face,
                 boolean applyImageDimming) {
             if (maxWidth <= 0f || value == null || value.isEmpty()) return;
+            preferredSize = readableSize(context, preferredSize, minimumSp);
             float floor = readableSize(context, 0f, minimumSp);
             PaintPool pool = PAINT_POOL.get();
             ClockState state = pool.motionState;
@@ -1007,7 +1015,7 @@ public final class UltimateClockStyles {
          * fade) and holds there; a message on its own scrolls as an endless belt with a pause at the
          * head of each lap. Both carry a feathered fade at each edge.
          */
-        private static void textMessageMarquee(Canvas canvas, ClockRenderContext context,
+        protected static void textMessageMarquee(Canvas canvas, ClockRenderContext context,
                 String value, float x, float baseline, float maxWidth, float size, int color,
                 Paint.Align align, Typeface face, long elapsedMillis, boolean continuous) {
             Paint measure = fill(color);
@@ -1303,7 +1311,7 @@ public final class UltimateClockStyles {
             float minimumSize = constrainedByOverlay
                     ? Math.min(floor, context.getScaledDensity() * 10f) : floor;
             float fittingWidth = constrainedByOverlay ? maxWidth * .92f : maxWidth;
-            float requested = Math.max(floor, preferredSize * state.getDateScale());
+            float requested = readableSize(context, preferredSize * state.getDateScale(), 12f);
             Paint requestedPaint = fill(Color.WHITE);
             requestedPaint.setTypeface(face);
             requestedPaint.setTextSize(requested);
