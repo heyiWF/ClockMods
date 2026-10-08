@@ -4,6 +4,13 @@ public final class ClockLayoutCalculator {
     private ClockLayoutCalculator() {
     }
 
+    /** Reserve the primary line first; each side may contain two supporting rows and a gap. */
+    public static float capSupportingSize(float desired, float height, float primaryHeight,
+            float lineHeightAtOne) {
+        float side = Math.max(0f, (height * .88f - primaryHeight) / 2f);
+        return Math.max(0f, Math.min(desired, side / (Math.max(.01f, lineHeightAtOne) * 2.5f + .9f)));
+    }
+
     /**
      * Computes the text size relative to the largest size that still fits the
      * available space. The maximum size is the point where the text either

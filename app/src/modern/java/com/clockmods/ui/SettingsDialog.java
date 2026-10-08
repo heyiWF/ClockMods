@@ -128,6 +128,8 @@ public class SettingsDialog extends BottomSheetDialog {
     // Pro-only weather-icon options (null on other flavours).
     private MaterialSwitch weatherIconFillSwitch;
     private MaterialSwitch weatherIconDynamicColorSwitch;
+    private Spinner calendarSpeedSpinner;
+    private Spinner calendarPauseSpinner;
     private final MaterialButtonToggleGroup calendarWeekStartGroup;
     private final MaterialSwitch calendarHighlightWeekendsSwitch;
     // ---- Date-format section (rebuilt when the interface language toggles) ----
@@ -694,6 +696,18 @@ public class SettingsDialog extends BottomSheetDialog {
                     repository.isCalendarHighlightWeekends());
             functionContent.addView(calendarHighlightWeekendsSwitch,
                     topMargin(matchWrap(dp(48)), dp(8)));
+            com.clockmods.sdk.style.MarqueeSpec motion = repository.getCalendarMarquee("calendar.pro");
+            functionContent.addView(createSubLabel(context, R.string.calendar_marquee_speed), subLabelParams());
+            calendarSpeedSpinner = buildStringSpinner(context, new String[] {
+                    context.getString(R.string.calendar_marquee_slow), context.getString(R.string.calendar_marquee_normal),
+                    context.getString(R.string.calendar_marquee_fast)}, motion.speedDpPerSecond <= 20 ? 0 : motion.speedDpPerSecond >= 80 ? 2 : 1);
+            functionContent.addView(calendarSpeedSpinner, matchWrap(dp(48)));
+            functionContent.addView(createSubLabel(context, R.string.calendar_marquee_pause), subLabelParams());
+            calendarPauseSpinner = buildStringSpinner(context, new String[] {
+                    context.getString(R.string.calendar_marquee_pause_none), context.getString(R.string.calendar_marquee_pause_normal),
+                    context.getString(R.string.calendar_marquee_pause_long)}, motion.pauseMillis == 0 ? 0 : motion.pauseMillis >= 2000 ? 2 : 1);
+            functionContent.addView(calendarPauseSpinner, matchWrap(dp(48)));
+
         } else {
             calendarWeekStartGroup = null;
             calendarHighlightWeekendsSwitch = null;
@@ -1224,6 +1238,8 @@ public class SettingsDialog extends BottomSheetDialog {
                     ClockPreferences.DEFAULT_CALENDAR_WEEK_START));
             calendarHighlightWeekendsSwitch.setChecked(
                     ClockPreferences.DEFAULT_CALENDAR_HIGHLIGHT_WEEKENDS);
+            calendarSpeedSpinner.setSelection(1);
+            calendarPauseSpinner.setSelection(1);
         }
         use24HourSwitch.setChecked(ClockPreferences.DEFAULT_USE_24_HOUR);
         selectedLanguage = ClockPreferences.DEFAULT_CLOCK_LANGUAGE;
@@ -1334,6 +1350,9 @@ public class SettingsDialog extends BottomSheetDialog {
                     calendarWeekStartGroup.getCheckedButtonId()));
             repository.setCalendarHighlightWeekends(
                     calendarHighlightWeekendsSwitch.isChecked());
+            repository.setCalendarMarquee("calendar.pro", new com.clockmods.sdk.style.MarqueeSpec(
+                    new float[] {20f, 40f, 80f}[calendarSpeedSpinner.getSelectedItemPosition()],
+                    new long[] {0L, 1000L, 2000L}[calendarPauseSpinner.getSelectedItemPosition()], 24f));
         }
         repository.setWeatherLocationMode(manualWeather
             ? ClockPreferences.WEATHER_LOCATION_MANUAL : ClockPreferences.WEATHER_LOCATION_AUTOMATIC);

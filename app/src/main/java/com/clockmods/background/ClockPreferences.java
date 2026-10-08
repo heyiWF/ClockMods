@@ -411,6 +411,25 @@ public class ClockPreferences {
         preferences.edit().putBoolean(KEY_AUTO_START, autoStart).apply();
     }
 
+    private static String calendarMotionKey(String themeId) {
+        String scope = themeId == null ? "" : themeId.trim();
+        if (scope.length() > 160) scope = scope.substring(0, 160);
+        return "calendar_marquee__calendar:" + scope;
+    }
+
+    public com.clockmods.sdk.style.MarqueeSpec getCalendarMarquee(String themeId) {
+        String key = calendarMotionKey(themeId);
+        return new com.clockmods.sdk.style.MarqueeSpec(preferences.getFloat(key + "_speed", 40f),
+                preferences.getLong(key + "_pause", 1000L), preferences.getFloat(key + "_gap", 24f));
+    }
+
+    public void setCalendarMarquee(String themeId, com.clockmods.sdk.style.MarqueeSpec value) {
+        if (value == null) value = com.clockmods.sdk.style.MarqueeSpec.DEFAULT;
+        String key = calendarMotionKey(themeId);
+        preferences.edit().putFloat(key + "_speed", value.speedDpPerSecond)
+                .putLong(key + "_pause", value.pauseMillis).putFloat(key + "_gap", value.gapDp).apply();
+    }
+
     public int getCalendarWeekStart() {
         return normalizeCalendarWeekStart(preferences.getInt(
                 KEY_CALENDAR_WEEK_START, DEFAULT_CALENDAR_WEEK_START));
@@ -739,7 +758,11 @@ public class ClockPreferences {
 
     /** Restores all user-configurable settings to their defaults. */
     public void restoreDefaults() {
-        preferences.edit()
+        SharedPreferences.Editor editor = preferences.edit();
+        for (String key : preferences.getAll().keySet()) {
+            if (key.startsWith("calendar_marquee__")) editor.remove(key);
+        }
+        editor
                 .putString(KEY_BACKGROUND_MODE, MODE_COLOR)
                 .putInt(KEY_BACKGROUND_COLOR, DEFAULT_BACKGROUND_COLOR)
                 .putBoolean(KEY_DIM_BACKGROUND, DEFAULT_DIM_BACKGROUND)

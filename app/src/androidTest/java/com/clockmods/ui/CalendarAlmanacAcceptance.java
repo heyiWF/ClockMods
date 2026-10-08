@@ -16,6 +16,8 @@ public final class CalendarAlmanacAcceptance extends Instrumentation {
     private int checks;
     private File out;
     private int wantedOrientation;
+    private String requestedTheme;
+    private int requestedOrientation;
     private final Set<Activity> activities = new HashSet<>();
     @Override public void callActivityOnCreate(Activity activity, Bundle state) {
         activities.add(activity); super.callActivityOnCreate(activity, state);
@@ -36,7 +38,14 @@ public final class CalendarAlmanacAcceptance extends Instrumentation {
     }
     private void finishActivities() { for (Activity activity : new ArrayList<>(activities)) activity.finish(); }
     private void check(boolean ok, String message) { checks++; if (!ok) throw new AssertionError(message); }
-    @Override public void onCreate(Bundle args) { super.onCreate(args); start(); }
+    @Override public void onCreate(Bundle args) {
+        super.onCreate(args);
+        if (args != null) {
+            requestedTheme = args.getString("theme");
+            requestedOrientation = Integer.parseInt(args.getString("orientation", "0"));
+        }
+        start();
+    }
     @Override public void onStart() {
         Context context = getTargetContext();
         int originalRotation = android.provider.Settings.System.getInt(context.getContentResolver(), "user_rotation", 0);
@@ -52,15 +61,34 @@ public final class CalendarAlmanacAcceptance extends Instrumentation {
             java.util.concurrent.atomic.AtomicReference<Throwable> probeError = new java.util.concurrent.atomic.AtomicReference<>();
             runOnMainSync(() -> { try { probeViews(context); } catch (Throwable e) { probeError.set(e); } });
             if (probeError.get() != null) throw probeError.get();
+            if (requestedTheme == null || ("graphite".equals(requestedTheme) && requestedOrientation == 1)) {
+                try {
+                    Class<?> probe = Class.forName("com.clockmods.ultimate.clock.ResponsiveClockProbe");
+                    checks += (int) probe.getMethod("run", Context.class, File.class).invoke(null, context, out);
+                } catch (ClassNotFoundException absentInMain) { }
+            }
             android.accessibilityservice.AccessibilityServiceInfo service = getUiAutomation().getServiceInfo();
             service.flags |= android.accessibilityservice.AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS;
             getUiAutomation().setServiceInfo(service);
             for (String name : new String[] {"clock_prefs", "clockmods_onboarding"})
                 original.put(name, new HashMap<>(context.getSharedPreferences(name, 0).getAll()));
+            com.clockmods.background.ClockPreferences settings = new com.clockmods.background.ClockPreferences(context);
+            com.clockmods.sdk.style.MarqueeSpec custom = new com.clockmods.sdk.style.MarqueeSpec(80, 2000, 48);
+            settings.setCalendarMarquee("calendar.audit", custom);
+            check(custom.equals(new com.clockmods.background.ClockPreferences(context)
+                    .getCalendarMarquee("calendar.audit")), "motion settings survive host recreation");
+            check(!custom.equals(settings.getCalendarMarquee("calendar.other")), "motion settings are theme scoped");
+            settings.restoreDefaults();
+            check(com.clockmods.sdk.style.MarqueeSpec.DEFAULT.equals(settings.getCalendarMarquee("calendar.audit")),
+                    "restore defaults clears scoped motion settings");
+
+            for (Map.Entry<String, Map<String, ?>> entry : original.entrySet()) restore(context, entry.getKey(), entry.getValue());
             boolean pro = context.getPackageName().endsWith(".pro");
             String activityName = pro ? "com.clockmods.pro.ProMainActivity" : "com.clockmods.ultimate.UltimateMainActivity";
             String[] themes = pro ? new String[] {"pro"} : new String[] {"agenda", "graphite", "carbon", "paper"};
             for (int orientation : new int[] {1, 2}) for (String theme : themes) {
+                if (requestedTheme != null && !requestedTheme.equals(theme)) continue;
+                if (requestedOrientation != 0 && requestedOrientation != orientation) continue;
                 wantedOrientation = orientation;
                 runOnMainSync(this::finishActivities);
                 SystemClock.sleep(300L);
@@ -72,6 +100,7 @@ public final class CalendarAlmanacAcceptance extends Instrumentation {
                         .putBoolean("weather_enabled", false).putBoolean("show_status_icons", false)
                         .putBoolean("hourly_visual_chime", false).putBoolean("half_hour_visual_chime", false)
                         .putBoolean("use_network_time", false).commit();
+                settings.setCalendarMarquee("calendar." + theme, custom);
                 context.getSharedPreferences("clockmods_onboarding", 0).edit().putBoolean("completed", true).commit();
                 ActivityMonitor monitor = addMonitor(activityName, null, false);
                 context.startActivity(new Intent().setClassName(context.getPackageName(), activityName)
@@ -108,6 +137,16 @@ public final class CalendarAlmanacAcceptance extends Instrumentation {
         long deadline = SystemClock.uptimeMillis() + 30000L;
         int visibleFrames = 0;
         while (SystemClock.uptimeMillis() < deadline) {
+            getUiAutomation().setRotation(orientation == 1
+                    ? UiAutomation.ROTATION_FREEZE_0 : UiAutomation.ROTATION_FREEZE_90);
+            runOnMainSync(() -> {
+                for (Activity running : new ArrayList<>(activities)) {
+                    if (running.isFinishing() || running.isDestroyed()) continue;
+                    running.setRequestedOrientation(orientation == 1
+                            ? android.content.pm.ActivityInfo.SCREEN_ORIENTATION_PORTRAIT
+                            : android.content.pm.ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE);
+                }
+            });
             AccessibilityNodeInfo node = findAlmanac(getUiAutomation().getRootInActiveWindow(), theme.equals("agenda"));
             if (node != null) {
                 Bitmap screen = getUiAutomation().takeScreenshot();
@@ -140,6 +179,8 @@ public final class CalendarAlmanacAcceptance extends Instrumentation {
             }
             SystemClock.sleep(500L);
         }
+        Bitmap failed = getUiAutomation().takeScreenshot();
+        save(failed, theme + "-" + orientation + "-failed.png"); failed.recycle();
         throw new AssertionError(theme + " dotted almanac did not become visible in orientation " + orientation);
     }
 
@@ -232,7 +273,8 @@ public final class CalendarAlmanacAcceptance extends Instrumentation {
         boolean almanac = description.startsWith("宜") || description.startsWith("忌")
                 || description.startsWith("Good:") || description.startsWith("Avoid:")
                 || id.contains("almanac:") || id.contains("calendar_agenda_suitable") || id.contains("calendar_agenda_avoid");
-        if (dotted && (!agenda || almanac)) return node;
+        if (dotted && (almanac || (!agenda && (id.contains("calendar_selected_footer")
+                || description.contains("宜 ") || description.contains("忌 "))))) return node;
         for (int i = 0; i < node.getChildCount(); i++) { AccessibilityNodeInfo found = findAlmanac(node.getChild(i), agenda); if (found != null) return found; }
         return null;
     }

@@ -959,6 +959,7 @@ public final class ProCalendarFragment extends Fragment {
     }
 
     private void updateFooter() {
+        footer.setMarqueeSpec(preferences.getCalendarMarquee("calendar.pro"));
         boolean english = preferences.isClockUseEnglish();
         LunarAlmanac almanac = LunarAlmanac.of(selectedDate.get(Calendar.YEAR),
                 selectedDate.get(Calendar.MONTH), selectedDate.get(Calendar.DAY_OF_MONTH));
