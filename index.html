@@ -7,7 +7,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no" />
     <meta name="theme-color" content="#101418" />
     <meta name="description" content="ClockMods Legacy - 兼容 IE 内核的全屏网页时钟" />
-    <title>ClockMods Legacy</title>
+    <title>ClockMods Web Legacy</title>
     <link rel="stylesheet" href="./legacy-clock.css" />
   </head>
   <body>
@@ -35,6 +35,7 @@
         <button id="settings-button" class="tool-button" type="button" title="设置" aria-label="打开设置">&#9881;</button>
         <button id="fullscreen-button" class="tool-button" type="button" title="全屏" aria-label="进入全屏">&#9974;</button>
       </div>
+      <div id="weather-attribution" class="weather-attribution" hidden>天气服务由和风天气驱动</div>
       <div id="clock-status" class="clock-status" role="status" aria-live="polite"></div>
 
       <div id="settings-overlay" class="settings-overlay" hidden>
@@ -47,6 +48,7 @@
             <button id="settings-close" class="icon-button" type="button" title="关闭" aria-label="关闭设置">&#10005;</button>
           </header>
 
+          <div id="settings-preview" class="settings-preview"></div>
           <div class="settings-scroll">
             <fieldset class="settings-section">
               <legend>Material 主题</legend>
@@ -66,7 +68,7 @@
               </div>
               <label class="check-label"><input id="pref-card-shadow" type="checkbox" /> 卡片阴影</label>
               <label class="check-label"><input id="pref-auto-ink" type="checkbox" /> 自动文字颜色</label>
-              <label class="field-label">辅助文字字号 (%) <input id="pref-supporting-scale" class="field-control" type="number" min="50" max="200" value="100" /></label>
+              <label id="support-scale-row" class="field-label">辅助文字字号 (%) <input id="pref-supporting-scale" class="field-control" type="number" min="20" max="200" value="100" /></label>
               <label class="field-label">天气轮播动效
                 <select id="pref-weather-transition" class="field-control">
                   <option value="fade">淡入淡出</option><option value="slide_up">上滑</option>
@@ -143,6 +145,10 @@
             <fieldset class="settings-section">
               <legend>日期与文字</legend>
               <div class="settings-grid settings-grid--two">
+                <label class="field-label">自定义字体名称<input id="pref-font-name" class="field-control" type="text" maxlength="100" placeholder="例如 Microsoft YaHei" /></label>
+                <label class="field-label">字重<select id="pref-font-weight" class="field-control"><option value="auto">跟随粗体设置</option><option value="100">100</option><option value="200">200</option><option value="300">300</option><option value="400">400</option><option value="500">500</option><option value="600">600</option><option value="700">700</option><option value="800">800</option><option value="900">900</option></select></label>
+              </div>
+              <div class="settings-grid settings-grid--two">
                 <label class="field-label">显示语言
                   <select id="pref-language" class="field-control">
                     <option value="zh-Hans">简体中文</option>
@@ -162,9 +168,14 @@
                 <label class="range-label">时间字号 <span id="pref-time-scale-value">88%</span>
                   <input id="pref-time-scale" type="range" min="40" max="145" step="1" />
                 </label>
-                <label class="range-label">日期字号 <span id="pref-date-scale-value">55%</span>
-                  <input id="pref-date-scale" type="range" min="25" max="100" step="1" />
+                <label id="date-scale-row" class="range-label">日期字号 <span id="pref-date-scale-value">55%</span>
+                  <input id="pref-date-scale" type="range" min="20" max="200" step="1" />
                 </label>
+              </div>
+              <div id="pixel-size-rows" class="settings-grid settings-grid--two">
+                <label class="field-label">日期字号 (px)<input id="pref-date-size" class="field-control" type="number" min="0" max="80" value="0" /></label>
+                <label class="field-label">辅助文字字号 (px)<input id="pref-support-size" class="field-control" type="number" min="0" max="80" value="0" /></label>
+                <p class="field-help">0 为自动；手动字号为 8–80 px。</p>
               </div>
               <div class="settings-grid settings-grid--two">
                 <label class="field-label">时间颜色
@@ -256,6 +267,7 @@
 
     <noscript><div class="no-script">此页面需要启用 JavaScript 才能显示时钟。</div></noscript>
     <script src="./legacy-lunar.js"></script>
+    <script src="./legacy-language.js"></script>
     <script src="./legacy-clock.js"></script>
   </body>
 </html>

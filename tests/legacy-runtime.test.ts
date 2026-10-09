@@ -6,7 +6,7 @@ import { expect, it } from 'vitest';
 const html = readFileSync('index.html', 'utf8');
 const script = readFileSync('public/legacy-clock.js', 'utf8');
 it('ships every production asset referenced by the classic-script entry', () => {
-  for (const name of ['legacy-clock.css', 'legacy-clock.js', 'legacy-lunar.js']) {
+  for (const name of ['legacy-clock.css', 'legacy-clock.js', 'legacy-lunar.js', 'legacy-language.js']) {
     expect(html).toContain(name); expect(existsSync('public/' + name)).toBe(true);
   }
   expect(html).not.toContain('type="module"');
@@ -62,4 +62,32 @@ it('reflows immediately on extreme resize and resets matching date and support s
     expect(win.document.getElementById('clock-date')!.style.fontSize)
       .toBe(win.document.getElementById('clock-extra')!.style.fontSize);
   } finally { win.close(); }
+});
+
+it('localizes settings and time-zone cities without translating user input',()=>{
+ const dom=new JSDOM(html,{url:'https://clock.example/',runScripts:'outside-only'}),win=dom.window;
+ try{win.eval(readFileSync('public/legacy-language.js','utf8'));win.eval(script);const el=(id:string)=>win.document.getElementById(id) as HTMLInputElement;
+ el('settings-button').click();el('pref-message').value='保留我的留言';el('pref-language').value='en';el('pref-language').dispatchEvent(new win.Event('change'));
+ expect(el('settings-title').textContent).toBe('Clock settings');expect(el('pref-timezone').textContent).toContain('New York');expect(el('pref-weather-interval').textContent).toContain('Every 30 minutes');expect(el('pref-message').value).toBe('保留我的留言');
+ el('pref-language').value='zh-Hant';el('pref-language').dispatchEvent(new win.Event('change'));expect(el('settings-title').textContent).toBe('時鐘設置');expect(el('pref-timezone').textContent).toContain('紐約');el('settings-cancel').click();expect(el('settings-title').textContent).toBe('时钟设置');
+ }finally{win.close();}
+});
+it('keeps pixel sizes independent and preserves automatic settings on reload',()=>{
+ const dom=new JSDOM(html,{url:'https://clock.example/',runScripts:'outside-only'}),win=dom.window;
+ try{win.eval(script);const el=(id:string)=>win.document.getElementById(id) as HTMLInputElement;
+ el('settings-button').click();el('pref-theme').value='ultimate.bubbles';el('pref-theme').dispatchEvent(new win.Event('change'));el('pref-message').value='辅助文字';el('pref-date-size').value='16';el('pref-support-size').value='16';el('settings-apply').click();const size=el('clock-date').style.fontSize;
+ el('settings-button').click();el('pref-support-size').value='80';el('settings-apply').click();expect(el('clock-date').style.fontSize).toBe(size);
+ el('settings-button').click();el('pref-date-size').value='0';el('pref-support-size').value='0';el('settings-apply').click();expect(win.localStorage.getItem('clockmods_legacy.date-size')).toBe('0');expect(win.localStorage.getItem('clockmods_legacy.support-size')).toBe('0');
+ }finally{win.close();}
+});
+it('keeps preview changes isolated and closes its frame on cancel',()=>{
+ const dom=new JSDOM(html,{url:'https://clock.example/',runScripts:'outside-only'}),win=dom.window;
+ try{win.eval(script);const el=(id:string)=>win.document.getElementById(id) as HTMLInputElement;el('settings-button').click();expect(el('settings-preview').querySelector('iframe')!.src).toBe('https://clock.example/?preview=1');el('pref-font-name').value='Microsoft YaHei';el('pref-font-weight').value='600';el('pref-font-weight').dispatchEvent(new win.Event('change'));expect(win.localStorage.getItem('clockmods_legacy.font-weight')).toBeNull();el('settings-cancel').click();expect(el('settings-preview').children).toHaveLength(0);expect(el('clock-lines').style.fontWeight).toBe('400');
+ }finally{win.close();}
+});
+
+it('hides weather attribution after idle even while settings stay open',()=>{
+ const dom=new JSDOM(html,{url:'https://clock.example/',runScripts:'outside-only'}),win=dom.window;
+ try{win.localStorage.setItem('clockmods_legacy.weather','true');win.eval(script);win.document.getElementById('settings-button')!.click();const tasks:Array<()=>void>=[];win.setTimeout=(callback:()=>void,delay:number)=>{if(delay===3000)tasks.push(callback);return 1;};win.document.dispatchEvent(new win.MouseEvent('mousemove'));expect(win.document.getElementById('weather-attribution')!.style.display).not.toBe('none');tasks.forEach(callback=>callback());expect(win.document.getElementById('weather-attribution')!.style.display).toBe('none');expect(win.document.documentElement.className).not.toContain('is-cursor-idle');
+ }finally{win.close();}
 });

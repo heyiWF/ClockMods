@@ -75,3 +75,12 @@ button:focus,input:focus,select:focus { outline:2px solid #435f91; outline-offse
   .settings-footer { flex-wrap:wrap; -ms-flex-wrap:wrap; }
   .primary-button,.secondary-button,.text-button { padding:10px 12px; }
 }
+
+.settings-preview{height:170px;min-height:90px;background:#101418;overflow:hidden;margin:0 12px;flex-shrink:0;}.settings-preview iframe{width:100%;height:100%;border:0;pointer-events:none;}.settings-preview:empty{display:none;}
+.is-cursor-idle,.is-cursor-idle *{cursor:none !important;}.weather-attribution{position:fixed;right:6px;bottom:5px;z-index:9;font-size:9px;background:rgba(0,0,0,.65);color:white;padding:3px 5px;border-radius:3px;pointer-events:none;}
+.clock-face{touch-action:manipulation;-ms-touch-action:manipulation;}
+@media(max-height:550px){.settings-preview{height:95px;}}
+
+.settings-preview{position:relative;}.settings-preview iframe{position:absolute;top:0;transform-origin:top left;}
+
+.settings-preview{-ms-flex-negative:0;}

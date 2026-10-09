@@ -1,6 +1,7 @@
 /* ClockMods Legacy. ES5, IE11/Trident; no module or modern browser bootstrap. */
 (function () {
   'use strict';
+  var isPreview = /[?&]preview=1(?:&|$)/.test(window.location.search), previewFrame = null, cursorTimer = null, attributionTimer = null;
   var doc = document, win = window, memory = {}, prefs = {}, image = '', draftImage = '', weather = null;
   var weatherTimer = null, syncTimer = null, request = null, generation = 0, offset = 0, lastChime = '', tickTimer = null;
   var themes = {
@@ -21,7 +22,7 @@
     'dim-start': '22:00', 'dim-end': '06:00', weather: false, 'weather-url': '', 'weather-location': '',
     'weather-interval': '30', 'network-time': false, 'time-url': '', 'sync-interval': '60',
     theme: 'classic', 'panel-color': '#1d2631', 'accent-color': '#a8c7fa', 'card-shadow': true, 'auto-ink': true,
-    'weather-transition': 'fade', 'supporting-scale': '100', 'temperature-unit': 'celsius'
+    'weather-transition': 'fade', 'supporting-scale': '100', 'temperature-unit': 'celsius', 'date-size':'0', 'support-size':'0', 'font-name':'', 'font-weight':'auto'
   };
   function node(id) { return doc.getElementById(id); }
   function own(object, key) { return Object.prototype.hasOwnProperty.call(object, key); }
@@ -38,7 +39,7 @@
     if (visible) element.removeAttribute('hidden');
     element.style.display = visible ? '' : 'none';
   }
-  function status(message) { text(node('clock-status'), message); }
+  function status(message) { text(node('clock-status'), win.LegacyText ? win.LegacyText(prefs.language,message) : message); }
   function pad(value) { return value < 10 ? '0' + value : String(value); }
   function finite(value, fallback, min, max) {
     value = Number(value); return isFinite(value) ? Math.max(min, Math.min(max, value)) : fallback;
@@ -78,6 +79,7 @@
     }
     updateRange();
     updateInkControls();
+    updateSizeControls();
   }
   function updateInkControls() {
     var automatic = node('pref-theme').value !== 'classic' && node('pref-auto-ink').checked;
@@ -87,9 +89,19 @@
     text(node('pref-time-scale-value'), node('pref-time-scale').value + '%');
     text(node('pref-date-scale-value'), node('pref-date-scale').value + '%');
   }
-  function close() { show(node('settings-overlay'), false); node('settings-button').focus(); }
+  function updateSizeControls(){var classic=node('pref-theme').value==='classic';show(node('pixel-size-rows'),!classic);show(node('date-scale-row'),classic);show(node('support-scale-row'),classic);}
+  function revealCursor(){doc.documentElement.className=doc.documentElement.className.replace(/ ?is-cursor-idle/g,'');win.clearTimeout(cursorTimer);if(node('settings-overlay').style.display==='none')cursorTimer=win.setTimeout(function(){doc.documentElement.className+=' is-cursor-idle';show(node('weather-attribution'),false);},3000);}
+  function close() { show(node('settings-overlay'), false);if(previewFrame){previewFrame.parentNode.removeChild(previewFrame);previewFrame=null;}localize(prefs.language);revealCursor();node('settings-button').focus(); }
+  function draft(){var values={},key,element;for(key in defaults)if(own(defaults,key)){element=node('pref-'+key);values[key]=element?(element.type==='checkbox'?element.checked:element.value):prefs[key];}return values;}
+  function preview(){if(previewFrame&&previewFrame.contentWindow)previewFrame.contentWindow.postMessage({clockmodsPreview:true,prefs:draft(),image:draftImage,weather:weather},win.location.origin||'*');}
+  function fitPreview(){if(!previewFrame)return;var host=node('settings-preview'),scale=Math.min(host.clientWidth/960,host.clientHeight/540);previewFrame.style.width='960px';previewFrame.style.height='540px';previewFrame.style.transform='scale('+scale+')';previewFrame.style.left=Math.max(0,(host.clientWidth-960*scale)/2)+'px';}
+  function previewOpen(){if(isPreview)return;previewFrame=doc.createElement('iframe');previewFrame.title='Clock preview';previewFrame.setAttribute('tabindex','-1');previewFrame.src=win.location.pathname+'?preview=1';previewFrame.onload=preview;node('settings-preview').appendChild(previewFrame);fitPreview();}
+  var uiText=[];
+  function collectUi(element){var child;for(child=element.firstChild;child;child=child.nextSibling){if(child.nodeType===3&&child.nodeValue.replace(/\s/g,''))uiText.push({node:child,source:child.nodeValue});else if(child.nodeType===1&&child.tagName!=='SCRIPT'&&child.tagName!=='IFRAME')collectUi(child);}}
+  function localize(language){var i,item,elements=doc.querySelectorAll('[title],[aria-label],[placeholder]');for(i=0;i<uiText.length;i++){item=uiText[i];item.node.nodeValue=win.LegacyText?win.LegacyText(language,item.source):item.source;}for(i=0;i<elements.length;i++){var el=elements[i],names=['title','aria-label','placeholder'],j;for(j=0;j<names.length;j++){var a=names[j],value=el.getAttribute('data-source-'+a)||el.getAttribute(a);if(value){el.setAttribute('data-source-'+a,value);el.setAttribute(a,win.LegacyText?win.LegacyText(language,value):value);}}}}
+
   function open() {
-    fill(prefs); draftImage = image; show(node('settings-overlay'), true); node('settings-close').focus();
+    fill(prefs); draftImage = image; show(node('settings-overlay'), true);localize(prefs.language);revealCursor();previewOpen();node('settings-close').focus();
   }
   function apply() {
     var key, element, value;
@@ -155,8 +167,8 @@
     if (prefs.weather && weather) {
       items.push((weather.city || '') + ' ' + (weather.text || '') + ' ' + temperature(weather.temperature || weather.temp || '--'));
       detail = weather.detail || weather;
-      if (detail.feelsLike) items.push((prefs.language === 'en' ? 'Feels like ' : '体感 ') + temperature(detail.feelsLike));
-      if (detail.humidity) items.push((prefs.language === 'en' ? 'Humidity ' : '湿度 ') + detail.humidity + '%');
+      if (detail.feelsLike) items.push((prefs.language === 'en' ? 'Feels like ' : prefs.language==='zh-Hant'?'體感 ':'体感 ') + temperature(detail.feelsLike));
+      if (detail.humidity) items.push((prefs.language === 'en' ? 'Humidity ' : prefs.language==='zh-Hant'?'濕度 ':'湿度 ') + detail.humidity + '%');
       if (detail.windDir) items.push(detail.windDir + ' ' + (detail.windScale || ''));
       if (detail.warning) items.push(detail.warning);
     }
@@ -239,7 +251,7 @@
     var height = node('clock-face').clientHeight || win.innerHeight || 600;
     var date = node('clock-date'), lunar = node('clock-lunar'), extra = node('clock-extra');
     var signature = [width,height,prefs.theme,prefs['time-scale'],prefs['date-scale'],prefs['supporting-scale'],
-      prefs.font,prefs.bold,prefs['show-seconds'],prefs['small-seconds'],prefs['hour-format'],prefs.stacked,
+      prefs.font,prefs['font-name'],prefs['font-weight'],prefs['date-size'],prefs['support-size'],prefs.bold,prefs['show-seconds'],prefs['small-seconds'],prefs['hour-format'],prefs.stacked,
       date.textContent,lunar.textContent,(lunar.style.display === 'none'),(extra.style.display === 'none')].join('|');
     if (signature === layoutSignature) return;
     layoutSignature = signature;
@@ -256,26 +268,26 @@
     var usableHeight = Math.max(1,(orbit ? diameter : height*.92)-padding*2-6);
     var stacked = time.className.indexOf('is-stacked') >= 0;
     var count = stacked ? (prefs['show-seconds'] && !prefs['small-seconds'] ? 3 : 2) : 1;
-    var size = Math.min(available*finite(prefs['time-scale'],88,20,150)/100/(stacked?1.4:(prefs['show-seconds']?5.4:3.6)),
-      usableHeight*.62/count);
+    var limit=Math.min(available/(stacked?1.4:(prefs['show-seconds']?5.4:3.6)),usableHeight*.62/count);
+    var size=Math.min(limit,limit*.75*finite(prefs['time-scale'],88,20,150)/88);
     time.style.fontSize = size+'px';
     time.style.margin = '0';
     var primaryHeight = time.offsetHeight || size*count*1.2;
     var shrink = Math.min(1,available/Math.max(available,time.scrollWidth),usableHeight*.74/Math.max(1,primaryHeight));
     size *= shrink; primaryHeight *= shrink; time.style.fontSize = size+'px';
-    var dateSize = Math.min(available*finite(prefs['date-scale'],55,20,200)/100/18,usableHeight*.085);
+    var baseSize=Math.min(available*.55/18,usableHeight*.085);
+    var dateSize=prefs.theme==='classic'?Math.min(available*finite(prefs['date-scale'],55,20,200)/100/18,usableHeight*.085):(Number(prefs['date-size'])?finite(prefs['date-size'],24,8,80):Math.min(available*.035,usableHeight*.07));
     date.style.fontSize = dateSize+'px'; lunar.style.fontSize = dateSize+'px';
     // Fit long date formats before allocating remaining vertical space.
-    dateSize *= Math.min(1,available/Math.max(available,date.scrollWidth,(lunar.style.display === 'none')?0:lunar.scrollWidth));
-    var supportSize = dateSize*finite(prefs['supporting-scale'],100,50,200)/100;
+    function contentWidth(element){var range=doc.createRange();range.selectNodeContents(element);return range.getBoundingClientRect?range.getBoundingClientRect().width:element.scrollWidth;}
+    dateSize *= Math.min(1,available/Math.max(available,contentWidth(date),(lunar.style.display === 'none')?0:contentWidth(lunar)));
+    var supportSize=prefs.theme==='classic'?baseSize*finite(prefs['supporting-scale'],100,20,200)/100:(Number(prefs['support-size'])?finite(prefs['support-size'],24,8,80):Math.min(available*.035,usableHeight*.07));
     var dateRows = (lunar.style.display === 'none') ? 1 : 2, supportRows = (extra.style.display === 'none') ? 0 : 1;
-    var gap = Math.min(usableHeight*.025,dateSize*.6), rowGap = Math.min(usableHeight*.015,dateSize*.35);
-    var requested = (dateSize*dateRows+supportSize*supportRows)*1.2+gap*2+rowGap*(dateRows-1);
-    var secondaryScale = Math.min(1,Math.max(0,usableHeight-primaryHeight)/Math.max(1,requested));
-    date.style.fontSize = dateSize*secondaryScale+'px'; lunar.style.fontSize = dateSize*secondaryScale+'px';
-    extra.style.fontSize = supportSize*secondaryScale+'px';
-    time.style.margin = gap*secondaryScale+'px 0';
-    lunar.style.marginTop = rowGap*secondaryScale+'px';
+    var remaining=Math.max(1,usableHeight-primaryHeight),gap=Math.min(usableHeight*.025,remaining*.07),rowGap=Math.min(usableHeight*.015,remaining*.04);
+    var cap=Math.max(1,remaining-gap*2-rowGap*(dateRows-1))/(dateRows+supportRows)/1.2;
+    date.style.fontSize = Math.min(dateSize,cap)+'px'; lunar.style.fontSize = Math.min(dateSize,cap)+'px';
+    extra.style.fontSize = Math.min(supportSize,cap)+'px';
+    time.style.margin = gap+'px 0'; lunar.style.marginTop = rowGap+'px';
   }
   function safeUrl(value) {
     var anchor = doc.createElement('a'); anchor.href = value;
@@ -327,36 +339,36 @@
     node('clock-time').style.color = automatic ? ink(panel) : color(prefs['time-color'],'#ffffff');
     node('clock-date').style.color = node('clock-lunar').style.color = node('clock-extra').style.color = automatic ? ink(panel) : color(prefs['date-color'],'#ffffff');
     var fonts = { system: 'Segoe UI, Microsoft YaHei, sans-serif', roboto: 'Roboto, Arial, sans-serif', segoe: 'Segoe UI, Microsoft YaHei, sans-serif', serif: 'Georgia, Times New Roman, serif', mono: 'Consolas, Courier New, monospace', inter: 'Arial, sans-serif', lora: 'Georgia, serif', bitcount_grid_double: 'Consolas, monospace' };
-    lines.style.fontFamily = fonts[prefs.font] || fonts.system; lines.style.fontWeight = prefs.bold?'700':'400';
+    lines.style.fontFamily = (prefs['font-name']?'"'+String(prefs['font-name']).replace(/["\\]/g,'')+'",':'')+(fonts[prefs.font] || fonts.system); lines.style.fontWeight = prefs['font-weight']==='auto'?(prefs.bold?'700':'400'):String(finite(prefs['font-weight'],400,100,900));
     node('clock-main').style.backgroundColor = 'transparent';
     node('clock-main').style.color = automatic && (theme === 'ultimate.dual_blocks' || theme === 'ultimate.bubbles') ? ink(accent) : '';
     node('clock-time').style.borderColor = accent;
-    doc.documentElement.lang = prefs.language;
-    if (prefs.weather) { fetchWeather(); weatherTimer = win.setInterval(fetchWeather,finite(prefs['weather-interval'],30,5,1440)*60000); }
-    if (prefs['network-time']) { syncTime(); syncTimer = win.setInterval(syncTime,finite(prefs['sync-interval'],60,1,1440)*60000); } else offset=0;
+    doc.documentElement.lang = prefs.language;localize(prefs.language);
+    if (prefs.weather && !isPreview) { fetchWeather(); weatherTimer = win.setInterval(fetchWeather,finite(prefs['weather-interval'],30,5,1440)*60000); }
+    if (prefs['network-time'] && !isPreview) { syncTime(); syncTimer = win.setInterval(syncTime,finite(prefs['sync-interval'],60,1,1440)*60000); } else offset=0;
     supportingItems();
   }
   node('settings-button').onclick = open; node('clock-face').ondblclick = open;
   node('clock-face').onkeydown = function (event) { if ((event || win.event).keyCode === 13) open(); };
   node('settings-close').onclick = node('settings-cancel').onclick = close;
   node('settings-apply').onclick = apply;
-  node('settings-reset').onclick = function () { fill(defaults); draftImage = ''; };
+  node('settings-reset').onclick = function () { fill(defaults); draftImage = '';localize(defaults.language);preview(); };
   node('pref-time-scale').oninput = node('pref-date-scale').oninput = updateRange;
   node('pref-auto-ink').onchange = updateInkControls;
   node('pref-language').onchange = function () {
-    var input=node('pref-date-pattern');
+    localize(this.value);var input=node('pref-date-pattern');
     if(input.value==='yyyy年M月d日 EEEE' || input.value==='yyyy/MM/dd EEEE')input.value=this.value==='en'?'yyyy/MM/dd EEEE':'yyyy年M月d日 EEEE';
   };
-  node('clear-background').onclick=function(){draftImage='';node('pref-use-image').checked=false;};
+  node('clear-background').onclick=function(){draftImage='';node('pref-use-image').checked=false;preview();};
   node('pref-theme').onchange = function () {
     var colors = themes[this.value] || themes.classic;
     node('pref-background-color').value = colors[0]; node('pref-panel-color').value = colors[1]; node('pref-accent-color').value = colors[2];
-    updateInkControls();
+    updateInkControls();updateSizeControls();
   };
   node('pref-background-file').onchange = function () {
     var file = this.files && this.files[0]; if (!file) return;
     if (file.size > 16*1024*1024 || !/^image\//.test(file.type)) { status('Choose an image smaller than 16 MB'); return; }
-    var reader = new win.FileReader(); reader.onload = function () { draftImage = String(reader.result); node('pref-use-image').checked = true; }; reader.readAsDataURL(file);
+    var reader = new win.FileReader(); reader.onload = function () { draftImage = String(reader.result); node('pref-use-image').checked = true;preview(); }; reader.readAsDataURL(file);
   };
   node('fullscreen-button').onclick = function () {
     var element = doc.documentElement, enter = element.requestFullscreen || element.msRequestFullscreen || element.webkitRequestFullscreen;
@@ -372,8 +384,17 @@
       else if (!event.shiftKey && doc.activeElement === last) { first.focus(); event.preventDefault(); }
     }
   };
+  collectUi(node('settings-panel'));collectUi(node('weather-attribution'));
+  node('settings-panel').addEventListener('change',function(e){var input=e.target;if(input.id==='pref-date-size'||input.id==='pref-support-size'){input.value=Number(input.value)===0?'0':String(finite(input.value,24,8,80));}},false);
+  node('settings-panel').addEventListener('input',preview,false);node('settings-panel').addEventListener('change',preview,false);
+  doc.addEventListener('mousemove',function(){if(isPreview)return;revealCursor();show(node('weather-attribution'),prefs.weather);win.clearTimeout(attributionTimer);attributionTimer=win.setTimeout(function(){show(node('weather-attribution'),false);},3000);},false);
+  var touchX=0,touchY=0,touchAt=0,lastTap=0;
+  node('clock-face').addEventListener('touchstart',function(e){if(e.touches.length===1){touchX=e.touches[0].clientX;touchY=e.touches[0].clientY;touchAt=Date.now();}},false);
+  node('clock-face').addEventListener('touchend',function(e){var t=e.changedTouches[0],now=Date.now();if(t&&now-touchAt<350&&Math.abs(t.clientX-touchX)<12&&Math.abs(t.clientY-touchY)<12){if(now-lastTap<400){e.preventDefault();open();lastTap=0;}else lastTap=now;}},false);
+  win.addEventListener('message',function(e){if(isPreview&&e.source===win.parent&&e.data&&e.data.clockmodsPreview){prefs=e.data.prefs;image=e.data.image||'';weather=e.data.weather;configure();render();}},false);
+  if(isPreview){show(node('clock-toolbar'),false);show(node('clock-status'),false);}
   track = doc.createElement('span'); track.className = 'carousel-track'; node('clock-weather').appendChild(track);
-  win.onresize = render;
+  win.onresize = function(){render();fitPreview();};
   show(node('clock-message'),false); show(node('settings-overlay'),false);
   load(); configure(); render(); win.setInterval(function () { carousel(Date.now()); },40);
 }());
