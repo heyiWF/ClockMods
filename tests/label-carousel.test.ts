@@ -228,3 +228,25 @@ describe('LabelCarousel', () => {
     carousel.destroy();
   });
 });
+
+ it('remeasures the repeated date before it enters after a layout change',()=>{
+  vi.useFakeTimers();vi.spyOn(window,'requestAnimationFrame').mockImplementation(callback=>{callback(0);return 1;});
+  const host=document.createElement('div'),carousel=new LabelCarousel(host);
+  carousel.setItems([{text:'2026 年 10 月 9 日 星期五'},{text:'宜 祭祀',pinnedPrefix:'宜 '},{text:'忌 动土',pinnedPrefix:'忌 '}]);
+  const lines=host.querySelectorAll<HTMLElement>('.label-carousel-item');let width=100;
+  for(const i of [0,3]){Object.defineProperty(lines[i],'clientWidth',{get:()=>width});Object.defineProperty(lines[i].querySelector('.label-carousel-text'),'scrollWidth',{value:180});}
+  carousel.setActive(true);expect(lines[3].classList.contains('is-scrolling')).toBe(true);
+  width=400;carousel.advance();carousel.advance();carousel.advance();
+  // Both copies must be centered during entry, not repaired after the slide.
+  expect(lines[3].classList.contains('is-scrolling')).toBe(false);expect(lines[0].classList.contains('is-scrolling')).toBe(false);
+  vi.advanceTimersByTime(LABEL_TRANSITION_MS);expect(host.querySelector<HTMLElement>('.label-carousel-track')!.style.transform).toBe('translateY(0)');carousel.destroy();
+ });
+ it('uses row capacity rather than a flex strip that changes with alignment',()=>{
+  vi.spyOn(window,'requestAnimationFrame').mockImplementation(callback=>{callback(0);return 1;});const host=document.createElement('div'),carousel=new LabelCarousel(host);
+  carousel.setItems([{text:'a fitting date label'},{text:'宜 祭祀'}]);
+  for(const line of host.querySelectorAll<HTMLElement>('.label-carousel-item')){Object.defineProperty(line,'clientWidth',{value:300});Object.defineProperty(line.querySelector('.label-carousel-strip'),'clientWidth',{get:()=>line.classList.contains('is-scrolling')?300:179});Object.defineProperty(line.querySelector('.label-carousel-text'),'scrollWidth',{value:180});}
+  carousel.setActive(true);for(const line of host.querySelectorAll('.label-carousel-item'))expect(line.classList.contains('is-scrolling')).toBe(false);carousel.destroy();
+ });
+ it('does not treat one pixel of rounding as a scrolling line',()=>{
+  vi.spyOn(window,'requestAnimationFrame').mockImplementation(callback=>{callback(0);return 1;});const host=document.createElement('div'),carousel=new LabelCarousel(host);carousel.setItems([{text:'a fitting date label'}]);const line=host.querySelector<HTMLElement>('.label-carousel-item')!;Object.defineProperty(line,'clientWidth',{value:300});Object.defineProperty(line.querySelector('.label-carousel-text'),'scrollWidth',{value:301});carousel.setActive(true);expect(line.classList.contains('is-scrolling')).toBe(false);carousel.destroy();
+ });

@@ -93,6 +93,14 @@ export class LabelCarousel {
     if (this.items.length < 2) return;
     this.clearCycle();
     this.index += 1;
+    // A hidden incoming row may still have the alignment measured before a
+    // resize, adaptive font sizing or font load. Resolve it before it enters
+    // the viewport, including the clone used for the final-to-first slide.
+    const incoming = this.track.children[this.index] as HTMLElement | undefined;
+    if (incoming) this.measureLine(incoming);
+    if (this.index === this.items.length) {
+      this.measureLine(this.track.children[0] as HTMLElement);
+    }
     this.track.style.transform = `translateY(${-this.index * 100}%)`;
     this.phaseHandle = window.setTimeout(() => {
       this.phaseHandle = null;
@@ -206,7 +214,16 @@ export class LabelCarousel {
     const inner = line.querySelector<HTMLElement>('.label-carousel-text');
     if (!strip || !inner) return 0;
     inner.style.paddingInlineEnd = '0px';
-    const overflow = inner.classList.contains('can-scroll') ? Math.max(0, inner.scrollWidth - strip.clientWidth) : 0;
+    // Measure against the row's full capacity, not the strip's current flex
+    // width: that width itself changes when is-scrolling is toggled.
+    const pin = line.querySelector<HTMLElement>('.label-carousel-pin');
+    const pinWidth = pin ? pin.getBoundingClientRect().width
+      + (parseFloat(getComputedStyle(pin).marginInlineEnd) || 0) : 0;
+    const available = line.clientWidth > 0 ? Math.max(0, line.clientWidth - pinWidth) : strip.clientWidth;
+    const difference = inner.scrollWidth - available;
+    // scrollWidth/clientWidth round to integer pixels. Subpixel rounding alone
+    // must not switch an otherwise fitting date to left alignment.
+    const overflow = inner.classList.contains('can-scroll') && difference > 1 ? difference : 0;
     if(overflow>0)inner.style.paddingInlineEnd=prefs.getUltimateOptions().marqueeGap+'px';
     line.classList.toggle('is-scrolling', overflow > 0);
     return overflow>0 ? overflow+prefs.getUltimateOptions().marqueeGap : 0;
