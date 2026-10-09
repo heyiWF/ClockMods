@@ -637,7 +637,7 @@
 
 @media(orientation:portrait) and (min-height:500px){
  .page[data-calendar-theme="calendar.graphite"] .cal-layout,.page[data-calendar-theme="calendar.carbon"] .cal-layout{grid-template-rows:minmax(250px,40%) minmax(0,1fr);}
- .page[data-calendar-theme] .cal-layout:has(.cal-weather-card[hidden]){grid-template-rows:minmax(64px,14%) minmax(0,1fr);}
+ .page[data-calendar-theme="calendar.graphite"] .cal-layout:has(.cal-weather-card[hidden]),.page[data-calendar-theme="calendar.carbon"] .cal-layout:has(.cal-weather-card[hidden]){grid-template-rows:minmax(64px,14%) minmax(0,1fr);}
  .cal-left{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(50px,.8fr) minmax(70px,1fr) minmax(95px,1.2fr);}
  .cal-left:has(.cal-weather-card[hidden]){grid-template-rows:1fr;}
 }

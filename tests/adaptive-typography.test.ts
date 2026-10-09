@@ -1,4 +1,5 @@
 // @vitest-environment jsdom
+import {setLanguage} from '../src/core/i18n';
 import {beforeEach,it,expect,vi} from 'vitest';
 import {prefs} from '../src/core/prefs';
 import {UltimateFace} from '../src/ui/ultimate-face';
@@ -11,3 +12,5 @@ it('automatic typography grows with its viewport and manual pixels stay fixed',(
 it('time scaling grows visibly before reaching the region boundary',()=>{const {host,render}=mount();prefs.setTimeFontScale(.5);render();const size=parseFloat((host.querySelector('[data-part=time]') as HTMLElement).style.fontSize);prefs.setTimeFontScale(1.5);render();expect(parseFloat((host.querySelector('[data-part=time]') as HTMLElement).style.fontSize)).toBeGreaterThan(size*1.5);});
 it('automatic controls allow direct dragging and explicit return to automatic',()=>{const control=secondaryFontSize('日期','date','noir.instrument');expect(control.value()).toBe(0);control.input.value='36';control.input.dispatchEvent(new Event('input'));expect(control.value()).toBe(36);control.row.querySelector('button')!.click();expect(control.value()).toBe(0);});
 it('classic supporting rows have independent space budgets',()=>{const first=fitSupportingRows(600,400,24,24,2,2,false),second=fitSupportingRows(600,400,80,24,2,2,false);expect(second.supportingSize).toBe(first.supportingSize);});
+
+it('keeps automatic labels traditional after toggling',()=>{setLanguage('zh-Hant');try{const c=secondaryFontSize('日期','date','noir.instrument');c.row.querySelector('button')!.click();c.row.querySelector('button')!.click();expect(c.row.querySelector('.settings-slider-value')!.textContent).toBe('自動');}finally{setLanguage('zh-Hans');}});

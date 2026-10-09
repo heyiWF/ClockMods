@@ -1,3 +1,4 @@
+import {language} from '../core/i18n';
 import {prefs,defaultTextSize,MIN_FONT_SCALE,MAX_SECONDARY_FONT_SCALE,MIN_TEXT_FONT_SIZE,MAX_TEXT_FONT_SIZE} from '../core/prefs';
 import {sliderRow,element} from './controls';
 export type TextRole = 'date' | 'supporting';
@@ -13,10 +14,11 @@ export function saveSecondarySize(role:TextRole,id:string,value:number):void {
 export function secondaryFontSize(label:string,role:TextRole,theme:string) {
   let active=theme;
   const control=sliderRow(label,MIN_TEXT_FONT_SIZE,MAX_TEXT_FONT_SIZE,24,value=>value+(active==='classic'?'%':' px'));
-  const automatic=element('button','m3-button m3-button--text',prefs.isClockUseEnglish()?'Auto':'自动');automatic.type='button';
+  const autoLabel=()=>language()==='en'?'Auto':language()==='zh-Hant'?'自動':'自动';
+  const automatic=element('button','m3-button m3-button--text',autoLabel());automatic.type='button';
   let auto=false,setting=false;
   control.row.append(automatic);
-  const syncAuto=()=>{automatic.hidden=active==='classic';automatic.setAttribute('aria-pressed',String(auto));control.row.querySelector('.settings-slider-value')!.textContent=auto?(prefs.isClockUseEnglish()?'Auto':'自动'):control.input.value+(active==='classic'?'%':' px');};
+  const syncAuto=()=>{automatic.hidden=active==='classic';automatic.setAttribute('aria-pressed',String(auto));control.row.querySelector('.settings-slider-value')!.textContent=auto?autoLabel():control.input.value+(active==='classic'?'%':' px');};
   control.input.addEventListener('input',()=>{if(!setting){auto=false;syncAuto();}});
   automatic.addEventListener('click',()=>{auto=!auto;syncAuto();control.row.dispatchEvent(new Event('input',{bubbles:true}));});
   function setTheme(id:string,value=secondarySizeValue(role,id)) {
