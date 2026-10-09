@@ -1,3 +1,4 @@
+import { installIdleCursor } from './ui/idle-cursor';
 import { DisplaySettings } from './core/display-settings';
 /**
  * Application entry point.
@@ -16,7 +17,7 @@ import './styles/timers.css';
 import './styles/settings.css';
 
 import { prefs } from './core/prefs';
-import { onLanguageChange, refreshLanguage, t } from './core/i18n';
+import { refreshLanguage, t } from './core/i18n';
 import { ensureFontLoaded } from './core/fonts';
 import { applyScreenOrientation } from './core/orientation';
 import { installWakeLockHandlers, requestWakeLock } from './core/wake-lock';
@@ -44,12 +45,14 @@ async function boot(): Promise<void> {
     loadHolidays(),
   ]);
 
+  refreshShellLanguage();
   timeSource.configure();
   void applyScreenOrientation();
   installWakeLockHandlers();
   // One delegated listener gives every M3 surface a press ripple, including the
   // ones the pages build later.
   installRipples();
+  installIdleCursor();
 
   const container = document.getElementById('pages')!;
   const nav = document.getElementById('nav')!;
@@ -61,7 +64,7 @@ async function boot(): Promise<void> {
       timeSource.configure();
       displaySettings.refresh();
       const orientationApplied = await applyScreenOrientation();
-      if (languageChanged) refreshLanguage();
+      if (languageChanged) { refreshLanguage(); refreshShellLanguage(); }
       await router.refreshAll();
       toast(t(orientationApplied ? 'settings_applied' : 'orientation_lock_unsupported'));
     });
@@ -89,15 +92,20 @@ async function boot(): Promise<void> {
   const chime = new HourlyChime(document.getElementById('chime-layer')!);
   chime.start();
 
-  onLanguageChange(() => {
-    void router.refreshAll();
-  });
+
 
   // A wake lock needs a user gesture on some browsers, so ask again on first tap.
   void requestWakeLock();
   document.addEventListener('pointerdown', () => void requestWakeLock(), { once: true });
 
   registerServiceWorker();
+}
+
+function refreshShellLanguage():void {
+ document.getElementById('nav')?.setAttribute('aria-label',prefs.isClockUseEnglish()?'Navigation':prefs.getClockLanguage()==='zh-Hant'?'功能導覽':'功能导航');
+ for(const button of document.querySelectorAll<HTMLElement>('[data-nav]')) { const text=t('pro_page_'+button.dataset.nav);const label=button.querySelector('.m3-nav-item__label');if(label)label.textContent=text;button.setAttribute('aria-label',text); }
+ for(const page of document.querySelectorAll<HTMLElement>('.page'))page.setAttribute('aria-label',t('pro_page_'+page.dataset.page));
+ for(const button of document.querySelectorAll<HTMLElement>('[data-open-settings],.settings-fab'))button.setAttribute('aria-label',t('open_settings_accessibility'));
 }
 
 function page(name: string): HTMLElement {

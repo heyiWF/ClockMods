@@ -166,11 +166,8 @@ describe('ClockPage', () => {
     prefs.setUse24Hour(false);
     await page.refreshSettings();
 
-    // The lunar date is deliberately locale-independent and stays Chinese, as it
-    // did on Android (see the LocaleManager class comment).
-    expect(root.querySelector('#clock-date')!.textContent).toBe(
-      '2026/8/7 Friday 丙午[马]年六月廿五'
-    );
+    expect(root.querySelector('#clock-date')!.textContent).toContain('2026/8/7 Friday Lunar');
+    expect(root.querySelector('#clock-date')!.textContent).not.toMatch(/\p{Script=Han}/u);
     expect(root.querySelector('.time-period')!.textContent).toBe('PM');
     page.stop();
   });

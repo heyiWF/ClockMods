@@ -46,7 +46,7 @@ export function themeSettings() {
     const host = element('div', 'theme-preview-face'); viewport.append(host);
     let face: UltimateFace | undefined;
     if (item.id !== 'classic') {
-      const rows = {date: element('div', 'clock-date', '10月08日 星期四'), lunar: element('div', 'clock-lunar', '八月廿八'), weather: element('div'), detail: element('div')};
+      const rows = {date: element('div', 'clock-date', label('10月08日 星期四','October 8, Thursday')), lunar: element('div', 'clock-lunar', label('八月廿八','Lunar 8/28')), weather: element('div'), detail: element('div')};
       rows.weather.hidden = rows.detail.hidden = true;
       const settings = { ...prefs, getFontFamily: () => 'system', isBoldText: () => false, hasFontWeight: () => false, getTimeFontScale: () => .88, getDateFontScale: () => .55, getSupportingScale: () => 1, getDateFontSize:()=>24,getSupportingFontSize:()=>24,
         getThemePalette: () => item.id === active ? colors : read(item.id).colors, isThemeAutoInk: () => true };

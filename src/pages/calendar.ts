@@ -10,21 +10,21 @@ import { temperature } from '../core/clock-themes';
  * column beside the month; portrait stacks them (layout-land / layout-port).
  */
 import { prefs, cssColor } from '../core/prefs';
-import { dateLang, t, ta } from '../core/i18n';
+import { dateLang, intlLocale, t, ta } from '../core/i18n';
 import { ensureFontLoaded, fontStack } from '../core/fonts';
 import { timeSource, millisUntilNextSecond } from '../core/time-source';
 import { addMonths, dateKey, daysInMonth, zonedFields } from '../core/zoned-time';
 import { format as formatDate } from '../format/date-formatter';
 import { pangu } from '../format/text-spacing';
 import { periodTextFor, twoDigits } from '../format/time-formatter';
-import { almanacOf } from '../lunar/lunar';
+import { localizedAlmanac } from '../lunar/language';
 import { holidayOn } from '../lunar/holidays';
 import { createCalendarMonth, isWeekend } from '../lunar/calendar-month';
 import type { CalendarDay } from '../lunar/calendar-month';
 import { measureColonShift } from '../ui/clock-face';
 import { LabelCarousel } from '../ui/label-carousel';
 import type { LabelItem } from '../ui/label-carousel';
-import { createWeatherIcon } from '../weather/icons';
+import { createWeatherIcon, loadWeatherIcons } from '../weather/icons';
 import { DailyForecastController, WeatherController } from '../weather/controller';
 import { locationText } from '../weather/models';
 import type { DailyForecastState, WeatherState } from '../weather/models';
@@ -37,7 +37,7 @@ const DRAG_THRESHOLD_PX = 40;
 export class CalendarPage implements Page {
   readonly name = 'calendar';
   private typographyObserver?: ResizeObserver;
-  dispose(): void { this.stop(); this.typographyObserver?.disconnect(); this.footer.destroy(); this.cellCarousels.forEach(carousel=>carousel.destroy()); }
+  dispose(): void { this.stop(); this.typographyObserver?.disconnect(); this.footer.destroy(); this.cellCarousels.forEach(carousel=>carousel.destroy()); this.agendaCarousels.forEach(carousel=>carousel.destroy()); }
   readonly immersive = true;
 
   private readonly root: HTMLElement;
@@ -71,6 +71,9 @@ export class CalendarPage implements Page {
   private tickHandle: number | null = null;
   private monthAnimationFrame: number | null = null;
   private monthAnimationTimer: number | null = null;
+  private lastWeather: WeatherState = {status:'idle',data:null,message:null};
+  private lastForecast: DailyForecastState = {status:'idle',data:null,message:null};
+  private readonly agendaCarousels:LabelCarousel[]=[];
   private running = false;
   private animating = false;
 
@@ -101,6 +104,7 @@ export class CalendarPage implements Page {
     this.forecastController = new DailyForecastController((state) => this.bindForecast(state));
 
     const today = this.today();
+    if(this.visibleYear===today.year && this.visibleMonth0===today.month0 && this.selected.day===today.day && this.grid.children.length) {this.fitSecondaryTypography();return;}
     this.visibleYear = today.year;
     this.visibleMonth0 = today.month0;
     this.selected = { year: today.year, month0: today.month0, day: today.day };
@@ -132,13 +136,14 @@ export class CalendarPage implements Page {
 
   /** Horizontal drag over the grid pages between months (MonthGestureLayout). */
   private bindMonthDrag(): void {
-    let startX = 0;
+    let startX = 0,startY=0,horizontal=false,suppressUntil=0;
+    this.viewport.addEventListener('click',event=>{if(performance.now()<suppressUntil){event.preventDefault();event.stopImmediatePropagation();}},{capture:true});
     let dragging = false;
     let direction = 0;
     this.viewport.addEventListener('pointerdown', (event) => {
       if (this.animating || (event.button !== -1 && event.button !== 0)) return;
       dragging = true;
-      startX = event.clientX;
+      startX = event.clientX;startY=event.clientY;horizontal=false;
       direction = 0;
       this.grid.style.transition = 'none';
       this.preview.style.transition = 'none';
@@ -146,7 +151,8 @@ export class CalendarPage implements Page {
     this.viewport.addEventListener('pointermove', (event) => {
       if (!dragging) return;
       const offset = event.clientX - startX;
-      if (Math.abs(offset) < 4) return;
+      if(!horizontal){const dy=event.clientY-startY;if(Math.max(Math.abs(offset),Math.abs(dy))<6)return;if(Math.abs(dy)>=Math.abs(offset)){dragging=false;return;}horizontal=true;}
+      event.preventDefault();
       if (!this.viewport.hasPointerCapture?.(event.pointerId)) {
         this.viewport.setPointerCapture?.(event.pointerId);
       }
@@ -162,6 +168,7 @@ export class CalendarPage implements Page {
     const finish = (event: PointerEvent) => {
       if (!dragging) return;
       dragging = false;
+      if(horizontal) {suppressUntil=performance.now()+250;event.preventDefault();}
       const offset = event.clientX - startX;
       const shouldChange =
         event.type !== 'pointercancel' &&
@@ -183,7 +190,7 @@ export class CalendarPage implements Page {
     this.attributionPopup.setEnabled(this.settings.isWeatherEnabled());
     this.attributionPopup.start();
     this.footer.setActive(true);
-    for (const carousel of this.cellCarousels) carousel.setActive(true);
+    for (const carousel of [...this.cellCarousels,...this.agendaCarousels]) carousel.setActive(true);
     this.tick();
     this.startWeatherIfEnabled();
   }
@@ -196,7 +203,7 @@ export class CalendarPage implements Page {
       this.tickHandle = null;
     }
     this.footer.setActive(false);
-    for (const carousel of this.cellCarousels) carousel.setActive(false);
+    for (const carousel of [...this.cellCarousels,...this.agendaCarousels]) carousel.setActive(false);
     this.weatherController.stop();
     this.forecastController.stop();
   }
@@ -212,6 +219,7 @@ export class CalendarPage implements Page {
 
   refreshSettings(): void {
     this.cancelMonthAnimation();
+    void loadWeatherIcons().then(()=>{this.bindWeather(this.lastWeather);this.bindForecast(this.lastForecast);});
     applyCalendarTheme(this.root, this.settings);
     const style = this.root.style;
     style.setProperty('--cal-font', fontStack(this.settings.getFontFamily(this.settings.getUltimateOptions().calendarTheme)));
@@ -221,7 +229,7 @@ export class CalendarPage implements Page {
     style.setProperty('--cal-time-color', ['calendar.graphite','calendar.carbon'].includes(this.settings.getUltimateOptions().calendarTheme) ? cssColor(this.settings.getTimeColor()) : 'var(--text)');
     style.setProperty(
       '--cal-weather-icon-color',
-      this.settings.isWeatherIconDynamicColor() ? 'var(--accent)' : '#ffffff'
+      this.settings.isWeatherIconDynamicColor() ? 'var(--accent)' : 'var(--cal-weather-ink)'
     );
     const weatherEnabled = this.settings.isWeatherEnabled();
     if (!weatherEnabled) {this.weatherController.stop();this.forecastController.stop();}
@@ -236,6 +244,8 @@ export class CalendarPage implements Page {
     this.attributionPopup.setEnabled(weatherEnabled);
     this.feelsLabel.textContent = t('calendar_feels_like');
     this.root.querySelector('#cal-today')!.textContent = t('calendar_today');
+    this.root.querySelector('#cal-prev')!.setAttribute('aria-label',t('calendar_previous_month'));
+    this.root.querySelector('#cal-next')!.setAttribute('aria-label',t('calendar_next_month'));
     this.populateWeekdays();
     this.updateTime();
     this.renderMonth();
@@ -304,6 +314,7 @@ export class CalendarPage implements Page {
   // ---- Weather ----
 
   private bindWeather(state: WeatherState): void {
+    this.lastWeather=state;this.renderAgendaWeather();
     this.weatherIcon.hidden = !state.data;
     if (!state.data) {
       this.temperature.textContent = temperature('--',this.settings.getTemperatureUnit());this.feels.textContent=temperature('--',this.settings.getTemperatureUnit());
@@ -331,6 +342,7 @@ export class CalendarPage implements Page {
   }
 
   private bindForecast(state: DailyForecastState): void {
+    this.lastForecast=state;this.renderAgendaWeather();
     const labels = ta('forecast_day_labels');
     this.forecastCard.querySelector('.cal-forecast-row')?.classList.toggle('is-unavailable',!state.data);
     if (!state.data) {
@@ -394,6 +406,10 @@ export class CalendarPage implements Page {
       { ...this.today(), year: this.visibleYear, month0: this.visibleMonth0, day: 1 },
       dateLang(this.settings.getClockLanguage())
     );
+    if(this.settings.getUltimateOptions().calendarTheme==='calendar.poster') {
+      const date=new Date(Date.UTC(this.visibleYear,this.visibleMonth0,1));
+      this.title.replaceChildren(text('cal-poster-month',new Intl.DateTimeFormat(intlLocale(this.settings.getClockLanguage()),{month:'long',timeZone:'UTC'}).format(date).toLocaleUpperCase()),text('cal-poster-year',String(this.visibleYear)));
+    }
     const month = createCalendarMonth(
       this.visibleYear,
       this.visibleMonth0,
@@ -404,6 +420,7 @@ export class CalendarPage implements Page {
     this.cellCarousels.length = 0;
     this.grid.replaceChildren(...this.visibleDays(month.days).map((day) => this.createDayCell(day, true)));
     this.updateFooter();
+    this.fitSecondaryTypography();
   }
 
   private fitSecondaryTypography(): void {
@@ -473,9 +490,10 @@ export class CalendarPage implements Page {
       badge.textContent = status.offDay ? t('calendar_day_status_off') : t('calendar_day_status_work');
       number.appendChild(badge);
     }
+    if(this.settings.getUltimateOptions().calendarTheme==='calendar.agenda') cell.append(text('cal-agenda-weekday',ta('calendar_weekday_names')[day.dayOfWeek-1]??''));
     cell.appendChild(number);
 
-    const almanac = almanacOf(day.year, day.month0, day.dayOfMonth);
+    const almanac = localizedAlmanac(day.year, day.month0, day.dayOfMonth, this.settings.getClockLanguage());
     const labelHost = document.createElement('div');
     labelHost.className = 'cal-day-label';
     if (almanac.festivals.length > 0) labelHost.classList.add('has-festival');
@@ -521,11 +539,8 @@ export class CalendarPage implements Page {
   }
 
   private updateFooter(): void {
-    const almanac = almanacOf(this.selected.year, this.selected.month0, this.selected.day);
-    let detail=this.root.querySelector<HTMLElement>('.cal-agenda-detail');
-    if(!detail){detail=document.createElement('article');detail.className='cal-agenda-detail';this.viewport.after(detail);}
-    detail.hidden=this.settings.getUltimateOptions().calendarTheme!=='calendar.agenda';
-    if(!detail.hidden){const title=document.createElement('h2');title.textContent=this.selected.day.toString().padStart(2,'0');const lunar=document.createElement('p');lunar.textContent=almanac.natural;const suitable=document.createElement('p');suitable.textContent=t('calendar_suitable_prefix')+almanac.suitable.join(' · ');const avoid=document.createElement('p');avoid.textContent=t('calendar_avoid_prefix')+almanac.avoid.join(' · ');detail.replaceChildren(title,lunar,suitable,avoid);}
+    const almanac = localizedAlmanac(this.selected.year, this.selected.month0, this.selected.day, this.settings.getClockLanguage());
+    this.renderAgendaDetail(almanac);
     const pattern = this.settings.isClockUseEnglish() ? this.settings.getDatePatternEn() : this.settings.getDatePatternCn();
     const formatted = formatDate(
       pattern,
@@ -561,6 +576,39 @@ export class CalendarPage implements Page {
     }
     this.footer.setItems(items);
     this.footer.setActive(this.running);
+  }
+
+  private renderAgendaDetail(almanac:ReturnType<typeof localizedAlmanac>):void {
+    this.agendaCarousels.splice(0).forEach(c=>c.destroy());
+    let detail=this.root.querySelector<HTMLElement>('.cal-agenda-detail');
+    if(!detail){detail=document.createElement('article');detail.className='cal-agenda-detail';this.viewport.after(detail);}
+    detail.hidden=this.settings.getUltimateOptions().calendarTheme!=='calendar.agenda';
+    if(detail.hidden)return;
+    const date=new Date(Date.UTC(this.selected.year,this.selected.month0,this.selected.day));
+    const heading=text('cal-agenda-heading',new Intl.DateTimeFormat(intlLocale(this.settings.getClockLanguage()),{month:'long',day:'numeric',weekday:'long',timeZone:'UTC'}).format(date));
+    const lunar=text('cal-agenda-lunar',almanac.natural);
+    const festival=text('cal-agenda-festivals',almanac.festivals.join(' · '));festival.hidden=!almanac.festivals.length;
+    const weather=document.createElement('div');weather.className='cal-agenda-weather';
+    detail.replaceChildren(heading,lunar,festival,weather);
+    for(const [prefix,values,kind] of [[t('calendar_suitable_prefix'),almanac.suitable,'suitable'],[t('calendar_avoid_prefix'),almanac.avoid,'avoid']] as const){
+      const line=text('cal-agenda-almanac '+kind,'');line.hidden=!values.length;detail.append(line);const carousel=new LabelCarousel(line);carousel.setItems([{text:prefix+values.join(' · '),pinnedPrefix:prefix}]);carousel.setActive(this.running);this.agendaCarousels.push(carousel);
+    }
+    this.renderAgendaWeather();
+  }
+
+  private renderAgendaWeather():void {
+    const host=this.root.querySelector<HTMLElement>('.cal-agenda-weather');if(!host)return;
+    const key=dateKey(this.selected.year,this.selected.month0,this.selected.day),today=this.today();
+    const isToday=key===dateKey(today.year,today.month0,today.day);
+    const forecast=this.lastForecast.data?.entries.find(day=>day.fxDate===key);
+    const current=isToday?this.lastWeather.data:null;
+    host.replaceChildren();host.hidden=!this.settings.isWeatherEnabled()||(!forecast&&!current);
+    if(host.hidden)return;
+    const icon=createWeatherIcon(forecast?.iconDay??current?.icon,this.settings.isWeatherIconFill());
+    if(icon){icon.classList.add('cal-agenda-weather-icon');host.append(icon);}
+    if(current)host.append(text('cal-agenda-temperature',temperature(current.temperature,this.settings.getTemperatureUnit())));
+    const parts=forecast?[forecast.textDay,temperature(forecast.tempMin,this.settings.getTemperatureUnit())+' – '+temperature(forecast.tempMax,this.settings.getTemperatureUnit()),forecast.humidity?t('weather_humidity_format',forecast.humidity):'',[forecast.windDirDay,forecast.windScaleDay?t('weather_wind_scale_format',forecast.windScaleDay):''].filter(Boolean).join(' ')]:[current?.text??''];
+    host.append(text('cal-agenda-weather-description',parts.filter(Boolean).join(' · ')));
   }
 
   // ---- Month navigation ----

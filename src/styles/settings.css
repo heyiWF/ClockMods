@@ -716,3 +716,5 @@
 .settings-font-picker .settings-select { min-width:0; text-overflow:ellipsis; padding-right:36px; }
 .settings-font-picker .m3-button { justify-self:start; max-width:100%; white-space:normal; }
 .settings-font-picker .settings-input { min-width:0; }
+
+svg.settings-category-icon { width:24px; height:24px; flex-shrink:0; fill:currentColor; }

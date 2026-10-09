@@ -16,10 +16,14 @@ const SWIPE_ANIMATION_MS = 210;
 const SWIPE_ANIMATION_FALLBACK_MS = SWIPE_ANIMATION_MS + 120;
 
 interface SwipeState {
-  readonly pointerId: number;
-  readonly startX: number;
-  readonly startY: number;
+  pointerId: number;
+  startX: number;
+  startY: number;
   readonly currentElement: HTMLElement;
+  animating: boolean;
+  lastX:number;
+  lastTime:number;
+  velocity:number;
   width: number;
   deltaX: number;
   horizontal: boolean;
@@ -59,6 +63,7 @@ export class Router {
     this.bindNavigation();
     this.bindSwipe();
     this.bindChromeTap();
+    window.addEventListener('resize',()=>this.cancelSwipe());
   }
 
   register(page: Page): void {
@@ -123,6 +128,17 @@ export class Router {
       'pointerdown',
       (event) => {
         const target = event.target as HTMLElement;
+        if(document.querySelector('dialog[open]')) return;
+        // A second touch can catch the settling pages and continue from the visible position.
+        const moving=this.swipeState;
+        if(moving?.animating && event.isPrimary!==false && (event.pointerType!=='mouse'||event.button===0)) {
+          const transform=getComputedStyle(moving.currentElement).transform;
+          const offset=typeof DOMMatrixReadOnly!=='undefined'?new DOMMatrixReadOnly(transform==='none'?undefined:transform).m41:moving.deltaX;
+          this.clearSwipeAnimationWait();moving.animating=false;moving.pointerId=event.pointerId;moving.startX=event.clientX-offset;moving.startY=event.clientY;moving.lastX=event.clientX;moving.lastTime=event.timeStamp;moving.velocity=0;
+          moving.currentElement.style.transition='none';if(moving.targetElement)moving.targetElement.style.transition='none';
+          this.renderSwipe(offset);this.container.setPointerCapture?.(event.pointerId);return;
+        }
+        if(target.closest('input,select,textarea,a,[contenteditable="true"],.no-page-swipe') || document.querySelector('dialog[open]')) return;
         if (
           this.swipeState ||
           (event.isPrimary === false) ||
@@ -134,6 +150,7 @@ export class Router {
         const currentElement = this.pageElement(this.current);
         if (!currentElement) return;
         this.swipeState = {
+          animating:false,lastX:event.clientX,lastTime:event.timeStamp,velocity:0,
           pointerId: event.pointerId,
           startX: event.clientX,
           startY: event.clientY,
@@ -157,7 +174,7 @@ export class Router {
       'pointermove',
       (event) => {
         const state = this.swipeState;
-        if (!state || event.pointerId !== state.pointerId) return;
+        if (!state || state.animating || event.pointerId !== state.pointerId) return;
         const deltaX = event.clientX - state.startX;
         const deltaY = event.clientY - state.startY;
 
@@ -175,6 +192,8 @@ export class Router {
 
         event.preventDefault();
         event.stopPropagation();
+        const elapsed=event.timeStamp-state.lastTime;
+        if(elapsed>=8) {state.velocity=(event.clientX-state.lastX)/elapsed;state.lastX=event.clientX;state.lastTime=event.timeStamp;}
         this.renderSwipe(deltaX);
       },
       { capture: true }
@@ -182,7 +201,7 @@ export class Router {
 
     const finish = (event: PointerEvent): void => {
       const state = this.swipeState;
-      if (!state || event.pointerId !== state.pointerId) return;
+      if (!state || state.animating || event.pointerId !== state.pointerId) return;
       const deltaX = event.clientX - state.startX;
       const deltaY = event.clientY - state.startY;
 
@@ -208,10 +227,11 @@ export class Router {
         this.container.releasePointerCapture(event.pointerId);
       }
       const threshold = Math.min(SWIPE_THRESHOLD_PX, state.width * 0.2);
+      const fling=Math.abs(state.velocity)>.45 && event.timeStamp-state.lastTime<100 && Math.sign(state.velocity)===Math.sign(deltaX) && Math.abs(deltaX)>=16;
       const complete =
         event.type !== 'pointercancel' &&
         state.targetElement !== null &&
-        Math.abs(deltaX) >= threshold;
+        (Math.abs(deltaX) >= threshold || fling);
       this.animateSwipe(complete);
       this.clearSuppressClickTimer();
       this.suppressClickTimer = window.setTimeout(() => {
@@ -248,6 +268,7 @@ export class Router {
     const direction: -1 | 1 = deltaX < 0 ? 1 : -1;
     if (direction !== state.direction) this.prepareSwipeTarget(direction);
 
+    if(state.targetElement)deltaX=Math.max(-state.width,Math.min(state.width,deltaX));
     state.deltaX = deltaX;
     state.currentElement.classList.add('is-swipe-layer');
     state.currentElement.style.transition = 'none';
@@ -281,6 +302,7 @@ export class Router {
   private animateSwipe(complete: boolean): void {
     const state = this.swipeState;
     if (!state) return;
+    state.animating=true;
     const target = state.targetElement;
     const transition = `transform ${SWIPE_ANIMATION_MS}ms cubic-bezier(0.2, 0, 0, 1)`;
     let finished = false;

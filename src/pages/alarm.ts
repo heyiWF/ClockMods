@@ -1,3 +1,4 @@
+import { openTimePicker } from '../ui/time-picker';
 /**
  * The daily alarm.
  *
@@ -99,8 +100,7 @@ export class AlarmPage implements Page {
     // A native time input gives every platform its own familiar picker.
     this.editButton.addEventListener('click', () => {
       this.timeInput.value = `${twoDigits(this.hour)}:${twoDigits(this.minute)}`;
-      this.timeInput.showPicker?.();
-      this.timeInput.click();
+      openTimePicker(this.hour*60+this.minute,t('alarm_choose_time'),value=>{this.timeInput.value=twoDigits(Math.floor(value/60))+':'+twoDigits(value%60);this.timeInput.dispatchEvent(new Event('change'));});
     });
     this.timeInput.addEventListener('change', async () => {
       const [hour, minute] = this.timeInput.value.split(':').map(Number);

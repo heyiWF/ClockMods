@@ -1,3 +1,5 @@
+import { materialIcon } from '../ui/material-icons';
+import { localizeUiTree } from '../core/ui-language';
 import {secondaryFontSize,secondarySizeValue,saveSecondarySize} from '../ui/secondary-font-size';
 import type { StylePreview, PreviewDraft } from '../ui/style-preview';
 import { fontWeightControl } from '../ui/font-weight';
@@ -596,7 +598,7 @@ class SettingsPanel {
     const en=prefs.isClockUseEnglish();
     const names=en?['Clock style','Calendar style','Background & display','Time & date','Weather & message','Calendar','Chime','System']:['时钟样式','日历样式','背景与显示','时间与日期','天气与消息','日历','报时','系统'];
     const descriptions=en?['Themes, colours and typography','Calendar composition and typography','Wallpaper and device status','Time source, time zone and date','Location, forecast and custom text','Week layout','Hourly and half-hour effects','Language and display protection']:['主题、配色与排版','主题、字体与滚动','壁纸、亮度与设备状态','时区、时间源与日期格式','天气、位置与自定义消息','每周起始日与周末','整点、半点与静默时段','语言、方向与显示保护'];
-    const icons=['◷','▦','◐','◴','☁','▤','◉','⚙'];
+    const icons=['palette','date_range','wallpaper','schedule','cloud','event','notifications','settings'];
     const panes=names.map((name,i)=>{const pane=element('section','ultimate-settings-pane');pane.id='settings-category-'+i;pane.dataset.category=String(i);pane.setAttribute('aria-label',name);pane.append(element('h2','settings-page-title',name));return pane;});
     const styles=[...this.styleBoard.children];const functions=[...this.functionBoard.children];
     panes[0].append(styles[0],styles[2],this.ultimate.seconds,this.ultimate.world);
@@ -616,7 +618,7 @@ class SettingsPanel {
     editor.append(this.previewHost,content);
     const buttons: HTMLButtonElement[]=[];
     const show=(index:number,focus=false)=>{this.previewCategory=index;this.preview?.setCategory(index);panes.forEach((pane,i)=>{pane.hidden=i!==index;});buttons.forEach((button,i)=>button.setAttribute('aria-current',i===index?'page':'false'));this.dialog.classList.add('is-detail');content.scrollTop=0;if(focus)back.focus();};
-    names.forEach((name,i)=>{const button=element('button','settings-category');button.type='button';button.setAttribute('aria-controls',panes[i].id);button.append(element('span','settings-category-icon',icons[i]),element('span','settings-category-copy'));button.lastElementChild!.append(element('strong',undefined,name),element('small',undefined,descriptions[i]));button.append(element('span',undefined,'›'));button.addEventListener('click',()=>show(i,true));navigation.append(button);buttons.push(button);});
+    names.forEach((name,i)=>{const button=element('button','settings-category');button.type='button';button.setAttribute('aria-controls',panes[i].id);button.append(materialIcon(icons[i]),element('span','settings-category-copy'));button.lastElementChild!.append(element('strong',undefined,name),element('small',undefined,descriptions[i]));button.append(element('span',undefined,'›'));button.addEventListener('click',()=>show(i,true));navigation.append(button);buttons.push(button);});
     back.addEventListener('click',()=>{this.dialog.classList.remove('is-detail');buttons.find(button=>button.getAttribute('aria-current')==='page')?.focus();});
     header.prepend(back);header.querySelector('h2')!.textContent=en?'Settings':'设置';
     workspace.append(navigation,editor);this.dialog.classList.add('ultimate-settings');this.dialog.setAttribute('aria-label',en?'Settings':'设置');
@@ -628,6 +630,7 @@ class SettingsPanel {
     c.hourlyChime.input.addEventListener('change', syncChime);
     syncChime();
     this.dialog.addEventListener('reset-settings',()=>{syncChime();syncQuiet();syncWeatherState();syncDimState();syncSmallSeconds();syncNetworkState();syncThemeInk();});
+    localizeUiTree(this.dialog,prefs.getClockLanguage());
   }
 
   // ---- Date format section ----

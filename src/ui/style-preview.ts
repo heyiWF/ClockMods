@@ -1,3 +1,4 @@
+import { localizeUiTree } from '../core/ui-language';
 import { prefs } from '../core/prefs';
 import { readBackgroundBlob } from '../core/background-store';
 import { ClockPage } from '../pages/clock';
@@ -51,6 +52,7 @@ export class StylePreview {
     this.frame.tabIndex = -1;
     this.viewport.append(this.frame);
     this.element.append(toolbar, this.viewport, this.note);
+    localizeUiTree(this.element,prefs.getClockLanguage());
   }
 
   setCategory(category: number): void {
@@ -110,6 +112,7 @@ export class StylePreview {
         this.note.textContent = !isCalendar && settings.getThemeGlass().enabled && settings.getBackgroundMode() !== 'image'
           ? (this.en ? 'Choose an image background to preview glass.' : '选择图片背景后可预览卡片模糊')
           : (this.en ? 'Draft · saved only when applied' : '草稿效果 · 点击应用后保存');
+        localizeUiTree(this.element,settings.getClockLanguage());
         this.element.dataset.previewTheme = id;
         this.element.dataset.previewRevision = String(Number(this.element.dataset.previewRevision ?? 0) + 1);
       }

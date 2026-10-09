@@ -1,3 +1,4 @@
+import { openTimePicker } from './time-picker';
 /**
  * Building blocks for the settings sheet.
  *
@@ -225,7 +226,7 @@ export function timeButton(labelPrefix: string, initialMinutes: number): TimeBut
   });
   button.addEventListener('click', (event) => {
     if (event.target === input) return;
-    if (input.showPicker) input.showPicker(); else input.click();
+    openTimePicker(minutes, labelPrefix, value => { minutes=value; render(); input.dispatchEvent(new Event('change',{bubbles:true})); });
   });
   button.appendChild(input);
   return { button, minutes: () => minutes };

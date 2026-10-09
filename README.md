@@ -148,3 +148,5 @@ ClockMods 项目采用 [MIT 许可证](https://github.com/heyiWF/ClockMods/blob/
 - 天气：[QWeather](https://www.qweather.com)；图标：[QWeather Icons](https://icons.qweather.com)（CC BY 4.0）。
 - 农历：[tyme4ts](https://github.com/6tail/tyme4ts)（MIT）；节假日：[holiday-cn](https://github.com/NateScarlet/holiday-cn)（MIT）。
 - 字体与其他资源的许可见 `src/assets/fonts/` 与 `public/licenses/`；系统字体按设备可用字体回退。
+
+- 设置侧栏图标：[Google Material Icons](https://developers.google.com/fonts/docs/material_icons)（Apache 2.0）。城市译名：[Unicode CLDR](https://cldr.unicode.org/)；简繁字符映射：[OpenCC](https://github.com/BYVoid/OpenCC)。许可见 `public/licenses/`。

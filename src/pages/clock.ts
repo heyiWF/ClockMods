@@ -1,3 +1,4 @@
+import { cityName } from '../core/cities';
 import { WeatherAttribution } from '../ui/weather-attribution';
 import { setAlignedTime } from '../ui/clock-face';
 import { GaussianGlass } from '../ui/gaussian-glass';
@@ -28,7 +29,7 @@ import {
   widestDigitWidth,
 } from '../format/text-metrics';
 import type { FontSpec } from '../format/text-metrics';
-import { lunarClockLine } from '../lunar/lunar';
+import { localizedAlmanac } from '../lunar/language';
 import { backgroundImageUrl } from '../core/background-store';
 import { CharacterLine, measureColonShift, renderSupportingText } from '../ui/clock-face';
 import { Carousel, plainItem, weatherItem } from '../ui/carousel';
@@ -280,7 +281,7 @@ export class ClockPage implements Page {
       dateLang(this.settings.getClockLanguage())
     );
     const lunarText = this.settings.isShowLunar()
-      ? lunarClockLine(fields.year, fields.month0, fields.day)
+      ? localizedAlmanac(fields.year, fields.month0, fields.day, this.settings.getClockLanguage()).bracketed
       : '';
 
     this.applyDim(fields);
@@ -351,7 +352,7 @@ export class ClockPage implements Page {
     strip.hidden=false;
     strip.style.setProperty('--world-count',String(options.worldZones.length));
     strip.style.setProperty('--world-portrait-count',String(Math.min(3,options.worldZones.length)));
-    const key=options.worldZones.join('|');if(strip.dataset.zones!==key){strip.dataset.zones=key;strip.replaceChildren(...options.worldZones.map(zone=>{const city=document.createElement('div');city.className='world-clock-city';const name=document.createElement('span');name.textContent=zone.split('/').pop()!.replaceAll('_',' ');const time=document.createElement('strong');city.append(name,time);return city;}));}
+    const key=this.settings.getClockLanguage()+'|'+options.worldZones.join('|');if(strip.dataset.zones!==key){strip.dataset.zones=key;strip.replaceChildren(...options.worldZones.map(zone=>{const city=document.createElement('div');city.className='world-clock-city';const name=document.createElement('span');name.textContent=cityName(zone,this.settings.getClockLanguage());const time=document.createElement('strong');city.append(name,time);return city;}));}
     options.worldZones.forEach((zone,i)=>{setAlignedTime(strip!.children[i].querySelector('strong')!,new Intl.DateTimeFormat(this.settings.isClockUseEnglish()?'en-GB':'zh-CN',{timeZone:zone,hour:'2-digit',minute:'2-digit',hour12:!this.settings.isUse24Hour()}).format(now),fontStack(this.settings.getFontFamily()),this.settings.getFontWeight());});
     this.stage.style.bottom = (strip.offsetHeight + parseFloat(getComputedStyle(strip).bottom) + 8) + 'px';
     if(this.root.classList.contains('has-glass')){const parent=this.root.getBoundingClientRect();for(const item of strip.children){const city=item as HTMLElement,rect=city.getBoundingClientRect();city.style.setProperty('--glass-left',-(rect.x-parent.x)+'px');city.style.setProperty('--glass-top',-(rect.y-parent.y)+'px');}}

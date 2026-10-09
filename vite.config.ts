@@ -10,6 +10,7 @@ export default defineConfig({
     // Fonts and the icon/city data sets must stay as real files so the service
     // worker can precache them individually instead of inflating the JS bundle.
     assetsInlineLimit: 0,
+    rollupOptions: { output: { manualChunks: { 'locale-data': ['./src/core/city-names.json', './src/core/traditional-map.json'] } } },
   },
   plugins: [
     VitePWA({

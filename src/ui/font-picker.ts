@@ -1,3 +1,5 @@
+import { traditional } from '../core/ui-language';
+import { prefs } from '../core/prefs';
 import { FONT_OPTIONS, optionFor } from '../core/fonts';
 import { localFontsSupported, localFontCatalog, localFontId, readLocalFont, requestLocalFonts, prepareLocalFont } from '../core/local-fonts';
 import { element, select, textField, summaryLabel } from './controls';
@@ -7,6 +9,7 @@ export function setFontSelection(select:HTMLSelectElement,id:string):void { sett
 export function pendingFontSelections(root:HTMLElement):Promise<void>[] { return [...root.querySelectorAll<HTMLSelectElement>('[data-font-select]')].flatMap(s=>pending.has(s)?[pending.get(s)!]:[]); }
 /** Every installed face is selectable, including italic/condensed and uncommon weights. */
 export function fontPicker(selected:string,en:boolean) {
+  const copy=(value:string)=>prefs.getClockLanguage()==='zh-Hant'?traditional(value):value;
   const row=element('div','settings-font-picker');
   const input=select([],selected); input.dataset.fontSelect='';
   const search=textField('',en?'Search fonts and styles':'搜索字体、字重或样式'); search.type='search';
@@ -45,36 +48,36 @@ export function fontPicker(selected:string,en:boolean) {
     event.stopImmediatePropagation();
     const token=++revision, previous=accepted;
     input.value=previous;
-    status.textContent=en?'Reading font weight…':'正在读取字体字重…';
+    status.textContent=copy(en?'Reading font weight…':'正在读取字体字重…');
     const task=(async()=>{
       try {
         const ready=await prepareLocalFont(id);
         if(token!==revision) return;
         accepted=ready; render(ready);
-        status.textContent=en?'Font ready':'字体已就绪';
+        status.textContent=copy(en?'Font ready':'字体已就绪');
         input.dispatchEvent(new Event('change',{bubbles:true}));
       } catch {
-        if(token===revision) { render(previous); status.textContent=en?'This font could not be read. Choose another face or retry access.':'无法读取该字体，请选择其他款式或重新读取本机字体。'; }
+        if(token===revision) { render(previous); status.textContent=copy(en?'This font could not be read. Choose another face or retry access.':'无法读取该字体，请选择其他款式或重新读取本机字体。'); }
       }
     })();
     pending.set(input,task); void task.finally(()=>{ if(pending.get(input)===task) pending.delete(input); });
   });
   if(!localFontsSupported()) {
     button.disabled=true;
-    status.textContent=en?'Full local font access requires a supported desktop browser (Chrome/Edge) and HTTPS or localhost.':'完整本机字体列表需要支持此功能的桌面浏览器（Chrome / Edge），并通过 HTTPS 或 localhost 打开。';
+    status.textContent=copy(en?'Full local font access requires a supported desktop browser (Chrome/Edge) and HTTPS or localhost.':'完整本机字体列表需要支持此功能的桌面浏览器（Chrome / Edge），并通过 HTTPS 或 localhost 打开。');
   } else {
-    status.textContent=en?'Allow local font access when prompted. Fonts stay on this device.':'点击读取并允许浏览器访问本机字体；字体文件不会上传。';
+    status.textContent=copy(en?'Allow local font access when prompted. Fonts stay on this device.':'点击读取并允许浏览器访问本机字体；字体文件不会上传。');
   }
   button.addEventListener('click',async()=>{
-    button.disabled=true; status.textContent=en?'Reading installed fonts…':'正在读取本机字体…';
+    button.disabled=true; status.textContent=copy(en?'Reading installed fonts…':'正在读取本机字体…');
     try {
       const fonts=await requestLocalFonts(); render(input.value);
-      status.textContent=fonts.length ? (en?'Loaded '+fonts.length+' installed faces':'已读取 '+fonts.length+' 个本机字体款式') : (en?'No local fonts were returned.':'浏览器未返回本机字体。');
+      status.textContent=copy(fonts.length ? (en?'Loaded '+fonts.length+' installed faces':'已读取 '+fonts.length+' 个本机字体款式') : (en?'No local fonts were returned.':'浏览器未返回本机字体。'));
     } catch(error) {
       const name=(error as Error).name;
-      status.textContent=['NotAllowedError','SecurityError'].includes(name)
+      status.textContent=copy(['NotAllowedError','SecurityError'].includes(name)
         ? (en?'Access was not granted. Allow local fonts in site permissions and retry.':'尚未获得权限，请在网站权限中允许访问本机字体后重试。')
-        : (en?'Could not read local fonts. Please retry.':'读取本机字体失败，请重试。');
+        : (en?'Could not read local fonts. Please retry.':'读取本机字体失败，请重试。'));
     } finally {button.disabled=false;}
   });
   row.append(button,status,search,input,note);

@@ -286,3 +286,9 @@ body {
     transition: none;
   }
 }
+
+html.is-cursor-idle, html.is-cursor-idle body, html.is-cursor-idle #app * { cursor:none!important; }
+
+#nav { position:absolute;z-index:30;left:0;right:0;bottom:0; }
+.timer-page { bottom:calc(var(--nav-height) + var(--safe-bottom)); }
+.is-page-swiping { user-select:none; }

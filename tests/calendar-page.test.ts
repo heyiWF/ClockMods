@@ -224,7 +224,7 @@ describe('CalendarPage', () => {
 describe('Ultimate calendar settings',()=>{
  it('renders an agenda week and advances exactly seven days',()=>{
   prefs.setUltimateOptions({...prefs.getUltimateOptions(),calendarTheme:'calendar.agenda'});const {root}=mount();
-  expect(root.querySelectorAll('.cal-day')).toHaveLength(7);expect(root.querySelector('.cal-agenda-detail')?.textContent).toContain('07');
+  expect(root.querySelectorAll('.cal-day')).toHaveLength(7);expect(root.querySelector('.cal-agenda-heading')?.textContent).toContain('7 日');
   root.querySelector<HTMLElement>('#cal-next')!.click();expect(root.querySelector('.cal-day.is-selected')?.getAttribute('data-date')).toBe('2026-08-14');
  });
  it('applies calendar-specific typography independently of the clock',()=>{

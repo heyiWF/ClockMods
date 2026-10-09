@@ -1,3 +1,4 @@
+import { cityName } from '../core/cities';
 import {secondaryFontSize,secondarySizeValue,saveSecondarySize} from './secondary-font-size';
 import { CALENDAR_THEMES } from '../core/calendar-themes';
 import { fontWeightControl } from './font-weight';
@@ -46,13 +47,13 @@ export function ultimateSettings() {
     search.setAttribute('aria-label', search.placeholder);
     const zone = select([], '');
     zone.setAttribute('aria-label', L('添加时区', 'Add time zone'));
-    function filter() { const query = search.value.trim().toLowerCase(); zone.replaceChildren(...catalog.filter(id => !draft.worldZones.includes(id) && id.toLowerCase().includes(query)).map(id => { const option = element('option', undefined, id.replaceAll('_', ' ')); option.value = id; return option; })); }
+    function filter() { const query = search.value.trim().toLowerCase(); zone.replaceChildren(...catalog.filter(id => !draft.worldZones.includes(id) && (id+' '+cityName(id,prefs.getClockLanguage())).toLowerCase().includes(query)).map(id => { const option = element('option', undefined, cityName(id,prefs.getClockLanguage())+' · '+id); option.value = id; return option; })); }
     const add = element('button', 'm3-button m3-button--outlined', L('添加城市', 'Add city'));
     add.type = 'button';
     const paintWorld = () => {
         worldList.replaceChildren(...draft.worldZones.map((id, index) => {
             const row = element('div', 'world-clock-row');
-            row.append(element('span', undefined, id.replaceAll('_', ' ')));
+            row.append(element('span', undefined, cityName(id,prefs.getClockLanguage())+' · '+id));
             for (const [text, offset] of [['↑', -1], ['↓', 1], ['×', 0]] as const) {
                 const button = element('button', 'm3-button m3-button--text', text);
                 button.type = 'button';

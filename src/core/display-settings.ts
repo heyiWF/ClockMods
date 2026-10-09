@@ -1,3 +1,4 @@
+import { traditional } from './ui-language';
 import { prefs } from './prefs';
 /** Browser capability values only: never fabricate battery level or signal strength. */
 export class DisplaySettings {
@@ -55,7 +56,7 @@ export class DisplaySettings {
         const en = prefs.isClockUseEnglish();
         const network = navigator.onLine ? (en ? 'Online' : '已连接') : (en ? 'Offline' : '离线');
         const battery = this.battery ? ' · ' + (this.battery.charging ? '⚡ ' : '') + Math.round(this.battery.level * 100) + '%' : '';
-        this.status.textContent = network + battery;
-        this.status.title = this.battery ? '' : (en ? 'Battery information unavailable in this browser' : '此浏览器未提供电池信息');
+        this.status.textContent = prefs.getClockLanguage()==='zh-Hant'?traditional(network+ battery):network + battery;
+        this.status.title = this.battery ? '' : (en ? 'Battery information unavailable in this browser' : prefs.getClockLanguage()==='zh-Hant'?'此瀏覽器未提供電池資訊':'此浏览器未提供电池信息');
     }
 }

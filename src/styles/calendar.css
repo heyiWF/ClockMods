@@ -519,17 +519,6 @@
 .page[data-calendar-theme='calendar.poster'] .cal-day.is-selected {outline:1px solid currentColor;outline-offset:-4px;border-radius:0;}
 .page[data-calendar-theme='calendar.poster'] .cal-day.is-today::after {content:'';width:5px;height:5px;border-radius:50%;background:var(--green);}
 .page[data-calendar-theme='calendar.poster'] .cal-day.is-other-month {opacity:.18;}
-.page[data-calendar-theme='calendar.agenda'] .cal-clock-panel,.page[data-calendar-theme='calendar.agenda'] .cal-footer {display:none;}
-.page[data-calendar-theme='calendar.agenda'] .cal-layout {grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto;}
-.page[data-calendar-theme='calendar.agenda'] .cal-right {grid-row:1;}
-.page[data-calendar-theme='calendar.agenda'] .cal-left {flex-direction:row;max-height:180px;}
-.page[data-calendar-theme='calendar.agenda'] .cal-days-viewport {flex:0 0 clamp(60px,14vh,130px);}
-.page[data-calendar-theme='calendar.agenda'] .cal-days {grid-template-rows:1fr;}
-.cal-agenda-detail {flex:1;min-height:0;overflow:auto;padding:10px 20px;font-size:var(--cal-support-size);}
-.cal-agenda-detail[hidden] {display:none;}
-.cal-agenda-detail h2 {font-size:clamp(28px,8vh,80px);margin:0;font-weight:400;}
-.cal-agenda-detail p {line-height:1.8;margin:8px 0;}
-@media(max-height:440px) {.page[data-calendar-theme='calendar.agenda'] .cal-layout{grid-template-columns:1.6fr 1fr;grid-template-rows:1fr;} .page[data-calendar-theme='calendar.agenda'] .cal-left{max-height:none;flex-direction:column;} .cal-weather-icon{width:40px;height:40px;} .cal-weather-card{padding:8px;gap:4px;} .cal-forecast-card{padding:8px;} .cal-day-label{height:14px;} .cal-footer{height:20px;} }
 
 /* Fit the composition first, then cap text against its actual cell. */
 .cal-layout {min-height:0;grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
@@ -566,11 +555,6 @@
  .cal-today {padding:0 6px;min-width:0;}
  .cal-weekday {font-size:13px;}
  .page[data-calendar-theme='calendar.paper'] .cal-layout,.page[data-calendar-theme='calendar.poster'] .cal-layout {grid-template-rows:1fr;}
- .page[data-calendar-theme='calendar.agenda'] .cal-layout {grid-template-rows:minmax(0,1fr) 120px;}
- .page[data-calendar-theme='calendar.agenda'] .cal-layout:has(.cal-weather-card[hidden]) {grid-template-rows:1fr;}
- .page[data-calendar-theme='calendar.agenda'] .cal-left {display:flex;flex-direction:row;}
- .page[data-calendar-theme='calendar.agenda'] .cal-left:has(.cal-weather-card[hidden]) {display:none;}
- .page[data-calendar-theme='calendar.agenda'] .cal-days-viewport {flex-basis:82px;}
 }
 @media(max-height:450px) { .cal-month-panel{padding:6px;} .cal-weekday{font-size:12px;padding:2px;} .cal-forecast-icon{width:24px;height:24px;margin:3px;} .cal-weather-card{gap:4px;} .cal-header{gap:2px;} .cal-title{font-size:17px;} .cal-footer{flex-shrink:0;} }
 
@@ -582,3 +566,56 @@
 
 .page[data-calendar-theme] .cal-layout { font-weight:var(--cal-weight); }
 .page[data-calendar-theme] :is(.cal-title,.cal-feels b,.cal-forecast-label,.cal-forecast-text,.cal-weekdays,.cal-agenda-detail h2) { font-weight:var(--cal-weight); }
+
+/* Ultimate Agenda: a seven-day rail plus the selected day's card. */
+.page[data-calendar-theme='calendar.agenda'] .cal-left,
+.page[data-calendar-theme='calendar.agenda'] .cal-footer,
+.page[data-calendar-theme='calendar.agenda'] .cal-weekdays {display:none;}
+.page[data-calendar-theme='calendar.agenda'] .cal-layout {display:block;padding:clamp(10px,2vw,24px);}
+.page[data-calendar-theme='calendar.agenda'] .cal-right {height:100%;}
+.page[data-calendar-theme='calendar.agenda'] .cal-month-panel {display:grid;grid-template-columns:minmax(0,36fr) minmax(0,64fr);grid-template-rows:auto minmax(0,1fr);gap:16px 18px;background:none;padding:0;}
+.page[data-calendar-theme='calendar.agenda'] .cal-header {grid-column:1;grid-row:1;flex-wrap:wrap;}
+.page[data-calendar-theme='calendar.agenda'] .cal-title {order:-1;flex-basis:100%;font-size:clamp(16px,2.2vw,26px);padding-left:0;}
+.page[data-calendar-theme='calendar.agenda'] .cal-today {margin-left:auto;}
+.page[data-calendar-theme='calendar.agenda'] .cal-days-viewport {grid-column:1;grid-row:2;min-width:0;}
+.page[data-calendar-theme='calendar.agenda'] .cal-days {grid-template-columns:1fr;grid-template-rows:repeat(7,minmax(0,1fr));gap:4px;}
+.page[data-calendar-theme='calendar.agenda'] .cal-day {flex-direction:row;justify-content:space-around;padding:4px 10px;border-radius:12px;gap:8px;}
+.page[data-calendar-theme='calendar.agenda'] .cal-day.is-other-month {opacity:1;}
+.cal-agenda-weekday {font-size:var(--cal-support-size);color:var(--secondary);}
+.page[data-calendar-theme='calendar.agenda'] .cal-day-label {flex:0 1 42%;min-width:0;}
+.cal-agenda-detail {grid-column:2;grid-row:1/3;min-width:0;min-height:0;overflow:auto;background:var(--md-sys-color-surface-container);border:1px solid #dce0f0;border-radius:18px;padding:clamp(14px,2.5vw,32px);font-size:var(--cal-support-size);}
+.cal-agenda-detail[hidden] {display:none;}
+.cal-agenda-heading {font-size:clamp(18px,2.8vw,34px);line-height:1.35;}
+.cal-agenda-lunar {color:var(--secondary);margin-top:8px;}
+.cal-agenda-festivals {color:var(--accent);margin-top:10px;}
+.cal-agenda-weather {display:flex;align-items:center;gap:12px;border-top:1px solid #dce0f0;padding-top:18px;margin-block:18px 28px;}
+.cal-agenda-weather[hidden] {display:none;}
+.cal-agenda-weather-icon {width:clamp(36px,5vw,68px);height:clamp(36px,5vw,68px);flex-shrink:0;color:var(--cal-weather-icon-color);}
+.cal-agenda-temperature {font-size:clamp(22px,3vw,40px);white-space:nowrap;}
+.cal-agenda-weather-description {line-height:1.5;min-width:0;}
+.cal-agenda-almanac {height:1.5em;line-height:1.5;margin-top:14px;white-space:nowrap;overflow:hidden;}
+.cal-agenda-almanac.suitable {color:var(--cal-good);}.cal-agenda-almanac.avoid {color:var(--cal-bad);margin-top:6px;}
+.cal-forecast-icon {color:var(--cal-forecast-ink);}.cal-forecast-icon.is-today {color:var(--cal-weather-icon-color);}
+@media(orientation:portrait) {
+ .page[data-calendar-theme='calendar.agenda'] .cal-month-panel {grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(80px,16%) minmax(0,1fr);gap:14px;}
+ .page[data-calendar-theme='calendar.agenda'] .cal-title {order:0;flex-basis:0;}
+ .page[data-calendar-theme='calendar.agenda'] .cal-days {grid-template-columns:repeat(7,minmax(0,1fr));grid-template-rows:1fr;gap:2px;}
+ .page[data-calendar-theme='calendar.agenda'] .cal-day {flex-direction:column;padding:4px 1px;gap:2px;}
+ .page[data-calendar-theme='calendar.agenda'] .cal-day-label {flex:none;width:100%;}
+ .cal-agenda-detail {grid-column:1;grid-row:3;}
+ .cal-agenda-weather {flex-wrap:wrap;}.cal-agenda-weather-description {flex-basis:100%;}
+}
+/* Ultimate Poster: masthead above the grid in portrait, at its left in landscape. */
+.page[data-calendar-theme='calendar.poster'] .cal-month-panel {display:grid;grid-template-columns:minmax(0,36fr) minmax(0,64fr);grid-template-rows:auto minmax(0,1fr);gap:10px 20px;padding:12px;}
+.page[data-calendar-theme='calendar.poster'] .cal-header {grid-column:1;grid-row:1/3;flex-wrap:wrap;align-content:flex-start;border-bottom:0;border-right:1px solid #9aa0a652;padding-right:16px;min-width:0;}
+.page[data-calendar-theme='calendar.poster'] .cal-title {flex-basis:100%;order:-1;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;min-height:65%;padding:0;font-size:clamp(24px,4.8vw,90px);overflow-wrap:anywhere;line-height:1.05;}
+.cal-poster-year {font-size:.4em;color:var(--secondary);margin-top:.65em;letter-spacing:.12em;}
+.page[data-calendar-theme='calendar.poster'] .cal-weekdays {grid-column:2;grid-row:1;}
+.page[data-calendar-theme='calendar.poster'] .cal-days-viewport {grid-column:2;grid-row:2;}
+@media(orientation:portrait) {
+ .page[data-calendar-theme='calendar.poster'] .cal-month-panel {grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(90px,30%) auto minmax(0,1fr);gap:10px;}
+ .page[data-calendar-theme='calendar.poster'] .cal-header {grid-column:1;grid-row:1;border-right:0;border-bottom:1px solid #9aa0a652;padding:0 0 8px;align-content:stretch;}
+ .page[data-calendar-theme='calendar.poster'] .cal-title {font-size:clamp(24px,9vw,72px);}
+ .page[data-calendar-theme='calendar.poster'] .cal-weekdays {grid-column:1;grid-row:2;}
+ .page[data-calendar-theme='calendar.poster'] .cal-days-viewport {grid-column:1;grid-row:3;}
+}

@@ -35,7 +35,7 @@ export function loadWeatherIcons(): Promise<void> {
 export function iconPath(code: string | null | undefined, fill: boolean): string | null {
   if (!code || !/^\d+$/.test(code)) return null;
   // The asset base name doubles as the key so the two style variants never collide.
-  return paths[fill ? `${code}-fill` : code] ?? null;
+  return paths[fill ? `${code}-fill` : code] ?? paths[fill ? code : `${code}-fill`] ?? null;
 }
 
 /** Creates an inline `<svg>` that inherits its colour from CSS. */

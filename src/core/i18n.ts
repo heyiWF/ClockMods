@@ -125,6 +125,7 @@ export function language(): string {
 
 /** Applies a new interface language and notifies every subscriber to re-render. */
 export function setLanguage(value: string): void {
+  document.documentElement.lang = htmlLang(value);
   if (value === current) return;
   current = value;
   document.documentElement.lang = htmlLang(value);

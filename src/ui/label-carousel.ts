@@ -73,7 +73,7 @@ export class LabelCarousel {
     }
     this.track.replaceChildren(...lines);
     this.viewport.classList.add('is-measuring');
-    if (this.active) this.scheduleAfterLayout();
+    this.scheduleAfterLayout();
   }
 
   setActive(active: boolean): void {
@@ -84,6 +84,7 @@ export class LabelCarousel {
     } else {
       this.clearCycle();
       this.resetItemTransforms();
+      this.viewport.classList.remove('is-measuring');
     }
   }
 
@@ -181,16 +182,18 @@ export class LabelCarousel {
   }
 
   private scheduleAfterLayout(): void {
-    if (this.layoutFrame !== null) cancelAnimationFrame(this.layoutFrame);
-    this.layoutFrame = requestAnimationFrame(() => {
+    if (this.layoutFrame !== null) return;
+    let completed=false;
+    const handle = requestAnimationFrame(() => {
+      completed=true;
       this.layoutFrame = null;
-      if (!this.active) return;
       for (const line of this.track.querySelectorAll<HTMLElement>('.label-carousel-item')) {
         this.measureLine(line);
       }
       this.viewport.classList.remove('is-measuring');
-      this.scheduleCurrentItem();
+      if(this.active) this.scheduleCurrentItem();
     });
+    this.layoutFrame=completed?null:handle;
   }
 
   /**
