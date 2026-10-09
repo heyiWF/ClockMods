@@ -372,7 +372,7 @@
 .cal-day-badge {
   position: absolute;
   top: -2px;
-  right: -0.7em;
+  left: calc(100% + 0.15em);
   font-size: 0.45em;
   line-height: 1;
 }
