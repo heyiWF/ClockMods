@@ -93,7 +93,7 @@ export const MAX_TEXT_FONT_SIZE = 80;
 export function defaultTextSize(role: 'date' | 'supporting', id: string): number {
   return id.startsWith('calendar.') ? (role === 'date' ? 27 : 14) : 24;
 }
-const clampTextSize = (value: number, fallback: number) => Math.max(MIN_TEXT_FONT_SIZE,Math.min(MAX_TEXT_FONT_SIZE,Number.isFinite(value)?value:fallback));
+const clampTextSize = (value: number, fallback: number) => value === 0 ? 0 : Math.max(MIN_TEXT_FONT_SIZE,Math.min(MAX_TEXT_FONT_SIZE,Number.isFinite(value)?value:fallback));
 const clampSecondaryScale = (value: number, fallback: number) => Math.max(MIN_FONT_SCALE,Math.min(MAX_SECONDARY_FONT_SCALE,Number.isFinite(value)?value:fallback));
 
 /** Default host used when the user has not entered one. */
@@ -379,7 +379,7 @@ export const prefs = {
   setThemeAutoInk: (value: boolean, id: string = prefs.getClockTheme()): void => store.write(scopeKey('web_theme_auto_ink', id), String(value)),
   isCardShadow: (id: string = prefs.getClockTheme()): boolean => store.bool(scopeKey('web_card_shadow', id), true),
   setCardShadow: (value: boolean, id: string = prefs.getClockTheme()): void => store.write(scopeKey('web_card_shadow', id), String(value)),
-  getSupportingScale: (id: string = prefs.getClockTheme()): number => id !== 'classic' && store.raw(scopeKey('supporting_font_size_px',id)) !== null ? clampTextSize(store.float(scopeKey('supporting_font_size_px',id),defaultTextSize('supporting',id)),defaultTextSize('supporting',id))/defaultTextSize('supporting',id) : clampSecondaryScale(store.float(scopeKey('web_supporting_scale', id), 1), 1),
+  getSupportingScale: (id: string = prefs.getClockTheme()): number => id !== 'classic' && store.raw(scopeKey('supporting_font_size_px',id)) !== null ? (clampTextSize(store.float(scopeKey('supporting_font_size_px',id),defaultTextSize('supporting',id)),defaultTextSize('supporting',id))||defaultTextSize('supporting',id))/defaultTextSize('supporting',id) : clampSecondaryScale(store.float(scopeKey('web_supporting_scale', id), 1), 1),
   setSupportingScale: (value: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey('web_supporting_scale', id), String(clampSecondaryScale(value,1))),
   getWeatherTransition: (id: string = prefs.getClockTheme()): string => normalizeTimeTransition(store.string('web_weather_transition__' + id, TRANSITION_FADE)),
   setWeatherTransition: (value: string, id: string = prefs.getClockTheme()): void => store.write('web_weather_transition__' + id, normalizeTimeTransition(value)),
@@ -414,9 +414,9 @@ export const prefs = {
   getTimeFontScale: (id: string = prefs.getClockTheme()): number => clampScale(store.float(scopeKey(K.timeFontScale, id), DEFAULT_TIME_FONT_SCALE)),
   setTimeFontScale: (scale: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey(K.timeFontScale, id), String(clampScale(scale))),
 
-  getDateFontSize: (id: string = prefs.getClockTheme()): number => clampTextSize(store.float(scopeKey('date_font_size_px',id), Math.round(defaultTextSize('date',id)*prefs.getDateFontScale(id)/DEFAULT_DATE_FONT_SCALE)),defaultTextSize('date',id)),
+  getDateFontSize: (id: string = prefs.getClockTheme()): number => clampTextSize(store.float(scopeKey('date_font_size_px',id), store.raw(scopeKey('date_font_scale',id)) === null ? 0 : Math.round(defaultTextSize('date',id)*prefs.getDateFontScale(id)/DEFAULT_DATE_FONT_SCALE)),defaultTextSize('date',id)),
   setDateFontSize: (value: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey('date_font_size_px',id),String(clampTextSize(value,defaultTextSize('date',id)))),
-  getSupportingFontSize: (id: string = prefs.getClockTheme()): number => clampTextSize(store.float(scopeKey('supporting_font_size_px',id),Math.round(defaultTextSize('supporting',id)*prefs.getSupportingScale(id))),defaultTextSize('supporting',id)),
+  getSupportingFontSize: (id: string = prefs.getClockTheme()): number => clampTextSize(store.float(scopeKey('supporting_font_size_px',id),store.raw(scopeKey('web_supporting_scale',id)) === null ? 0 : Math.round(defaultTextSize('supporting',id)*prefs.getSupportingScale(id))),defaultTextSize('supporting',id)),
   setSupportingFontSize: (value: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey('supporting_font_size_px',id),String(clampTextSize(value,defaultTextSize('supporting',id)))),
   getDateFontScale: (id: string = prefs.getClockTheme()): number => clampSecondaryScale(store.float(scopeKey(K.dateFontScale, id), DEFAULT_DATE_FONT_SCALE), DEFAULT_DATE_FONT_SCALE),
   setDateFontScale: (scale: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey(K.dateFontScale, id), String(clampSecondaryScale(scale, DEFAULT_DATE_FONT_SCALE))),

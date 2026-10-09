@@ -240,7 +240,7 @@ describe('settings sheet', () => {
     const {sheet}=open();const theme=sheet.querySelector<HTMLSelectElement>('[aria-label="时钟主题"]')!;
     const choose=(id:string)=>{theme.value=id;theme.dispatchEvent(new Event('change'));};choose('ultimate.bubbles');
     const date=sheet.querySelector<HTMLInputElement>('[data-category="0"] [aria-label="日期字号"]')!,support=sheet.querySelector<HTMLInputElement>('[data-category="0"] [aria-label="辅助文字字号"]')!;
-    expect([date.min,date.max]).toEqual([support.min,support.max]);date.value=support.value='36';choose('ultimate.ribbon');expect(date.value).toBe('24');choose('ultimate.bubbles');expect(date.value).toBe('36');expect(support.value).toBe('36');expect(prefs.getDateFontSize('ultimate.bubbles')).toBe(24);apply(sheet);expect(prefs.getDateFontSize('ultimate.bubbles')).toBe(36);expect(prefs.getSupportingFontSize('ultimate.bubbles')).toBe(36);
+    expect([date.min,date.max]).toEqual([support.min,support.max]);date.value=support.value='36';date.dispatchEvent(new Event('input'));support.dispatchEvent(new Event('input'));choose('ultimate.ribbon');expect(date.value).toBe('24');choose('ultimate.bubbles');expect(date.value).toBe('36');expect(support.value).toBe('36');expect(prefs.getDateFontSize('ultimate.bubbles')).toBe(0);apply(sheet);expect(prefs.getDateFontSize('ultimate.bubbles')).toBe(36);expect(prefs.getSupportingFontSize('ultimate.bubbles')).toBe(36);
   });
   it('stores glass per theme with Ultimate defaults and preserves drafts',()=>{
     const {sheet}=open();const theme=sheet.querySelector<HTMLSelectElement>('[aria-label="时钟主题"]')!;

@@ -373,6 +373,8 @@ export class CalendarPage implements Page {
             temperature(forecast.tempMin, this.settings.getTemperatureUnit()) + ' ~ ' + temperature(forecast.tempMax, this.settings.getTemperatureUnit())
           )
         );
+        const details=[forecast.windDirDay,forecast.windScaleDay?t('weather_wind_scale_format',forecast.windScaleDay):'',forecast.humidity?t('weather_humidity_format',forecast.humidity):''].filter(Boolean).join(' · ');
+        if(details)nodes.push(text('cal-forecast-detail',details));
       } else {
         nodes.push(text('cal-forecast-text', t('calendar_forecast_unavailable')));
       }
@@ -426,11 +428,18 @@ export class CalendarPage implements Page {
   private fitSecondaryTypography(): void {
     const cell=this.grid.querySelector<HTMLElement>('.cal-day'); if(!cell?.clientWidth || !cell.clientHeight)return;
     const id=this.settings.getUltimateOptions().calendarTheme,date=this.settings.getDateFontSize(id),support=this.settings.getSupportingFontSize(id);
-    const showSupporting=id!=='calendar.poster';
-    const factor=Math.min(1,Math.max(1,cell.clientHeight-8)/(date*1.1+(showSupporting?support*1.4:0)),
-      Math.max(1,cell.clientWidth-4)/Math.max(date*1.5,showSupporting?support*2:0));
-    this.root.style.setProperty('--cal-date-size',date*factor+'px');
-    this.root.style.setProperty('--cal-support-size',support*factor+'px');
+    const availableHeight=Math.max(1,cell.clientHeight-8), availableWidth=Math.max(1,cell.clientWidth-4);
+    const limit=Math.min(availableHeight*.38,availableWidth*.45);
+    this.root.style.setProperty('--cal-date-size',Math.min(date||availableHeight*.38,id==='calendar.poster'?Math.min(availableHeight*.72,availableWidth*.45):limit)+'px');
+    this.root.style.setProperty('--cal-support-size',Math.min(support||availableHeight*.23,limit)+'px');
+    const weather=this.root.querySelector<HTMLElement>('.cal-weather-card')!,forecast=this.forecastCard;
+    const weatherLimit=Math.min(weather.clientWidth/15,weather.clientHeight/6.2);
+    const forecastLimit=Math.min(forecast.clientWidth/23,forecast.clientHeight/9);
+    this.root.style.setProperty('--cal-weather-size',Math.max(5,Math.min(support||weatherLimit*.90,weatherLimit))+'px');
+    this.root.style.setProperty('--cal-forecast-size',Math.max(5,Math.min(support||forecastLimit*.90,forecastLimit))+'px');
+    const panel=this.root.querySelector<HTMLElement>('.cal-clock-panel')!;
+    const timeLimit=Math.min(panel.clientWidth/(this.settings.isShowSeconds()?4.3:3.2),panel.clientHeight*.72);
+    this.root.style.setProperty('--cal-clock-size',Math.max(1,Math.min(timeLimit,timeLimit*.72*this.settings.getTimeFontScale(id)/.88))+'px');
   }
 
   private renderPreview(direction: number): void {
@@ -562,14 +571,14 @@ export class CalendarPage implements Page {
     // left edge while a line too long for the footer scrolls past it.
     if (almanac.suitable.length > 0) {
       items.push({
-        text: t('calendar_suitable_prefix') + almanac.suitable.join(' '),
+        text: t('calendar_suitable_prefix') + almanac.suitable.join(' · '),
         color: 'var(--green)',
         pinnedPrefix: t('calendar_suitable_prefix'),
       });
     }
     if (almanac.avoid.length > 0) {
       items.push({
-        text: t('calendar_avoid_prefix') + almanac.avoid.join(' '),
+        text: t('calendar_avoid_prefix') + almanac.avoid.join(' · '),
         color: 'var(--red)',
         pinnedPrefix: t('calendar_avoid_prefix'),
       });

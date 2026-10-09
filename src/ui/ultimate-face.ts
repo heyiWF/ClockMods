@@ -1,3 +1,4 @@
+import {traditional} from '../core/ui-language';
 import { prefs, cssColor, DEFAULT_TIME_FONT_SCALE } from '../core/prefs';
 import { mixColor, readableInk } from '../core/clock-themes';
 import { fontStack } from '../core/fonts';
@@ -29,9 +30,6 @@ export class UltimateFace {
   private used = new Set<string>();
   private w = 0; private h = 0; private u = 0;
   private landscape = true;
-  private secondaryScale = 1;
-  private secondaryLimit = 1;
-  private fittingSecondary = false;
   private state!: FaceState;
   private family = '';
   private glassOffsetX = 0; private glassOffsetY = 0;
@@ -52,7 +50,6 @@ export class UltimateFace {
   }
   render(id: string, width: number, height: number, state: FaceState): void {
     if (!width || !height) return;
-    if (!this.fittingSecondary) { this.secondaryScale = 1; this.secondaryLimit = 1; }
     this.w = width; this.h = height; this.u = Math.min(width, height);
     this.landscape = width >= height; this.state = state; this.used.clear();
     this.element.dataset.face = id;
@@ -85,10 +82,6 @@ export class UltimateFace {
       this.label('period', marker, [this.w * .03, this.h * .965, this.w * .2, this.h * .025], this.ink, 'left');
     }
     for (const [key, part] of this.parts) part.hidden = !this.used.has(key);
-    if (!this.fittingSecondary && this.secondaryLimit < 1) {
-      this.secondaryScale = Math.max(0.01,this.secondaryLimit); this.fittingSecondary = true;
-      try { this.render(id,width,height,state); } finally { this.fittingSecondary = false; }
-    }
   }
   private second(): number { return this.state.second + (this.settings.getUltimateOptions().secondMotion === 'smooth' ? this.state.fraction ?? 0 : 0); }
   private handVisible(): boolean { return this.state.showSeconds && this.settings.getUltimateOptions().secondMotion !== 'off'; }
@@ -127,7 +120,8 @@ export class UltimateFace {
     weight = this.weight(weight);
     const font = { family: this.family, weight };
     const textWidth = stableTextWidth(text, font);
-    const actual = Math.max(1, Math.min(size * (this.settings.getTimeFontScale() / DEFAULT_TIME_FONT_SCALE), box[3] * .84, box[2] / Math.max(.1, textWidth)));
+    const limit = Math.min(box[3] * .90, box[2] / Math.max(.1,textWidth));
+    const actual = Math.max(1, Math.min(limit, Math.min(size,limit*.78) * (this.settings.getTimeFontScale() / DEFAULT_TIME_FONT_SCALE)));
     this.box(part, box);
     Object.assign(part.style, { fontFamily: this.family, fontSize: actual + 'px', fontWeight: String(weight), color, justifyContent: align === 'left' ? 'flex-start' : align === 'right' ? 'flex-end' : 'center' });
     part.style.setProperty('--colon-shift', measureColonShift(this.family, weight) + 'em');
@@ -140,19 +134,17 @@ export class UltimateFace {
   private label(key: string, text: string, box: Box, color: string, align = 'left'): void {
     const part = this.get(key, 'face-label');
     this.box(part, box); part.textContent = text;
-    const requested = this.settings.getSupportingFontSize();
-    if (key !== 'period') this.secondaryLimit = Math.min(this.secondaryLimit, box[3] * .8 / requested);
-    const size = key === 'period' ? Math.min(box[3] * .8,this.u*.027) : requested * this.secondaryScale;
+    const requested = this.settings.getSupportingFontSize() || this.u*.032;
+    const size = Math.min(box[3]*.85, requested,box[2]/Math.max(.1,measureSupportingText(text,{family:this.family,weight:this.weight()},.025)));
     Object.assign(part.style, { color, fontWeight: String(this.weight()), fontSize: size + 'px', textAlign: align });
   }
   private date(x: number, y: number, width: number, color: string, align = 'left', _base = .032, maxHeight = this.h * .10): void {
-    const desired = this.settings.getDateFontSize();
+    const desired = this.settings.getDateFontSize() || this.u*.048;
     const rows = [this.rows.date, this.rows.lunar].filter(row => !row.hidden);
     let top = y;
     for (const row of rows) {
       const measured = measureSupportingText(row.dataset.text ?? row.textContent ?? '', { family: this.family, weight: this.weight() }, .025);
-      this.secondaryLimit = Math.min(this.secondaryLimit, width / Math.max(.1,measured) / desired, maxHeight / Math.max(1,rows.length * 1.4) / desired);
-      const size = desired * this.secondaryScale;
+      const size = Math.min(desired, width / Math.max(.1,measured), maxHeight / Math.max(1,rows.length * 1.4));
       this.box(row, [x, top, width, size * 1.35]);
       Object.assign(row.style, { fontSize: size + 'px', color: this.settings.isThemeAutoInk() ? color : cssColor(this.settings.getDateColor()), textAlign: align, fontWeight: String(this.weight()) });
       top += size * 1.4;
@@ -160,9 +152,8 @@ export class UltimateFace {
   }
   private context(x: number, y: number, width: number, color: string, align = 'left', maxHeight = this.h * .985 - y): void {
     const count = Number(!this.rows.weather.hidden) + Number(!this.rows.detail.hidden);
-    const requested = this.settings.getSupportingFontSize();
-    if (count) this.secondaryLimit = Math.min(this.secondaryLimit, Math.max(1,maxHeight) / Math.max(1.4,count * 1.6) / requested);
-    const size = requested * this.secondaryScale;
+    const requested = this.settings.getSupportingFontSize() || this.u*.042;
+    const size = Math.min(requested,Math.max(1,maxHeight)/Math.max(1.4,count*1.6));
     for (const [i, row] of [this.rows.weather, this.rows.detail].filter(row => !row.hidden).entries()) {
       this.box(row, [x, y + i * size * 1.6, width, size * 1.4]);
       Object.assign(row.style, { fontSize: size + 'px', color: this.settings.isThemeAutoInk() ? color : cssColor(this.settings.getDateColor()), textAlign: align, fontWeight: String(this.weight()) });
@@ -252,7 +243,7 @@ export class UltimateFace {
     this.date(w * .029, h * .035, w * .52, this.ink);
     this.context(w * .59, h * .035, w * .381, this.ink, 'right');
   }
-  private word(cn: string, en: string): string { return this.settings.isClockUseEnglish() ? en : cn; }
+  private word(cn: string, en: string): string { return this.settings.isClockUseEnglish() ? en : this.settings.getClockLanguage()==='zh-Hant'?traditional(cn):cn; }
   private svg(key: string, box: Box, markup: string): void {
     const part = this.get(key, 'face-art'); this.box(part, box);
     const html = `<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200" aria-hidden="true">${markup}</svg>`;
@@ -301,7 +292,8 @@ export class UltimateFace {
     const dateY = h * (l ? glass || paper ? .25 : .46 : glass ? .62 : paper ? .655 : .765);
     const dateBottom = paper ? h * (l ? .35 : .72) : glass ? ty : dateY + h * .10;
     this.date(x, dateY, width, this.ink, 'left', .030, dateBottom - dateY - u * .012);
-    this.context(x, h * (l ? .59 : glass ? .83 : paper ? .87 : .855), width, this.ink);
+    const contextY=h*(l?.59:glass?.83:paper?.87:.855);
+    this.context(x,contextY,width,this.ink,'left',l&&!paper&&!glass?h*.13:h*.985-contextY);
     if (paper) this.shape('paper-rule', [x, h * (l ? .35 : .72), width, 1], this.accent);
     if (!paper && !glass) {
       this.shape('instrument-rule', l ? [w * .56, h * .10, 1, h * .76] : [w * .09, h * .56, w * .82, 1], mixColor(this.background, this.ink, .2));

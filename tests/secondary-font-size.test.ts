@@ -24,6 +24,6 @@ describe('secondary font size units and ranges',()=>{
   const control=secondaryFontSize('日期字号','date','ultimate.bubbles');control.setTheme('classic',150);expect(control.value()).toBe(150);expect(control.row.textContent).toContain('150%');control.setTheme('ultimate.bubbles',32);expect(control.value()).toBe(32);expect(control.row.textContent).toContain('32 px');expect(control.input.max).toBe('80');
  });
  it('clears the new pixel overrides on reset',()=>{
-  prefs.setDateFontSize(80,'ultimate.bubbles');prefs.setSupportingFontSize(80,'ultimate.bubbles');prefs.clearThemeOverrides();expect(prefs.getDateFontSize('ultimate.bubbles')).toBe(24);expect(prefs.getSupportingFontSize('ultimate.bubbles')).toBe(24);
+  prefs.setDateFontSize(80,'ultimate.bubbles');prefs.setSupportingFontSize(80,'ultimate.bubbles');prefs.clearThemeOverrides();expect(prefs.getDateFontSize('ultimate.bubbles')).toBe(0);expect(prefs.getSupportingFontSize('ultimate.bubbles')).toBe(0);
  });
 });

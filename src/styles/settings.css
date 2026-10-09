@@ -718,3 +718,5 @@
 .settings-font-picker .settings-input { min-width:0; }
 
 svg.settings-category-icon { width:24px; height:24px; flex-shrink:0; fill:currentColor; }
+
+.settings-slider:has(button[aria-pressed]){flex-wrap:wrap;}.settings-slider:has(button[aria-pressed]) .settings-slider-value{min-width:48px;}.settings-slider:has(button[aria-pressed]) button{min-width:48px;padding-inline:10px;}

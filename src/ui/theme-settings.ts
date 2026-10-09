@@ -69,7 +69,7 @@ export function themeSettings() {
     blur.input.checked=draft.glass.enabled;strength.input.value=String(draft.glass.strength);brightness.input.value=String(draft.glass.brightness);strength.input.dispatchEvent(new Event('input'));brightness.input.dispatchEvent(new Event('input'));glassControls.hidden=!active.startsWith('ultimate.');syncGlass();
     background.setValue(int(colors.background)); panel.setValue(int(colors.panel)); accent.setValue(int(colors.accent));
     autoInk.input.checked = draft.auto; shadow.input.checked = draft.shadow; support.setTheme(active,draft.support);
-    support.input.dispatchEvent(new Event('input')); transition.value = draft.transition; paletteControls.hidden = active === 'classic'; paint();
+    transition.value = draft.transition; paletteControls.hidden = active === 'classic'; paint();
   };
   theme.addEventListener('change', () => { capture(); active = theme.value; load(); });
   const restore = element('button', 'm3-button m3-button--outlined', label('恢复当前主题原版配色', 'Restore original palette'));
@@ -90,7 +90,7 @@ export function themeSettings() {
       return { getClockTheme:()=>active, getThemePalette:()=>({...colors}),
         getThemeGlass:()=>({enabled:blur.input.checked,strength:+strength.input.value,brightness:+brightness.input.value}),
         isThemeAutoInk:()=>autoInk.input.checked,isCardShadow:()=>shadow.input.checked,
-        getSupportingScale:()=>support.value()/(active==='classic'?100:24),getSupportingFontSize:()=>support.value(),getWeatherTransition:()=>transition.value,getTemperatureUnit:()=>unit.value };
+        getSupportingScale:()=>support.value()?(support.value()/(active==='classic'?100:24)):1,getSupportingFontSize:()=>support.value(),getWeatherTransition:()=>transition.value,getTemperatureUnit:()=>unit.value };
     },
     onThemeChanged(callback: (id: string) => void) { theme.addEventListener('change', () => callback(theme.value)); },
     usesAutomaticInk: () => theme.value !== 'classic' && autoInk.input.checked,

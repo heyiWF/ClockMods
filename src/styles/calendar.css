@@ -619,3 +619,25 @@
  .page[data-calendar-theme='calendar.poster'] .cal-weekdays {grid-column:1;grid-row:2;}
  .page[data-calendar-theme='calendar.poster'] .cal-days-viewport {grid-column:1;grid-row:3;}
 }
+
+/* Typography is fitted independently to the region that owns it. */
+.page[data-calendar-theme] .cal-clock {font-size:var(--cal-clock-size,48px);}
+.page[data-calendar-theme] .cal-weather-card {gap:.4em;font-size:var(--cal-weather-size,20px);}
+.page[data-calendar-theme] .cal-weather-icon {width:3.6em;height:3.6em;}
+.page[data-calendar-theme] .cal-temp {font-size:2.4em;}
+.page[data-calendar-theme] .cal-feels small {font-size:.85em;}
+.page[data-calendar-theme] .cal-feels b {font-size:1.8em;}
+.page[data-calendar-theme] .cal-weather-summary {font-size:1em;line-height:1.3;}
+.page[data-calendar-theme] .cal-forecast-card {font-size:var(--cal-forecast-size,18px);}
+.page[data-calendar-theme] .cal-forecast-label,.page[data-calendar-theme] .cal-forecast-text {font-size:1em;line-height:1.25;}
+.page[data-calendar-theme] .cal-forecast-icon {width:2.4em;height:2.4em;margin:.2em 0;}
+.cal-forecast-detail {font-size:.85em;line-height:1.25;text-align:center;overflow-wrap:anywhere;}
+.page[data-calendar-theme] .cal-forecast-col {gap:.18em;}
+.label-carousel-pin {border-radius:50%;display:inline-flex;align-items:center;justify-content:center;min-width:1.4em;height:1.4em;padding:0 .2em;background:color-mix(in srgb,currentColor 15%,transparent);line-height:1;}
+
+@media(orientation:portrait) and (min-height:500px){
+ .page[data-calendar-theme="calendar.graphite"] .cal-layout,.page[data-calendar-theme="calendar.carbon"] .cal-layout{grid-template-rows:minmax(250px,40%) minmax(0,1fr);}
+ .page[data-calendar-theme] .cal-layout:has(.cal-weather-card[hidden]){grid-template-rows:minmax(64px,14%) minmax(0,1fr);}
+ .cal-left{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(50px,.8fr) minmax(70px,1fr) minmax(95px,1.2fr);}
+ .cal-left:has(.cal-weather-card[hidden]){grid-template-rows:1fr;}
+}
