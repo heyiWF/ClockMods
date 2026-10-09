@@ -29,6 +29,9 @@ class TimeSource {
   private sampleMonotonic = 0;
   private timer: number | null = null;
   private inFlight = false;
+  private sourceUrl = '';
+  private revision = 0;
+  private controller: AbortController | null = null;
 
   /** Current time in milliseconds, from the network sample when available. */
   now(): number {
@@ -47,7 +50,10 @@ class TimeSource {
   configure(): void {
     const enabled = prefs.isUseNetworkTime();
     const intervalMs = Math.max(1, prefs.getSyncIntervalMinutes()) * 60 * 1000;
-    const changed = enabled !== this.enabled || intervalMs !== this.syncIntervalMs;
+    const endpoint = this.endpoint();
+    const changed = enabled !== this.enabled || intervalMs !== this.syncIntervalMs || endpoint !== this.sourceUrl;
+    if(changed){this.revision++;this.controller?.abort();this.inFlight=false;this.hasSample=false;}
+    this.sourceUrl=endpoint;
     this.enabled = enabled;
     this.syncIntervalMs = intervalMs;
     if (!enabled) {
@@ -80,8 +86,9 @@ class TimeSource {
   private async sync(): Promise<void> {
     if (!this.enabled || this.inFlight) return;
     this.inFlight = true;
+    const revision=this.revision;
     let succeeded = false;
-    const controller = new AbortController();
+    const controller = new AbortController();this.controller=controller;
     const timeout = setTimeout(() => controller.abort(), REQUEST_TIMEOUT_MS);
     try {
       const before = performance.now();
@@ -91,6 +98,7 @@ class TimeSource {
         signal: controller.signal,
       });
       const after = performance.now();
+      if(revision!==this.revision || !this.enabled)return;
       const header = response.headers.get('date');
       if (header) {
         const serverMs = Date.parse(header);
@@ -108,9 +116,9 @@ class TimeSource {
       // Offline or a server that hides the Date header: fall back to device time.
     } finally {
       clearTimeout(timeout);
-      this.inFlight = false;
+      if(revision===this.revision)this.inFlight = false;
     }
-    this.schedule(succeeded ? this.syncIntervalMs : RETRY_INTERVAL_MS);
+    if(revision===this.revision)this.schedule(succeeded ? this.syncIntervalMs : RETRY_INTERVAL_MS);
   }
 
   private schedule(delay: number): void {

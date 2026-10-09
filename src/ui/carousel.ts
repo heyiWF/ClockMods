@@ -1,256 +1,164 @@
-/**
- * The rotating supporting line shared by the weather summary, the custom message
- * and the detailed-weather metrics.
- *
- * Ported from the Carousel/WeatherLineItem half of com.clockmods.ui.ClockView,
- * keeping its exact timing: each item is held for 3s (longer when it has to
- * scroll), an over-wide item pauses 1s, marquee-scrolls at 40px/s and pauses 1s
- * again, and items cross over with a 200ms out / 200ms in transition. The line is
- * always drawn at the configured size — overflow scrolls instead of shrinking.
- */
+/** Weather/message carousel with fixed-size marquee and shared Ultimate motion. */
 import { createWeatherIcon } from '../weather/icons';
 import { renderSupportingText } from './clock-face';
-import {
-  TRANSITION_FADE,
-  TRANSITION_SLIDE_RIGHT,
-  TRANSITION_SCAN,
-  TRANSITION_FLIP,
-  TRANSITION_SCALE,
-  TRANSITION_SLIDE_DOWN,
-  TRANSITION_SLIDE_UP,
-} from '../core/prefs';
+import { easeOutCubic, motionDuration, scanMask, supportingTravel } from './clock-motion';
 
-const HOLD_MS = 3000;
-const SCROLL_PAUSE_MS = 1000;
-const TRANSITION_MS = 200;
-const SCROLL_PX_PER_SECOND = 40;
-
-export interface CarouselItem {
-  /** Plain text, or the concatenated form used for equality checks. */
-  text: string;
-  /** Weather summary items split around an icon. */
-  weather?: { left: string; iconCode: string; right: string };
-}
-
-export function plainItem(text: string): CarouselItem {
-  return { text };
-}
-
-export function weatherItem(left: string, iconCode: string, right: string): CarouselItem {
-  return { text: `${left}  ${right}`, weather: { left, iconCode, right } };
-}
-
+const HOLD_MS = 3000, SCROLL_PAUSE_MS = 1000, SCROLL_PX_PER_SECOND = 40;
+export interface CarouselItem { text: string; weather?: { left: string; iconCode: string; right: string }; }
+export const plainItem = (text: string): CarouselItem => ({ text });
+export const weatherItem = (left: string, iconCode: string, right: string): CarouselItem =>
+  ({ text: `${left}  ${right}`, weather: { left, iconCode, right } });
 export function sameItems(a: CarouselItem[], b: CarouselItem[]): boolean {
-  if (a.length !== b.length) return false;
-  return a.every((item, index) => item.text === b[index].text && item.weather?.iconCode === b[index].weather?.iconCode);
+  return a.length === b.length && a.every((item, i) => item.text === b[i].text && item.weather?.iconCode === b[i].weather?.iconCode);
 }
-
+interface Swap {
+  layer: HTMLElement; track: HTMLElement; startedAt: number;
+  oldOffset: number; oldTravel: number; newTravel: number;
+}
 export class Carousel {
   private readonly viewport: HTMLElement;
-  private readonly track: HTMLElement;
+  private readonly layer = document.createElement('span');
+  private readonly track = document.createElement('span');
   private items: CarouselItem[] = [];
   private index = 0;
   private cycleStartedAt = 0;
   private active = false;
   private frameHandle: number | null = null;
   private iconFill = true;
-  private transition = TRANSITION_FADE;
-  private renderedIndex = -1;
-
+  private transition = 'fade';
+  private swap: Swap | null = null;
   constructor(element: HTMLElement) {
-    this.viewport = element;
-    this.viewport.classList.add('carousel');
-    this.track = document.createElement('span');
+    this.viewport = element; element.classList.add('carousel');
+    this.layer.className = 'carousel-layer';
     this.track.className = 'carousel-track';
-    this.viewport.replaceChildren(this.track);
+    this.layer.append(this.track); element.replaceChildren(this.layer);
   }
-
   setIconStyle(fill: boolean): void {
     if (this.iconFill === fill) return;
     this.iconFill = fill;
-    this.renderedIndex = -1;
+    this.finishSwap(); this.render();
   }
-
-  /** Pro exposes the clock's transition style here too (WEATHER_DETAIL_USES_TIME_TRANSITION). */
   setTransition(transition: string): void {
-    this.transition = transition;
+    if (this.transition === transition) return;
+    this.finishSwap(); this.transition = transition; this.cycleStartedAt = performance.now();
   }
-
   setItems(items: CarouselItem[]): void {
     if (sameItems(this.items, items)) return;
-    this.items = items;
-    this.index = 0;
-    this.cycleStartedAt = 0;
-    this.renderedIndex = -1;
-    if (items.length === 0) {
-      this.track.replaceChildren();
-      this.viewport.hidden = true;
-      this.stopFrames();
-      return;
-    }
-    this.viewport.hidden = false;
-    this.render(0);
-    if (this.active) this.startFrames();
+    this.finishSwap(); this.items = items; this.index = 0; this.cycleStartedAt = performance.now();
+    this.viewport.hidden = !items.length;
+    this.render(); this.scroll(0);
+    if (items.length && this.active) this.startFrames(); else this.stopFrames();
   }
-
   setActive(active: boolean): void {
     if (this.active === active) return;
     this.active = active;
-    if (active && this.items.length > 0) this.startFrames();
-    else this.stopFrames();
+    if (active && this.items.length) this.startFrames(); else this.stopFrames();
   }
-
-  get isEmpty(): boolean {
-    return this.items.length === 0;
-  }
-
+  get isEmpty(): boolean { return this.items.length === 0; }
   private startFrames(): void {
     if (this.frameHandle !== null) return;
     this.cycleStartedAt = performance.now();
-    const step = () => {
-      this.frameHandle = requestAnimationFrame(step);
-      this.tick();
-    };
+    const step = () => { this.tick(); this.frameHandle = requestAnimationFrame(step); };
     this.frameHandle = requestAnimationFrame(step);
   }
-
   private stopFrames(): void {
-    if (this.frameHandle === null) return;
-    cancelAnimationFrame(this.frameHandle);
-    this.frameHandle = null;
-    this.track.style.removeProperty('transform');
-    this.track.style.removeProperty('opacity');
+    if (this.frameHandle !== null) cancelAnimationFrame(this.frameHandle);
+    this.frameHandle = null; this.finishSwap(); this.scroll(0);
   }
-
-  /** One frame of the hold → scroll → cross-fade cycle. */
+  private reducedMotion(): boolean { return window.matchMedia?.('(prefers-reduced-motion: reduce)').matches ?? false; }
+  private overflow(): number { return Math.max(0, this.track.scrollWidth - this.viewport.clientWidth); }
+  private holdDuration(): number { return Math.max(HOLD_MS, SCROLL_PAUSE_MS * 2 + this.overflow() / SCROLL_PX_PER_SECOND * 1000); }
+  private scroll(elapsed: number): void {
+    const overflow = this.overflow();
+    this.layer.classList.toggle('is-scrolling', overflow > 0);
+    const offset = -Math.min(overflow, Math.max(0, elapsed - SCROLL_PAUSE_MS) / 1000 * SCROLL_PX_PER_SECOND);
+    this.track.style.transform = `translateX(${offset}px)`;
+  }
   private tick(): void {
-    if (this.items.length === 0) return;
+    if (!this.items.length) return;
     const now = performance.now();
-    if (this.cycleStartedAt === 0) this.cycleStartedAt = now;
-    let elapsed = now - this.cycleStartedAt;
-
-    const current = this.items[Math.min(this.index, this.items.length - 1)];
-    const overflow = this.overflowWidth();
-    const displayDuration = this.displayDuration(overflow);
-
-    if (this.items.length === 1) {
-      if (elapsed >= displayDuration) {
-        this.cycleStartedAt = now;
-        elapsed = 0;
-      }
-      this.render(this.index);
-      this.applyScroll(overflow, elapsed);
-      this.applyTransition(1, 0);
+    if (this.swap) {
+      const p = Math.min(1, (now - this.swap.startedAt) / motionDuration(this.transition, true));
+      if (p >= 1 || this.reducedMotion()) { this.finishSwap(); this.cycleStartedAt = now; this.scroll(0); }
+      else this.animateSwap(p);
       return;
     }
-
-    const fadeOutEnd = displayDuration + TRANSITION_MS;
-    const fadeInEnd = fadeOutEnd + TRANSITION_MS;
-
-    if (elapsed < displayDuration) {
-      this.render(this.index);
-      this.applyScroll(overflow, elapsed);
-      this.applyTransition(1, 0);
-    } else if (elapsed < fadeOutEnd) {
-      const progress = (elapsed - displayDuration) / TRANSITION_MS;
-      this.render(this.index);
-      this.applyScroll(overflow, displayDuration);
-      this.applyTransition(1 - progress, progress);
-    } else if (elapsed < fadeInEnd) {
-      const progress = (elapsed - fadeOutEnd) / TRANSITION_MS;
-      this.render((this.index + 1) % this.items.length);
-      this.applyScroll(this.overflowWidth(), 0);
-      this.applyTransition(progress, -(1 - progress));
+    const elapsed = now - this.cycleStartedAt, duration = this.holdDuration();
+    this.scroll(elapsed);
+    if (elapsed < duration) return;
+    if (this.items.length === 1) { this.cycleStartedAt = now; this.scroll(0); return; }
+    this.beginSwap(now);
+  }
+  private beginSwap(now: number): void {
+    const oldOverflow = this.overflow();
+    const layer = this.layer.cloneNode(true) as HTMLElement;
+    layer.classList.add('is-outgoing'); layer.setAttribute('aria-hidden', 'true');
+    const track = layer.querySelector<HTMLElement>('.carousel-track')!;
+    this.viewport.append(layer);
+    const font = parseFloat(getComputedStyle(this.viewport).fontSize) || 16;
+    const oldWidth = this.track.scrollWidth;
+    const oldOffset = -oldOverflow;
+    const viewportRect = this.viewport.getBoundingClientRect();
+    const oldRoom = Math.max(0, viewportRect.right - this.track.getBoundingClientRect().right);
+    this.index = (this.index + 1) % this.items.length;
+    this.render(); this.scroll(0);
+    const newWidth = this.track.scrollWidth;
+    const newRoom = Math.max(0, this.track.getBoundingClientRect().left - viewportRect.left);
+    // Freeze outgoing geometry before measuring the next sentence: different
+    // lengths must not change the hold duration midway through a transition.
+    this.swap = { layer, track, startedAt: now, oldOffset,
+      oldTravel: Math.min(oldRoom, supportingTravel(oldWidth, font)),
+      newTravel: Math.min(newRoom, supportingTravel(newWidth, font)) };
+    this.animateSwap(0);
+  }
+  private animateSwap(p: number): void {
+    const old = this.swap!;
+    this.layer.style.opacity = '1'; old.layer.style.opacity = '1';
+    this.layer.style.maskImage = ''; old.layer.style.maskImage = '';
+    let incoming = '', outgoing = '';
+    if (this.transition === 'scan') {
+      const revealing = p >= .5;
+      old.layer.style.opacity = revealing ? '0' : '1';
+      this.layer.style.opacity = revealing ? '1' : '0';
+      old.layer.style.maskImage = scanMask(Math.min(1, p * 2), false);
+      this.layer.style.maskImage = scanMask(Math.max(0, (p - .5) * 2), true);
+    } else if (this.transition === 'slide_right') {
+      const eased = easeOutCubic(p);
+      old.layer.style.opacity = String(1 - eased); this.layer.style.opacity = String(eased);
+      outgoing = ` translateX(${old.oldTravel * eased}px)`;
+      incoming = ` translateX(${-old.newTravel * (1 - eased)}px)`;
     } else {
-      this.index = (this.index + 1) % this.items.length;
-      this.cycleStartedAt = now;
-      this.render(this.index);
-      this.applyScroll(this.overflowWidth(), 0);
-      this.applyTransition(1, 0);
-    }
-    void current;
-  }
-
-  private displayDuration(overflow: number): number {
-    if (overflow <= 0) return HOLD_MS;
-    const scrollMs = Math.ceil((overflow / SCROLL_PX_PER_SECOND) * 1000);
-    return Math.max(HOLD_MS, SCROLL_PAUSE_MS * 2 + scrollMs);
-  }
-
-  private overflowWidth(): number {
-    return Math.max(0, this.track.scrollWidth - this.viewport.clientWidth + (this.track.scrollWidth > this.viewport.clientWidth ? 24 : 0));
-  }
-
-  /** Marquee offset: pause, scroll at a constant speed, pause again. */
-  private applyScroll(overflow: number, elapsed: number): void {
-    if (overflow <= 0) {
-      this.track.style.setProperty('--scroll', '0px');
-      this.viewport.classList.remove('is-scrolling');
-      return;
-    }
-    this.viewport.classList.add('is-scrolling');
-    const scrollMs = Math.ceil((overflow / SCROLL_PX_PER_SECOND) * 1000);
-    const progress = Math.max(0, Math.min(1, (elapsed - SCROLL_PAUSE_MS) / scrollMs));
-    this.track.style.setProperty('--scroll', `${-overflow * progress}px`);
-  }
-
-  /**
-   * @param opacity 0..1
-   * @param phase negative while entering, positive while leaving, 0 when settled
-   */
-  private applyTransition(opacity: number, phase: number): void {
-    const track = this.track;
-    track.style.opacity = String(opacity);
-    let transform = 'translateX(var(--scroll, 0px))';
-    track.style.clipPath = '';
-    switch (this.transition) {
-      case TRANSITION_SLIDE_RIGHT:
-        transform += ` translateX(${phase * this.viewport.clientWidth}px)`;
-        break;
-      case TRANSITION_SCAN:
-        track.style.clipPath = `inset(0 ${Math.abs(phase) * 100}% 0 0)`;
-        break;
-      case TRANSITION_SLIDE_UP:
-      case TRANSITION_SLIDE_DOWN: {
-        const direction = this.transition === TRANSITION_SLIDE_UP ? -1 : 1;
-        transform += ` translateY(${direction * 0.6 * phase}em)`;
-        break;
+      const eased = easeOutCubic(p);
+      old.layer.style.opacity = String(1 - eased); this.layer.style.opacity = String(eased);
+      if (this.transition === 'slide_up' || this.transition === 'slide_down') {
+        const direction = this.transition === 'slide_up' ? -1 : 1;
+        outgoing = ` translateY(${direction * .24 * eased}em)`;
+        incoming = ` translateY(${-direction * .24 * (1 - eased)}em)`;
+      } else if (this.transition === 'scale') {
+        outgoing = ` scale(${1 + .08 * eased})`; incoming = ` scale(${.88 + .12 * eased})`;
+      } else if (this.transition === 'flip') {
+        old.layer.style.opacity = p < .5 ? String(1 - p * 2) : '0';
+        this.layer.style.opacity = p < .5 ? '0' : String((p - .5) * 2);
+        outgoing = ` rotateX(${Math.min(90, p * 180)}deg)`; incoming = ` rotateX(${Math.min(0, (p - 1) * 180)}deg)`;
       }
-      case TRANSITION_SCALE:
-        transform += ` scale(${1 - 0.12 * Math.abs(phase)})`;
-        break;
-      case TRANSITION_FLIP:
-        transform += ` scaleY(${Math.max(0.05, 1 - Math.abs(phase))})`;
-        // Flip keeps full opacity and conveys the change through the squash alone.
-        track.style.opacity = '1';
-        break;
-      default:
-        break;
     }
-    track.style.transform = transform;
+    old.track.style.transform = `translateX(${old.oldOffset}px)${outgoing}`;
+    this.track.style.transform = `translateX(0px)${incoming}`;
   }
-
-  private render(index: number): void {
-    if (index === this.renderedIndex) return;
-    this.renderedIndex = index;
-    const item = this.items[index];
-    if (!item) return;
-    if (!item.weather) {
-      renderSupportingText(this.track, item.text);
-      return;
-    }
-    const { left, iconCode, right } = item.weather;
-    const leftSpan = document.createElement('span');
-    renderSupportingText(leftSpan, left);
-    const rightSpan = document.createElement('span');
-    renderSupportingText(rightSpan, right);
-    const icon = createWeatherIcon(iconCode, this.iconFill);
+  private finishSwap(): void {
+    this.swap?.layer.remove(); this.swap = null;
+    this.layer.style.opacity = ''; this.layer.style.maskImage = ''; this.track.style.transform = '';
+  }
+  private render(): void {
+    const item = this.items[this.index];
     delete this.track.dataset.text;
-    if (icon) {
-      this.track.replaceChildren(leftSpan, icon, rightSpan);
-    } else {
-      // Without an icon the Android code fell back to a single plain run.
-      renderSupportingText(this.track, `${left}  ${right}`);
-    }
+    if (!item) { this.track.replaceChildren(); return; }
+    if (!item.weather) { const text = document.createElement('span'); renderSupportingText(text, item.text); this.track.replaceChildren(text); return; }
+    const { left, iconCode, right } = item.weather;
+    const a = document.createElement('span'), b = document.createElement('span');
+    renderSupportingText(a, left); renderSupportingText(b, right);
+    const icon = createWeatherIcon(iconCode, this.iconFill);
+    if (icon) this.track.replaceChildren(a, icon, b);
+    else { const text = document.createElement('span'); renderSupportingText(text, `${left}  ${right}`); this.track.replaceChildren(text); }
   }
 }

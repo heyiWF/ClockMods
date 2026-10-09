@@ -1,3 +1,5 @@
+import { drawChimeEffect, easeOutQuint, smoothStep } from './chime-effects';
+import { CharacterLine, measureColonShift } from './clock-face';
 /**
  * The hourly visual chime.
  *
@@ -29,12 +31,12 @@ const TIME_MAX_WIDTH_FRACTION = 0.98;
  * The instant of the upcoming chime, or null outside the two-second arming
  * window (HourlyChimeController.upcomingChimeAtMillis).
  */
-export function upcomingChimeAt(fields: ZonedFields, nowMillis: number): number | null {
-  if (fields.minute !== 59 || fields.second < 58) return null;
+export function upcomingChimeAt(fields: ZonedFields, nowMillis: number, halfHour = false): number | null {
+  if ((fields.minute !== 59 && !(halfHour && fields.minute === 29)) || fields.second < 58) return null;
   // Round up to the next hour boundary. Zone offsets are whole minutes in every
   // zone still in use, so the sub-hour part can be derived from the fields.
   const millisIntoHour = (fields.minute * 60 + fields.second) * 1000 + (nowMillis % 1000);
-  return nowMillis - millisIntoHour + 3600_000;
+  return nowMillis - millisIntoHour + (fields.minute === 29 ? 1800_000 : 3600_000);
 }
 
 /** Whether `fields` falls inside the configured quiet window. */
@@ -52,6 +54,7 @@ export class HourlyChime {
   private checkHandle: number | null = null;
   private lastChimeAt = Number.NEGATIVE_INFINITY;
   private hideHandle: number | null = null;
+  private frame: number | null = null;
 
   constructor(layer: HTMLElement) {
     this.layer = layer;
@@ -72,12 +75,14 @@ export class HourlyChime {
   }
 
   private check(): void {
-    if (!prefs.isHourlyChimeEnabled()) return;
+    const options = prefs.getUltimateOptions();
+    if (!prefs.isHourlyChimeEnabled() && !options.halfHourChime) return;
     const now = timeSource.now();
     const zone = prefs.getTimeZoneId();
     const fields = zonedFields(now, zone);
-    const chimeAt = upcomingChimeAt(fields, now);
+    const chimeAt = upcomingChimeAt(fields, now, options.halfHourChime);
     if (chimeAt === null) return;
+    if (fields.minute === 59 && !prefs.isHourlyChimeEnabled()) return;
     const chimeFields = zonedFields(chimeAt, zone);
     if (isQuietHour(chimeFields) || chimeAt === this.lastChimeAt) return;
     this.lastChimeAt = chimeAt;
@@ -89,17 +94,30 @@ export class HourlyChime {
     const english = prefs.isClockUseEnglish();
     const text = formatHourlyChime(fields.hour, fields.minute, use24Hour, english);
 
+    this.layer.dataset.animation = prefs.getUltimateOptions().chimeAnimation;
     this.layer.hidden = false;
     this.layer.replaceChildren();
-    const circle = document.createElement('div');
-    circle.className = 'chime-circle';
+    const canvas = document.createElement('canvas');canvas.className='chime-canvas';
     const label = document.createElement('div');
     label.className = 'chime-text';
-    label.textContent = text;
+    new CharacterLine(label).setText(text,{animate:false,transition:'fade',colonVisible:true});
     label.style.fontFamily = fontStack(prefs.getFontFamily());
-    label.style.fontWeight = prefs.isBoldText() ? '700' : '400';
+    label.style.fontWeight = String(prefs.getFontWeight());
     label.style.fontSize = `${this.resolveTextSize(fields, text)}px`;
-    this.layer.append(circle, label);
+    label.style.setProperty('--digit-w','auto');label.style.setProperty('--colon-shift',measureColonShift(fontStack(prefs.getFontFamily()),prefs.getFontWeight())+'em');
+    this.layer.append(canvas, label);
+    const kind=prefs.getUltimateOptions().chimeAnimation,alternative=['aurora','orbit','comet'].includes(kind);
+    label.style.animation='none';label.style.color=alternative?'white':'black';
+    const started=performance.now(),reduced=window.matchMedia('(prefers-reduced-motion: reduce)').matches;
+    const draw=(time:number)=>{const width=this.layer.clientWidth||innerWidth,height=this.layer.clientHeight||innerHeight,dpr=Math.min(2,devicePixelRatio||1);
+      if(canvas.width!==Math.round(width*dpr)||canvas.height!==Math.round(height*dpr)){canvas.width=Math.round(width*dpr);canvas.height=Math.round(height*dpr);}
+      const ctx=canvas.getContext('2d');const progress=Math.min(1,(time-started)/DURATION_MS);
+      if(ctx){ctx.setTransform(dpr,0,0,dpr,0,0);drawChimeEffect(ctx,width,height,reduced?.5:progress,kind);}
+      const enter=reduced?1:smoothStep(alternative?.13:.28,alternative?.31:.48,progress);
+      label.style.opacity=String(enter*(1-smoothStep(.82,1,progress)));label.style.transform='scale('+(.94+.06*easeOutQuint(enter))+')';
+      if(progress<1)this.frame=requestAnimationFrame(draw);
+    };
+    if(this.frame!==null)cancelAnimationFrame(this.frame);this.frame=requestAnimationFrame(draw);
 
     if (this.hideHandle !== null) clearTimeout(this.hideHandle);
     this.hideHandle = window.setTimeout(() => this.hide(), DURATION_MS);
@@ -114,7 +132,7 @@ export class HourlyChime {
     const height = this.layer.clientHeight || window.innerHeight;
     const font = {
       family: fontStack(prefs.getFontFamily()),
-      weight: prefs.isBoldText() ? 700 : 400,
+      weight: prefs.getFontWeight(),
     };
     const clockTime = formatTime(
       fields.hour,
@@ -141,6 +159,7 @@ export class HourlyChime {
   }
 
   private hide(): void {
+    if(this.frame!==null){cancelAnimationFrame(this.frame);this.frame=null;}
     if (this.hideHandle !== null) {
       clearTimeout(this.hideHandle);
       this.hideHandle = null;

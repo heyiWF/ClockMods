@@ -193,8 +193,6 @@
   padding: 10px 14px 5px;
 }
 
-/* The three-day row keeps the card's original layout now that the attribution
- * shares the card with it. */
 .cal-forecast-row {
   flex: 1 1 auto;
   display: flex;
@@ -235,36 +233,6 @@
   font-size: clamp(11px, 1.4vw, 16px);
   font-weight: 700;
   white-space: nowrap;
-}
-
-/* Inside the forecast card the badge chrome is redundant: the attribution is a
- * small translucent line tucked into the card's bottom-right corner. */
-.cal-attribution {
-  position: static;
-  align-self: flex-end;
-  height: auto;
-  z-index: auto;
-  min-height: 0;
-  max-width: 100%;
-  padding: 0;
-  border: 0;
-  background: none;
-  backdrop-filter: none;
-  color: var(--md-sys-color-on-surface-variant);
-  opacity: 0.5;
-  font-size: 9px;
-  gap: 3px;
-}
-
-.cal-attribution img {
-  width: 10px;
-  height: 10px;
-}
-
-/* In flow it must not slide up with the overlay nav the way the floating
- * badges do. */
-#pages.has-visible-overlay-nav .cal-attribution {
-  translate: none;
 }
 
 /* ---- Month panel ---- */
@@ -534,19 +502,83 @@
   letter-spacing: var(--md-sys-typescale-body-medium-tracking);
 }
 
-/* Short windows scroll a readable calendar; narrow windows keep all seven columns. */
-.page[data-page='calendar'] { overflow-y: auto; }
-.cal-layout { min-height: 420px; grid-template-columns: minmax(0, 1fr) minmax(0, 1fr); }
-.cal-left, .cal-right, .cal-panel { min-width: 0; }
-@media (orientation: portrait), (max-width: 560px) {
-  .cal-layout { grid-template-columns: minmax(0, 1fr); min-height: 620px;
-    grid-template-rows: minmax(88px, auto) minmax(390px, 1fr); }
+/* Ultimate calendar compositions and independent typography. */
+.page[data-calendar-theme] .cal-day-number {color:var(--cal-day);font-size:var(--cal-date-size);font-weight:var(--cal-weight);}
+.page[data-calendar-theme] .cal-day.is-weekend .cal-day-number {color:var(--weekend);}
+.page[data-calendar-theme] .cal-day.is-today .cal-day-number {color:var(--green);}
+.page[data-calendar-theme] .cal-day-label {font-size:var(--cal-support-size);height:1.4em;}
+.page[data-calendar-theme] .cal-clock {font-size:min(calc(var(--cal-clock-width-factor) * 1cqw * var(--cal-time-scale)),var(--cal-clock-cap));font-weight:var(--cal-weight);}
+.page[data-calendar-theme] .cal-footer {font-size:var(--cal-support-size);}
+.page[data-calendar-theme] .cal-layout {padding-left:max(var(--gutter),var(--display-safe-left,0px));padding-right:max(var(--gutter),var(--display-safe-right,0px));}
+.page[data-calendar-theme='calendar.paper'] .cal-left,.page[data-calendar-theme='calendar.poster'] .cal-left {display:none;}
+.page[data-calendar-theme='calendar.paper'] .cal-layout,.page[data-calendar-theme='calendar.poster'] .cal-layout {grid-template-columns:1fr;grid-template-rows:1fr;}
+.page[data-calendar-theme='calendar.paper'] .cal-month-panel {border:1px solid #dfd7c4;}
+.page[data-calendar-theme='calendar.poster'] .cal-day-label,.page[data-calendar-theme='calendar.poster'] .cal-footer,.page[data-calendar-theme='calendar.poster'] .cal-day-badge {display:none;}
+.page[data-calendar-theme='calendar.poster'] .cal-header {border-bottom:1px solid #9aa0a652;padding-bottom:14px;}
+.page[data-calendar-theme='calendar.poster'] .cal-title {font-size:clamp(24px,7vw,84px);font-weight:800;letter-spacing:-.05em;}
+.page[data-calendar-theme='calendar.poster'] .cal-day.is-selected {outline:1px solid currentColor;outline-offset:-4px;border-radius:0;}
+.page[data-calendar-theme='calendar.poster'] .cal-day.is-today::after {content:'';width:5px;height:5px;border-radius:50%;background:var(--green);}
+.page[data-calendar-theme='calendar.poster'] .cal-day.is-other-month {opacity:.18;}
+.page[data-calendar-theme='calendar.agenda'] .cal-clock-panel,.page[data-calendar-theme='calendar.agenda'] .cal-footer {display:none;}
+.page[data-calendar-theme='calendar.agenda'] .cal-layout {grid-template-columns:1fr;grid-template-rows:minmax(0,1fr) auto;}
+.page[data-calendar-theme='calendar.agenda'] .cal-right {grid-row:1;}
+.page[data-calendar-theme='calendar.agenda'] .cal-left {flex-direction:row;max-height:180px;}
+.page[data-calendar-theme='calendar.agenda'] .cal-days-viewport {flex:0 0 clamp(60px,14vh,130px);}
+.page[data-calendar-theme='calendar.agenda'] .cal-days {grid-template-rows:1fr;}
+.cal-agenda-detail {flex:1;min-height:0;overflow:auto;padding:10px 20px;font-size:var(--cal-support-size);}
+.cal-agenda-detail[hidden] {display:none;}
+.cal-agenda-detail h2 {font-size:clamp(28px,8vh,80px);margin:0;font-weight:400;}
+.cal-agenda-detail p {line-height:1.8;margin:8px 0;}
+@media(max-height:440px) {.page[data-calendar-theme='calendar.agenda'] .cal-layout{grid-template-columns:1.6fr 1fr;grid-template-rows:1fr;} .page[data-calendar-theme='calendar.agenda'] .cal-left{max-height:none;flex-direction:column;} .cal-weather-icon{width:40px;height:40px;} .cal-weather-card{padding:8px;gap:4px;} .cal-forecast-card{padding:8px;} .cal-day-label{height:14px;} .cal-footer{height:20px;} }
+
+/* Fit the composition first, then cap text against its actual cell. */
+.cal-layout {min-height:0;grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
+.cal-left,.cal-right,.cal-panel {min-width:0;}
+.cal-clock {max-width:100%;}
+.page[data-calendar-theme] .cal-clock {font-size:min(calc(24cqw * var(--cal-time-scale)),21cqw,58cqh);}
+.page[data-calendar-theme] .cal-day {container-type:size;}
+.page[data-calendar-theme] .cal-day-number {font-size:var(--cal-date-size);}
+.page[data-calendar-theme] .cal-day-label {font-size:var(--cal-support-size);height:1.4em;}
+.cal-forecast-text {white-space:normal;text-align:center;overflow-wrap:anywhere;}
+.cal-forecast-row.is-unavailable .cal-forecast-col:not(:first-child) {display:none;}
+.cal-weather-main {gap:clamp(5px,2vw,22px);max-width:100%;}
+.cal-weather-icon {flex-shrink:0;}
+.cal-weather-icon[hidden] {display:none;}
+.cal-weather-card,.cal-forecast-card {overflow:hidden;}
+.cal-temp {font-size:clamp(22px,4vw,52px);white-space:nowrap;}
+.cal-feels {flex-shrink:0;}
+@media(orientation:portrait),(max-width:560px) {
+ .cal-layout {grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(150px,28%) minmax(0,1fr);}
+ .cal-layout:has(.cal-weather-card[hidden]) {grid-template-rows:minmax(64px,14%) minmax(0,1fr);}
+ .cal-left {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:minmax(50px,.65fr) minmax(70px,1fr);}
+ .cal-left:has(.cal-weather-card[hidden]) {grid-template-rows:1fr;}
+ .cal-clock-panel {grid-column:1/-1;container-type:size;padding:6px 12px;}
+ .cal-weather-card {padding:6px;gap:4px;}
+ .cal-weather-icon {width:30px;height:30px;}
+ .cal-forecast-card {padding:6px;}
+ .cal-feels small {font-size:10px;} .cal-feels b {font-size:16px;}
+ .cal-weather-summary {font-size:11px;}
+ .cal-forecast-icon {width:24px;height:24px;margin:3px 0;}
+ .cal-forecast-label,.cal-forecast-text {font-size:10px;}
+ .cal-month-panel {padding:8px 6px;}
+ .cal-header {gap:3px;}
+ .cal-title {padding:4px;font-size:clamp(13px,3.8vw,22px);min-width:0;}
+ .cal-today {padding:0 6px;min-width:0;}
+ .cal-weekday {font-size:13px;}
+ .page[data-calendar-theme='calendar.paper'] .cal-layout,.page[data-calendar-theme='calendar.poster'] .cal-layout {grid-template-rows:1fr;}
+ .page[data-calendar-theme='calendar.agenda'] .cal-layout {grid-template-rows:minmax(0,1fr) 120px;}
+ .page[data-calendar-theme='calendar.agenda'] .cal-layout:has(.cal-weather-card[hidden]) {grid-template-rows:1fr;}
+ .page[data-calendar-theme='calendar.agenda'] .cal-left {display:flex;flex-direction:row;}
+ .page[data-calendar-theme='calendar.agenda'] .cal-left:has(.cal-weather-card[hidden]) {display:none;}
+ .page[data-calendar-theme='calendar.agenda'] .cal-days-viewport {flex-basis:82px;}
 }
-@media (max-width: 360px) {
-  .cal-month-panel { padding: 6px 3px; }
-  .cal-header { gap: 2px; }
-  .cal-month-title { padding: 2px; font-size: 14px; }
-  .cal-today { padding: 0 4px; min-width: 0; }
-  .cal-weekday { font-size: 12px; }
-  .cal-day-label { font-size: 11px; }
-}
+@media(max-height:450px) { .cal-month-panel{padding:6px;} .cal-weekday{font-size:12px;padding:2px;} .cal-forecast-icon{width:24px;height:24px;margin:3px;} .cal-weather-card{gap:4px;} .cal-header{gap:2px;} .cal-title{font-size:17px;} .cal-footer{flex-shrink:0;} }
+
+.page[data-calendar-theme] .cal-footer{height:1.5em;min-height:1.5em;font-weight:var(--cal-weight);}
+.page[data-calendar-theme] .cal-day-label{font-weight:var(--cal-weight);}
+
+.page[data-calendar-theme] { font-synthesis:none; }
+.page[data-calendar-theme] .cal-title { font-family:var(--cal-font); font-weight:var(--cal-weight); }
+
+.page[data-calendar-theme] .cal-layout { font-weight:var(--cal-weight); }
+.page[data-calendar-theme] :is(.cal-title,.cal-feels b,.cal-forecast-label,.cal-forecast-text,.cal-weekdays,.cal-agenda-detail h2) { font-weight:var(--cal-weight); }

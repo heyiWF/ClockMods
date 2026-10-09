@@ -50,6 +50,7 @@ export function createColorPicker(
     const argb = hsvToArgb(hsv);
     preview.style.background = cssColor(argb);
     for (const listener of listeners) listener(argb);
+    root.dispatchEvent(new Event('input', {bubbles:true}));
   };
 
   const drawSquare = () => {

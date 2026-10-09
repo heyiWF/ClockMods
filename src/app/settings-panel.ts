@@ -1,3 +1,7 @@
+import {secondaryFontSize,secondarySizeValue,saveSecondarySize} from '../ui/secondary-font-size';
+import type { StylePreview, PreviewDraft } from '../ui/style-preview';
+import { fontWeightControl } from '../ui/font-weight';
+import { ultimateSettings } from '../ui/ultimate-settings';
 import { themeSettings } from '../ui/theme-settings';
 import { transitionName } from '../core/clock-themes';
 /**
@@ -48,6 +52,7 @@ import {
   LANGUAGE_TRADITIONAL,
   MAX_FONT_SCALE,
   MIN_FONT_SCALE,
+  MODE_THEME,
   MODE_COLOR,
   MODE_IMAGE,
   ORIENTATION_FOLLOW_SYSTEM,
@@ -66,7 +71,7 @@ import {
   prefs,
 } from '../core/prefs';
 import { t, ta } from '../core/i18n';
-import { FONT_OPTIONS } from '../core/fonts';
+import { fontPicker, setFontSelection, pendingFontSelections } from '../ui/font-picker';
 import { ZONE_IDS, indexOfZoneId } from '../core/timezone';
 import {
   composeCombo,
@@ -123,6 +128,26 @@ export function openSettings(onApplied: SettingsApplied): void {
 class SettingsPanel {
   private readonly dialog = element('dialog', 'settings-sheet');
   private readonly themes = themeSettings();
+  private readonly ultimate = ultimateSettings();
+  private pendingImage: File | null = null;
+  private preview?: StylePreview;
+  private readonly previewHost = element('div', 'settings-preview-host');
+  private previewCategory = 0;
+  private activeTheme = prefs.getClockTheme();
+  private readonly typography = new Map<string, {font:string;bold:boolean;weight:number;time:number;date:number;transition:string;animate:boolean}>();
+  private resetThemes = false;
+  private captureTypography(): void {
+    const c=this.controls;
+    this.typography.set(this.activeTheme,{font:c.fontFamily.value,bold:c.boldText.input.checked,weight:c.fontWeight.value(),time:+c.timeSize.input.value/100,date:c.dateSize.value(),transition:c.transition.value,animate:c.animate.input.checked});
+  }
+  private selectTheme(id: string): void {
+    this.captureTypography(); this.activeTheme=id;
+    const v=this.typography.get(id) ?? {font:this.resetThemes?'system':prefs.getFontFamily(id),bold:!this.resetThemes&&prefs.isBoldText(id),weight:this.resetThemes?400:prefs.getFontWeight(id),time:this.resetThemes ? .88:prefs.getTimeFontScale(id),date:secondarySizeValue('date',id,this.resetThemes),transition:this.resetThemes?'fade':prefs.getTimeTransition(id),animate:this.resetThemes||prefs.isAnimateTimeChanges(id)};
+    const c=this.controls;setFontSelection(c.fontFamily,v.font);c.boldText.input.checked=v.bold;c.fontWeight.set(v.font,v.weight);setSlider(c.timeSize,v.time);c.dateSize.setTheme(id,v.date);c.transition.value=v.transition;c.animate.input.checked=v.animate;
+    this.ultimate.changeTheme(id);
+    for(const row of [c.blinkColon.row,c.portraitStacked.row,c.smallSeconds.row,c.dualLine.row]) row.hidden=id!=='classic';
+    c.transition.disabled=id==='digital.grid'||!c.animate.input.checked;c.animate.row.hidden=id==='digital.grid';
+  }
   private readonly styleBoard = element('div', 'settings-board');
   private readonly functionBoard = element('div', 'settings-board');
   private readonly dateFormatContainer = element('div', 'settings-date-format');
@@ -137,6 +162,8 @@ class SettingsPanel {
   private pendingPatternCn = prefs.getDatePatternCn();
   private pendingPatternEn = prefs.getDatePatternEn();
   private dateSectionEnglish = prefs.getClockLanguage() === LANGUAGE_ENGLISH;
+  private resetDateDefaults = false;
+  private readonly initializedDates = new Set<boolean>();
   private coreIndexCn = 0;
   private coreIndexEn = 0;
   private comboIndexCn = 0;
@@ -163,7 +190,39 @@ class SettingsPanel {
     this.buildLayout();
     document.body.appendChild(this.dialog);
     this.dialog.showModal();
-    this.dialog.addEventListener('close', () => this.dialog.remove());
+    void import('../ui/style-preview').then(({StylePreview}) => {
+      if (!this.dialog.open) return;
+      this.preview = new StylePreview(() => this.previewDraft());
+      this.previewHost.append(this.preview.element);
+      this.preview.setCategory(this.previewCategory);
+      this.preview.mount();
+    }).catch(() => { if (this.dialog.open) this.previewHost.textContent = prefs.isClockUseEnglish() ? 'Preview unavailable' : '预览暂不可用'; });
+    for (const event of ['input','change','click','reset-settings']) this.dialog.addEventListener(event, () => this.preview?.request());
+    this.dialog.addEventListener('close', () => { this.preview?.destroy(); this.dialog.remove(); });
+  }
+
+  private previewDraft(): PreviewDraft {
+    const c = this.controls, extra = this.ultimate.previewSettings();
+    const typography: Partial<typeof prefs> = this.previewCategory === 1 || this.previewCategory === 5 ? extra : {
+      getFontFamily:()=>c.fontFamily.value,getFontWeight:()=>c.fontWeight.value(),hasFontWeight:()=>true,
+      isBoldText:()=>c.fontWeight.value()>=700,getTimeFontScale:()=>+c.timeSize.input.value/100,getDateFontScale:()=>c.dateSize.value()/100,getDateFontSize:()=>c.dateSize.value(),
+    };
+    const settings: typeof prefs = {...prefs,...this.themes.previewSettings(),...typography,
+      getUltimateOptions:extra.getUltimateOptions!, getBackgroundMode:()=>this.backgroundMode,getBackgroundColor:()=>this.backgroundColor,
+      getTimeColor:()=>this.timeColor,getDateColor:()=>this.dateColor,
+      isDimBackground:()=>c.dimBackground.input.checked,isScheduleDimBackground:()=>c.scheduleDim.input.checked,
+      getDimStartMinutes:()=>c.dimStart.minutes(),getDimEndMinutes:()=>c.dimEnd.minutes(),
+      isShowSeconds:()=>c.showSeconds.input.checked,isSmallSeconds:()=>c.smallSeconds.input.checked,isShowLunar:()=>c.showLunar.input.checked,
+      isUse24Hour:()=>c.use24Hour.input.checked,isBlinkColon:()=>c.blinkColon.input.checked,isPortraitStacked:()=>c.portraitStacked.input.checked,
+      isDateLunarDualLine:()=>c.dualLine.input.checked,getTimeZoneId:()=>c.region.value,
+      getClockLanguage:()=>this.selectedLanguage,isClockUseEnglish:()=>this.selectedLanguage==='en',
+      getDatePatternCn:()=>this.pendingPatternCn,getDatePatternEn:()=>this.pendingPatternEn,
+      getCustomMessage:()=>c.customMessage.value,isWeatherEnabled:()=>c.weatherEnabled.input.checked,isWeatherDetailed:()=>c.weatherDetailed.input.checked,
+      isWeatherIconFill:()=>c.iconFill.input.checked,isWeatherIconDynamicColor:()=>c.iconDynamic.input.checked,
+      getCalendarWeekStart:()=>c.weekStart.value(),isCalendarHighlightWeekends:()=>c.highlightWeekends.input.checked,
+      isAnimateTimeChanges:()=>false,getTimeTransition:()=>c.transition.value,
+    };
+    return {settings,image:this.pendingImage};
   }
 
   // ---- Construction ----
@@ -181,6 +240,7 @@ class SettingsPanel {
 
     const modeGroup = segmented(
       [
+        { value: MODE_THEME, label: prefs.isClockUseEnglish() ? 'Theme' : '主题' },
         { value: MODE_COLOR, label: t('solid_color') },
         { value: MODE_IMAGE, label: t('background_image') },
       ],
@@ -202,6 +262,7 @@ class SettingsPanel {
       this.dateColor = color;
     });
 
+    const font = fontPicker(prefs.getFontFamily(), prefs.isClockUseEnglish());
     const percent = (value: number) => t('font_size_percent', Math.round(value));
     return {
       modeGroup,
@@ -212,13 +273,9 @@ class SettingsPanel {
       scheduleDim: switchRow(t('schedule_dim_background'), prefs.isScheduleDimBackground()),
       dimStart: timeButton(t('dim_start_time'), prefs.getDimStartMinutes()),
       dimEnd: timeButton(t('dim_end_time'), prefs.getDimEndMinutes()),
-      fontFamily: select(
-        FONT_OPTIONS.map((option) => ({
-          value: option.id,
-          label: option.system && option.id === 'system' ? t('font_system') : option.displayName,
-        })),
-        prefs.getFontFamily()
-      ),
+      fontPicker: font.row,
+      fontFamily: font.input,
+      fontWeight: fontWeightControl(prefs.isClockUseEnglish()?'Font weight':'字重',prefs.getFontFamily(),prefs.getFontWeight()),
       boldText: switchRow(t('bold_text'), prefs.isBoldText()),
       timeSize: sliderRow(
         t('font_size'),
@@ -227,13 +284,7 @@ class SettingsPanel {
         Math.round(prefs.getTimeFontScale() * 100),
         percent
       ),
-      dateSize: sliderRow(
-        t('font_size'),
-        MIN_FONT_PERCENT,
-        MAX_FONT_PERCENT,
-        Math.round(prefs.getDateFontScale() * 100),
-        percent
-      ),
+      dateSize: secondaryFontSize(prefs.isClockUseEnglish()?'Date size':'日期字号','date',this.activeTheme),
       transition: select(
         [TRANSITION_FADE, TRANSITION_SLIDE_UP, TRANSITION_SLIDE_DOWN, TRANSITION_SCALE, TRANSITION_FLIP, TRANSITION_SLIDE_RIGHT, TRANSITION_SCAN].map(
           value => ({ value, label: transitionName(value, prefs.getClockLanguage()) })
@@ -362,20 +413,6 @@ class SettingsPanel {
     apply.addEventListener('click', () => void this.applySelection());
     header.append(cancel, apply);
 
-    // ---- Tabs ----
-    const tabs = segmented(
-      [
-        { value: 'style', label: t('tab_style') },
-        { value: 'function', label: t('tab_function') },
-      ],
-      'style'
-    );
-    tabs.onChange((value) => {
-      this.styleBoard.hidden = value !== 'style';
-      this.functionBoard.hidden = value === 'style';
-    });
-    this.functionBoard.hidden = true;
-
     // ---- Style board ----
     const colorControls = element('div', 'settings-group');
     colorControls.append(c.backgroundPicker.root);
@@ -392,11 +429,10 @@ class SettingsPanel {
       const file = filePicker.files?.[0];
       if (!file) return;
       try {
-        const longEdge = Math.max(screen.width, screen.height) * (devicePixelRatio || 1);
-        await saveBackgroundImage(file, Math.round(longEdge));
+        this.pendingImage = file;
         this.backgroundMode = MODE_IMAGE;
         c.modeGroup.setValue(MODE_IMAGE);
-        toast(t('image_saved'));
+        chooseImage.textContent = file.name;
       } catch {
         toast(t('image_error'));
       }
@@ -417,10 +453,10 @@ class SettingsPanel {
 
     c.modeGroup.onChange((mode) => {
       this.backgroundMode = mode;
-      colorControls.hidden = mode === MODE_IMAGE;
+      colorControls.hidden = mode !== MODE_COLOR;
       imageControls.hidden = mode !== MODE_IMAGE;
     });
-    colorControls.hidden = this.backgroundMode === MODE_IMAGE;
+    colorControls.hidden = this.backgroundMode !== MODE_COLOR;
     imageControls.hidden = this.backgroundMode !== MODE_IMAGE;
 
     this.styleBoard.append(
@@ -429,8 +465,8 @@ class SettingsPanel {
       card(
         t('font_settings_group'),
         subLabel(t('font_family')),
-        c.fontFamily,
-        c.boldText.row,
+        c.fontPicker,
+        c.fontWeight.row,
         subLabel(t('time_font_settings')),
         c.timeSize.row,
         subLabel(t('font_color')),
@@ -447,6 +483,8 @@ class SettingsPanel {
         c.smallSeconds.row,
         subLabel(t('date_font_settings')),
         c.dateSize.row,
+        this.themes.supportRow,
+        summaryLabel(prefs.isClockUseEnglish()?'Date and supporting text share one size range. When space is tight, both scale together.':'日期与辅助文字使用相同字号范围；空间不足时同步缩小。'),
         subLabel(t('font_color')),
         c.datePicker.root,
         c.showLunar.row,
@@ -459,10 +497,10 @@ class SettingsPanel {
       setTreeEnabled(c.datePicker.root, enabled);
     };
     this.themes.root.addEventListener('change', syncThemeInk);
-    this.themes.onThemeChanged(id => {
-      c.transition.value = prefs.getTimeTransition(id);
-      c.animate.input.checked = prefs.isAnimateTimeChanges(id);
-    });
+    this.themes.onThemeChanged(id => this.selectTheme(id));
+    this.selectTheme(this.activeTheme);
+    c.fontFamily.addEventListener('change',()=>c.fontWeight.set(c.fontFamily.value,c.fontWeight.value()));
+    c.animate.input.addEventListener('change', () => { c.transition.disabled = !c.animate.input.checked || this.activeTheme === 'digital.grid'; });
     syncThemeInk();
     const syncSmallSeconds = () => {
       c.smallSeconds.input.disabled = !c.showSeconds.input.checked;
@@ -478,6 +516,7 @@ class SettingsPanel {
     c.networkTime.input.addEventListener('change', syncNetworkState);
     syncNetworkState();
 
+    const originalDateSection=this.dateSectionEnglish;this.dateSectionEnglish=!originalDateSection;this.rebuildDateFormat();this.dateSectionEnglish=originalDateSection;
     this.rebuildDateFormat();
     c.language.onChange((language) => {
       this.captureDateSection();
@@ -540,6 +579,7 @@ class SettingsPanel {
       locationRow.hidden = !manual;
       c.weatherInterval.disabled = !enabled;
       c.weatherDetailed.input.disabled = !enabled;
+      c.iconFill.input.disabled = !enabled; c.iconDynamic.input.disabled = !enabled;
       if (manual) void this.ensureCatalog();
     };
     c.weatherEnabled.input.addEventListener('change', syncWeatherState);
@@ -551,10 +591,43 @@ class SettingsPanel {
     reset.type = 'button';
     reset.addEventListener('click', () => this.restoreDefaults());
 
-    const body = element('div', 'settings-body');
-    body.append(this.styleBoard, this.functionBoard, reset);
 
-    this.dialog.replaceChildren(header, tabs.row, body);
+    // Ultimate's category home on phones, persistent navigation on wide screens.
+    const en=prefs.isClockUseEnglish();
+    const names=en?['Clock style','Calendar style','Background & display','Time & date','Weather & message','Calendar','Chime','System']:['时钟样式','日历样式','背景与显示','时间与日期','天气与消息','日历','报时','系统'];
+    const descriptions=en?['Themes, colours and typography','Calendar composition and typography','Wallpaper and device status','Time source, time zone and date','Location, forecast and custom text','Week layout','Hourly and half-hour effects','Language and display protection']:['主题、配色与排版','主题、字体与滚动','壁纸、亮度与设备状态','时区、时间源与日期格式','天气、位置与自定义消息','每周起始日与周末','整点、半点与静默时段','语言、方向与显示保护'];
+    const icons=['◷','▦','◐','◴','☁','▤','◉','⚙'];
+    const panes=names.map((name,i)=>{const pane=element('section','ultimate-settings-pane');pane.id='settings-category-'+i;pane.dataset.category=String(i);pane.setAttribute('aria-label',name);pane.append(element('h2','settings-page-title',name));return pane;});
+    const styles=[...this.styleBoard.children];const functions=[...this.functionBoard.children];
+    panes[0].append(styles[0],styles[2],this.ultimate.seconds,this.ultimate.world);
+    panes[1].append(this.ultimate.calendar);
+    panes[2].append(styles[1],this.ultimate.display);
+    panes[3].append(functions[1],functions[2],functions[4],card(en?'Date display':'日期显示',c.use24Hour.row,c.showSeconds.row,c.showLunar.row));
+    panes[4].append(functions[5],functions[6],this.themes.temperature,functions[7]);
+    panes[5].append(functions[8]);
+    const quiet=quietRow(c);const syncQuiet=()=>setTreeEnabled(quiet,c.hourlyQuiet.input.checked);c.hourlyQuiet.input.addEventListener('change',syncQuiet);syncQuiet();
+    panes[6].append(card(en?'Visual chime':'视觉报时',c.hourlyChime.row,c.hourlyQuiet.row,quiet),this.ultimate.chime);
+    panes[7].append(functions[0],functions[3],this.ultimate.system,reset);
+    const navigation=element('nav','ultimate-settings-nav');navigation.setAttribute('aria-label',en?'Settings categories':'设置分类');
+    const back=element('button','m3-button m3-button--text settings-back',en?'← Back':'← 返回');back.type='button';
+    const workspace=element('div','ultimate-settings-workspace');
+    const content=element('div','ultimate-settings-content');content.append(...panes);
+    const editor=element('div','ultimate-settings-editor');
+    editor.append(this.previewHost,content);
+    const buttons: HTMLButtonElement[]=[];
+    const show=(index:number,focus=false)=>{this.previewCategory=index;this.preview?.setCategory(index);panes.forEach((pane,i)=>{pane.hidden=i!==index;});buttons.forEach((button,i)=>button.setAttribute('aria-current',i===index?'page':'false'));this.dialog.classList.add('is-detail');content.scrollTop=0;if(focus)back.focus();};
+    names.forEach((name,i)=>{const button=element('button','settings-category');button.type='button';button.setAttribute('aria-controls',panes[i].id);button.append(element('span','settings-category-icon',icons[i]),element('span','settings-category-copy'));button.lastElementChild!.append(element('strong',undefined,name),element('small',undefined,descriptions[i]));button.append(element('span',undefined,'›'));button.addEventListener('click',()=>show(i,true));navigation.append(button);buttons.push(button);});
+    back.addEventListener('click',()=>{this.dialog.classList.remove('is-detail');buttons.find(button=>button.getAttribute('aria-current')==='page')?.focus();});
+    header.prepend(back);header.querySelector('h2')!.textContent=en?'Settings':'设置';
+    workspace.append(navigation,editor);this.dialog.classList.add('ultimate-settings');this.dialog.setAttribute('aria-label',en?'Settings':'设置');
+    this.dialog.replaceChildren(header,workspace);show(0);this.dialog.classList.remove('is-detail');
+    c.timeSize.input.setAttribute('aria-label',en?'Time size':'时间字号');c.dateSize.input.setAttribute('aria-label',en?'Date size':'日期字号');
+    c.fontFamily.setAttribute('aria-label',en?'Clock font':'时钟字体');c.transition.setAttribute('aria-label',en?'Digit transition':'数字过渡动画');
+    for(const pane of panes) for(const input of pane.querySelectorAll('select,input:not([type=checkbox]):not([type=range]):not([type=file])')) if(!input.hasAttribute('aria-label')) input.setAttribute('aria-label', input.previousElementSibling?.textContent || input.getAttribute('placeholder') || pane.getAttribute('aria-label')!);
+    const syncChime = () => this.ultimate.setHourlyChime(c.hourlyChime.input.checked);
+    c.hourlyChime.input.addEventListener('change', syncChime);
+    syncChime();
+    this.dialog.addEventListener('reset-settings',()=>{syncChime();syncQuiet();syncWeatherState();syncDimState();syncSmallSeconds();syncNetworkState();syncThemeInk();});
   }
 
   // ---- Date format section ----
@@ -569,14 +642,15 @@ class SettingsPanel {
     const lang = this.lang(english);
     const cores = dateCores(lang);
     const combos = weekdayCombos(lang);
-    const storedCore = prefs.getDateCore(english);
-    const storedCombo = prefs.getDateCombo(english);
-    const customEnabled = prefs.isDateCustomEnabled(english);
-    const coreIndex = customEnabled
+    const storedCore = this.resetDateDefaults ? (english ? 'yyyy/M/d' : 'yyyy年M月d日') : prefs.getDateCore(english);
+    const storedCombo = this.resetDateDefaults ? 'DATE EEEE' : prefs.getDateCombo(english);
+    const customEnabled = !this.resetDateDefaults && prefs.isDateCustomEnabled(english);
+    const coreIndex = this.initializedDates.has(english) ? (english ? this.coreIndexEn : this.coreIndexCn) : customEnabled
       ? cores.length
       : Math.max(0, cores.indexOf(storedCore) >= 0 ? cores.indexOf(storedCore) : defaultCoreIndex(cores, english));
-    const comboIndex =
+    const comboIndex = this.initializedDates.has(english) ? (english ? this.comboIndexEn : this.comboIndexCn) :
       combos.indexOf(storedCombo) >= 0 ? combos.indexOf(storedCombo) : combos.indexOf('DATE EEEE');
+    this.initializedDates.add(english);
     this.setCoreIndex(english, coreIndex);
     this.setComboIndex(english, Math.max(0, comboIndex));
 
@@ -764,18 +838,27 @@ class SettingsPanel {
   // ---- Apply / reset ----
 
   private async applySelection(): Promise<void> {
+    const fonts = pendingFontSelections(this.dialog);
+    if(fonts.length) { await Promise.all(fonts); if(!this.dialog.open) return; }
     const c = this.controls;
     const manual = c.locationMode.value === WEATHER_LOCATION_MANUAL;
     if (c.weatherEnabled.input.checked && manual && !this.weatherLocation.id) {
       toast(t('weather_location_not_selected'));
       return;
     }
-    if (this.backgroundMode === MODE_IMAGE && !(await hasBackgroundImage())) {
+    if (this.backgroundMode === MODE_IMAGE && !this.pendingImage && !(await hasBackgroundImage())) {
       toast(t('select_image_first'));
       return;
     }
 
+    if (this.pendingImage && this.backgroundMode === MODE_IMAGE) {
+      try { await saveBackgroundImage(this.pendingImage, Math.round(Math.max(screen.width,screen.height)*(devicePixelRatio||1))); }
+      catch { toast(t('image_error')); return; }
+    }
+    this.captureTypography();
     this.themes.apply();
+    for(const[id,v]of this.typography){prefs.setFontFamily(v.font,id);prefs.setBoldText(v.weight>=700,id);prefs.setFontWeight(v.weight,id);prefs.setTimeFontScale(v.time,id);saveSecondarySize('date',id,v.date);prefs.setTimeTransition(v.transition,id);prefs.setAnimateTimeChanges(v.animate,id);}
+    this.ultimate.apply();
     prefs.setBackgroundMode(this.backgroundMode);
     prefs.setBackgroundColor(this.backgroundColor);
     prefs.setDimBackground(c.dimBackground.input.checked);
@@ -783,15 +866,15 @@ class SettingsPanel {
     prefs.setDimStartMinutes(c.dimStart.minutes());
     prefs.setDimEndMinutes(c.dimEnd.minutes());
 
-    prefs.setFontFamily(c.fontFamily.value);
-    prefs.setBoldText(c.boldText.input.checked);
-    prefs.setTimeFontScale(Number(c.timeSize.input.value) / 100);
-    prefs.setDateFontScale(Number(c.dateSize.input.value) / 100);
+
+
+
+
     prefs.setTimeColor(this.timeColor);
     prefs.setDateColor(this.dateColor);
-    prefs.setTimeTransition(c.transition.value);
+
     prefs.setBlinkColon(c.blinkColon.input.checked);
-    prefs.setAnimateTimeChanges(c.animate.input.checked);
+
     prefs.setPortraitStacked(c.portraitStacked.input.checked);
     prefs.setHourlyChimeEnabled(c.hourlyChime.input.checked);
     prefs.setHourlyChimeQuietEnabled(c.hourlyQuiet.input.checked);
@@ -863,14 +946,16 @@ class SettingsPanel {
 
   /** Restores the documented defaults in the sheet, without writing them yet. */
   private restoreDefaults(): void {
+    this.resetThemes=true;this.typography.clear();this.activeTheme='classic';this.pendingImage=null;this.ultimate.reset();
     this.themes.reset();
     this.themes.root.dispatchEvent(new Event('change', { bubbles: true }));
     const c = this.controls;
-    this.backgroundMode = MODE_COLOR;
+    this.backgroundMode = MODE_THEME;
     this.backgroundColor = DEFAULT_BACKGROUND_COLOR;
     this.timeColor = DEFAULT_TEXT_COLOR;
     this.dateColor = DEFAULT_TEXT_COLOR;
-    c.modeGroup.setValue(MODE_COLOR);
+    c.modeGroup.setValue(MODE_THEME);
+    c.modeGroup.row.querySelector<HTMLButtonElement>('[aria-pressed="true"]')?.click();
     c.backgroundPicker.setValue(DEFAULT_BACKGROUND_COLOR);
     c.timePicker.setValue(DEFAULT_TEXT_COLOR);
     c.datePicker.setValue(DEFAULT_TEXT_COLOR);
@@ -878,10 +963,10 @@ class SettingsPanel {
     c.scheduleDim.input.checked = DEFAULT_SCHEDULE_DIM_BACKGROUND;
     setTimeValue(c.dimStart, DEFAULT_DIM_START_MINUTES);
     setTimeValue(c.dimEnd, DEFAULT_DIM_END_MINUTES);
-    c.fontFamily.value = 'system';
-    c.boldText.input.checked = DEFAULT_BOLD_TEXT;
+    setFontSelection(c.fontFamily, 'system');
+    c.boldText.input.checked = DEFAULT_BOLD_TEXT;c.fontWeight.set('system',400);
     setSlider(c.timeSize, DEFAULT_TIME_FONT_SCALE);
-    setSlider(c.dateSize, DEFAULT_DATE_FONT_SCALE);
+    c.dateSize.setTheme('classic',DEFAULT_DATE_FONT_SCALE*100);
     c.transition.value = TRANSITION_FADE;
     c.blinkColon.input.checked = DEFAULT_BLINK_COLON;
     c.animate.input.checked = DEFAULT_ANIMATE_TIME_CHANGES;
@@ -899,9 +984,12 @@ class SettingsPanel {
     c.language.setValue(LANGUAGE_SIMPLIFIED);
     this.selectedLanguage = LANGUAGE_SIMPLIFIED;
     this.dateSectionEnglish = false;
-    this.pendingPatternCn = prefs.getDatePatternCn();
-    this.pendingPatternEn = prefs.getDatePatternEn();
+    this.resetDateDefaults=true;this.initializedDates.clear();
+    this.pendingPatternCn = 'yyyy年M月d日 EEEE';
+    this.pendingPatternEn = 'yyyy/M/d EEEE';
+    this.dateSectionEnglish=true;this.rebuildDateFormat();this.dateSectionEnglish=false;
     this.rebuildDateFormat();
+    c.networkTime.input.checked = false; c.syncInterval.setValue(60);c.timeSourceUrl.value='';c.region.value=ZONE_IDS[0];
     c.customMessage.value = '';
     c.weatherEnabled.input.checked = DEFAULT_WEATHER_ENABLED;
     c.locationMode.value = WEATHER_LOCATION_AUTOMATIC;
@@ -911,6 +999,8 @@ class SettingsPanel {
     c.iconDynamic.input.checked = DEFAULT_WEATHER_ICON_DYNAMIC_COLOR;
     c.weekStart.setValue(DEFAULT_CALENDAR_WEEK_START);
     c.highlightWeekends.input.checked = DEFAULT_CALENDAR_HIGHLIGHT_WEEKENDS;
+    this.dialog.dispatchEvent(new Event('reset-settings'));
+    this.selectTheme('classic');
     toast(t('reset_default'));
   }
 }

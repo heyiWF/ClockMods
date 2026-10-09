@@ -1,3 +1,6 @@
+import { WeatherAttribution } from '../ui/weather-attribution';
+import { applyCalendarTheme } from '../core/calendar-themes';
+import { temperature } from '../core/clock-themes';
 /**
  * The calendar dashboard.
  *
@@ -33,6 +36,8 @@ const DRAG_THRESHOLD_PX = 40;
 
 export class CalendarPage implements Page {
   readonly name = 'calendar';
+  private typographyObserver?: ResizeObserver;
+  dispose(): void { this.stop(); this.typographyObserver?.disconnect(); this.footer.destroy(); this.cellCarousels.forEach(carousel=>carousel.destroy()); }
   readonly immersive = true;
 
   private readonly root: HTMLElement;
@@ -48,6 +53,7 @@ export class CalendarPage implements Page {
   private readonly weatherCard: HTMLElement;
   private readonly forecastCard: HTMLElement;
   private readonly attribution: HTMLElement;
+  private readonly attributionPopup: WeatherAttribution;
   private readonly weatherIcon: HTMLElement;
   private readonly temperature: HTMLElement;
   private readonly feelsLabel: HTMLElement;
@@ -68,7 +74,7 @@ export class CalendarPage implements Page {
   private running = false;
   private animating = false;
 
-  constructor(root: HTMLElement, private readonly onOpenSettings: () => void) {
+  constructor(root: HTMLElement, private readonly onOpenSettings: () => void, private readonly settings: typeof prefs = prefs) {
     this.root = root;
     this.timeView = root.querySelector('#cal-time')!;
     this.secondsView = root.querySelector('#cal-seconds')!;
@@ -82,6 +88,7 @@ export class CalendarPage implements Page {
     this.weatherCard = root.querySelector('#cal-weather-card')!;
     this.forecastCard = root.querySelector('#cal-forecast-card')!;
     this.attribution = root.querySelector('#cal-attribution')!;
+    this.attributionPopup = new WeatherAttribution(root, this.attribution);
     this.weatherIcon = root.querySelector('#cal-weather-icon')!;
     this.temperature = root.querySelector('#cal-temp')!;
     this.feelsLabel = root.querySelector('#cal-feels-label')!;
@@ -99,6 +106,7 @@ export class CalendarPage implements Page {
     this.selected = { year: today.year, month0: today.month0, day: today.day };
 
     this.bindControls();
+    if (typeof ResizeObserver !== 'undefined') { this.typographyObserver = new ResizeObserver(()=>this.fitSecondaryTypography()); this.typographyObserver.observe(this.viewport); }
   }
 
   private bindControls(): void {
@@ -172,6 +180,8 @@ export class CalendarPage implements Page {
   start(): void {
     if (this.running) return;
     this.running = true;
+    this.attributionPopup.setEnabled(this.settings.isWeatherEnabled());
+    this.attributionPopup.start();
     this.footer.setActive(true);
     for (const carousel of this.cellCarousels) carousel.setActive(true);
     this.tick();
@@ -180,6 +190,7 @@ export class CalendarPage implements Page {
 
   stop(): void {
     this.running = false;
+    this.attributionPopup.stop();
     if (this.tickHandle !== null) {
       clearTimeout(this.tickHandle);
       this.tickHandle = null;
@@ -201,17 +212,19 @@ export class CalendarPage implements Page {
 
   refreshSettings(): void {
     this.cancelMonthAnimation();
+    applyCalendarTheme(this.root, this.settings);
     const style = this.root.style;
-    style.setProperty('--cal-font', fontStack(prefs.getFontFamily()));
+    style.setProperty('--cal-font', fontStack(this.settings.getFontFamily(this.settings.getUltimateOptions().calendarTheme)));
     this.applyColonShift();
     // A family that is still loading would measure as the fallback face.
-    void ensureFontLoaded(prefs.getFontFamily(), true).then(() => this.applyColonShift());
-    style.setProperty('--cal-time-color', cssColor(prefs.getTimeColor()));
+    void ensureFontLoaded(this.settings.getFontFamily(this.settings.getUltimateOptions().calendarTheme), this.settings.getFontWeight(this.settings.getUltimateOptions().calendarTheme), this.root.ownerDocument).then(() => { this.applyColonShift(); this.fitSecondaryTypography(); });
+    style.setProperty('--cal-time-color', ['calendar.graphite','calendar.carbon'].includes(this.settings.getUltimateOptions().calendarTheme) ? cssColor(this.settings.getTimeColor()) : 'var(--text)');
     style.setProperty(
       '--cal-weather-icon-color',
-      prefs.isWeatherIconDynamicColor() ? 'var(--accent)' : '#ffffff'
+      this.settings.isWeatherIconDynamicColor() ? 'var(--accent)' : '#ffffff'
     );
-    const weatherEnabled = prefs.isWeatherEnabled();
+    const weatherEnabled = this.settings.isWeatherEnabled();
+    if (!weatherEnabled) {this.weatherController.stop();this.forecastController.stop();}
     this.weatherCard.hidden = !weatherEnabled;
     this.forecastCard.hidden = !weatherEnabled;
     const attributionText = t('weather_attribution');
@@ -220,7 +233,7 @@ export class CalendarPage implements Page {
       '.weather-attribution-label'
     );
     if (attributionLabel) attributionLabel.textContent = attributionText;
-    this.attribution.hidden = !weatherEnabled;
+    this.attributionPopup.setEnabled(weatherEnabled);
     this.feelsLabel.textContent = t('calendar_feels_like');
     this.root.querySelector('#cal-today')!.textContent = t('calendar_today');
     this.populateWeekdays();
@@ -230,13 +243,13 @@ export class CalendarPage implements Page {
   }
 
   private startWeatherIfEnabled(): void {
-    if (!prefs.isWeatherEnabled()) return;
-    this.weatherController.start(prefs.getWeatherIntervalMinutes());
+    if (!this.settings.isWeatherEnabled()) return;
+    this.weatherController.start(this.settings.getWeatherIntervalMinutes());
     this.forecastController.start();
   }
 
   private today() {
-    return zonedFields(timeSource.now(), prefs.getTimeZoneId());
+    return zonedFields(timeSource.now(), this.settings.getTimeZoneId());
   }
 
   private tick(): void {
@@ -250,7 +263,7 @@ export class CalendarPage implements Page {
    * against a bold face regardless of the bold-text setting.
    */
   private applyColonShift(): void {
-    const shift = measureColonShift(fontStack(prefs.getFontFamily()), 700);
+    const shift = measureColonShift(fontStack(this.settings.getFontFamily(this.settings.getUltimateOptions().calendarTheme)), this.settings.getFontWeight(this.settings.getUltimateOptions().calendarTheme));
     this.root.style.setProperty('--cal-colon-shift', `${shift}em`);
   }
 
@@ -276,32 +289,34 @@ export class CalendarPage implements Page {
 
   private updateTime(): void {
     const fields = this.today();
-    const use24Hour = prefs.isUse24Hour();
+    const use24Hour = this.settings.isUse24Hour();
     let hour = use24Hour ? fields.hour : fields.hour % 12;
     if (!use24Hour && hour === 0) hour = 12;
     this.renderTime(this.timeView, `${twoDigits(hour)}:${twoDigits(fields.minute)}`);
-    this.secondsView.hidden = !prefs.isShowSeconds();
+    this.secondsView.hidden = !this.settings.isShowSeconds();
     this.renderTime(this.secondsView, `:${twoDigits(fields.second)}`);
     this.periodView.hidden = use24Hour;
     if (!use24Hour) {
-      this.periodView.textContent = periodTextFor(fields.hour, prefs.isClockUseEnglish());
+      this.periodView.textContent = periodTextFor(fields.hour, this.settings.isClockUseEnglish());
     }
   }
 
   // ---- Weather ----
 
   private bindWeather(state: WeatherState): void {
+    this.weatherIcon.hidden = !state.data;
     if (!state.data) {
+      this.temperature.textContent = temperature('--',this.settings.getTemperatureUnit());this.feels.textContent=temperature('--',this.settings.getTemperatureUnit());
       this.summary.textContent = pangu(state.message ?? t('calendar_forecast_loading'));
       return;
     }
     const data = state.data;
     this.weatherIcon.replaceChildren(
-      createWeatherIcon(data.icon, prefs.isWeatherIconFill()) ?? document.createTextNode('')
+      createWeatherIcon(data.icon, this.settings.isWeatherIconFill()) ?? document.createTextNode('')
     );
-    this.temperature.textContent = t('weather_temperature_format', data.temperature);
+    this.temperature.textContent = temperature(data.temperature, this.settings.getTemperatureUnit());
     const feelsLike = data.detail?.feelsLike?.trim() ? data.detail.feelsLike : '--';
-    this.feels.textContent = t('weather_temperature_format', feelsLike);
+    this.feels.textContent = temperature(feelsLike, this.settings.getTemperatureUnit());
 
     const parts = [locationText(data.city, data.district), data.text];
     if (data.detail) {
@@ -317,6 +332,7 @@ export class CalendarPage implements Page {
 
   private bindForecast(state: DailyForecastState): void {
     const labels = ta('forecast_day_labels');
+    this.forecastCard.querySelector('.cal-forecast-row')?.classList.toggle('is-unavailable',!state.data);
     if (!state.data) {
       const message = state.message ?? t('calendar_forecast_loading');
       for (const column of this.forecastColumns) {
@@ -332,7 +348,7 @@ export class CalendarPage implements Page {
       const forecast = state.data.entries.find((entry) => entry.fxDate === key) ?? null;
       const nodes: Node[] = [text('cal-forecast-label' + (index === 0 ? ' is-today' : ''), labels[index] ?? '')];
       if (forecast) {
-        const icon = createWeatherIcon(forecast.iconDay, prefs.isWeatherIconFill());
+        const icon = createWeatherIcon(forecast.iconDay, this.settings.isWeatherIconFill());
         if (icon) {
           icon.classList.add('cal-forecast-icon');
           if (index === 0) icon.classList.add('is-today');
@@ -342,7 +358,7 @@ export class CalendarPage implements Page {
         nodes.push(
           text(
             'cal-forecast-text',
-            t('weather_temperature_range_format', forecast.tempMin, forecast.tempMax)
+            temperature(forecast.tempMin, this.settings.getTemperatureUnit()) + ' ~ ' + temperature(forecast.tempMax, this.settings.getTemperatureUnit())
           )
         );
       } else {
@@ -357,8 +373,8 @@ export class CalendarPage implements Page {
 
   private populateWeekdays(): void {
     const names = ta('calendar_weekday_names');
-    const firstDayOfWeek = prefs.getCalendarWeekStart();
-    const highlight = prefs.isCalendarHighlightWeekends();
+    const firstDayOfWeek = this.settings.getCalendarWeekStart();
+    const highlight = this.settings.isCalendarHighlightWeekends();
     const cells: HTMLElement[] = [];
     for (let offset = 0; offset < 7; offset++) {
       const dayOfWeek = ((firstDayOfWeek - 1 + offset) % 7) + 1;
@@ -372,22 +388,32 @@ export class CalendarPage implements Page {
   }
 
   private renderMonth(): void {
-    const english = prefs.isClockUseEnglish();
+    const english = this.settings.isClockUseEnglish();
     this.title.textContent = formatDate(
       english ? 'MMMM yyyy' : 'yyyy年M月',
       { ...this.today(), year: this.visibleYear, month0: this.visibleMonth0, day: 1 },
-      dateLang(prefs.getClockLanguage())
+      dateLang(this.settings.getClockLanguage())
     );
     const month = createCalendarMonth(
       this.visibleYear,
       this.visibleMonth0,
       this.today(),
-      prefs.getCalendarWeekStart()
+      this.settings.getCalendarWeekStart()
     );
     for (const carousel of this.cellCarousels) carousel.destroy();
     this.cellCarousels.length = 0;
-    this.grid.replaceChildren(...month.days.map((day) => this.createDayCell(day, true)));
+    this.grid.replaceChildren(...this.visibleDays(month.days).map((day) => this.createDayCell(day, true)));
     this.updateFooter();
+  }
+
+  private fitSecondaryTypography(): void {
+    const cell=this.grid.querySelector<HTMLElement>('.cal-day'); if(!cell?.clientWidth || !cell.clientHeight)return;
+    const id=this.settings.getUltimateOptions().calendarTheme,date=this.settings.getDateFontSize(id),support=this.settings.getSupportingFontSize(id);
+    const showSupporting=id!=='calendar.poster';
+    const factor=Math.min(1,Math.max(1,cell.clientHeight-8)/(date*1.1+(showSupporting?support*1.4:0)),
+      Math.max(1,cell.clientWidth-4)/Math.max(date*1.5,showSupporting?support*2:0));
+    this.root.style.setProperty('--cal-date-size',date*factor+'px');
+    this.root.style.setProperty('--cal-support-size',support*factor+'px');
   }
 
   private renderPreview(direction: number): void {
@@ -396,11 +422,19 @@ export class CalendarPage implements Page {
       target.year,
       target.month0,
       this.today(),
-      prefs.getCalendarWeekStart()
+      this.settings.getCalendarWeekStart()
     );
-    this.preview.replaceChildren(...month.days.map((day) => this.createDayCell(day, false)));
+    this.preview.replaceChildren(...this.visibleDays(month.days, direction).map((day) => this.createDayCell(day, false)));
     this.preview.hidden = false;
     this.preview.style.transform = `translateX(${direction * this.grid.clientWidth}px)`;
+  }
+
+  private visibleDays(monthDays: CalendarDay[], offset = 0): CalendarDay[] {
+    if(this.settings.getUltimateOptions().calendarTheme!=='calendar.agenda')return monthDays;
+    const date=new Date(Date.UTC(this.selected.year,this.selected.month0,this.selected.day+offset*7));
+    const month=createCalendarMonth(date.getUTCFullYear(),date.getUTCMonth(),this.today(),this.settings.getCalendarWeekStart());
+    const index=month.days.findIndex(day=>day.year===date.getUTCFullYear()&&day.month0===date.getUTCMonth()&&day.dayOfMonth===date.getUTCDate());
+    return month.days.slice(Math.floor(index/7)*7,Math.floor(index/7)*7+7);
   }
 
   private createDayCell(day: CalendarDay, interactive: boolean): HTMLElement {
@@ -412,7 +446,7 @@ export class CalendarPage implements Page {
     if (interactive) cell.setAttribute('type', 'button');
     if (!day.currentMonth) cell.classList.add('is-other-month');
     if (day.today) cell.classList.add('is-today');
-    if (prefs.isCalendarHighlightWeekends() && isWeekend(day.dayOfWeek)) {
+    if (this.settings.isCalendarHighlightWeekends() && isWeekend(day.dayOfWeek)) {
       cell.classList.add('is-weekend');
     }
     if (
@@ -457,7 +491,7 @@ export class CalendarPage implements Page {
       });
     }
 
-    const separator = prefs.isClockUseEnglish() ? ', ' : '，';
+    const separator = this.settings.isClockUseEnglish() ? ', ' : '，';
     let description = t(
       day.today ? 'calendar_day_today_accessibility' : 'calendar_day_accessibility',
       day.dayOfMonth,
@@ -488,7 +522,11 @@ export class CalendarPage implements Page {
 
   private updateFooter(): void {
     const almanac = almanacOf(this.selected.year, this.selected.month0, this.selected.day);
-    const pattern = prefs.isClockUseEnglish() ? prefs.getDatePatternEn() : prefs.getDatePatternCn();
+    let detail=this.root.querySelector<HTMLElement>('.cal-agenda-detail');
+    if(!detail){detail=document.createElement('article');detail.className='cal-agenda-detail';this.viewport.after(detail);}
+    detail.hidden=this.settings.getUltimateOptions().calendarTheme!=='calendar.agenda';
+    if(!detail.hidden){const title=document.createElement('h2');title.textContent=this.selected.day.toString().padStart(2,'0');const lunar=document.createElement('p');lunar.textContent=almanac.natural;const suitable=document.createElement('p');suitable.textContent=t('calendar_suitable_prefix')+almanac.suitable.join(' · ');const avoid=document.createElement('p');avoid.textContent=t('calendar_avoid_prefix')+almanac.avoid.join(' · ');detail.replaceChildren(title,lunar,suitable,avoid);}
+    const pattern = this.settings.isClockUseEnglish() ? this.settings.getDatePatternEn() : this.settings.getDatePatternCn();
     const formatted = formatDate(
       pattern,
       {
@@ -500,7 +538,7 @@ export class CalendarPage implements Page {
           Date.UTC(this.selected.year, this.selected.month0, this.selected.day)
         ).getUTCDay(),
       },
-      dateLang(prefs.getClockLanguage())
+      dateLang(this.settings.getClockLanguage())
     );
     const items: LabelItem[] = [
       { text: t('calendar_selected_date', formatted, almanac.natural), color: 'var(--text)' },
@@ -595,6 +633,7 @@ export class CalendarPage implements Page {
   }
 
   private applyMonthOffset(direction: number): void {
+    if(this.settings.getUltimateOptions().calendarTheme==='calendar.agenda'){const date=new Date(Date.UTC(this.selected.year,this.selected.month0,this.selected.day+7*direction));this.selected={year:date.getUTCFullYear(),month0:date.getUTCMonth(),day:date.getUTCDate()};this.visibleYear=this.selected.year;this.visibleMonth0=this.selected.month0;this.renderMonth();return;}
     const targetDay = this.selected.day;
     const target = addMonths(this.visibleYear, this.visibleMonth0, 1, direction);
     this.visibleYear = target.year;

@@ -1,40 +1,35 @@
-/* The five Material clock families use the Android ids and retain all clock controls. */
-.page.is-material .clock-lines {
-  width: 84%; padding: clamp(12px, 3vw, 48px); border-radius: 36px;
-  background: var(--theme-panel); color: var(--theme-ink); box-sizing: border-box;
+/* Independent Ultimate compositions. All geometry comes from ultimate-face.ts. */
+.page.is-material .clock-stage { padding: 0; }
+.page.is-material .clock-lines,
+.page.is-material #clock-time,
+.ultimate-face { position: absolute; inset: 0; width: 100%; height: 100%; max-width: none; margin: 0; padding: 0; }
+.page.is-material #clock-time { display: block; text-shadow: none; }
+.ultimate-face { isolation: isolate; font-family: var(--clock-font); overflow: hidden; }
+.ultimate-face > [hidden] { display: none !important; }
+.face-shape, .face-art, .face-number, .face-label { position: absolute; box-sizing: border-box; }
+.face-shape, .face-art { z-index: 0; pointer-events: none; }
+.face-art svg { width: 100%; height: 100%; display: block; overflow: visible; }
+.page.has-card-shadow .face-shape { box-shadow: 0 2px 5px #0003; }
+.face-number { z-index: 1; display: flex; align-items: center; line-height: 1; white-space: nowrap; text-shadow: none; }
+.face-label { z-index: 1; line-height: 1.2; letter-spacing: .06em; font-weight: 700; }
+.ultimate-face .clock-char { flex: 0 0 auto; }
+.ultimate-face .clock-char[data-colon] { transform: translateY(var(--colon-shift, 0)); }
+.page.is-material .ultimate-face > .supporting-row {
+  position: absolute; z-index: 2; margin: 0; max-width: none;
+  line-height: 1.35; text-shadow: none; white-space: nowrap; font-family: var(--clock-font);
 }
-.page.is-material .clock-time,
-.page.is-material .supporting-row {
-  text-shadow: none;
+.ultimate-face::before { content: ''; position: absolute; inset: 0; z-index: -1; pointer-events: none; }
+.ultimate-face[data-face='paper.station']::before {
+  background-image: linear-gradient(to right, transparent 8.5%, #b5474060 8.5%, #b5474060 calc(8.5% + 1px), transparent calc(8.5% + 1px)), repeating-linear-gradient(to bottom, transparent 0, transparent calc(var(--face-unit) * .075 - 1px), #b5a88f38 calc(var(--face-unit) * .075 - 1px), #b5a88f38 calc(var(--face-unit) * .075));
 }
-.page.has-card-shadow.is-material .clock-lines { box-shadow: 0 12px 40px #0002; }
-.clock-time .clock-char.material-separator { display: none; }
-.time-main[data-material-groups='true'] { display: inline-flex; align-items: center; gap: .06em; }
-.material-time-part { display: inline-flex; align-items: center; justify-content: center; padding: .28em .08em; border-radius: 18%; }
-.material-minutes { background: var(--theme-accent); color: var(--theme-on-accent); }
-.material-hours { background: var(--theme-background); color: var(--theme-on-background); }
-.material-seconds { font-size: .42em; border: 2px solid var(--theme-accent); border-radius: 50%; padding: .3em .08em; }
-.material-seconds .clock-char[data-digit] { width: .65em; }
-.page[data-clock-theme='ultimate.orbit'] .clock-lines {
-  border: 3px solid var(--theme-accent); border-radius: 50%; width: min(78vw, 78vh); height: min(78vw, 78vh); justify-content: center;
+.ultimate-face[data-face='digital.grid']::before {
+  background-image: linear-gradient(#24524640 1px, transparent 1px), linear-gradient(90deg, #24524640 1px, transparent 1px);
+  background-size: calc(var(--face-unit) * .075) calc(var(--face-unit) * .075);
 }
-.page[data-clock-theme='ultimate.bubbles'] .material-minutes {
-  border-radius: 50%; padding: .4em .12em;
-}
-.page[data-clock-theme='ultimate.blend'] .clock-lines {
-  border-radius: 64px 24px; border-left: 8px solid var(--theme-accent);
-}
-.page[data-clock-theme='ultimate.ribbon'] .clock-time {
-  border-top: 0.07em solid var(--theme-accent); border-bottom: 0.07em solid var(--theme-accent); padding: 0.1em 0;
-}
+.ultimate-face[data-face='digital.grid'] .face-shape { border: 1px solid #245246bb; }
+.ultimate-face[data-face='digital.grid'] [data-part='grid-seconds-panel'] { border-color: var(--face-accent); }
 #clock-weather, #clock-detail { font-size: var(--supporting-size, var(--date-size, 24px)); }
-@media (max-width: 600px) {
-  .page.is-material .clock-lines { width: 94%; border-radius: 24px; }
-  .page[data-clock-theme='ultimate.orbit'] .clock-lines { width: min(88vw, 72vh); height: min(88vw, 72vh); border-radius: 50%; }
+@media (prefers-reduced-motion: reduce) {
+  .glyph.is-in, .glyph.is-out { animation: none !important; mask-image: none !important; }
+  .glyph.is-out { visibility: hidden; }
 }
-
-/* Extreme windows retain the theme palette while making the content rectangle usable. */
-.page.is-compact.is-material .clock-lines {
-  width: 96%; height: auto; padding: 2vmin; border-radius: 4vmin;
-}
-.page.is-compact .clock-time { flex-shrink: 0; }

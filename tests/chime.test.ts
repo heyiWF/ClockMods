@@ -86,3 +86,8 @@ describe('isQuietHour', () => {
     expect(isQuietHour(fieldsAt(12))).toBe(true);
   });
 });
+
+describe('half-hour arming',()=>{
+ it('only arms half-hours when enabled, with exact subsecond boundary',()=>{const now=instantAt(13,29,58,750);expect(upcomingChimeAt(zonedFields(now,ZONE),now)).toBeNull();expect(upcomingChimeAt(zonedFields(now,ZONE),now,true)).toBe(instantAt(13,30,0));});
+ it('does not arm early for a half-hour',()=>{const now=instantAt(13,29,57,999);expect(upcomingChimeAt(zonedFields(now,ZONE),now,true)).toBeNull();});
+});

@@ -64,22 +64,21 @@ describe('settings sheet', () => {
     expect(titles).not.toContain('状态栏');
   });
 
-  it('starts on the style board and switches to the function board', () => {
+  it('opens eight categories and returns to the category home', () => {
     const { sheet } = open();
-    const boards = sheet.querySelectorAll<HTMLElement>('.settings-board');
-    expect(boards[0].hidden).toBe(false);
-    expect(boards[1].hidden).toBe(true);
-
-    const tabs = sheet.querySelectorAll<HTMLElement>('.settings-segmented .settings-segment');
-    tabs[1].click();
-    expect(boards[0].hidden).toBe(true);
-    expect(boards[1].hidden).toBe(false);
+    const panes = sheet.querySelectorAll<HTMLElement>('.ultimate-settings-pane');
+    const buttons = sheet.querySelectorAll<HTMLButtonElement>('.settings-category');
+    expect(panes).toHaveLength(8); expect(buttons).toHaveLength(8);
+    expect(panes[0].hidden).toBe(false);
+    buttons[4].click(); expect(panes[0].hidden).toBe(true);expect(panes[4].hidden).toBe(false);
+    expect(buttons[4].getAttribute('aria-current')).toBe('page');
+    sheet.querySelector<HTMLButtonElement>('.settings-back')!.click();expect(sheet.classList.contains('is-detail')).toBe(false);
   });
 
   it('does not touch preferences until 应用 is pressed', () => {
     const { sheet } = open();
-    const bold = findSwitch(sheet, '粗体文本');
-    bold.checked = true;
+    const bold = sheet.querySelector<HTMLInputElement>('[data-category="0"] [aria-label="字重"]')!;
+    bold.value = '1';
     bold.dispatchEvent(new Event('change'));
 
     expect(prefs.isBoldText()).toBe(false);
@@ -93,9 +92,8 @@ describe('settings sheet', () => {
     setSwitch(sheet, '显示农历', false);
     setSwitch(sheet, '冒号每秒闪烁', true);
     setSwitch(sheet, '竖屏时钟竖排大字', true);
-    const sliders = sheet.querySelectorAll<HTMLInputElement>('.settings-slider input');
-    sliders[1].value = '120';
-    const transition = sheet.querySelectorAll<HTMLSelectElement>('.settings-select')[4];
+    sheet.querySelector<HTMLInputElement>('[data-category="0"] [aria-label="时间字号"]')!.value = '120';
+    const transition = sheet.querySelector<HTMLSelectElement>('[aria-label="数字过渡动画"]')!;
     transition.value = TRANSITION_FLIP;
 
     apply(sheet);
@@ -204,16 +202,93 @@ describe('settings sheet', () => {
   it('restores defaults in the sheet without writing them', () => {
     prefs.setBoldText(true);
     const { sheet } = open();
-    expect(findSwitch(sheet, '粗体文本').checked).toBe(true);
+    expect(sheet.querySelector<HTMLInputElement>('[data-category="0"] [aria-label="字重"]')!.value).toBe('1');
 
     sheet.querySelector<HTMLElement>('.settings-reset')!.click();
-    expect(findSwitch(sheet, '粗体文本').checked).toBe(false);
+    expect(sheet.querySelector<HTMLInputElement>('[data-category="0"] [aria-label="字重"]')!.value).toBe('0');
     // Still unwritten until 应用.
     expect(prefs.isBoldText()).toBe(true);
 
     apply(sheet);
     expect(prefs.isBoldText()).toBe(false);
   });
+  it('keeps separate theme drafts through switches, apply and reopening', () => {
+    const {sheet}=open();
+    const theme=sheet.querySelector<HTMLSelectElement>('[aria-label="时钟主题"]')!;
+    const font=sheet.querySelector<HTMLSelectElement>('[aria-label="时钟字体"]')!;
+    const transition=sheet.querySelector<HTMLSelectElement>('[aria-label="数字过渡动画"]')!;
+    const change=(id:string)=>{theme.value=id;theme.dispatchEvent(new Event('change'));};
+    change('ultimate.bubbles');font.value='lora';transition.value='scan';
+    change('ultimate.blend');font.value='inter';transition.value='slide_right';
+    change('ultimate.bubbles');expect(font.value).toBe('lora');expect(transition.value).toBe('scan');
+    expect(prefs.getFontFamily('ultimate.bubbles')).toBe('system');apply(sheet);
+    expect(prefs.getFontFamily('ultimate.bubbles')).toBe('lora');expect(prefs.getFontFamily('ultimate.blend')).toBe('inter');
+    expect(prefs.getTimeTransition('ultimate.blend')).toBe('slide_right');expect(prefs.getFontFamily('classic')).toBe('system');
+    const reopened=open();expect(reopened.sheet.querySelector<HTMLSelectElement>('[aria-label="时钟字体"]')!.value).toBe('lora');
+  });
+  it('saves all additional controls and restores their values when reopened', () => {
+    const {sheet}=open();
+    for(const label of ['显示设备状态','启用世界时钟','半点报时','防烧屏位移','保护时降低亮度'])setSwitch(sheet,label,true);
+    setSwitch(sheet,'避让刘海与屏幕边缘',false);
+    const values:Record<string,string>={'秒针模式':'smooth','状态图标大小':'150','状态图标样式':'filled','报时动画':'comet','移动间隔':'1','移动幅度':'12','日历主题':'calendar.paper','滚动速度':'80','滚动停顿':'2000','滚动间距':'48'};
+    for(const[label,value]of Object.entries(values)){const input=sheet.querySelector<HTMLInputElement>('[aria-label="'+label+'"]')!;input.value=value;input.dispatchEvent(new Event('change'));}
+    apply(sheet);
+    expect(prefs.getUltimateOptions()).toMatchObject({secondMotion:'smooth',statusIcons:true,statusScale:150,statusStyle:'filled',avoidCutout:false,worldEnabled:true,halfHourChime:true,chimeAnimation:'comet',burnIn:true,burnInterval:1,burnAmplitude:12,burnDim:true,calendarTheme:'calendar.paper',marqueeSpeed:80,marqueePause:2000,marqueeGap:48});
+    const reopened=open();for(const[label,value]of Object.entries(values))expect(reopened.sheet.querySelector<HTMLInputElement>('[aria-label="'+label+'"]')!.value).toBe(value);
+  });
+  it('previews and saves explicit equal pixel sizes while retaining per-theme drafts',()=>{
+    const {sheet}=open();const theme=sheet.querySelector<HTMLSelectElement>('[aria-label="时钟主题"]')!;
+    const choose=(id:string)=>{theme.value=id;theme.dispatchEvent(new Event('change'));};choose('ultimate.bubbles');
+    const date=sheet.querySelector<HTMLInputElement>('[data-category="0"] [aria-label="日期字号"]')!,support=sheet.querySelector<HTMLInputElement>('[data-category="0"] [aria-label="辅助文字字号"]')!;
+    expect([date.min,date.max]).toEqual([support.min,support.max]);date.value=support.value='36';choose('ultimate.ribbon');expect(date.value).toBe('24');choose('ultimate.bubbles');expect(date.value).toBe('36');expect(support.value).toBe('36');expect(prefs.getDateFontSize('ultimate.bubbles')).toBe(24);apply(sheet);expect(prefs.getDateFontSize('ultimate.bubbles')).toBe(36);expect(prefs.getSupportingFontSize('ultimate.bubbles')).toBe(36);
+  });
+  it('stores glass per theme with Ultimate defaults and preserves drafts',()=>{
+    const {sheet}=open();const theme=sheet.querySelector<HTMLSelectElement>('[aria-label="时钟主题"]')!;
+    const change=(id:string)=>{theme.value=id;theme.dispatchEvent(new Event('change'));};
+    change('ultimate.bubbles');setSwitch(sheet,'卡片高斯模糊',true);sheet.querySelector<HTMLInputElement>('[aria-label="模糊强度"]')!.value='80';sheet.querySelector<HTMLInputElement>('[aria-label="卡片亮度"]')!.value='50';
+    change('ultimate.blend');expect(sheet.querySelector<HTMLInputElement>('[aria-label="模糊强度"]')!.value).toBe('50');
+    change('ultimate.bubbles');expect(sheet.querySelector<HTMLInputElement>('[aria-label="模糊强度"]')!.value).toBe('80');apply(sheet);
+    expect(prefs.getThemeGlass('ultimate.bubbles')).toEqual({enabled:true,strength:80,brightness:50});expect(prefs.getThemeGlass('ultimate.blend')).toEqual({enabled:false,strength:50,brightness:25});
+  });
+  it('cancel discards edits across categories, themes and an imported image', () => {
+    const {sheet}=open();const before=JSON.stringify(localStorage);
+    setSwitch(sheet,'半点报时',true);setSwitch(sheet,'防烧屏位移',true);
+    const file=sheet.querySelector<HTMLInputElement>('input[type=file]')!;
+    Object.defineProperty(file,'files',{value:[new File(['not-yet-decoded'],'image.png',{type:'image/png'})]});file.dispatchEvent(new Event('change'));
+    sheet.querySelector<HTMLButtonElement>('.settings-header .m3-button--text:not(.settings-back)')!.click();
+    expect(JSON.stringify(localStorage)).toBe(before);expect(document.querySelector('.settings-sheet')).toBeNull();
+  });
+  it('preserves date drafts when switching interface language twice', () => {
+    const {sheet}=open();const core=sheet.querySelector<HTMLSelectElement>('.settings-date-format select')!;
+    core.value=String(core.options.length-1);core.dispatchEvent(new Event('change'));
+    const custom=sheet.querySelector<HTMLInputElement>('.settings-date-format input')!;custom.value='M月d日';custom.dispatchEvent(new Event('input'));
+    setSegment(sheet,'English');setSegment(sheet,'简体中文');
+    expect(sheet.querySelector<HTMLInputElement>('.settings-date-format input')!.value).toBe('M月d日');apply(sheet);expect(prefs.getDatePatternCn()).toBe('M月d日');
+  });
+  it('keeps calendar typography separate from clock and other calendar themes', () => {
+    const {sheet}=open();const theme=sheet.querySelector<HTMLSelectElement>('[aria-label="日历主题"]')!;const font=sheet.querySelector<HTMLSelectElement>('[aria-label="日历字体"]')!;
+    font.value='lora';theme.value='calendar.paper';theme.dispatchEvent(new Event('change'));font.value='inter';apply(sheet);
+    expect(prefs.getFontFamily('calendar.graphite')).toBe('lora');expect(prefs.getFontFamily('calendar.paper')).toBe('inter');expect(prefs.getFontFamily('classic')).toBe('system');
+  });
+  it('removes, reorders and adds world clocks without affecting saved order before apply', () => {
+    const {sheet}=open();const initial=prefs.getUltimateOptions().worldZones;
+    sheet.querySelector<HTMLButtonElement>('[aria-label="下移 Asia/Shanghai"]')!.click();
+    sheet.querySelector<HTMLButtonElement>('[aria-label="删除 America/New_York"]')!.click();
+    expect(prefs.getUltimateOptions().worldZones).toEqual(initial);apply(sheet);
+    expect(prefs.getUltimateOptions().worldZones).toEqual(['Europe/London','Asia/Shanghai']);
+  });
+  it('enables chime animation only while hourly or half-hour chime is active',()=>{
+    prefs.setHourlyChimeEnabled(false);const {sheet}=open();const animation=sheet.querySelector<HTMLSelectElement>('[aria-label="报时动画"]')!;
+    expect(animation.disabled).toBe(true);setSwitch(sheet,'半点报时',true);expect(animation.disabled).toBe(false);setSwitch(sheet,'半点报时',false);expect(animation.disabled).toBe(true);
+  });
+  it('enables dependent controls and resets extras without writing until apply', () => {
+    prefs.setUltimateOptions({...prefs.getUltimateOptions(),burnIn:true,halfHourChime:true});
+    const {sheet}=open();setSwitch(sheet,'防烧屏位移',false);
+    expect(sheet.querySelector<HTMLInputElement>('[aria-label="移动幅度"]')!.disabled).toBe(true);
+    sheet.querySelector<HTMLButtonElement>('.settings-reset')!.click();expect(prefs.getUltimateOptions().halfHourChime).toBe(true);apply(sheet);
+    expect(prefs.getUltimateOptions().halfHourChime).toBe(false);expect(prefs.getUltimateOptions().burnIn).toBe(false);
+  });
+
 });
 
 /** Locates the single text input inside the card with the given title. */

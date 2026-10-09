@@ -13,9 +13,10 @@ import { CLOCK_THEMES, clockTheme } from './clock-themes';
  * kept in local storage only, never sent anywhere but to the weather endpoint.
  */
 import { DEFAULT_PATTERN_CN, DEFAULT_PATTERN_EN, isValidPattern } from '../format/date-formatter';
-import { normalizeFontFamily } from './fonts';
+import { normalizeFontFamily, nearestWeight } from './fonts';
 import { TIME_ZONE_FOLLOW_SYSTEM } from './timezone';
 
+export const MODE_THEME = 'theme';
 export const MODE_COLOR = 'color';
 export const MODE_IMAGE = 'image';
 
@@ -86,6 +87,14 @@ export const DEFAULT_WEATHER_LOCATION_MODE = WEATHER_LOCATION_AUTOMATIC;
 /** Allowed range for the width-based font scale (fraction of screen width). */
 export const MIN_FONT_SCALE = 0.2;
 export const MAX_FONT_SCALE = 1.5;
+export const MAX_SECONDARY_FONT_SCALE = 2;
+export const MIN_TEXT_FONT_SIZE = 8;
+export const MAX_TEXT_FONT_SIZE = 80;
+export function defaultTextSize(role: 'date' | 'supporting', id: string): number {
+  return id.startsWith('calendar.') ? (role === 'date' ? 27 : 14) : 24;
+}
+const clampTextSize = (value: number, fallback: number) => Math.max(MIN_TEXT_FONT_SIZE,Math.min(MAX_TEXT_FONT_SIZE,Number.isFinite(value)?value:fallback));
+const clampSecondaryScale = (value: number, fallback: number) => Math.max(MIN_FONT_SCALE,Math.min(MAX_SECONDARY_FONT_SCALE,Number.isFinite(value)?value:fallback));
 
 /** Default host used when the user has not entered one. */
 export const DEFAULT_QWEATHER_API_HOST = 'devapi.qweather.com';
@@ -300,10 +309,57 @@ function normalizeCalendarWeekStart(firstDayOfWeek: number): number {
     : CALENDAR_WEEK_START_SUNDAY;
 }
 
+export interface UltimateOptions {
+  secondMotion: 'smooth' | 'tick' | 'off';
+  worldEnabled: boolean; worldZones: string[];
+  halfHourChime: boolean; chimeAnimation: string;
+  avoidCutout: boolean; statusIcons: boolean; statusScale: number; statusStyle: string;
+  burnIn: boolean; burnInterval: number; burnAmplitude: number; burnDim: boolean;
+  calendarTheme: string; marqueeSpeed: number; marqueePause: number; marqueeGap: number;
+}
+export const ULTIMATE_DEFAULTS: UltimateOptions = {
+  secondMotion: 'tick', worldEnabled: false, worldZones: ['Asia/Shanghai', 'Europe/London', 'America/New_York'],
+  halfHourChime: false, chimeAnimation: 'radial',
+  avoidCutout: true, statusIcons: false, statusScale: 100, statusStyle: 'outline',
+  burnIn: false, burnInterval: 10, burnAmplitude: 4, burnDim: false,
+  calendarTheme: 'calendar.graphite', marqueeSpeed: 40, marqueePause: 1000, marqueeGap: 24,
+};
+export const CALENDAR_IDS = ['calendar.graphite', 'calendar.carbon', 'calendar.paper', 'calendar.poster', 'calendar.agenda'];
+export function normalizeUltimate(value: Partial<UltimateOptions>): UltimateOptions {
+  const result = { ...ULTIMATE_DEFAULTS };
+  for (const key of Object.keys(result) as (keyof UltimateOptions)[]) {
+    if (typeof result[key] === 'boolean' && typeof value[key] === 'boolean') (result as unknown as Record<string, unknown>)[key] = value[key];
+  }
+  const number = (key: keyof UltimateOptions, min: number, max: number) => Math.max(min, Math.min(max, typeof value[key] === 'number' && Number.isFinite(value[key]) ? value[key] as number : result[key] as number));
+  result.statusScale = number('statusScale', 50, 200); result.burnAmplitude = number('burnAmplitude', 0, 12);
+  result.secondMotion = value.secondMotion === 'smooth' || value.secondMotion === 'off' ? value.secondMotion : 'tick';
+  result.chimeAnimation = ['radial','ripple','pulse','aurora','orbit','comet'].includes(value.chimeAnimation ?? '') ? value.chimeAnimation! : 'radial';
+  result.statusStyle = ['outline','filled','minimal'].includes(value.statusStyle ?? '') ? value.statusStyle! : 'outline';
+  result.burnInterval = [1,10,30,60].includes(value.burnInterval ?? 0) ? value.burnInterval! : 10;
+  result.calendarTheme = CALENDAR_IDS.includes(value.calendarTheme ?? '') ? value.calendarTheme! : CALENDAR_IDS[0];
+  result.marqueeSpeed = [20,40,80].includes(value.marqueeSpeed ?? 0) ? value.marqueeSpeed! : 40;
+  result.marqueePause = [0,1000,2000].includes(value.marqueePause ?? -1) ? value.marqueePause! : 1000;
+  result.marqueeGap = [12,24,48].includes(value.marqueeGap ?? 0) ? value.marqueeGap! : 24;
+  if (Array.isArray(value.worldZones)) result.worldZones = [...new Set(value.worldZones.filter(zone => { try { new Intl.DateTimeFormat('en', {timeZone: zone}); return typeof zone === 'string'; } catch { return false; } }))].slice(0,6);
+  return result;
+}
+function scopeKey(key: string, id: string): string { return id === 'classic' ? key : key + '__' + id; }
+export interface ThemeGlass { enabled: boolean; strength: number; brightness: number }
+export const DEFAULT_GLASS: ThemeGlass = {enabled: false, strength: 50, brightness: 25};
 export const prefs = {
+  getThemeGlass: (id: string = prefs.getClockTheme()): ThemeGlass => {
+    let value: Partial<ThemeGlass> = {};try {value=JSON.parse(store.string('web_glass__'+id,'{}')) ?? {};}catch{}
+    const percent=(key:'strength'|'brightness')=>typeof value[key]==='number'&&Number.isFinite(value[key])?Math.max(0,Math.min(100,value[key]!)):DEFAULT_GLASS[key];
+    return {enabled:value.enabled===true,strength:percent('strength'),brightness:percent('brightness')};
+  },
+  setThemeGlass: (value: ThemeGlass, id: string = prefs.getClockTheme()): void => store.write('web_glass__'+id, JSON.stringify(value)),
+  getUltimateOptions: (): UltimateOptions => { try { return normalizeUltimate(JSON.parse(store.string('web_ultimate_options', '{}')) ?? {}); } catch { return normalizeUltimate({}); } },
+  setUltimateOptions: (value: UltimateOptions): void => store.write('web_ultimate_options', JSON.stringify(normalizeUltimate(value))),
   clearThemeOverrides: (): void => {
-    for (const theme of CLOCK_THEMES) {
+    for (const theme of [...CLOCK_THEMES, ...CALENDAR_IDS.map(id => ({id}))]) {
+      for (const key of ['font_family','font_weight','bold_text','time_font_scale','date_font_scale','web_supporting_scale','web_theme_auto_ink','web_card_shadow','date_font_size_px','supporting_font_size_px']) store.remove(scopeKey(key, theme.id));
       store.remove('web_palette__' + theme.id);
+      store.remove('web_glass__' + theme.id);
       store.remove('web_weather_transition__' + theme.id);
       store.remove('web_digit_transition__' + theme.id);
       store.remove('web_digit_animation__' + theme.id);
@@ -318,20 +374,20 @@ export const prefs = {
     const color = (key: 'background' | 'panel' | 'accent') => typeof value[key] === 'string' && /^#[0-9a-f]{6}$/i.test(value[key] as string) ? value[key] as string : fallback[key];
     return { background: color('background'), panel: color('panel'), accent: color('accent') };
   },
-  setThemePalette: (palette: { background: string; panel: string; accent: string }): void => store.write('web_palette__' + prefs.getClockTheme(), JSON.stringify(palette)),
-  isThemeAutoInk: (): boolean => store.bool('web_theme_auto_ink', true),
-  setThemeAutoInk: (value: boolean): void => store.write('web_theme_auto_ink', String(value)),
-  isCardShadow: (): boolean => store.bool('web_card_shadow', true),
-  setCardShadow: (value: boolean): void => store.write('web_card_shadow', String(value)),
-  getSupportingScale: (): number => Math.max(0.5, Math.min(2, store.float('web_supporting_scale', 1))),
-  setSupportingScale: (value: number): void => store.write('web_supporting_scale', String(Number.isFinite(value) ? Math.max(0.5, Math.min(2, value)) : 1)),
+  setThemePalette: (palette: { background: string; panel: string; accent: string }, id: string = prefs.getClockTheme()): void => store.write('web_palette__' + id, JSON.stringify(palette)),
+  isThemeAutoInk: (id: string = prefs.getClockTheme()): boolean => store.bool(scopeKey('web_theme_auto_ink', id), true),
+  setThemeAutoInk: (value: boolean, id: string = prefs.getClockTheme()): void => store.write(scopeKey('web_theme_auto_ink', id), String(value)),
+  isCardShadow: (id: string = prefs.getClockTheme()): boolean => store.bool(scopeKey('web_card_shadow', id), true),
+  setCardShadow: (value: boolean, id: string = prefs.getClockTheme()): void => store.write(scopeKey('web_card_shadow', id), String(value)),
+  getSupportingScale: (id: string = prefs.getClockTheme()): number => id !== 'classic' && store.raw(scopeKey('supporting_font_size_px',id)) !== null ? clampTextSize(store.float(scopeKey('supporting_font_size_px',id),defaultTextSize('supporting',id)),defaultTextSize('supporting',id))/defaultTextSize('supporting',id) : clampSecondaryScale(store.float(scopeKey('web_supporting_scale', id), 1), 1),
+  setSupportingScale: (value: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey('web_supporting_scale', id), String(clampSecondaryScale(value,1))),
   getWeatherTransition: (id: string = prefs.getClockTheme()): string => normalizeTimeTransition(store.string('web_weather_transition__' + id, TRANSITION_FADE)),
-  setWeatherTransition: (value: string): void => store.write('web_weather_transition__' + prefs.getClockTheme(), normalizeTimeTransition(value)),
+  setWeatherTransition: (value: string, id: string = prefs.getClockTheme()): void => store.write('web_weather_transition__' + id, normalizeTimeTransition(value)),
   getTemperatureUnit: (): string => store.string('weather_temperature_unit', 'celsius') === 'fahrenheit' ? 'fahrenheit' : 'celsius',
   setTemperatureUnit: (value: string): void => store.write('weather_temperature_unit', value === 'fahrenheit' ? value : 'celsius'),
 
   // ---- Background ----
-  getBackgroundMode: (): string => store.string(K.backgroundMode, MODE_COLOR),
+  getBackgroundMode: (): string => store.string(K.backgroundMode, MODE_THEME),
   setBackgroundMode: (mode: string): void => store.write(K.backgroundMode, mode),
 
   getBackgroundColor: (): number => store.int(K.backgroundColor, DEFAULT_BACKGROUND_COLOR),
@@ -352,11 +408,18 @@ export const prefs = {
   setDimEndMinutes: (minutes: number): void => store.write(K.dimEndMinutes, String(minutes)),
 
   // ---- Typography ----
-  getTimeFontScale: (): number => clampScale(store.float(K.timeFontScale, DEFAULT_TIME_FONT_SCALE)),
-  setTimeFontScale: (scale: number): void => store.write(K.timeFontScale, String(clampScale(scale))),
+  getFontWeight: (id: string = prefs.getClockTheme()): number => nearestWeight(prefs.getFontFamily(id),store.int(scopeKey('font_weight',id),prefs.isBoldText(id)?700:400)),
+  hasFontWeight: (id: string = prefs.getClockTheme()): boolean => store.has(scopeKey('font_weight',id)),
+  setFontWeight: (weight: number,id: string=prefs.getClockTheme()): void => store.write(scopeKey('font_weight',id),String(nearestWeight(prefs.getFontFamily(id),weight))),
+  getTimeFontScale: (id: string = prefs.getClockTheme()): number => clampScale(store.float(scopeKey(K.timeFontScale, id), DEFAULT_TIME_FONT_SCALE)),
+  setTimeFontScale: (scale: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey(K.timeFontScale, id), String(clampScale(scale))),
 
-  getDateFontScale: (): number => clampScale(store.float(K.dateFontScale, DEFAULT_DATE_FONT_SCALE)),
-  setDateFontScale: (scale: number): void => store.write(K.dateFontScale, String(clampScale(scale))),
+  getDateFontSize: (id: string = prefs.getClockTheme()): number => clampTextSize(store.float(scopeKey('date_font_size_px',id), Math.round(defaultTextSize('date',id)*prefs.getDateFontScale(id)/DEFAULT_DATE_FONT_SCALE)),defaultTextSize('date',id)),
+  setDateFontSize: (value: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey('date_font_size_px',id),String(clampTextSize(value,defaultTextSize('date',id)))),
+  getSupportingFontSize: (id: string = prefs.getClockTheme()): number => clampTextSize(store.float(scopeKey('supporting_font_size_px',id),Math.round(defaultTextSize('supporting',id)*prefs.getSupportingScale(id))),defaultTextSize('supporting',id)),
+  setSupportingFontSize: (value: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey('supporting_font_size_px',id),String(clampTextSize(value,defaultTextSize('supporting',id)))),
+  getDateFontScale: (id: string = prefs.getClockTheme()): number => clampSecondaryScale(store.float(scopeKey(K.dateFontScale, id), DEFAULT_DATE_FONT_SCALE), DEFAULT_DATE_FONT_SCALE),
+  setDateFontScale: (scale: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey(K.dateFontScale, id), String(clampSecondaryScale(scale, DEFAULT_DATE_FONT_SCALE))),
 
   getTimeColor: (): number => store.int(K.timeColor, DEFAULT_TEXT_COLOR),
   setTimeColor: (color: number): void => store.write(K.timeColor, String(color)),
@@ -364,11 +427,11 @@ export const prefs = {
   getDateColor: (): number => store.int(K.dateColor, DEFAULT_TEXT_COLOR),
   setDateColor: (color: number): void => store.write(K.dateColor, String(color)),
 
-  isBoldText: (): boolean => store.bool(K.boldText, DEFAULT_BOLD_TEXT),
-  setBoldText: (value: boolean): void => store.write(K.boldText, String(value)),
+  isBoldText: (id: string = prefs.getClockTheme()): boolean => store.bool(scopeKey(K.boldText, id), DEFAULT_BOLD_TEXT),
+  setBoldText: (value: boolean, id: string = prefs.getClockTheme()): void => store.write(scopeKey(K.boldText, id), String(value)),
 
-  getFontFamily: (): string => normalizeFontFamily(store.string(K.fontFamily, DEFAULT_FONT_FAMILY)),
-  setFontFamily: (family: string): void => store.write(K.fontFamily, normalizeFontFamily(family)),
+  getFontFamily: (id: string = prefs.getClockTheme()): string => normalizeFontFamily(store.string(scopeKey(K.fontFamily, id), DEFAULT_FONT_FAMILY)),
+  setFontFamily: (family: string, id: string = prefs.getClockTheme()): void => store.write(scopeKey(K.fontFamily, id), normalizeFontFamily(family)),
 
   // ---- Clock face ----
   isBlinkColon: (): boolean => store.bool(K.blinkColon, DEFAULT_BLINK_COLON),
@@ -376,12 +439,12 @@ export const prefs = {
 
   isAnimateTimeChanges: (id: string = prefs.getClockTheme()): boolean =>
     store.bool(id === 'classic' ? K.animateTimeChanges : 'web_digit_animation__' + id, store.bool(K.animateTimeChanges, DEFAULT_ANIMATE_TIME_CHANGES)),
-  setAnimateTimeChanges: (value: boolean): void => store.write(prefs.getClockTheme() === 'classic' ? K.animateTimeChanges : 'web_digit_animation__' + prefs.getClockTheme(), String(value)),
+  setAnimateTimeChanges: (value: boolean, id: string = prefs.getClockTheme()): void => store.write(id === 'classic' ? K.animateTimeChanges : 'web_digit_animation__' + id, String(value)),
 
   getTimeTransition: (id: string = prefs.getClockTheme()): string =>
     normalizeTimeTransition(store.string(id === 'classic' ? K.timeTransition : 'web_digit_transition__' + id, store.string(K.timeTransition, DEFAULT_TIME_TRANSITION))),
-  setTimeTransition: (transition: string): void =>
-    store.write(prefs.getClockTheme() === 'classic' ? K.timeTransition : 'web_digit_transition__' + prefs.getClockTheme(), normalizeTimeTransition(transition)),
+  setTimeTransition: (transition: string, id: string = prefs.getClockTheme()): void =>
+    store.write(id === 'classic' ? K.timeTransition : 'web_digit_transition__' + id, normalizeTimeTransition(transition)),
 
   isShowSeconds: (): boolean => store.bool(K.showSeconds, DEFAULT_SHOW_SECONDS),
   setShowSeconds: (value: boolean): void => store.write(K.showSeconds, String(value)),

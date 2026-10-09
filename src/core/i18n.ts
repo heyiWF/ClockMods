@@ -20,9 +20,11 @@ export type { ArrayKey, MessageKey };
 /** Web-only copy, plus overrides where the Android wording named Android APIs. */
 const WEB_MESSAGES: Record<string, Record<string, string>> = {
   'zh-Hans': {
+    alarm_open_to_dismiss: '打开 ClockMods Web 停止闹钟',
+    timer_complete_open: '打开 ClockMods Web 查看',
     // The browser cannot speak NTP (no UDP), so the wording and mechanism differ.
     use_network_time: '使用网络时间',
-    use_network_time_desc: '按 HTTP 响应的 Date 头校准，精度约 1 秒；留空校时地址则使用设备时间',
+    use_network_time_desc: '按 HTTP 响应的 Date 头校准，精度约 1 秒；未获取到有效响应时使用设备时间',
     time_source_url: '校时地址',
     time_source_url_hint: '留空则使用天气代理或当前站点',
     ok: '确定',
@@ -44,12 +46,14 @@ const WEB_MESSAGES: Record<string, Record<string, string>> = {
     install_hint: '可在浏览器菜单中「添加到主屏幕」以全屏运行',
     calendar_jump_year: '年',
     calendar_jump_month: '月',
-    orientation_lock_unsupported: '当前浏览器不支持锁定方向，已按比例调整布局',
+    orientation_lock_unsupported: '当前浏览器不支持锁定方向，继续跟随窗口尺寸',
     stopwatch_no_laps: '暂无计次',
   },
   'zh-Hant': {
+    alarm_open_to_dismiss: '開啟 ClockMods Web 停止鬧鐘',
+    timer_complete_open: '開啟 ClockMods Web 查看',
     use_network_time: '使用網路時間',
-    use_network_time_desc: '依 HTTP 回應的 Date 標頭校準，精度約 1 秒；校時位址留空則使用裝置時間',
+    use_network_time_desc: '依 HTTP 回應的 Date 標頭校準，精度約 1 秒；未取得有效回應時使用裝置時間',
     time_source_url: '校時位址',
     time_source_url_hint: '留空則使用天氣代理或目前站點',
     ok: '確定',
@@ -71,13 +75,15 @@ const WEB_MESSAGES: Record<string, Record<string, string>> = {
     install_hint: '可在瀏覽器選單中「加入主畫面」以全螢幕執行',
     calendar_jump_year: '年',
     calendar_jump_month: '月',
-    orientation_lock_unsupported: '目前瀏覽器不支援鎖定方向，已依比例調整版面',
+    orientation_lock_unsupported: '目前瀏覽器不支援鎖定方向，繼續跟隨視窗尺寸',
     stopwatch_no_laps: '尚無計次',
   },
   en: {
+    alarm_open_to_dismiss: 'Open ClockMods Web to dismiss the alarm',
+    timer_complete_open: 'Open ClockMods Web to view',
     use_network_time: 'Use network time',
     use_network_time_desc:
-      "Calibrates from the HTTP Date header (about 1s accuracy); leave the URL empty to use device time",
+      "Calibrates from the HTTP Date header (about 1s accuracy); uses device time when no valid response is available",
     time_source_url: 'Time source URL',
     time_source_url_hint: 'Empty: use the weather proxy or this site',
     ok: 'OK',
@@ -103,7 +109,7 @@ const WEB_MESSAGES: Record<string, Record<string, string>> = {
     calendar_jump_year: 'Year',
     calendar_jump_month: 'Month',
     orientation_lock_unsupported:
-      'This browser cannot lock orientation; the layout follows the aspect ratio instead',
+      'This browser cannot lock orientation; the layout continues to follow the window size',
     stopwatch_no_laps: 'No laps yet',
   },
 };

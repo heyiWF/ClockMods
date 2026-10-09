@@ -37,7 +37,7 @@ describe('CharacterLine', () => {
     line.setText('08:05:08', options({ transition: 'scan' }));
     expect(host.querySelector('.material-hours')?.textContent).toBe('08');
     expect(host.querySelector('.material-hours .is-out')).toBeNull();
-    expect(host.querySelectorAll('.is-out')).toHaveLength(1);
+    expect(host.querySelectorAll('.is-out')).toHaveLength(2);
     vi.advanceTimersByTime(800);
     expect(host.querySelector('.is-out')).toBeNull();
     expect(host.textContent).toBe('08:05:08');
@@ -58,14 +58,16 @@ describe('CharacterLine', () => {
     expect(cells.filter((cell) => 'colon' in cell.dataset)).toHaveLength(1);
   });
 
-  it('animates only the characters that changed', () => {
+  it('animates both digits of a changed field, leaving other fields still', () => {
     const line = new CharacterLine(host);
     line.setText('08:05:07', options());
     line.setText('08:05:08', options());
 
     const cells = [...host.children] as HTMLElement[];
-    // Only the last digit gets an outgoing glyph layered over it.
-    expect(cells.filter((cell) => cell.querySelector('.glyph.is-out'))).toHaveLength(1);
+    // The complete seconds pair animates, including its unchanged tens digit.
+    expect(cells.filter((cell) => cell.querySelector('.glyph.is-out'))).toHaveLength(2);
+    expect(cells[6].querySelector('.glyph.is-out')?.textContent).toBe('0');
+    expect(cells[0].querySelector('.glyph.is-out')).toBeNull();
     expect(cells[7].querySelector('.glyph.is-out')?.textContent).toBe('7');
     expect(cells[7].querySelector('.glyph.is-in')?.textContent).toBe('8');
   });

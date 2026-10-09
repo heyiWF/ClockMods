@@ -1,3 +1,4 @@
+import { DisplaySettings } from './core/display-settings';
 /**
  * Application entry point.
  *
@@ -38,7 +39,7 @@ async function boot(): Promise<void> {
   refreshLanguage();
 
   await Promise.all([
-    ensureFontLoaded(prefs.getFontFamily(), prefs.isBoldText()),
+    ensureFontLoaded(prefs.getFontFamily(), prefs.getFontWeight()),
     loadWeatherIcons(),
     loadHolidays(),
   ]);
@@ -54,13 +55,15 @@ async function boot(): Promise<void> {
   const nav = document.getElementById('nav')!;
   const router = new Router(container, nav);
 
+  const displaySettings = new DisplaySettings();
   const showSettings = () => {
     openSettings(async (languageChanged) => {
       timeSource.configure();
-      void applyScreenOrientation();
+      displaySettings.refresh();
+      const orientationApplied = await applyScreenOrientation();
       if (languageChanged) refreshLanguage();
       await router.refreshAll();
-      toast(t('settings_applied'));
+      toast(t(orientationApplied ? 'settings_applied' : 'orientation_lock_unsupported'));
     });
   };
 

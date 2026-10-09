@@ -1,3 +1,7 @@
+import { WeatherAttribution } from '../ui/weather-attribution';
+import { setAlignedTime } from '../ui/clock-face';
+import { GaussianGlass } from '../ui/gaussian-glass';
+import { UltimateFace } from '../ui/ultimate-face';
 import { fitSupportingRows } from '../format/responsive-layout';
 import { readableInk, temperature } from '../core/clock-themes';
 /**
@@ -46,6 +50,11 @@ const SMALL_SECONDS_GAP_SPACE_FRACTION = 0.35;
 const LINE_HEIGHT = 1.2;
 
 export class ClockPage implements Page {
+  private glass: GaussianGlass | null = null;
+  private glassUrl: string | null = null;
+  private readonly resizeObserver: ResizeObserver;
+
+  dispose(): void { this.stop(); this.resizeObserver.disconnect(); this.ultimateFace?.destroy(); this.mainLine?.reset(); this.periodLine?.reset(); this.secondsLine?.reset(); this.stackedLines.forEach(line => line.reset()); }
   readonly name = 'clock';
   readonly immersive = true;
 
@@ -57,9 +66,11 @@ export class ClockPage implements Page {
   private readonly lunarRow: HTMLElement;
   private readonly timeRow: HTMLElement;
   private readonly attribution: HTMLElement;
+  private readonly attributionPopup: WeatherAttribution;
 
   /** Inline layout: the AM/PM prefix, the main time and the small seconds. */
   private mainLine: CharacterLine | null = null;
+  private ultimateFace: UltimateFace | null = null;
   private periodLine: CharacterLine | null = null;
   private secondsLine: CharacterLine | null = null;
   /** Stacked portrait layout: one line per hours/minutes/seconds group. */
@@ -75,7 +86,7 @@ export class ClockPage implements Page {
   private layoutSignature = '';
   private lastLayoutSize = '';
 
-  constructor(root: HTMLElement, private readonly onOpenSettings: () => void) {
+  constructor(root: HTMLElement, private readonly onOpenSettings: () => void, private readonly settings: typeof prefs = prefs, private readonly imageSource = backgroundImageUrl) {
     this.root = root;
     this.background = root.querySelector('#clock-bg')!;
     this.dim = root.querySelector('#clock-dim')!;
@@ -84,13 +95,15 @@ export class ClockPage implements Page {
     this.lunarRow = root.querySelector('#clock-lunar')!;
     this.timeRow = root.querySelector('#clock-time')!;
     this.attribution = root.querySelector('#clock-attribution')!;
+    this.attributionPopup = new WeatherAttribution(root, this.attribution);
 
     this.weather = new Carousel(root.querySelector('#clock-weather')!);
     this.detail = new Carousel(root.querySelector('#clock-detail')!);
     this.weatherController = new WeatherController((state) => this.onWeatherState(state));
 
     this.bindGestures();
-    new ResizeObserver(() => this.layout(true)).observe(this.stage);
+    this.resizeObserver = new ResizeObserver(() => this.layout(true));
+    this.resizeObserver.observe(this.stage);
   }
 
   /** Double-tapping the clock opens settings (ProClockFragment.onDoubleTap). */
@@ -118,6 +131,8 @@ export class ClockPage implements Page {
   start(): void {
     if (this.running) return;
     this.running = true;
+    this.attributionPopup.setEnabled(this.settings.isWeatherEnabled());
+    this.attributionPopup.start();
     this.weather.setActive(true);
     this.detail.setActive(true);
     this.tick();
@@ -126,6 +141,7 @@ export class ClockPage implements Page {
 
   stop(): void {
     this.running = false;
+    this.attributionPopup.stop();
     if (this.tickHandle !== null) {
       clearTimeout(this.tickHandle);
       this.tickHandle = null;
@@ -137,8 +153,10 @@ export class ClockPage implements Page {
 
   /** Re-reads every setting; called after the settings panel applies changes. */
   async refreshSettings(): Promise<void> {
-    await ensureFontLoaded(prefs.getFontFamily(), prefs.isBoldText());
+    await ensureFontLoaded(this.settings.getFontFamily(), this.settings.getFontWeight(), this.root.ownerDocument);
     invalidateMeasurements();
+    this.ultimateFace?.destroy();
+    this.ultimateFace = null;
     this.mainLine?.reset();
     this.periodLine?.reset();
     this.secondsLine?.reset();
@@ -147,14 +165,14 @@ export class ClockPage implements Page {
     await this.applyBackground();
     this.layoutSignature = '';
     this.render();
-    const enabled = prefs.isWeatherEnabled();
+    const enabled = this.settings.isWeatherEnabled();
     const attributionText = t('weather_attribution');
     this.attribution.setAttribute('aria-label', attributionText);
     const attributionLabel = this.attribution.querySelector<HTMLElement>(
       '.weather-attribution-label'
     );
     if (attributionLabel) attributionLabel.textContent = attributionText;
-    this.attribution.hidden = !enabled;
+    this.attributionPopup.setEnabled(enabled);
     if (!enabled) {
       this.weatherController.stop();
       this.weatherState = null;
@@ -167,9 +185,8 @@ export class ClockPage implements Page {
   }
 
   private startWeatherIfEnabled(): void {
-    if (!prefs.isWeatherEnabled()) return;
-    this.attribution.hidden = false;
-    this.weatherController.start(prefs.getWeatherIntervalMinutes());
+    if (!this.settings.isWeatherEnabled()) return;
+    this.weatherController.start(this.settings.getWeatherIntervalMinutes());
   }
 
   private onWeatherState(state: WeatherState): void {
@@ -179,43 +196,51 @@ export class ClockPage implements Page {
 
   private applyStyles(): void {
     const style = this.stage.style;
-    const theme = prefs.getClockTheme();
-    const palette = prefs.getThemePalette();
+    const theme = this.settings.getClockTheme();
+    const palette = this.settings.getThemePalette();
     this.root.dataset.clockTheme = theme;
     this.root.classList.toggle('is-material', theme !== 'classic');
-    this.root.classList.toggle('has-card-shadow', prefs.isCardShadow());
+    this.root.classList.toggle('has-card-shadow', this.settings.isCardShadow());
     style.setProperty('--theme-panel', palette.panel);
     style.setProperty('--theme-background', palette.background);
-    style.setProperty('--theme-on-background', prefs.isThemeAutoInk() ? readableInk(palette.background) : cssColor(prefs.getTimeColor()));
+    style.setProperty('--theme-on-background', this.settings.isThemeAutoInk() ? readableInk(palette.background) : cssColor(this.settings.getTimeColor()));
     style.setProperty('--theme-accent', palette.accent);
     style.setProperty('--theme-ink', readableInk(palette.panel));
-    style.setProperty('--theme-on-accent', prefs.isThemeAutoInk() ? readableInk(palette.accent) : cssColor(prefs.getTimeColor()));
-    style.setProperty('--supporting-scale', String(prefs.getSupportingScale()));
-    style.setProperty('--clock-font', fontStack(prefs.getFontFamily()));
-    style.setProperty('--clock-weight', prefs.isBoldText() ? '700' : '400');
-    style.setProperty('--time-color', theme !== 'classic' && prefs.isThemeAutoInk() ? readableInk(palette.panel) : cssColor(prefs.getTimeColor()));
-    style.setProperty('--date-color', theme !== 'classic' && prefs.isThemeAutoInk() ? readableInk(palette.panel) : cssColor(prefs.getDateColor()));
+    style.setProperty('--theme-on-accent', this.settings.isThemeAutoInk() ? readableInk(palette.accent) : cssColor(this.settings.getTimeColor()));
+    style.setProperty('--supporting-scale', String(this.settings.getSupportingScale()));
+    style.setProperty('--clock-font', fontStack(this.settings.getFontFamily()));
+    style.setProperty('--clock-weight', String(this.settings.getFontWeight()));
+    style.setProperty('--time-color', theme !== 'classic' && this.settings.isThemeAutoInk() ? readableInk(palette.panel) : cssColor(this.settings.getTimeColor()));
+    style.setProperty('--date-color', theme !== 'classic' && this.settings.isThemeAutoInk() ? readableInk(palette.panel) : cssColor(this.settings.getDateColor()));
     style.setProperty('--supporting-tracking', `${SUPPORTING_LETTER_SPACING}em`);
     style.setProperty(
       '--weather-icon-color',
-      prefs.isWeatherIconDynamicColor() ? 'var(--accent)' : '#ffffff'
+      this.settings.isWeatherIconDynamicColor() ? 'var(--accent)' : '#ffffff'
     );
-    this.weather.setIconStyle(prefs.isWeatherIconFill());
-    this.detail.setIconStyle(prefs.isWeatherIconFill());
+    this.weather.setIconStyle(this.settings.isWeatherIconFill());
+    this.detail.setIconStyle(this.settings.isWeatherIconFill());
     // Pro drives the detail line with the clock's transition style.
-    this.weather.setTransition(prefs.getWeatherTransition());
-    this.detail.setTransition(prefs.getWeatherTransition());
+    this.weather.setTransition(this.settings.getWeatherTransition());
+    this.detail.setTransition(this.settings.getWeatherTransition());
   }
 
   async applyBackground(): Promise<void> {
-    const useImage = prefs.getBackgroundMode() === MODE_IMAGE;
-    this.background.style.backgroundColor = prefs.getClockTheme() === 'classic' ? cssColor(prefs.getBackgroundColor()) : prefs.getThemePalette().background;
+    const useImage = this.settings.getBackgroundMode() === MODE_IMAGE;
+    this.root.classList.remove('has-glass');
+    this.background.style.removeProperty('filter');this.background.style.removeProperty('scale');
+    this.background.style.backgroundColor = this.settings.getBackgroundMode() === 'color' || this.settings.getClockTheme() === 'classic' ? cssColor(this.settings.getBackgroundColor()) : this.settings.getThemePalette().background;
     if (!useImage) {
+      this.glass = null; this.glassUrl = null;
       this.background.style.removeProperty('background-image');
       return;
     }
-    const url = await backgroundImageUrl();
-    if (url) this.background.style.backgroundImage = `url("${url}")`;
+    const url = await this.imageSource();
+    if (url) {
+      this.background.style.backgroundImage = `url("${url}")`;
+      if(this.settings.getClockTheme().startsWith('ultimate.') && this.settings.getThemeGlass().enabled){
+        try {if(!this.glass || this.glassUrl!==url){this.glass=await GaussianGlass.load(url);this.glassUrl=url;}this.root.classList.add('has-glass');this.glass.apply(this.root,this.settings.getThemeGlass());}catch{/* Retain opaque cards if the image cannot decode. */}
+      }
+    }
     else this.background.style.removeProperty('background-image');
   }
 
@@ -224,17 +249,17 @@ export class ClockPage implements Page {
     this.render();
     if (!this.running) return;
     const now = timeSource.now();
-    this.tickHandle = window.setTimeout(() => this.tick(), millisUntilNextSecond(now));
+    this.tickHandle = window.setTimeout(() => this.tick(), this.settings.getClockTheme() !== 'classic' && this.settings.isShowSeconds() && this.settings.getUltimateOptions().secondMotion === 'smooth' && !window.matchMedia('(prefers-reduced-motion: reduce)').matches ? 33 : millisUntilNextSecond(now));
   }
 
   private render(): void {
     const now = timeSource.now();
-    const fields = zonedFields(now, prefs.getTimeZoneId());
-    const showSeconds = prefs.isShowSeconds();
-    const smallSeconds = prefs.isSmallSeconds();
-    const use24Hour = prefs.isUse24Hour();
-    const english = prefs.isClockUseEnglish();
-    const stacked = (prefs.isPortraitStacked() && this.isPortrait())
+    const fields = zonedFields(now, this.settings.getTimeZoneId());
+    const showSeconds = this.settings.isShowSeconds();
+    const smallSeconds = this.settings.isSmallSeconds();
+    const use24Hour = this.settings.isUse24Hour();
+    const english = this.settings.isClockUseEnglish();
+    const stacked = (this.settings.isPortraitStacked() && this.isPortrait())
       || this.stage.clientWidth < this.stage.clientHeight * .4;
 
     const displayTime = formatTime(
@@ -242,32 +267,42 @@ export class ClockPage implements Page {
       fields.minute,
       fields.second,
       showSeconds,
-      prefs.isBlinkColon(),
+      this.settings.isBlinkColon(),
       smallSeconds,
       use24Hour,
       english
     );
     const dateText = formatDate(
-      english ? prefs.getDatePatternEn() : prefs.getDatePatternCn(),
+      english ? this.settings.getDatePatternEn() : this.settings.getDatePatternCn(),
       fields,
       // Read the language from preferences rather than the i18n module's cached
       // value, so the date never renders half-translated if the two drift.
-      dateLang(prefs.getClockLanguage())
+      dateLang(this.settings.getClockLanguage())
     );
-    const lunarText = prefs.isShowLunar()
+    const lunarText = this.settings.isShowLunar()
       ? lunarClockLine(fields.year, fields.month0, fields.day)
       : '';
 
     this.applyDim(fields);
+    this.renderWorldClocks(now);
+    this.glass?.apply(this.root,this.settings.getThemeGlass());
 
     const options = {
-      animate: prefs.isAnimateTimeChanges(),
-      transition: prefs.getTimeTransition(),
+      animate: this.settings.isAnimateTimeChanges(),
+      transition: this.settings.getTimeTransition(),
       colonVisible: displayTime.colonVisible,
     };
 
-    this.root.classList.toggle('is-stacked', stacked);
-    if (stacked) {
+    const themed = this.settings.getClockTheme() !== 'classic';
+    this.root.classList.toggle('is-stacked', !themed && stacked);
+    if (themed) {
+      if (!this.ultimateFace) {
+        this.mainLine?.reset(); this.periodLine?.reset(); this.secondsLine?.reset();
+        this.mainLine = this.periodLine = this.secondsLine = null;
+        this.stackedLines.forEach(line => line.reset()); this.stackedLines.length = 0;
+        this.ultimateFace = new UltimateFace(this.timeRow, { date: this.dateRow, lunar: this.lunarRow, weather: this.root.querySelector('#clock-weather')!, detail: this.root.querySelector('#clock-detail')! }, this.settings);
+      }
+    } else if (stacked) {
       this.renderStacked(fields, use24Hour, showSeconds, options);
     } else {
       this.renderInline(displayTime, options);
@@ -275,7 +310,7 @@ export class ClockPage implements Page {
 
     // Portrait always stacks date and lunar; landscape shares one line unless the
     // user opts into two rows.
-    const singleDateLine = !lunarText || (!this.isPortrait() && !prefs.isDateLunarDualLine());
+    const singleDateLine = !lunarText || (!themed && !this.isPortrait() && !this.settings.isDateLunarDualLine());
     if (!lunarText) {
       renderSupportingText(this.dateRow, dateText);
       this.dateRow.hidden = false;
@@ -291,6 +326,11 @@ export class ClockPage implements Page {
       this.lunarRow.hidden = false;
     }
 
+    if (themed) {
+      this.ultimateFace!.render(this.settings.getClockTheme(), this.stage.clientWidth, this.stage.clientHeight, { ...fields, fraction: (now % 1000) / 1000, showSeconds, use24Hour, options });
+      return;
+    }
+
     this.layout(false, {
       displayTime,
       dateText,
@@ -299,6 +339,22 @@ export class ClockPage implements Page {
       stacked,
       showSeconds,
     });
+  }
+
+  private renderWorldClocks(now: number): void {
+    const options=this.settings.getUltimateOptions();
+    const enabled=options.worldEnabled && this.settings.getClockTheme().startsWith('ultimate.') && options.worldZones.length>0;
+    this.root.classList.toggle('has-world-clocks',enabled);
+    let strip=this.root.querySelector<HTMLElement>('.world-clock-strip');
+    if(!enabled){if(strip)strip.hidden=true;this.stage.style.removeProperty('bottom');return;}
+    if(!strip){strip=document.createElement('div');strip.className='world-clock-strip';this.root.append(strip);}
+    strip.hidden=false;
+    strip.style.setProperty('--world-count',String(options.worldZones.length));
+    strip.style.setProperty('--world-portrait-count',String(Math.min(3,options.worldZones.length)));
+    const key=options.worldZones.join('|');if(strip.dataset.zones!==key){strip.dataset.zones=key;strip.replaceChildren(...options.worldZones.map(zone=>{const city=document.createElement('div');city.className='world-clock-city';const name=document.createElement('span');name.textContent=zone.split('/').pop()!.replaceAll('_',' ');const time=document.createElement('strong');city.append(name,time);return city;}));}
+    options.worldZones.forEach((zone,i)=>{setAlignedTime(strip!.children[i].querySelector('strong')!,new Intl.DateTimeFormat(this.settings.isClockUseEnglish()?'en-GB':'zh-CN',{timeZone:zone,hour:'2-digit',minute:'2-digit',hour12:!this.settings.isUse24Hour()}).format(now),fontStack(this.settings.getFontFamily()),this.settings.getFontWeight());});
+    this.stage.style.bottom = (strip.offsetHeight + parseFloat(getComputedStyle(strip).bottom) + 8) + 'px';
+    if(this.root.classList.contains('has-glass')){const parent=this.root.getBoundingClientRect();for(const item of strip.children){const city=item as HTMLElement,rect=city.getBoundingClientRect();city.style.setProperty('--glass-left',-(rect.x-parent.x)+'px');city.style.setProperty('--glass-top',-(rect.y-parent.y)+'px');}}
   }
 
   private renderInline(
@@ -325,7 +381,7 @@ export class ClockPage implements Page {
       this.periodLine = new CharacterLine(periodSpan);
       this.secondsLine = new CharacterLine(secondsSpan);
     }
-    main.dataset.materialGroups = String(['ultimate.dual_blocks', 'ultimate.bubbles', 'ultimate.blend'].includes(prefs.getClockTheme()));
+    main.dataset.materialGroups = 'false';
     this.mainLine!.setText(displayTime.mainText, options);
     this.periodLine!.setText(period ? displayTime.periodText : '', {
       ...options,
@@ -371,35 +427,35 @@ export class ClockPage implements Page {
   }
 
   private applyDim(fields: ReturnType<typeof zonedFields>): void {
-    if (prefs.getBackgroundMode() !== MODE_IMAGE) {
+    if (this.settings.getBackgroundMode() !== MODE_IMAGE) {
       this.dim.hidden = true;
       return;
     }
-    if (prefs.isDimBackground()) {
+    if (this.settings.isDimBackground()) {
       this.dim.hidden = false;
       return;
     }
-    if (!prefs.isScheduleDimBackground()) {
+    if (!this.settings.isScheduleDimBackground()) {
       this.dim.hidden = true;
       return;
     }
     this.dim.hidden = !isDimScheduleActive(
       minutesOfDay(fields),
-      prefs.getDimStartMinutes(),
-      prefs.getDimEndMinutes()
+      this.settings.getDimStartMinutes(),
+      this.settings.getDimEndMinutes()
     );
   }
 
   private updateWeatherLines(): void {
     const state = this.weatherState;
-    const enabled = prefs.isWeatherEnabled();
-    const message = prefs.getCustomMessage();
+    const enabled = this.settings.isWeatherEnabled();
+    const message = this.settings.getCustomMessage();
     const items: CarouselItem[] = [];
 
     if (enabled && state) {
       if (state.data) {
         const left = locationText(state.data.city, state.data.district);
-        const right = `${state.data.text} ${temperature(state.data.temperature, prefs.getTemperatureUnit())}`;
+        const right = `${state.data.text} ${temperature(state.data.temperature, this.settings.getTemperatureUnit())}`;
         items.push(weatherItem(left, state.data.icon, right));
       } else if (state.message) {
         items.push(plainItem(state.message));
@@ -408,7 +464,7 @@ export class ClockPage implements Page {
     if (message) items.push(plainItem(message));
     this.weather.setItems(items);
 
-    const detail = enabled && prefs.isWeatherDetailed() ? state?.data?.detail ?? null : null;
+    const detail = enabled && this.settings.isWeatherDetailed() ? state?.data?.detail ?? null : null;
     this.detail.setItems(
       detail
         ? detailCarouselItems(detail, {
@@ -418,7 +474,7 @@ export class ClockPage implements Page {
             precipFormat: t('weather_precip_format'),
             airFormat: t('weather_air_format'),
             warningSuffix: t('weather_warning_suffix'),
-          }).map(text => plainItem(text.replace(/(-?\d+(?:\.\d+)?)℃/g, (_, value: string) => temperature(value, prefs.getTemperatureUnit()))))
+          }).map(text => plainItem(text.replace(/(-?\d+(?:\.\d+)?)℃/g, (_, value: string) => temperature(value, this.settings.getTemperatureUnit()))))
         : []
     );
     this.layoutSignature = '';
@@ -429,8 +485,8 @@ export class ClockPage implements Page {
     return this.stage.clientHeight >= this.stage.clientWidth;
   }
 
-  private font(bold = prefs.isBoldText()): FontSpec {
-    return { family: fontStack(prefs.getFontFamily()), weight: bold ? 700 : 400 };
+  private font(): FontSpec {
+    return { family: fontStack(this.settings.getFontFamily()), weight: this.settings.getFontWeight() };
   }
 
   /**
@@ -448,12 +504,13 @@ export class ClockPage implements Page {
       showSeconds: boolean;
     }
   ): void {
-    const themed = prefs.getClockTheme() !== 'classic';
+    const themed = this.settings.getClockTheme() !== 'classic';
+    if (themed) { this.render(); return; }
     const compact = this.stage.clientWidth < this.stage.clientHeight * .4
       || this.stage.clientWidth > this.stage.clientHeight * 2.8
       || Math.min(this.stage.clientWidth, this.stage.clientHeight) < 240;
     this.root.classList.toggle('is-compact', compact);
-    const orbit = !compact && prefs.getClockTheme() === 'ultimate.orbit';
+    const orbit = !compact && this.settings.getClockTheme() === 'ultimate.orbit';
     const orbitSize = Math.min(this.stage.clientWidth, this.stage.clientHeight) * 0.62;
     const width = orbit ? orbitSize : this.stage.clientWidth * (themed ? 0.78 : 1);
     const height = orbit ? orbitSize : this.stage.clientHeight * (themed ? 0.78 : 1);
@@ -477,11 +534,11 @@ export class ClockPage implements Page {
       context.singleDateLine,
       context.stacked,
       context.showSeconds,
-      prefs.getFontFamily(),
-      prefs.isBoldText(),
-      prefs.getTimeFontScale(),
-      prefs.getDateFontScale(),
-      prefs.getSupportingScale(),
+      this.settings.getFontFamily(),
+      this.settings.isBoldText(),
+      this.settings.getTimeFontScale(),
+      this.settings.getDateFontScale(),
+      this.settings.getSupportingScale(),
       this.weather.isEmpty,
       this.detail.isEmpty,
     ].join('|');
@@ -504,10 +561,12 @@ export class ClockPage implements Page {
       width,
       height,
       dateWidth,
-      prefs.getDateFontScale(),
+      this.settings.getDateFontScale(),
       context.stacked ? 0.08 : DATE_HEIGHT_FRACTION,
       DATE_MAX_WIDTH_FRACTION
     );
+    const supportingSize = calculateWidthBasedTextSize(width,height,dateWidth,this.settings.getSupportingScale(),
+      context.stacked ? 0.08 : DATE_HEIGHT_FRACTION,DATE_MAX_WIDTH_FRACTION);
     let timeSize = context.stacked
       ? this.stackedTimeSize(width, height, 0, context.showSeconds, font)
       : this.inlineTimeSize(width, height, context.displayTime, font);
@@ -522,7 +581,7 @@ export class ClockPage implements Page {
     style.setProperty('--time-size', `${timeSize}px`);
     style.setProperty('--digit-w', `${widestDigitWidth(font) * timeSize}px`);
     const rows = fitSupportingRows(height, primaryHeight * fit, dateSize,
-      dateSize * prefs.getSupportingScale(), context.singleDateLine ? 1 : 2,
+      supportingSize, context.singleDateLine ? 1 : 2,
       Number(!this.weather.isEmpty) + Number(!this.detail.isEmpty), portrait);
     style.setProperty('--date-size', `${rows.dateSize}px`);
     style.setProperty('--supporting-size', `${rows.supportingSize}px`);
@@ -548,7 +607,7 @@ export class ClockPage implements Page {
       width,
       height,
       mainWidth + leftAccessory + rightAccessory,
-      prefs.getTimeFontScale(),
+      this.settings.getTimeFontScale(),
       TIME_HEIGHT_FRACTION,
       TIME_MAX_WIDTH_FRACTION
     );
@@ -566,7 +625,7 @@ export class ClockPage implements Page {
     font: FontSpec
   ): number {
     const lines = showSeconds ? 3 : 2;
-    const weatherTwoLines = prefs.isWeatherEnabled() && prefs.isWeatherDetailed();
+    const weatherTwoLines = this.settings.isWeatherEnabled() && this.settings.isWeatherDetailed();
     const heightFraction =
       lines === 3 ? (weatherTwoLines ? 0.13 : 0.18) : weatherTwoLines ? 0.2 : 0.28;
     const digitPairWidth = stableTextWidth('00', font);
@@ -574,14 +633,14 @@ export class ClockPage implements Page {
       width,
       height,
       digitPairWidth,
-      prefs.getTimeFontScale(),
+      this.settings.getTimeFontScale(),
       heightFraction,
       0.66
     );
 
     const dateLineHeight = dateSize * LINE_HEIGHT;
-    const hasLunar = prefs.isShowLunar();
-    const weatherShown = prefs.isWeatherEnabled() || prefs.getCustomMessage().length > 0;
+    const hasLunar = this.settings.isShowLunar();
+    const weatherShown = this.settings.isWeatherEnabled() || this.settings.getCustomMessage().length > 0;
     const supportingGap = Math.max(dateLineHeight * 0.5, 10);
     const dateBlockHeight = hasLunar ? dateLineHeight * 2 + supportingGap : dateLineHeight;
     const weatherBlockHeight = !weatherShown

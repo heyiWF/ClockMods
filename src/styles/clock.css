@@ -253,14 +253,23 @@
 }
 
 /* ---- Supporting lines: date, lunar, weather ---- */
-.glyph.anim-slide-right.is-out { animation: glyph-right-out 700ms ease-out forwards; }
-.glyph.anim-slide-right.is-in { animation: glyph-right-in 700ms ease-out; }
-.glyph.anim-scan.is-out { animation: glyph-scan-out 700ms linear forwards; }
-.glyph.anim-scan.is-in { animation: glyph-scan-in 700ms linear; }
-@keyframes glyph-right-out { to { opacity: 0; transform: translateX(.8em); } }
-@keyframes glyph-right-in { from { opacity: 0; transform: translateX(-.8em); } }
-@keyframes glyph-scan-out { to { clip-path: inset(0 0 0 100%); } }
-@keyframes glyph-scan-in { from { clip-path: inset(0 100% 0 0); } }
+/* Short, eased travel, matching Ultimate (0.27em / 440ms). */
+.glyph.anim-slide-right.is-out { animation: glyph-right-out 440ms cubic-bezier(.3333,1,.6667,1) both; }
+.glyph.anim-slide-right.is-in { animation: glyph-right-in 440ms cubic-bezier(.3333,1,.6667,1) both; }
+@keyframes glyph-right-out { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(.27em); } }
+@keyframes glyph-right-in { from { opacity: 0; transform: translateX(-.27em); } to { opacity: 1; transform: translateX(0); } }
+/* Each half has its own eased left-to-right sweep and transparent feather. */
+@property --scan-edge { syntax: '<percentage>'; inherits: false; initial-value: -18%; }
+.glyph.anim-scan.is-out {
+  mask-image: linear-gradient(to right, transparent var(--scan-edge), #000 calc(var(--scan-edge) + 18%));
+  animation: glyph-scan-out 240ms cubic-bezier(.3333,1,.6667,1) forwards;
+}
+.glyph.anim-scan.is-in {
+  mask-image: linear-gradient(to right, #000 calc(var(--scan-edge) - 18%), transparent var(--scan-edge));
+  animation: glyph-scan-in 240ms cubic-bezier(.3333,1,.6667,1) 240ms both;
+}
+@keyframes glyph-scan-out { from { --scan-edge: -18%; } to { --scan-edge: 100%; } }
+@keyframes glyph-scan-in { from { --scan-edge: 0%; } to { --scan-edge: 118%; } }
 
 .supporting-row {
   max-width: 100%;
@@ -342,3 +351,49 @@
   flex: 0 0 auto;
   color: var(--weather-icon-color, #fff);
 }
+
+/* Two bounded layers retain the old sentence until the complete swap ends. */
+.carousel { min-height: 1.4em; }
+.carousel-layer { display: block; position: relative; width: 100%; line-height: inherit; }
+.carousel-layer.is-outgoing { position: absolute; inset: 0; }
+.carousel-layer.is-scrolling { text-align: left; }
+.carousel-track { vertical-align: top; }
+
+/* Browser-backed Ultimate display options. translate keeps swipe transforms intact. */
+.clock-stage,.cal-layout {translate:var(--burn-x,0px) var(--burn-y,0px);}
+#pages {margin:var(--burn-margin,0px);}
+.device-status {position:absolute;right:max(14px,var(--display-safe-right,0px));top:max(10px,var(--display-safe-top,0px));z-index:20;pointer-events:none;border:1px solid currentColor;border-radius:100px;padding:5px 9px;color:white;background:#0008;}
+.device-status[hidden] {display:none;}
+.device-status[data-style=filled] {background:#e3e7ed;color:#20252b;border-color:transparent;}
+.device-status[data-style=minimal] {border:0;background:#0005;border-radius:5px;}
+.page.has-world-clocks .clock-stage {bottom:86px;}
+.world-clock-strip {position:absolute;left:4%;right:4%;bottom:14px;display:grid;grid-template-columns:repeat(var(--world-count,6),minmax(0,1fr));gap:8px;color:var(--clock-time-color,white);}
+.world-clock-strip[hidden] {display:none;}
+.world-clock-city {display:flex;flex-direction:column;gap:4px;text-align:center;font:12px system-ui;min-width:0;background:#0003;border-radius:12px;padding:9px 3px;color:white;}
+.world-clock-city span {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.world-clock-city strong {font-size:clamp(12px,2vw,22px);white-space:nowrap;}
+@media(orientation:portrait) { .world-clock-strip{grid-template-columns:repeat(var(--world-portrait-count,3),minmax(0,1fr));gap:4px;bottom:8px;} .page.has-world-clocks .clock-stage{bottom:132px;} }
+@media(max-height:380px) {.page.has-world-clocks .clock-stage{bottom:65px;} .world-clock-strip{bottom:6px;} .world-clock-city{padding:4px 2px;font-size:10px;} }
+
+.clock-stage {top:var(--display-safe-top,0px);left:var(--display-safe-left,0px);right:var(--display-safe-right,0px);}
+
+#pages::after {content:'';position:absolute;inset:0;background:#000;opacity:calc(1 - var(--protection-brightness,1));z-index:30;pointer-events:none;}
+.world-clock-strip {translate:var(--burn-x,0px) var(--burn-y,0px);}
+.has-glass .face-shape,.has-glass .world-clock-city {background:transparent!important;border:1px solid #ffffff38;box-shadow:none!important;overflow:hidden;isolation:isolate;}
+.has-glass .world-clock-city {position:relative;}
+/* Sample the original wallpaper independently, including overlapping and rotated cards. */
+.has-glass .face-shape::before,.has-glass .world-clock-city::before {content:'';position:absolute;left:var(--glass-left,0px);top:var(--glass-top,0px);width:var(--glass-width);height:var(--glass-height);background:var(--glass-image) center/cover no-repeat;filter:blur(var(--glass-blur));transform:rotate(var(--glass-counter-rotation,0deg));transform-origin:var(--glass-origin,center);z-index:-2;pointer-events:none;}
+.has-glass .face-shape::after,.has-glass .world-clock-city::after {content:'';position:absolute;inset:0;background:var(--glass-overlay);z-index:-1;pointer-events:none;}
+.has-glass .world-clock-city {color:var(--glass-ink);}
+
+.chime-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+#chime-layer .chime-text{display:flex;align-items:center;}
+
+.aligned-time-colon{display:inline-block;transform:translateY(var(--colon-shift,0));}
+
+.world-clock-city strong{display:flex;align-items:baseline;justify-content:center;line-height:1.2;}
+
+/* Respect the selected face instead of synthesizing unavailable styles. */
+.clock-time, .clock-date, .clock-lunar, .clock-weather, .ultimate-face { font-synthesis:none; }
+
+.supporting-row { font-synthesis:none; }

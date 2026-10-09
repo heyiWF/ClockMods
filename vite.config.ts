@@ -16,8 +16,8 @@ export default defineConfig({
       registerType: 'prompt',
       includeAssets: ['icons/*.png', 'fonts/**/*', 'data/**/*'],
       manifest: {
-        name: 'ClockMods Pro',
-        short_name: 'ClockMods',
+        name: 'ClockMods Web',
+        short_name: 'ClockMods Web',
         description: '高度可定制的全屏时钟：时钟、月历、番茄钟、闹钟、倒计时、秒表',
         lang: 'zh-Hans',
         start_url: './',

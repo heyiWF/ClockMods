@@ -1,3 +1,4 @@
+import { CLOCK_THEMES } from '../src/core/clock-themes';
 /**
  * @vitest-environment jsdom
  *
@@ -223,5 +224,53 @@ describe('ClockPage', () => {
 
     expect(openSettings).toHaveBeenCalledTimes(1);
     page.stop();
+  });
+});
+
+for (const theme of CLOCK_THEMES.filter(t => t.id !== 'classic')) {
+  for (const orientation of ['landscape', 'portrait'] as const) {
+    it(`renders ${theme.id} in ${orientation} and restores classic without stale theme layers`, async () => {
+      const { root, page } = mount(orientation);
+      prefs.setClockTheme(theme.id);
+      prefs.setCustomMessage('A fixed size message');
+      await page.refreshSettings();
+      const face = root.querySelector<HTMLElement>('.ultimate-face')!;
+      expect(face.dataset.face).toBe(theme.id);
+      expect(root.querySelectorAll('#clock-date')).toHaveLength(1);
+      expect(root.querySelector('#clock-date')!.closest('.ultimate-face')).toBe(face);
+      expect(root.querySelector('.material-time-part')).toBeNull();
+      expect(root.querySelector('#clock-time')!.getAttribute('aria-label')).toBe('13:45:07');
+      prefs.setShowSeconds(false); await page.refreshSettings();
+      expect(root.querySelector('#clock-time')!.getAttribute('aria-label')).toBe('13:45');
+      prefs.setClockTheme('classic'); await page.refreshSettings();
+      expect(root.querySelector('.ultimate-face')).toBeNull();
+      expect(root.querySelector('#clock-date')!.getAttribute('style')).toBeNull();
+      expect(root.querySelector('#clock-time')!.textContent).toBe('13:45');
+      page.stop();
+    });
+  }
+}
+
+
+describe('isolated style drafts', () => {
+  it('renders draft palette and typography without changing the live page or saved settings', async () => {
+    const {root, page} = mount(); await page.refreshSettings();
+    const liveText = root.querySelector('#clock-time')!.textContent;
+    const previewRoot = root.cloneNode(true) as HTMLElement; document.body.append(previewRoot); sizeStage(previewRoot,1280,720);
+    const before = JSON.stringify(localStorage);
+    const draft = {...prefs,getClockTheme:()=> 'ultimate.dual_blocks',getThemePalette:()=>({background:'#123456',panel:'#654321',accent:'#abcdef'}),getFontWeight:()=>900,hasFontWeight:()=>true};
+    const preview = new ClockPage(previewRoot,()=>{},draft);
+    await preview.refreshSettings();
+    expect(previewRoot.querySelector<HTMLElement>('[data-part="hours-panel"]')!.style.background).toBe('rgb(101, 67, 33)');
+    expect(previewRoot.querySelector<HTMLElement>('[data-part="hours"]')!.style.fontWeight).toBe('900');
+    expect(root.querySelector('#clock-time')!.textContent).toBe(liveText);
+    expect(JSON.stringify(localStorage)).toBe(before); preview.dispose(); page.stop();
+  });
+  it('uses an owned draft image source without replacing the saved wallpaper',async()=>{
+    const {root,page}=mount(); const image=vi.fn(async()=> 'blob:draft-image');
+    const preview=new ClockPage(root,()=>{},{...prefs,getBackgroundMode:()=> 'image'},image);
+    const before=JSON.stringify(localStorage);await preview.refreshSettings();
+    expect(image).toHaveBeenCalledOnce();expect(root.querySelector<HTMLElement>('#clock-bg')!.style.backgroundImage).toContain('blob:draft-image');
+    expect(JSON.stringify(localStorage)).toBe(before);preview.dispose();page.stop();
   });
 });

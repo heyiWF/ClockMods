@@ -1,3 +1,4 @@
+import { changedDigitPair, motionDuration } from './clock-motion';
 /**
  * Character-level clock rendering.
  *
@@ -6,7 +7,7 @@
  *
  *   - digits get a fixed width (ClockTextLayout.stableTextWidth) so a proportional
  *     font never makes the clock jitter as digits change;
- *   - only characters that actually changed animate, each with the configured
+ *   - both digits of a changed time field animate, each with the configured
  *     transition, by layering the outgoing glyph over the incoming one;
  *   - the colon is nudged so its optical centre matches the digits' centre
  *     (ClockTextLayout.alignedCharacterBaseline) and fades when blinking.
@@ -54,6 +55,7 @@ export class CharacterLine {
   readonly element: HTMLElement;
   private text = '';
   private colonVisible = true;
+  private readonly cleanups = new Map<HTMLElement, () => void>();
 
   constructor(element: HTMLElement) {
     this.element = element;
@@ -79,7 +81,7 @@ export class CharacterLine {
     for (let index = 0; index < text.length; index++) {
       const previous = this.text.charAt(index);
       const next = text.charAt(index);
-      if (previous === next) continue;
+      if (previous === next && !changedDigitPair(this.text, text, index)) continue;
       this.replaceCharacter(cells[index], previous, next, transitionClass);
     }
     this.text = text;
@@ -92,10 +94,12 @@ export class CharacterLine {
   /** Clears state so the next setText rebuilds (used when the font changes). */
   reset(): void {
     this.text = '';
+    this.clearAnimations();
     this.element.replaceChildren();
   }
 
   private rebuild(text: string, colonVisible: boolean): void {
+    this.clearAnimations();
     const children: HTMLElement[] = [];
     for (const character of text) {
       const cell = document.createElement('span');
@@ -136,32 +140,30 @@ export class CharacterLine {
     transitionClass: string
   ): void {
     if (!cell) return;
-    // Drop any still-running outgoing glyph so rapid changes cannot pile up.
-    for (const stale of cell.querySelectorAll('.glyph.is-out')) stale.remove();
-
-    const incoming = cell.querySelector('.glyph') as HTMLElement | null;
-    if (!incoming) return;
+    this.cleanups.get(cell)?.();
+    // Fresh nodes restart CSS animations without a per-digit forced layout.
+    const incoming = document.createElement('span');
+    incoming.className = `glyph is-in anim-${transitionClass}`;
+    incoming.textContent = next;
     const outgoing = document.createElement('span');
     outgoing.className = `glyph is-out anim-${transitionClass}`;
     outgoing.textContent = previous;
-    incoming.textContent = next;
-    incoming.classList.remove('is-in');
-    incoming.className = `glyph is-in anim-${transitionClass}`;
-    cell.appendChild(outgoing);
-    // Force a reflow so restarting the same animation on a fast-changing digit
-    // actually replays it.
-    void cell.offsetWidth;
+    outgoing.setAttribute('aria-hidden', 'true');
+    cell.replaceChildren(incoming, outgoing);
     const cleanup = () => {
+      clearTimeout(timer);
+      incoming.removeEventListener('animationend', cleanup);
       outgoing.remove();
-      incoming.classList.remove('is-in', `anim-${transitionClass}`);
+      incoming.className = 'glyph';
+      this.cleanups.delete(cell);
     };
-    // The flip transition is sequential: the outgoing half ends at 150ms while
-    // the incoming half is only starting. Cleaning up from the outgoing event
-    // would freeze the new digit at its edge-on first frame.
-    incoming.addEventListener('animationend', cleanup, { once: true });
-    // animationend never fires when animations are disabled (prefers-reduced-motion
-    // or a background tab), so guarantee cleanup.
-    setTimeout(cleanup, (transitionClass === 'scan' || transitionClass === 'slide-right' ? 700 : TRANSITION_DURATION_MS) + 80);
+    const timer = setTimeout(cleanup, motionDuration(transitionClass.replace('-', '_')) + 80);
+    this.cleanups.set(cell, cleanup);
+    incoming.addEventListener('animationend', cleanup);
+  }
+
+  private clearAnimations(): void {
+    for (const cleanup of [...this.cleanups.values()]) cleanup();
   }
 
   private applyColonVisibility(animate: boolean): void {
@@ -223,7 +225,17 @@ export function renderSupportingText(element: HTMLElement, text: string): void {
  * Vertical nudge, as a fraction of the font size, that puts a colon's optical
  * centre on the digits' centre. Mirrors ClockTextLayout.alignedCharacterBaseline.
  */
+const colonMeasurements = new Map<string, number>();
+if (typeof document !== 'undefined') document.fonts?.addEventListener('loadingdone', () => colonMeasurements.clear());
+/** Ultimate ClockTimeText's baseline-relative ink-bound geometry. */
+export function colonBaselineOffset(digitTop: number, digitBottom: number, colonTop: number, colonBottom: number): number {
+  if (![digitTop,digitBottom,colonTop,colonBottom].every(Number.isFinite) || digitBottom <= digitTop || colonBottom <= colonTop) return 0;
+  return (digitTop + digitBottom - colonTop - colonBottom) / 2;
+}
 export function measureColonShift(fontFamily: string, weight: number | string): number {
+  const key = fontFamily + '|' + weight;
+  const cached = colonMeasurements.get(key);
+  if (cached !== undefined) return cached;
   const canvas = document.createElement('canvas');
   const context = canvas.getContext('2d');
   if (!context) return 0;
@@ -231,10 +243,14 @@ export function measureColonShift(fontFamily: string, weight: number | string): 
   context.font = `${weight} ${size}px ${fontFamily}`;
   const digit = context.measureText('0');
   const colon = context.measureText(':');
-  const digitCenter = (digit.actualBoundingBoxAscent - digit.actualBoundingBoxDescent) / 2;
-  const colonCenter = (colon.actualBoundingBoxAscent - colon.actualBoundingBoxDescent) / 2;
-  if (!Number.isFinite(digitCenter) || !Number.isFinite(colonCenter)) return 0;
-  // Positive shift moves the glyph down, so the sign is inverted relative to the
-  // Android baseline arithmetic.
-  return (colonCenter - digitCenter) / size;
+  const shift = colonBaselineOffset(-digit.actualBoundingBoxAscent, digit.actualBoundingBoxDescent,
+    -colon.actualBoundingBoxAscent, colon.actualBoundingBoxDescent) / size;
+  colonMeasurements.set(key, shift);
+  return shift;
+}
+
+/** Static time labels (world clocks) share the same colon correction as animated digits. */
+export function setAlignedTime(element: HTMLElement,text:string,family:string,weight:number): void {
+ if(element.dataset.clockText!==text){element.dataset.clockText=text;element.replaceChildren(...text.split(':').flatMap((part,index)=>{const nodes:Node[]=[];if(index){const colon=document.createElement('span');colon.className='aligned-time-colon';colon.textContent=':';nodes.push(colon);}nodes.push(document.createTextNode(part));return nodes;}));}
+ element.style.fontFamily=family;element.style.fontWeight=String(weight);element.style.setProperty('--colon-shift',measureColonShift(family,weight)+'em');
 }

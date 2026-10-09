@@ -75,13 +75,13 @@ describe('LabelCarousel', () => {
     vi.advanceTimersByTime(1000);
 
     expect(line.classList.contains('is-scrolling')).toBe(true);
-    expect(inner.style.transform).toBe('translateX(-80px)');
-    expect(inner.style.transition).toBe('transform 2000ms linear');
+    expect(inner.style.transform).toBe('translateX(-104px)');
+    expect(inner.style.transition).toBe('transform 2600ms linear');
     expect(host.querySelector<HTMLElement>('.label-carousel-track')!.style.transform).toBe(
       'translateY(0)'
     );
 
-    vi.advanceTimersByTime(3000);
+    vi.advanceTimersByTime(3600);
     expect(host.querySelector<HTMLElement>('.label-carousel-track')!.style.transform).toBe(
       'translateY(-100%)'
     );
@@ -183,7 +183,7 @@ describe('LabelCarousel', () => {
     vi.advanceTimersByTime(1000);
 
     expect(line.classList.contains('is-scrolling')).toBe(true);
-    expect(inner.style.transform).toBe('translateX(-120px)');
+    expect(inner.style.transform).toBe('translateX(-144px)');
     // The glyph itself is never transformed.
     expect(pin.style.transform).toBe('');
     carousel.destroy();

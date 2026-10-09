@@ -220,3 +220,15 @@ describe('CalendarPage', () => {
     expect(root.querySelector('#cal-period')!.textContent).toBe('下午');
   });
 });
+
+describe('Ultimate calendar settings',()=>{
+ it('renders an agenda week and advances exactly seven days',()=>{
+  prefs.setUltimateOptions({...prefs.getUltimateOptions(),calendarTheme:'calendar.agenda'});const {root}=mount();
+  expect(root.querySelectorAll('.cal-day')).toHaveLength(7);expect(root.querySelector('.cal-agenda-detail')?.textContent).toContain('07');
+  root.querySelector<HTMLElement>('#cal-next')!.click();expect(root.querySelector('.cal-day.is-selected')?.getAttribute('data-date')).toBe('2026-08-14');
+ });
+ it('applies calendar-specific typography independently of the clock',()=>{
+  prefs.setFontFamily('lora','calendar.paper');prefs.setTimeFontScale(.6,'calendar.paper');prefs.setUltimateOptions({...prefs.getUltimateOptions(),calendarTheme:'calendar.paper'});
+  const{root}=mount();expect(root.dataset.calendarTheme).toBe('calendar.paper');expect(root.style.getPropertyValue('--cal-font')).toContain('Lora');expect(prefs.getFontFamily()).toBe('system');
+ });
+});

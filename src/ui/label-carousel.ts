@@ -1,3 +1,4 @@
+import { prefs } from '../core/prefs';
 /**
  * Vertically-sliding label carousel used by the calendar grid cells and the
  * 宜/忌 footer.
@@ -18,8 +19,8 @@ import { pangu } from '../format/text-spacing';
 
 const HOLD_MS = 3000;
 const TRANSITION_MS = 200;
-const SCROLL_PAUSE_MS = 1000;
-const SCROLL_PX_PER_SECOND = 40;
+
+
 /** Labels of at most this many characters never scroll (MAX_STATIC_CHARS). */
 const MAX_STATIC_CHARS = 3;
 
@@ -159,7 +160,7 @@ export class LabelCarousel {
       return;
     }
 
-    const scrollMs = Math.ceil((overflow / SCROLL_PX_PER_SECOND) * 1000);
+    const scrollMs = Math.ceil((overflow / prefs.getUltimateOptions().marqueeSpeed) * 1000);
     this.phaseHandle = window.setTimeout(() => {
       this.phaseHandle = null;
       inner.style.transition = `transform ${scrollMs}ms linear`;
@@ -175,8 +176,8 @@ export class LabelCarousel {
           this.resetItemTransforms();
           if (this.active) this.scheduleCurrentItem();
         }
-      }, scrollMs + SCROLL_PAUSE_MS);
-    }, SCROLL_PAUSE_MS);
+      }, scrollMs + prefs.getUltimateOptions().marqueePause);
+    }, prefs.getUltimateOptions().marqueePause);
   }
 
   private scheduleAfterLayout(): void {
@@ -201,9 +202,11 @@ export class LabelCarousel {
     const strip = line.querySelector<HTMLElement>('.label-carousel-strip');
     const inner = line.querySelector<HTMLElement>('.label-carousel-text');
     if (!strip || !inner) return 0;
-    const overflow = Math.max(0, inner.scrollWidth - strip.clientWidth);
+    inner.style.paddingInlineEnd = '0px';
+    const overflow = inner.classList.contains('can-scroll') ? Math.max(0, inner.scrollWidth - strip.clientWidth) : 0;
+    if(overflow>0)inner.style.paddingInlineEnd=prefs.getUltimateOptions().marqueeGap+'px';
     line.classList.toggle('is-scrolling', overflow > 0);
-    return overflow;
+    return overflow>0 ? overflow+prefs.getUltimateOptions().marqueeGap : 0;
   }
 
   private snapTrackToStart(): void {

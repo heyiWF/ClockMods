@@ -1,18 +1,7 @@
-/**
- * Central, data-driven registry of the clock font families.
- *
- * Ported from com.clockmods.background.FontCatalog. All eleven Pro options are
- * kept, but the two SF Pro entries resolve through a CSS system-font stack
- * instead of a bundled file: Apple's license does not permit redistribution, and
- * on Apple devices `-apple-system` / `ui-rounded` already render the real faces.
- *
- * Every stack ends with the same CJK fallback chain. That reproduces the Android
- * behaviour where `ClockTypefaceResolver.resolveSupportingForCodePoint` handed
- * CJK code points to the system typeface, since none of the bundled Latin faces
- * carry Chinese glyphs — here the browser's own font fallback does it.
- */
+import { readLocalFont, localFontAlias, cssString, loadLocalFont } from './local-fonts';
+/** Bundled and opt-in local fonts share glyph fallback and measurement paths. */
 
-/** Appended to every stack so Chinese always renders with a system face. */
+/** Used only for glyphs missing from the selected face. */
 const CJK_FALLBACK =
   '"PingFang SC", "PingFang TC", "Hiragino Sans GB", "Microsoft YaHei", "Noto Sans CJK SC", "Source Han Sans SC", sans-serif';
 
@@ -87,6 +76,8 @@ export const FONT_OPTIONS: readonly FontOption[] = [
 
 /** Returns the option for `id`, or the system option when unknown. */
 export function optionFor(id: string): FontOption {
+  const local=readLocalFont(id);
+  if(local) return {id,displayName:local.fullName,stack:cssString(localFontAlias(local))+', '+SYSTEM_LATIN+', '+CJK_FALLBACK,system:false,hasBoldFile:true};
   return FONT_OPTIONS.find((option) => option.id === id) ?? FONT_OPTIONS[0];
 }
 
@@ -100,7 +91,7 @@ export function fontIdForIndex(index: number): string {
 }
 
 export function isFontAvailable(id: string): boolean {
-  return FONT_OPTIONS.some((option) => option.id === id);
+  return !!readLocalFont(id) || FONT_OPTIONS.some((option) => option.id === id);
 }
 
 export function normalizeFontFamily(id: string | null | undefined): string {
@@ -118,13 +109,28 @@ export function fontStack(id: string): string {
  * families load lazily, so measuring too early would size the clock against a
  * fallback face.
  */
-export async function ensureFontLoaded(id: string, bold: boolean): Promise<void> {
+export async function ensureFontLoaded(id: string, bold: boolean | number, doc: Document = document): Promise<void> {
+  await loadLocalFont(id, doc);
   const option = optionFor(normalizeFontFamily(id));
-  if (option.system || !('fonts' in document)) return;
-  const weight = bold ? 700 : 400;
+  if (option.system || !('fonts' in doc)) return;
+  const weight = typeof bold === 'number' ? bold : bold ? 700 : 400;
   try {
-    await document.fonts.load(`${weight} 100px ${option.stack}`, '0123456789:');
+    await doc.fonts.load(`${weight} 100px ${option.stack}`, '0123456789:年月星期天气');
   } catch {
     // A missing font file must not stop the clock from rendering.
   }
+}
+
+/** Only weights that the bundled files actually supply. System faces depend on the host OS. */
+export function availableWeights(family: string): number[] {
+ const local=readLocalFont(family);
+ if(local) return local.min===local.max?[local.weight]:Array.from({length:Math.floor(local.max)-Math.ceil(local.min)+1},(_,i)=>Math.ceil(local.min)+i);
+ if(family==='google_sans_display'||family==='google_sans_text')return [400,500,700];
+ if(family==='lato')return [100,300,400,700,900];
+ if(family==='lora')return [400,500,600,700];
+ if(optionFor(family).system)return [400,700];
+ return [100,200,300,400,500,600,700,800,900];
+}
+export function nearestWeight(family: string, value: number): number {
+ return availableWeights(family).reduce((best,next)=>Math.abs(next-value)<Math.abs(best-value)?next:best);
 }

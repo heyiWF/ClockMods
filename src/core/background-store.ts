@@ -34,7 +34,9 @@ async function withStore<T>(
     return await new Promise<T>((resolve, reject) => {
       const transaction = db.transaction(STORE, mode);
       const request = action(transaction.objectStore(STORE));
-      request.onsuccess = () => resolve(request.result);
+      transaction.oncomplete = () => resolve(request.result);
+      transaction.onabort = () => reject(transaction.error ?? new Error('Image storage aborted'));
+      transaction.onerror = () => reject(transaction.error);
       request.onerror = () => reject(request.error);
     });
   } finally {
@@ -108,4 +110,9 @@ export async function clearBackgroundImage(): Promise<void> {
   } catch {
     /* nothing stored */
   }
+}
+
+/** A preview owns its object URL; reading a draft must never revoke the live wallpaper. */
+export async function readBackgroundBlob(): Promise<Blob | undefined> {
+  try { return await withStore<Blob | undefined>('readonly', store => store.get(KEY)); } catch { return undefined; }
 }

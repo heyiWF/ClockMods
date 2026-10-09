@@ -7,20 +7,8 @@
  * system stacks in src/core/fonts.ts.
  */
 
-@font-face {
-  font-family: 'Roboto';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('../assets/fonts/Roboto-Regular.ttf') format('truetype');
-}
-@font-face {
-  font-family: 'Roboto';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('../assets/fonts/Roboto-Bold.ttf') format('truetype');
-}
+
+
 
 @font-face {
   font-family: 'Google Sans Display';
@@ -52,20 +40,8 @@
   src: url('../assets/fonts/GoogleSansText-Bold.ttf') format('truetype');
 }
 
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('../assets/fonts/Inter-Regular.ttf') format('truetype');
-}
-@font-face {
-  font-family: 'Inter';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('../assets/fonts/Inter-Bold.ttf') format('truetype');
-}
+
+
 
 @font-face {
   font-family: 'Lato';
@@ -82,47 +58,31 @@
   src: url('../assets/fonts/Lato-Bold.ttf') format('truetype');
 }
 
-@font-face {
-  font-family: 'Lora';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('../assets/fonts/Lora-Regular.ttf') format('truetype');
-}
-@font-face {
-  font-family: 'Lora';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('../assets/fonts/Lora-Bold.ttf') format('truetype');
-}
 
-@font-face {
-  font-family: 'Noto Sans';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('../assets/fonts/NotoSans-Regular.ttf') format('truetype');
-}
-@font-face {
-  font-family: 'Noto Sans';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('../assets/fonts/NotoSans-Bold.ttf') format('truetype');
-}
 
-@font-face {
-  font-family: 'Bitcount Grid Double';
-  font-style: normal;
-  font-weight: 400;
-  font-display: swap;
-  src: url('../assets/fonts/BitcountGridDouble-Regular.ttf') format('truetype');
-}
-@font-face {
-  font-family: 'Bitcount Grid Double';
-  font-style: normal;
-  font-weight: 700;
-  font-display: swap;
-  src: url('../assets/fonts/BitcountGridDouble-Bold.ttf') format('truetype');
-}
+
+
+
+
+
+
+
+@font-face {font-family:"Roboto";font-style:normal;font-weight:100 900;font-display:swap;src:url('../assets/fonts/Roboto-Variable.ttf') format('truetype');}
+
+@font-face {font-family:"Google Sans Display";font-style:normal;font-weight:500;font-display:swap;src:url('../assets/fonts/GoogleSansDisplay-Medium.ttf') format('truetype');}
+
+@font-face {font-family:"Google Sans Text";font-style:normal;font-weight:500;font-display:swap;src:url('../assets/fonts/GoogleSansText-Medium.ttf') format('truetype');}
+
+@font-face {font-family:"Inter";font-style:normal;font-weight:100 900;font-display:swap;src:url('../assets/fonts/Inter-Variable.ttf') format('truetype');}
+
+@font-face {font-family:"Lato";font-style:normal;font-weight:100;font-display:swap;src:url('../assets/fonts/Lato-Thin.ttf') format('truetype');}
+
+@font-face {font-family:"Lato";font-style:normal;font-weight:300;font-display:swap;src:url('../assets/fonts/Lato-Light.ttf') format('truetype');}
+
+@font-face {font-family:"Lato";font-style:normal;font-weight:900;font-display:swap;src:url('../assets/fonts/Lato-Black.ttf') format('truetype');}
+
+@font-face {font-family:"Lora";font-style:normal;font-weight:400 700;font-display:swap;src:url('../assets/fonts/Lora-Variable.ttf') format('truetype');}
+
+@font-face {font-family:"Noto Sans";font-style:normal;font-weight:100 900;font-display:swap;src:url('../assets/fonts/NotoSans-Variable.ttf') format('truetype');}
+
+@font-face {font-family:"Bitcount Grid Double";font-style:normal;font-weight:100 900;font-display:swap;src:url('../assets/fonts/BitcountGridDouble-Variable.ttf') format('truetype');}

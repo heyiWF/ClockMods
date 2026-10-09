@@ -1,7 +1,7 @@
 {
   "name": "clockmods-web",
   "version": "1.0.0",
-  "description": "ClockMods Pro — a highly customizable full-screen clock PWA",
+  "description": "ClockMods Web — a highly customizable full-screen clock PWA",
   "private": true,
   "type": "module",
   "scripts": {

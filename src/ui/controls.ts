@@ -71,16 +71,18 @@ export function sliderRow(
   const caption = element('span', 'settings-slider-label', label);
   const input = element('input');
   input.type = 'range';
+  input.setAttribute('aria-label', label);
   input.min = String(min);
   input.max = String(max);
   input.step = '1';
-  input.value = String(value);
-  const readout = element('span', 'settings-slider-value', format(value));
+  input.value = String(Math.round(value));
+  const readout = element('span', 'settings-slider-value', format(Number(input.value)));
   // M3 draws the travelled part of the track in the primary colour. CSS cannot
   // read an input's value, so the position is published as a unitless fraction
   // and settings.css turns it into a length across the handle's actual travel.
   const publishFill = () => {
-    const fraction = max > min ? (Number(input.value) - min) / (max - min) : 0;
+    const lower=Number(input.min),upper=Number(input.max);
+    const fraction = upper > lower ? (Number(input.value) - lower) / (upper - lower) : 0;
     input.style.setProperty('--m3-slider-fraction', String(fraction));
   };
   publishFill();
@@ -206,10 +208,11 @@ export function timeButton(labelPrefix: string, initialMinutes: number): TimeBut
   const input = element('input');
   input.type = 'time';
   input.className = 'settings-time-input';
+  const caption = element('span');button.append(caption);
   const render = () => {
     const hh = String(Math.floor(minutes / 60)).padStart(2, '0');
     const mm = String(minutes % 60).padStart(2, '0');
-    button.textContent = pangu(`${labelPrefix} ${hh}:${mm}`);
+    caption.textContent = pangu(`${labelPrefix} ${hh}:${mm}`);
     input.value = `${hh}:${mm}`;
   };
   render();
@@ -220,9 +223,9 @@ export function timeButton(labelPrefix: string, initialMinutes: number): TimeBut
       render();
     }
   });
-  button.addEventListener('click', () => {
-    input.showPicker?.();
-    input.click();
+  button.addEventListener('click', (event) => {
+    if (event.target === input) return;
+    if (input.showPicker) input.showPicker(); else input.click();
   });
   button.appendChild(input);
   return { button, minutes: () => minutes };
