@@ -697,3 +697,6 @@
 }
 
 .cal-schedule-time.is-all-day {color:var(--secondary);}
+
+/* Agenda lunar dates, solar terms and festivals share one supporting ink. */
+.page[data-calendar-theme="calendar.agenda"] .cal-day-label {color:var(--secondary);}

@@ -440,7 +440,12 @@ export class CalendarPage implements Page {
     const availableHeight=Math.max(1,(bounds.height||cell.clientHeight)-8), availableWidth=Math.max(1,(bounds.width||cell.clientWidth)-4);
     const stableSize=(size:number)=>Math.floor(size*10)/10;
     const limit=Math.min(availableHeight*.38,availableWidth*.45);
-    this.root.style.setProperty('--cal-date-size',stableSize(Math.min(date||availableHeight*.38,id==='calendar.poster'?Math.min(availableHeight*.72,availableWidth*.45):limit))+'px');
+    const agenda=id==='calendar.agenda';
+    const portrait=(this.root.ownerDocument.defaultView?.innerHeight ?? 0)>(this.root.ownerDocument.defaultView?.innerWidth ?? 0);
+    // Portrait stacks weekday/date/lunar text; give the number a wider budget
+    // while reserving height for the two supporting rows independently.
+    const dateLimit=agenda?Math.min(availableHeight*(portrait ? .34 : .60),availableWidth*.60):id==='calendar.poster'?Math.min(availableHeight*.72,availableWidth*.45):limit;
+    this.root.style.setProperty('--cal-date-size',stableSize(Math.min(date||availableHeight*(agenda ? .48 : .38),dateLimit))+'px');
     this.root.style.setProperty('--cal-support-size',stableSize(Math.min(support||availableHeight*.23,limit))+'px');
     this.fitPosterMonthTypography();
     this.fitWeatherTypography();
