@@ -643,7 +643,7 @@
 }
 
 /* Header labels share the supporting text size, including the Today button. */
-.page[data-calendar-theme] .cal-title,
+.page[data-calendar-theme]:not([data-calendar-theme="calendar.poster"]) .cal-title,
 .page[data-calendar-theme] .cal-weekday,
 .page[data-calendar-theme] .cal-today {font-size:var(--cal-support-size);line-height:1.2;}
 .page[data-calendar-theme] .cal-title {min-width:0;}
@@ -656,3 +656,8 @@
 .cal-forecast-condition {display:inline;color:var(--secondary);}
 .cal-forecast-col {padding-inline:.35em;}
 .cal-forecast-col > * {max-width:100%;}
+
+/* The poster month is an automatic masthead, not a supporting text label. */
+.page[data-calendar-theme="calendar.poster"] .cal-title {height:65%;min-height:0;flex-shrink:0;font-size:var(--cal-poster-month-size,48px);line-height:1.05;}
+.cal-poster-month {white-space:nowrap;flex-shrink:0;}
+.cal-poster-year {font-size:clamp(10px,1.2vw,24px);flex-shrink:0;}

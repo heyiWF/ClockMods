@@ -437,10 +437,26 @@ export class CalendarPage implements Page {
     const limit=Math.min(availableHeight*.38,availableWidth*.45);
     this.root.style.setProperty('--cal-date-size',Math.min(date||availableHeight*.38,id==='calendar.poster'?Math.min(availableHeight*.72,availableWidth*.45):limit)+'px');
     this.root.style.setProperty('--cal-support-size',Math.min(support||availableHeight*.23,limit)+'px');
+    this.fitPosterMonthTypography();
     this.fitWeatherTypography();
     const panel=this.root.querySelector<HTMLElement>('.cal-clock-panel')!;
     const timeLimit=Math.min(panel.clientWidth/(this.settings.isShowSeconds()?4.3:3.2),panel.clientHeight*.72);
     this.root.style.setProperty('--cal-clock-size',Math.max(1,Math.min(timeLimit,timeLimit*.72*this.settings.getTimeFontScale(id)/.88))+'px');
+  }
+
+  /** Poster mastheads always fit their own region, independent of manual sizes. */
+  private fitPosterMonthTypography(): void {
+    const month = this.title.querySelector<HTMLElement>('.cal-poster-month');
+    const year = this.title.querySelector<HTMLElement>('.cal-poster-year');
+    if (!month || !year || !this.title.clientWidth || !this.title.clientHeight) return;
+    this.root.style.setProperty('--cal-poster-month-size', '100px');
+    const range = this.root.ownerDocument.createRange();
+    range.selectNodeContents(month);
+    const measuredWidth = range.getBoundingClientRect().width;
+    const yearStyle = getComputedStyle(year);
+    const availableHeight = this.title.clientHeight - year.offsetHeight - parseFloat(yearStyle.marginTop);
+    const size = Math.max(1, Math.min(this.title.clientWidth * .8 / Math.max(1, measuredWidth) * 100, availableHeight / 1.05));
+    this.root.style.setProperty('--cal-poster-month-size', size + 'px');
   }
 
   /** Fit the actual rows, including wrapped detail text and the card's padding. */
