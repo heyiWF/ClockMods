@@ -6,6 +6,7 @@
  * CalendarFooterCarouselView: each item is held for 3s, then slides up while the
  * next slides in over 200ms. A label wider than its cell pauses for 1s, moves
  * left once at 40px/s, pauses for another second, then advances vertically.
+ * Permanent almanac lines instead use AlmanacLineView's repeating text belt.
  *
  * An item may name a `pinnedPrefix` — the 宜/忌 glyph that is the line's identity.
  * It is drawn bold and pinned at the left edge, and only the items after it
@@ -35,6 +36,8 @@ export interface LabelItem {
    * that stays pinned at the left edge while the rest scrolls past it.
    */
   pinnedPrefix?: string;
+  /** Permanent almanac lines loop seamlessly; rotating footer items still advance. */
+  continuous?: boolean;
 }
 
 export class LabelCarousel {
@@ -46,6 +49,10 @@ export class LabelCarousel {
   private phaseHandle: number | null = null;
   private scrollFrame: number | null = null;
   private layoutFrame: number | null = null;
+  private loopAnimation: Animation | null = null;
+  private loopCopy: HTMLElement | null = null;
+  private loopObserver?: ResizeObserver;
+  private readonly textWidths = new WeakMap<HTMLElement, number>();
 
   constructor(viewport: HTMLElement) {
     this.viewport = viewport;
@@ -62,6 +69,7 @@ export class LabelCarousel {
 
   setItems(items: LabelItem[]): void {
     this.clearCycle();
+    this.loopObserver?.disconnect();
     this.items = items;
     this.index = 0;
     this.snapTrackToStart();
@@ -74,6 +82,11 @@ export class LabelCarousel {
       lines.push(repeatedFirst);
     }
     this.track.replaceChildren(...lines);
+    if (items.length === 1 && items[0].continuous && typeof ResizeObserver !== 'undefined') {
+      this.loopObserver ??= new ResizeObserver(() => this.scheduleAfterLayout());
+      this.loopObserver.observe(this.viewport);
+      this.loopObserver.observe(lines[0].querySelector('.label-carousel-text')!);
+    }
     this.viewport.classList.add('is-measuring');
     this.scheduleAfterLayout();
   }
@@ -119,6 +132,7 @@ export class LabelCarousel {
   }
 
   destroy(): void {
+    this.loopObserver?.disconnect();
     this.setActive(false);
     this.clearCycle();
   }
@@ -171,6 +185,10 @@ export class LabelCarousel {
       return;
     }
 
+    if (this.items.length === 1 && this.items[0].continuous) {
+      this.startContinuousLoop(inner);
+      return;
+    }
     const scrollMs = Math.ceil((overflow / SCROLL_SPEED) * 1000);
     this.phaseHandle = window.setTimeout(() => {
       this.phaseHandle = null;
@@ -191,12 +209,34 @@ export class LabelCarousel {
     }, SCROLL_PAUSE_MS);
   }
 
+  private startContinuousLoop(inner: HTMLElement): void {
+    const width = this.textWidths.get(inner) ?? 0;
+    const gap = Math.max(SCROLL_GAP_PX, (parseFloat(getComputedStyle(inner).fontSize) || 16) * 1.5);
+    const distance = width + gap;
+    const duration = SCROLL_PAUSE_MS + Math.ceil(distance / SCROLL_SPEED * 1000);
+    const copy = document.createElement('span');
+    copy.className = 'label-carousel-repeat';
+    copy.textContent = inner.textContent;
+    copy.setAttribute('aria-hidden', 'true');
+    copy.style.left = distance + 'px';
+    inner.append(copy);
+    this.loopCopy = copy;
+    // At the iteration boundary the copy is exactly where the original starts.
+    // Resetting animation time therefore changes no visible pixels.
+    this.loopAnimation = inner.animate([
+      { transform: 'translateX(0)', offset: 0 },
+      { transform: 'translateX(0)', offset: SCROLL_PAUSE_MS / duration },
+      { transform: 'translateX(' + -distance + 'px)', offset: 1 },
+    ], { duration, iterations: Infinity, easing: 'linear' });
+  }
+
   private scheduleAfterLayout(): void {
     if (this.layoutFrame !== null) return;
     let completed=false;
     const handle = requestAnimationFrame(() => {
       completed=true;
       this.layoutFrame = null;
+      this.clearCycle();
       for (const line of this.track.querySelectorAll<HTMLElement>('.label-carousel-item')) {
         this.measureLine(line);
       }
@@ -222,6 +262,7 @@ export class LabelCarousel {
     const pinWidth = pin ? pin.getBoundingClientRect().width
       + (parseFloat(getComputedStyle(pin).marginInlineEnd) || 0) : 0;
     const available = line.clientWidth > 0 ? Math.max(0, line.clientWidth - pinWidth) : strip.clientWidth;
+    this.textWidths.set(inner, inner.getBoundingClientRect().width || inner.scrollWidth);
     const difference = inner.scrollWidth - available;
     // scrollWidth/clientWidth round to integer pixels. Subpixel rounding alone
     // must not switch an otherwise fitting date to left alignment.
@@ -250,6 +291,10 @@ export class LabelCarousel {
   }
 
   private clearCycle(): void {
+    this.loopAnimation?.cancel();
+    this.loopAnimation = null;
+    this.loopCopy?.remove();
+    this.loopCopy = null;
     if (this.phaseHandle !== null) {
       clearTimeout(this.phaseHandle);
       this.phaseHandle = null;

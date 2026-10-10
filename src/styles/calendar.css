@@ -700,3 +700,7 @@
 
 /* Agenda lunar dates, solar terms and festivals share one supporting ink. */
 .page[data-calendar-theme="calendar.agenda"] .cal-day-label {color:var(--secondary);}
+
+/* The trailing copy crosses the clip continuously while the badge stays fixed. */
+.label-carousel-text {position:relative;}
+.label-carousel-repeat {position:absolute;top:0;white-space:nowrap;pointer-events:none;}

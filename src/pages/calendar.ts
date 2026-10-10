@@ -673,7 +673,7 @@ export class CalendarPage implements Page {
     const weather=document.createElement('div');weather.className='cal-agenda-weather';
     detail.replaceChildren(heading,lunar,festival,weather);
     for(const [prefix,values,kind] of [[t('calendar_suitable_prefix'),almanac.suitable,'suitable'],[t('calendar_avoid_prefix'),almanac.avoid,'avoid']] as const){
-      const line=text('cal-agenda-almanac '+kind,'');line.hidden=!values.length;detail.append(line);const carousel=new LabelCarousel(line);carousel.setItems([{text:prefix+values.join(' · '),pinnedPrefix:prefix}]);carousel.setActive(this.running);this.agendaCarousels.push(carousel);
+      const line=text('cal-agenda-almanac '+kind,'');line.hidden=!values.length;detail.append(line);const carousel=new LabelCarousel(line);carousel.setItems([{text:prefix+values.join(' · '),pinnedPrefix:prefix,continuous:true}]);carousel.setActive(this.running);this.agendaCarousels.push(carousel);
     }
     detail.append(agendaSchedule(dateKey(this.selected.year,this.selected.month0,this.selected.day), this.settings !== prefs));
     this.renderAgendaWeather();

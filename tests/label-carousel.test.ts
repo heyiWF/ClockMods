@@ -250,3 +250,29 @@ describe('LabelCarousel', () => {
  it('does not treat one pixel of rounding as a scrolling line',()=>{
   vi.spyOn(window,'requestAnimationFrame').mockImplementation(callback=>{callback(0);return 1;});const host=document.createElement('div'),carousel=new LabelCarousel(host);carousel.setItems([{text:'a fitting date label'}]);const line=host.querySelector<HTMLElement>('.label-carousel-item')!;Object.defineProperty(line,'clientWidth',{value:300});Object.defineProperty(line.querySelector('.label-carousel-text'),'scrollWidth',{value:301});carousel.setActive(true);expect(line.classList.contains('is-scrolling')).toBe(false);carousel.destroy();
  });
+
+ it('loops permanent almanac text with a hidden trailing copy and a fixed badge',()=>{
+  vi.useFakeTimers();vi.spyOn(window,'requestAnimationFrame').mockImplementation(callback=>{callback(0);return 1;});
+  const host=document.createElement('div'),carousel=new LabelCarousel(host);
+  carousel.setItems([{text:'宜 祭祀 · 祈福 · 纳采 · 出行',pinnedPrefix:'宜 ',continuous:true}]);
+  const line=host.querySelector<HTMLElement>('.label-carousel-item')!,inner=line.querySelector<HTMLElement>('.label-carousel-text')!;
+  inner.style.fontSize='20px';Object.defineProperty(line,'clientWidth',{value:100});Object.defineProperty(inner,'scrollWidth',{value:200});
+  const cancel=vi.fn(),animate=vi.fn(()=>({cancel} as unknown as Animation));inner.animate=animate;
+  carousel.setActive(true);
+  const copy=inner.querySelector<HTMLElement>('.label-carousel-repeat')!;
+  expect(copy.textContent).toBe('祭祀 · 祈福 · 纳采 · 出行');expect(copy.getAttribute('aria-hidden')).toBe('true');expect(copy.style.left).toBe('230px');
+  expect(animate).toHaveBeenCalledWith([
+   {transform:'translateX(0)',offset:0},{transform:'translateX(0)',offset:1000/6750},{transform:'translateX(-230px)',offset:1}
+  ],{duration:6750,iterations:Infinity,easing:'linear'});
+  expect(line.querySelector<HTMLElement>('.label-carousel-pin')!.style.transform).toBe('');
+  vi.advanceTimersByTime(20000);expect(animate).toHaveBeenCalledTimes(1);
+  carousel.setActive(false);expect(cancel).toHaveBeenCalledOnce();expect(inner.querySelector('.label-carousel-repeat')).toBeNull();carousel.destroy();
+ });
+ it('leaves a fitting permanent line still and cleans up an old loop when content changes',()=>{
+  vi.useFakeTimers();vi.spyOn(window,'requestAnimationFrame').mockImplementation(callback=>{callback(0);return 1;});
+  const host=document.createElement('div'),carousel=new LabelCarousel(host);carousel.setItems([{text:'忌 安葬 · 出行 · 动土',pinnedPrefix:'忌 ',continuous:true}]);
+  const inner=host.querySelector<HTMLElement>('.label-carousel-text')!;Object.defineProperty(inner,'scrollWidth',{value:200});
+  const cancel=vi.fn();inner.animate=vi.fn(()=>({cancel} as unknown as Animation));carousel.setActive(true);
+  carousel.setItems([{text:'忌 无',pinnedPrefix:'忌 ',continuous:true}]);
+  expect(cancel).toHaveBeenCalledOnce();expect(host.querySelector('.label-carousel-repeat')).toBeNull();expect(host.querySelector('.is-scrolling')).toBeNull();carousel.destroy();
+ });
