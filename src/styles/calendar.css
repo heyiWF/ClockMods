@@ -516,7 +516,7 @@
 .page[data-calendar-theme='calendar.poster'] .cal-day-label,.page[data-calendar-theme='calendar.poster'] .cal-footer,.page[data-calendar-theme='calendar.poster'] .cal-day-badge {display:none;}
 .page[data-calendar-theme='calendar.poster'] .cal-header {border-bottom:1px solid #9aa0a652;padding-bottom:14px;}
 .page[data-calendar-theme='calendar.poster'] .cal-title {font-size:clamp(24px,7vw,84px);font-weight:800;letter-spacing:-.05em;}
-.page[data-calendar-theme='calendar.poster'] .cal-day.is-selected {outline:1px solid currentColor;outline-offset:-4px;border-radius:0;}
+.page[data-calendar-theme='calendar.poster'] .cal-day.is-selected {outline:0;border-radius:clamp(8px,1.2vw,20px);background:color-mix(in srgb,var(--cal-day) 10%,transparent);}
 .page[data-calendar-theme='calendar.poster'] .cal-day.is-today::after {content:'';width:5px;height:5px;border-radius:50%;background:var(--green);}
 .page[data-calendar-theme='calendar.poster'] .cal-day.is-other-month {opacity:.18;}
 
@@ -645,7 +645,7 @@
 /* Header labels share the supporting text size, including the Today button. */
 .page[data-calendar-theme]:not([data-calendar-theme="calendar.poster"]) .cal-title,
 .page[data-calendar-theme] .cal-weekday,
-.page[data-calendar-theme] .cal-today {font-size:var(--cal-support-size);line-height:1.2;}
+.page[data-calendar-theme]:not([data-calendar-theme="calendar.poster"]) .cal-today {font-size:var(--cal-support-size);line-height:1.2;}
 .page[data-calendar-theme] .cal-title {min-width:0;}
 .page[data-calendar-theme] .cal-today {height:auto;min-height:2em;padding-block:.25em;}
 .cal-header,.cal-weekdays {flex-shrink:0;}
@@ -658,6 +658,10 @@
 .cal-forecast-col > * {max-width:100%;}
 
 /* The poster month is an automatic masthead, not a supporting text label. */
-.page[data-calendar-theme="calendar.poster"] .cal-title {height:65%;min-height:0;flex-shrink:0;font-size:var(--cal-poster-month-size,48px);line-height:1.05;}
+.page[data-calendar-theme="calendar.poster"] .cal-header {display:grid;grid-template-columns:44px max-content 44px minmax(0,1fr);grid-template-rows:minmax(0,1fr) 44px;align-content:stretch;align-items:center;}
+.page[data-calendar-theme="calendar.poster"] .cal-title {grid-column:1/-1;grid-row:1;width:100%;height:100%;min-height:0;flex-shrink:0;font-size:var(--cal-poster-month-size,48px);line-height:1.05;}
+.page[data-calendar-theme="calendar.poster"] #cal-prev {grid-column:1;grid-row:2;width:44px;height:44px;}
+.page[data-calendar-theme="calendar.poster"] .cal-today {grid-column:2;grid-row:2;height:44px;min-height:44px;font-size:clamp(14px,1.5vw,24px);line-height:1.2;}
+.page[data-calendar-theme="calendar.poster"] #cal-next {grid-column:3;grid-row:2;width:44px;height:44px;}
 .cal-poster-month {white-space:nowrap;flex-shrink:0;}
-.cal-poster-year {font-size:clamp(10px,1.2vw,24px);flex-shrink:0;}
+.cal-poster-year {font-size:.5em;margin-top:.35em;white-space:nowrap;flex-shrink:0;}

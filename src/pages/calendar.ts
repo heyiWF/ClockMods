@@ -453,9 +453,15 @@ export class CalendarPage implements Page {
     const range = this.root.ownerDocument.createRange();
     range.selectNodeContents(month);
     const measuredWidth = range.getBoundingClientRect().width;
-    const yearStyle = getComputedStyle(year);
-    const availableHeight = this.title.clientHeight - year.offsetHeight - parseFloat(yearStyle.marginTop);
-    const size = Math.max(1, Math.min(this.title.clientWidth * .8 / Math.max(1, measuredWidth) * 100, availableHeight / 1.05));
+    range.selectNodeContents(year);
+    const measuredYearWidth = range.getBoundingClientRect().width;
+    const measuredHeight = month.getBoundingClientRect().height + year.getBoundingClientRect().height
+      + parseFloat(getComputedStyle(year).marginTop);
+    const size = Math.max(1, Math.min(
+      this.title.clientWidth * .8 / Math.max(1, measuredWidth) * 100,
+      this.title.clientWidth / Math.max(1, measuredYearWidth) * 100,
+      this.title.clientHeight / Math.max(1, measuredHeight) * 100
+    ));
     this.root.style.setProperty('--cal-poster-month-size', size + 'px');
   }
 
