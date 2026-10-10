@@ -315,14 +315,14 @@ export interface UltimateOptions {
   halfHourChime: boolean; chimeAnimation: string;
   avoidCutout: boolean; statusIcons: boolean; statusScale: number; statusStyle: string;
   burnIn: boolean; burnInterval: number; burnAmplitude: number; burnDim: boolean;
-  calendarTheme: string; marqueeSpeed: number; marqueePause: number; marqueeGap: number;
+  calendarTheme: string;
 }
 export const ULTIMATE_DEFAULTS: UltimateOptions = {
   secondMotion: 'tick', worldEnabled: false, worldZones: ['Asia/Shanghai', 'Europe/London', 'America/New_York'],
   halfHourChime: false, chimeAnimation: 'radial',
   avoidCutout: true, statusIcons: false, statusScale: 100, statusStyle: 'outline',
   burnIn: false, burnInterval: 10, burnAmplitude: 4, burnDim: false,
-  calendarTheme: 'calendar.graphite', marqueeSpeed: 40, marqueePause: 1000, marqueeGap: 24,
+  calendarTheme: 'calendar.graphite',
 };
 export const CALENDAR_IDS = ['calendar.graphite', 'calendar.carbon', 'calendar.paper', 'calendar.poster', 'calendar.agenda'];
 export function normalizeUltimate(value: Partial<UltimateOptions>): UltimateOptions {
@@ -337,9 +337,6 @@ export function normalizeUltimate(value: Partial<UltimateOptions>): UltimateOpti
   result.statusStyle = ['outline','filled','minimal'].includes(value.statusStyle ?? '') ? value.statusStyle! : 'outline';
   result.burnInterval = [1,10,30,60].includes(value.burnInterval ?? 0) ? value.burnInterval! : 10;
   result.calendarTheme = CALENDAR_IDS.includes(value.calendarTheme ?? '') ? value.calendarTheme! : CALENDAR_IDS[0];
-  result.marqueeSpeed = [20,40,80].includes(value.marqueeSpeed ?? 0) ? value.marqueeSpeed! : 40;
-  result.marqueePause = [0,1000,2000].includes(value.marqueePause ?? -1) ? value.marqueePause! : 1000;
-  result.marqueeGap = [12,24,48].includes(value.marqueeGap ?? 0) ? value.marqueeGap! : 24;
   if (Array.isArray(value.worldZones)) result.worldZones = [...new Set(value.worldZones.filter(zone => { try { new Intl.DateTimeFormat('en', {timeZone: zone}); return typeof zone === 'string'; } catch { return false; } }))].slice(0,6);
   return result;
 }
@@ -414,9 +411,9 @@ export const prefs = {
   getTimeFontScale: (id: string = prefs.getClockTheme()): number => clampScale(store.float(scopeKey(K.timeFontScale, id), DEFAULT_TIME_FONT_SCALE)),
   setTimeFontScale: (scale: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey(K.timeFontScale, id), String(clampScale(scale))),
 
-  getDateFontSize: (id: string = prefs.getClockTheme()): number => clampTextSize(store.float(scopeKey('date_font_size_px',id), store.raw(scopeKey('date_font_scale',id)) === null ? 0 : Math.round(defaultTextSize('date',id)*prefs.getDateFontScale(id)/DEFAULT_DATE_FONT_SCALE)),defaultTextSize('date',id)),
+  getDateFontSize: (id: string = prefs.getClockTheme()): number => clampTextSize(store.float(scopeKey('date_font_size_px',id), prefs.getDateFontScale(id) === DEFAULT_DATE_FONT_SCALE ? 0 : Math.round(defaultTextSize('date',id)*prefs.getDateFontScale(id)/DEFAULT_DATE_FONT_SCALE)),defaultTextSize('date',id)),
   setDateFontSize: (value: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey('date_font_size_px',id),String(clampTextSize(value,defaultTextSize('date',id)))),
-  getSupportingFontSize: (id: string = prefs.getClockTheme()): number => clampTextSize(store.float(scopeKey('supporting_font_size_px',id),store.raw(scopeKey('web_supporting_scale',id)) === null ? 0 : Math.round(defaultTextSize('supporting',id)*prefs.getSupportingScale(id))),defaultTextSize('supporting',id)),
+  getSupportingFontSize: (id: string = prefs.getClockTheme()): number => clampTextSize(store.float(scopeKey('supporting_font_size_px',id),prefs.getSupportingScale(id) === 1 ? 0 : Math.round(defaultTextSize('supporting',id)*prefs.getSupportingScale(id))),defaultTextSize('supporting',id)),
   setSupportingFontSize: (value: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey('supporting_font_size_px',id),String(clampTextSize(value,defaultTextSize('supporting',id)))),
   getDateFontScale: (id: string = prefs.getClockTheme()): number => clampSecondaryScale(store.float(scopeKey(K.dateFontScale, id), DEFAULT_DATE_FONT_SCALE), DEFAULT_DATE_FONT_SCALE),
   setDateFontScale: (scale: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey(K.dateFontScale, id), String(clampSecondaryScale(scale, DEFAULT_DATE_FONT_SCALE))),

@@ -27,3 +27,21 @@ describe('secondary font size units and ranges',()=>{
   prefs.setDateFontSize(80,'ultimate.bubbles');prefs.setSupportingFontSize(80,'ultimate.bubbles');prefs.clearThemeOverrides();expect(prefs.getDateFontSize('ultimate.bubbles')).toBe(0);expect(prefs.getSupportingFontSize('ultimate.bubbles')).toBe(0);
  });
 });
+
+it('defaults every automatic-capable theme to auto, including old default scales and reset',()=>{
+ for(const id of [...CLOCK_THEMES.map(t=>t.id),...CALENDAR_IDS].filter(id=>id!=='classic')){
+  for(const role of ['date','supporting'] as const){
+   expect(secondarySizeValue(role,id)).toBe(0);
+   const control=secondaryFontSize(role,role,id);expect(control.value()).toBe(0);expect(control.row.querySelector('[aria-pressed="true"]')).not.toBeNull();
+   expect(secondarySizeValue(role,id,true)).toBe(0);
+  }
+  prefs.setDateFontScale(.55,id);prefs.setSupportingScale(1,id);
+  expect(prefs.getDateFontSize(id)).toBe(0);expect(prefs.getSupportingFontSize(id)).toBe(0);
+  prefs.setDateFontSize(24,id);prefs.setSupportingFontSize(24,id);
+  expect(prefs.getDateFontSize(id)).toBe(24);expect(prefs.getSupportingFontSize(id)).toBe(24);
+ }
+ prefs.clearThemeOverrides();
+ for(const id of [...CLOCK_THEMES.map(t=>t.id),...CALENDAR_IDS].filter(id=>id!=='classic')){
+  expect(prefs.getDateFontSize(id)).toBe(0);expect(prefs.getSupportingFontSize(id)).toBe(0);
+ }
+});

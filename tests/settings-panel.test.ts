@@ -230,10 +230,11 @@ describe('settings sheet', () => {
     const {sheet}=open();
     for(const label of ['显示设备状态','启用世界时钟','半点报时','防烧屏位移','保护时降低亮度'])setSwitch(sheet,label,true);
     setSwitch(sheet,'避让刘海与屏幕边缘',false);
-    const values:Record<string,string>={'秒针模式':'smooth','状态图标大小':'150','状态图标样式':'filled','报时动画':'comet','移动间隔':'1','移动幅度':'12','日历主题':'calendar.paper','滚动速度':'80','滚动停顿':'2000','滚动间距':'48'};
+    const values:Record<string,string>={'秒针模式':'smooth','状态图标大小':'150','状态图标样式':'filled','报时动画':'comet','移动间隔':'1','移动幅度':'12','日历主题':'calendar.paper'};
     for(const[label,value]of Object.entries(values)){const input=sheet.querySelector<HTMLInputElement>('[aria-label="'+label+'"]')!;input.value=value;input.dispatchEvent(new Event('change'));}
     apply(sheet);
-    expect(prefs.getUltimateOptions()).toMatchObject({secondMotion:'smooth',statusIcons:true,statusScale:150,statusStyle:'filled',avoidCutout:false,worldEnabled:true,halfHourChime:true,chimeAnimation:'comet',burnIn:true,burnInterval:1,burnAmplitude:12,burnDim:true,calendarTheme:'calendar.paper',marqueeSpeed:80,marqueePause:2000,marqueeGap:48});
+    expect(prefs.getUltimateOptions()).toMatchObject({secondMotion:'smooth',statusIcons:true,statusScale:150,statusStyle:'filled',avoidCutout:false,worldEnabled:true,halfHourChime:true,chimeAnimation:'comet',burnIn:true,burnInterval:1,burnAmplitude:12,burnDim:true,calendarTheme:'calendar.paper'});
+    for(const label of ['滚动速度','滚动停顿','滚动间距'])expect(sheet.querySelector('[aria-label="'+label+'"]')).toBeNull();
     const reopened=open();for(const[label,value]of Object.entries(values))expect(reopened.sheet.querySelector<HTMLInputElement>('[aria-label="'+label+'"]')!.value).toBe(value);
   });
   it('previews and saves explicit equal pixel sizes while retaining per-theme drafts',()=>{

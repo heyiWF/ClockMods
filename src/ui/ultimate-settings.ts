@@ -129,10 +129,9 @@ export function ultimateSettings() {
         r.input.dispatchEvent(new Event('input'));
     } };
     controls.get('calendarTheme')!.addEventListener('change', () => { captureCalendar(); activeCalendar = controls.get('calendarTheme')!.value; loadCalendar(); });
-    const calendar = card(L('日历样式', 'Calendar style'), calendarGallery, calendarTheme, subLabel(L('字体', 'Font')), calPicker.row, calWeight.row, calTime.row, calDate.row, calSupport.row, choice('marqueeSpeed', L('滚动速度', 'Marquee speed'), [[20, L('慢', 'Slow')], [40, L('标准', 'Normal')], [80, L('快', 'Fast')]]), choice('marqueePause', L('滚动停顿', 'Marquee pause'), [[0, '0 s'], [1000, '1 s'], [2000, '2 s']]), choice('marqueeGap', L('滚动间距', 'Marquee gap'), [[12, '12 px'], [24, '24 px'], [48, '48 px']]));
+    const calendar = card(L('日历样式', 'Calendar style'), calendarGallery, calendarTheme, subLabel(L('字体', 'Font')), calPicker.row, calWeight.row, calTime.row, calDate.row, calSupport.row);
     function syncCalendar() { for (const button of calendarGallery.querySelectorAll('button'))
-        button.setAttribute('aria-pressed', String((button as HTMLElement).dataset.calendarChoice === activeCalendar)); calTime.row.hidden = !['calendar.graphite', 'calendar.carbon'].includes(activeCalendar); calSupport.row.hidden = false; for (const key of ['marqueeSpeed', 'marqueePause', 'marqueeGap'] as const)
-        controls.get(key)!.parentElement!.hidden = activeCalendar === 'calendar.poster'; }
+        button.setAttribute('aria-pressed', String((button as HTMLElement).dataset.calendarChoice === activeCalendar)); calTime.row.hidden = !['calendar.graphite', 'calendar.carbon'].includes(activeCalendar); calSupport.row.hidden = false; }
     controls.get('calendarTheme')!.addEventListener('change', syncCalendar);
     syncCalendar();
     function sync() { controls.get('chimeAnimation')!.disabled = !hourlyChime && !(controls.get('halfHourChime') as HTMLInputElement).checked; setTreeEnabled(protection, (controls.get('burnIn') as HTMLInputElement).checked); for (const k of ['statusScale', 'statusStyle'] as const)

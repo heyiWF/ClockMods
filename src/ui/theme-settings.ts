@@ -48,7 +48,7 @@ export function themeSettings() {
     if (item.id !== 'classic') {
       const rows = {date: element('div', 'clock-date', label('10月08日 星期四','October 8, Thursday')), lunar: element('div', 'clock-lunar', label('八月廿八','Lunar 8/28')), weather: element('div'), detail: element('div')};
       rows.weather.hidden = rows.detail.hidden = true;
-      const settings = { ...prefs, getFontFamily: () => 'system', isBoldText: () => false, hasFontWeight: () => false, getTimeFontScale: () => .88, getDateFontScale: () => .55, getSupportingScale: () => 1, getDateFontSize:()=>24,getSupportingFontSize:()=>24,
+      const settings = { ...prefs, getFontFamily: () => 'system', isBoldText: () => false, hasFontWeight: () => false, getTimeFontScale: () => .88, getDateFontScale: () => .55, getSupportingScale: () => 1, getDateFontSize:()=>0,getSupportingFontSize:()=>0,
         getThemePalette: () => item.id === active ? colors : read(item.id).colors, isThemeAutoInk: () => true };
       face = new UltimateFace(host, rows, settings);
     } else { host.classList.add('theme-preview-classic'); host.textContent = '12:08:36'; }

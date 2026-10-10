@@ -1,4 +1,3 @@
-import { prefs } from '../core/prefs';
 /**
  * Vertically-sliding label carousel used by the calendar grid cells and the
  * 宜/忌 footer.
@@ -19,6 +18,9 @@ import { pangu } from '../format/text-spacing';
 
 const HOLD_MS = 3000;
 const TRANSITION_MS = 200;
+const SCROLL_SPEED = 40;
+const SCROLL_PAUSE_MS = 1000;
+const SCROLL_GAP_PX = 24;
 
 
 /** Labels of at most this many characters never scroll (MAX_STATIC_CHARS). */
@@ -169,7 +171,7 @@ export class LabelCarousel {
       return;
     }
 
-    const scrollMs = Math.ceil((overflow / prefs.getUltimateOptions().marqueeSpeed) * 1000);
+    const scrollMs = Math.ceil((overflow / SCROLL_SPEED) * 1000);
     this.phaseHandle = window.setTimeout(() => {
       this.phaseHandle = null;
       inner.style.transition = `transform ${scrollMs}ms linear`;
@@ -185,8 +187,8 @@ export class LabelCarousel {
           this.resetItemTransforms();
           if (this.active) this.scheduleCurrentItem();
         }
-      }, scrollMs + prefs.getUltimateOptions().marqueePause);
-    }, prefs.getUltimateOptions().marqueePause);
+      }, scrollMs + SCROLL_PAUSE_MS);
+    }, SCROLL_PAUSE_MS);
   }
 
   private scheduleAfterLayout(): void {
@@ -224,9 +226,9 @@ export class LabelCarousel {
     // scrollWidth/clientWidth round to integer pixels. Subpixel rounding alone
     // must not switch an otherwise fitting date to left alignment.
     const overflow = inner.classList.contains('can-scroll') && difference > 1 ? difference : 0;
-    if(overflow>0)inner.style.paddingInlineEnd=prefs.getUltimateOptions().marqueeGap+'px';
+    if(overflow>0)inner.style.paddingInlineEnd=SCROLL_GAP_PX+'px';
     line.classList.toggle('is-scrolling', overflow > 0);
-    return overflow>0 ? overflow+prefs.getUltimateOptions().marqueeGap : 0;
+    return overflow>0 ? overflow+SCROLL_GAP_PX : 0;
   }
 
   private snapTrackToStart(): void {
