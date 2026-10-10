@@ -641,3 +641,18 @@
  .cal-left{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(50px,.8fr) minmax(70px,1fr) minmax(95px,1.2fr);}
  .cal-left:has(.cal-weather-card[hidden]){grid-template-rows:1fr;}
 }
+
+/* Header labels share the supporting text size, including the Today button. */
+.page[data-calendar-theme] .cal-title,
+.page[data-calendar-theme] .cal-weekday,
+.page[data-calendar-theme] .cal-today {font-size:var(--cal-support-size);line-height:1.2;}
+.page[data-calendar-theme] .cal-title {min-width:0;}
+.page[data-calendar-theme] .cal-today {height:auto;min-height:2em;padding-block:.25em;}
+.cal-header,.cal-weekdays {flex-shrink:0;}
+/* Keep natural content height measurable; fitting reduces text before clipping. */
+.cal-weather-main,.cal-weather-summary,.cal-forecast-col > * {flex-shrink:0;}
+.page[data-calendar-theme] .cal-weather-summary {display:block;width:100%;overflow:visible;-webkit-line-clamp:unset;overflow-wrap:anywhere;}
+.cal-forecast-label {text-align:center;overflow-wrap:anywhere;}
+.cal-forecast-condition {display:inline;color:var(--secondary);}
+.cal-forecast-col {padding-inline:.35em;}
+.cal-forecast-col > * {max-width:100%;}

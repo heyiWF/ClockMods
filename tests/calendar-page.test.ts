@@ -232,3 +232,20 @@ describe('Ultimate calendar settings',()=>{
   const{root}=mount();expect(root.dataset.calendarTheme).toBe('calendar.paper');expect(root.style.getPropertyValue('--cal-font')).toContain('Lora');expect(prefs.getFontFamily()).toBe('system');
  });
 });
+
+describe('calendar forecast headings',()=>{
+ it('joins each weather condition to its day heading and keeps temperature and details',()=>{
+  const {root,page}=mount();
+  page['bindForecast']({status:'success',message:null,data:{locationId:'test',city:'深圳',district:'宝安',updatedAt:INSTANT,entries:[0,1,2].map((i)=>({fxDate:'2026-08-'+String(7+i).padStart(2,'0'),tempMin:'23',tempMax:'32',iconDay:'100',textDay:i===0?'晴':'多云',windDirDay:'东风',windScaleDay:'1',humidity:'48'}))}});
+  expect([...root.querySelectorAll('.cal-forecast-label')].map(e=>e.textContent)).toEqual(['今天 晴','明天 多云','后天 多云']);
+  expect(root.querySelectorAll('.cal-forecast-text')).toHaveLength(3);
+  expect(root.querySelector('.cal-forecast-text')!.textContent).toContain('23℃ ~ 32℃');
+  expect(root.querySelectorAll('.cal-forecast-detail')).toHaveLength(3);
+  expect(root.querySelector('.cal-forecast-detail')!.textContent).toContain('48%');
+ });
+ it('keeps a plain day heading when that day has no forecast',()=>{
+  const {root,page}=mount();page['bindForecast']({status:'success',message:null,data:{locationId:'test',city:'',district:'',updatedAt:INSTANT,entries:[]}});
+  expect([...root.querySelectorAll('.cal-forecast-label')].map(e=>e.textContent)).toEqual(['今天','明天','后天']);
+  expect(root.querySelectorAll('.cal-forecast-condition')).toHaveLength(0);
+ });
+});

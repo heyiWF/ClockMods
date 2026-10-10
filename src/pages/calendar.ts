@@ -319,6 +319,7 @@ export class CalendarPage implements Page {
     if (!state.data) {
       this.temperature.textContent = temperature('--',this.settings.getTemperatureUnit());this.feels.textContent=temperature('--',this.settings.getTemperatureUnit());
       this.summary.textContent = pangu(state.message ?? t('calendar_forecast_loading'));
+      this.fitWeatherTypography();
       return;
     }
     const data = state.data;
@@ -339,6 +340,7 @@ export class CalendarPage implements Page {
       if (data.detail.humidity) parts.push(t('weather_humidity_format', data.detail.humidity));
     }
     this.summary.textContent = pangu(parts.filter(Boolean).join(' · '));
+    this.fitWeatherTypography();
   }
 
   private bindForecast(state: DailyForecastState): void {
@@ -350,6 +352,7 @@ export class CalendarPage implements Page {
       for (const column of this.forecastColumns) {
         column.replaceChildren(text('cal-forecast-text', message));
       }
+      this.fitWeatherTypography();
       return;
     }
     const today = this.today();
@@ -358,7 +361,9 @@ export class CalendarPage implements Page {
       const column = this.forecastColumns[index];
       const key = dateKey(cursor.getUTCFullYear(), cursor.getUTCMonth(), cursor.getUTCDate());
       const forecast = state.data.entries.find((entry) => entry.fxDate === key) ?? null;
-      const nodes: Node[] = [text('cal-forecast-label' + (index === 0 ? ' is-today' : ''), labels[index] ?? '')];
+      const heading = text('cal-forecast-label' + (index === 0 ? ' is-today' : ''), labels[index] ?? '');
+      if (forecast?.textDay) heading.append(document.createTextNode(' '), text('cal-forecast-condition', forecast.textDay));
+      const nodes: Node[] = [heading];
       if (forecast) {
         const icon = createWeatherIcon(forecast.iconDay, this.settings.isWeatherIconFill());
         if (icon) {
@@ -366,7 +371,6 @@ export class CalendarPage implements Page {
           if (index === 0) icon.classList.add('is-today');
           nodes.push(icon);
         }
-        nodes.push(text('cal-forecast-text', forecast.textDay));
         nodes.push(
           text(
             'cal-forecast-text',
@@ -381,6 +385,7 @@ export class CalendarPage implements Page {
       column.replaceChildren(...nodes);
       cursor.setUTCDate(cursor.getUTCDate() + 1);
     }
+    this.fitWeatherTypography();
   }
 
   // ---- Month grid ----
@@ -432,14 +437,50 @@ export class CalendarPage implements Page {
     const limit=Math.min(availableHeight*.38,availableWidth*.45);
     this.root.style.setProperty('--cal-date-size',Math.min(date||availableHeight*.38,id==='calendar.poster'?Math.min(availableHeight*.72,availableWidth*.45):limit)+'px');
     this.root.style.setProperty('--cal-support-size',Math.min(support||availableHeight*.23,limit)+'px');
-    const weather=this.root.querySelector<HTMLElement>('.cal-weather-card')!,forecast=this.forecastCard;
-    const weatherLimit=Math.min(weather.clientWidth/15,weather.clientHeight/6.2);
-    const forecastLimit=Math.min(forecast.clientWidth/23,forecast.clientHeight/9);
-    this.root.style.setProperty('--cal-weather-size',Math.max(5,Math.min(support||weatherLimit*.90,weatherLimit))+'px');
-    this.root.style.setProperty('--cal-forecast-size',Math.max(5,Math.min(support||forecastLimit*.90,forecastLimit))+'px');
+    this.fitWeatherTypography();
     const panel=this.root.querySelector<HTMLElement>('.cal-clock-panel')!;
     const timeLimit=Math.min(panel.clientWidth/(this.settings.isShowSeconds()?4.3:3.2),panel.clientHeight*.72);
     this.root.style.setProperty('--cal-clock-size',Math.max(1,Math.min(timeLimit,timeLimit*.72*this.settings.getTimeFontScale(id)/.88))+'px');
+  }
+
+  /** Fit the actual rows, including wrapped detail text and the card's padding. */
+  private fitWeatherTypography(): void {
+    const requested = this.settings.getSupportingFontSize(this.settings.getUltimateOptions().calendarTheme);
+    this.fitCardTypography(this.weatherCard, '--cal-weather-size', requested,
+      '.cal-weather-main, .cal-weather-icon:not([hidden]), .cal-temp, .cal-feels, .cal-weather-summary');
+    this.fitCardTypography(this.forecastCard, '--cal-forecast-size', requested,
+      '.cal-forecast-col > *');
+  }
+
+  private fitCardTypography(card: HTMLElement, variable: string, requested: number, selector: string): void {
+    if (card.hidden || !card.clientWidth || !card.clientHeight) return;
+    const bounds = card.getBoundingClientRect(), style = getComputedStyle(card);
+    const left = bounds.left + parseFloat(style.paddingLeft), right = bounds.right - parseFloat(style.paddingRight);
+    const top = bounds.top + parseFloat(style.paddingTop), bottom = bounds.bottom - parseFloat(style.paddingBottom);
+    const content = [...card.querySelectorAll<HTMLElement>(selector)];
+    if (!content.length) return;
+    const setSize = (size: number) => this.root.style.setProperty(variable, size + 'px');
+    const fits = () => content.every(element => {
+      const rect = element.getBoundingClientRect();
+      const column = element.closest<HTMLElement>('.cal-forecast-col');
+      const columnBounds = column?.getBoundingClientRect(), columnStyle = column ? getComputedStyle(column) : null;
+      const rowLeft = columnBounds ? Math.max(left, columnBounds.left + parseFloat(columnStyle!.paddingLeft)) : left;
+      const rowRight = columnBounds ? Math.min(right, columnBounds.right - parseFloat(columnStyle!.paddingRight)) : right;
+      return !rect.width || !rect.height || (rect.left >= rowLeft - .5 && rect.right <= rowRight + .5
+        && rect.top >= top - .5 && rect.bottom <= bottom + .5
+        && element.scrollWidth <= element.clientWidth + 1 && element.scrollHeight <= element.clientHeight + 1);
+    });
+    // The initial estimate is only a ceiling. Measure real wrapping rather than
+    // assuming a one-line weather summary or a fixed number of forecast rows.
+    let low = 1, high = Math.max(1, requested || Math.min((right - left) / 10, (bottom - top) / 4));
+    setSize(high);
+    if (fits()) return;
+    for (let step = 0; step < 10; step++) {
+      const size = (low + high) / 2;
+      setSize(size);
+      if (fits()) low = size; else high = size;
+    }
+    setSize(Math.floor(low * 10) / 10);
   }
 
   private renderPreview(direction: number): void {
