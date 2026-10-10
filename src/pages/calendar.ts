@@ -1,3 +1,4 @@
+import { agendaSchedule } from '../ui/agenda-schedule';
 import { WeatherAttribution } from '../ui/weather-attribution';
 import { applyCalendarTheme } from '../core/calendar-themes';
 import { temperature } from '../core/clock-themes';
@@ -433,10 +434,14 @@ export class CalendarPage implements Page {
   private fitSecondaryTypography(): void {
     const cell=this.grid.querySelector<HTMLElement>('.cal-day'); if(!cell?.clientWidth || !cell.clientHeight)return;
     const id=this.settings.getUltimateOptions().calendarTheme,date=this.settings.getDateFontSize(id),support=this.settings.getSupportingFontSize(id);
-    const availableHeight=Math.max(1,cell.clientHeight-8), availableWidth=Math.max(1,cell.clientWidth-4);
+    // Preserve fractional cell dimensions: integer rounding can make a header-sized
+    // row alternate between two font sizes on consecutive ResizeObserver frames.
+    const bounds=cell.getBoundingClientRect();
+    const availableHeight=Math.max(1,(bounds.height||cell.clientHeight)-8), availableWidth=Math.max(1,(bounds.width||cell.clientWidth)-4);
+    const stableSize=(size:number)=>Math.floor(size*10)/10;
     const limit=Math.min(availableHeight*.38,availableWidth*.45);
-    this.root.style.setProperty('--cal-date-size',Math.min(date||availableHeight*.38,id==='calendar.poster'?Math.min(availableHeight*.72,availableWidth*.45):limit)+'px');
-    this.root.style.setProperty('--cal-support-size',Math.min(support||availableHeight*.23,limit)+'px');
+    this.root.style.setProperty('--cal-date-size',stableSize(Math.min(date||availableHeight*.38,id==='calendar.poster'?Math.min(availableHeight*.72,availableWidth*.45):limit))+'px');
+    this.root.style.setProperty('--cal-support-size',stableSize(Math.min(support||availableHeight*.23,limit))+'px');
     this.fitPosterMonthTypography();
     this.fitWeatherTypography();
     const panel=this.root.querySelector<HTMLElement>('.cal-clock-panel')!;
@@ -665,6 +670,7 @@ export class CalendarPage implements Page {
     for(const [prefix,values,kind] of [[t('calendar_suitable_prefix'),almanac.suitable,'suitable'],[t('calendar_avoid_prefix'),almanac.avoid,'avoid']] as const){
       const line=text('cal-agenda-almanac '+kind,'');line.hidden=!values.length;detail.append(line);const carousel=new LabelCarousel(line);carousel.setItems([{text:prefix+values.join(' · '),pinnedPrefix:prefix}]);carousel.setActive(this.running);this.agendaCarousels.push(carousel);
     }
+    detail.append(agendaSchedule(dateKey(this.selected.year,this.selected.month0,this.selected.day), this.settings !== prefs));
     this.renderAgendaWeather();
   }
 

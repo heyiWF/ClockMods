@@ -665,3 +665,35 @@
 .page[data-calendar-theme="calendar.poster"] #cal-next {grid-column:3;grid-row:2;width:44px;height:44px;}
 .cal-poster-month {white-space:nowrap;flex-shrink:0;}
 .cal-poster-year {font-size:.5em;margin-top:.35em;white-space:nowrap;flex-shrink:0;}
+
+/* Agenda uses equal side columns so the date stays at the rail's true centre. */
+.page[data-calendar-theme="calendar.agenda"] .cal-header {flex-wrap:nowrap;}
+.page[data-calendar-theme="calendar.agenda"] .cal-title {order:0;flex:1 1 0;white-space:nowrap;}
+.page[data-calendar-theme="calendar.agenda"] .cal-today {margin-left:0;}
+.page[data-calendar-theme="calendar.agenda"] .cal-day {display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);justify-items:center;}
+.page[data-calendar-theme="calendar.agenda"] .cal-day-label {width:100%;}
+.cal-agenda-almanac .label-carousel-item {justify-content:flex-start;}
+.cal-agenda-detail {display:flex;flex-direction:column;}
+.cal-agenda-detail > * {flex-shrink:0;}
+.cal-agenda-schedule {display:flex;flex-direction:column;flex:1 0 130px;margin-top:20px;min-height:130px;}
+.cal-schedule-header {display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.cal-schedule-header h3 {font:inherit;color:var(--secondary);margin:0;}
+.cal-schedule-add {font:inherit;color:var(--accent);min-height:44px;}
+.cal-schedule-list {flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;}
+.cal-schedule-empty {text-align:center;color:var(--secondary);margin:2em 0;}
+.cal-schedule-row {display:flex;align-items:center;width:100%;min-height:48px;gap:12px;padding:8px 0;border:0;background:transparent;font:inherit;color:var(--text);text-align:left;cursor:pointer;border-radius:8px;}
+.cal-schedule-row:hover,.cal-schedule-row:focus-visible {background:color-mix(in srgb,var(--accent) 8%,transparent);}
+.cal-schedule-time {flex:0 0 4em;color:var(--accent);font-size:.92em;}
+.cal-schedule-item-title {min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.schedule-dialog {max-height:calc(100dvh - 24px);overflow:auto;}
+.schedule-dialog .timer-dialog-field input {width:100%;min-width:0;box-sizing:border-box;}
+.schedule-time-row {display:flex;gap:8px;flex-wrap:wrap;margin-block:16px;}
+.schedule-all-day[aria-pressed="true"] {background:var(--md-sys-color-secondary-container);}
+.schedule-editor-date {color:var(--md-sys-color-on-surface-variant);}
+.schedule-error,.schedule-delete {color:var(--md-sys-color-error);}
+.schedule-dialog .timer-dialog-actions {flex-wrap:wrap;}
+@media(orientation:portrait) {
+ .page[data-calendar-theme="calendar.agenda"] .cal-day {grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto;align-content:center;}
+}
+
+.cal-schedule-time.is-all-day {color:var(--secondary);}
