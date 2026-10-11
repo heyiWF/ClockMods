@@ -2733,9 +2733,16 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         slider.setContentDescription(getString(titleRes));
         slider.setLabelFormatter(selected ->
                 getString(R.string.ultimate_percent_value, Math.round(selected)));
+        boolean fontSize = titleRes == R.string.ultimate_time_size
+                || titleRes == R.string.ultimate_date_size
+                || titleRes == R.string.ultimate_supporting_text_size;
+        TextView warning = label(R.string.font_size_overflow_warning, 12, false);
+        warning.setTextColor(onSurfaceVariantColor());
+        warning.setVisibility(fontSize && current > 1f ? View.VISIBLE : View.GONE);
         final boolean[] trackingTouch = {false};
         slider.addOnChangeListener((control, selected, fromUser) -> {
             value.setText(percentSummary(selected / 100f));
+            warning.setVisibility(fontSize && selected > 100f ? View.VISIBLE : View.GONE);
             // Keyboard and accessibility adjustments have no touch-release callback.
             if (fromUser && !trackingTouch[0]) {
                 change.apply(selected / 100f);
@@ -2760,6 +2767,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         });
         row.addView(slider, topMargin(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT), dp(4)));
+        row.addView(warning, wrapParams());
         body.addView(row, wrapParams());
         return row;
     }

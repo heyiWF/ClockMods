@@ -262,4 +262,5 @@
         <item>明天</item>
         <item>后天</item>
     </string-array>
+    <string name="font_size_overflow_warning">已关闭布局保护，文字可能重叠或超出屏幕。</string>
 </resources>

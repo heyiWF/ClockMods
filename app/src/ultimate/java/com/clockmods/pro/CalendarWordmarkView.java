@@ -1,5 +1,8 @@
 package com.clockmods.pro;
 
+import com.clockmods.sdk.style.FontScalePolicy;
+import com.clockmods.background.ClockPreferences;
+
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
@@ -90,10 +93,10 @@ public final class CalendarWordmarkView extends View {
         float boxHeight = usableHeight();
         if (boxWidth <= 0f || boxHeight <= 0f) return;
         float density = getResources().getDisplayMetrics().density;
-        float lunarSize = Math.min(16f * density * supportingScale, boxHeight * .12f);
-        float festivalSize = Math.min(13f * density * supportingScale, boxHeight * .10f);
-        lunarPaint.setTextSize(shrinkToFit(lunarPaint, lunar, lunarSize, boxWidth));
-        festivalPaint.setTextSize(shrinkToFit(festivalPaint, festivals, festivalSize, boxWidth));
+        float lunarSize = FontScalePolicy.cap(16f * density * supportingScale, boxHeight * .12f, supportingScale * ClockPreferences.DEFAULT_SUPPORTING_FONT_SCALE);
+        float festivalSize = FontScalePolicy.cap(13f * density * supportingScale, boxHeight * .10f, supportingScale * ClockPreferences.DEFAULT_SUPPORTING_FONT_SCALE);
+        lunarPaint.setTextSize(FontScalePolicy.allowsOverflow(supportingScale * ClockPreferences.DEFAULT_SUPPORTING_FONT_SCALE) ? lunarSize : shrinkToFit(lunarPaint, lunar, lunarSize, boxWidth));
+        festivalPaint.setTextSize(FontScalePolicy.allowsOverflow(supportingScale * ClockPreferences.DEFAULT_SUPPORTING_FONT_SCALE) ? festivalSize : shrinkToFit(festivalPaint, festivals, festivalSize, boxWidth));
         float detailHeight = lunar.length() == 0 ? 0f : lunarPaint.descent() - lunarPaint.ascent();
         float festivalHeight = festivals.length() == 0 ? 0f
                 : festivalPaint.descent() - festivalPaint.ascent();
@@ -109,16 +112,16 @@ public final class CalendarWordmarkView extends View {
         float remainingHeight = Math.max(1f, boxHeight - headingHeight);
         float fittedMonthBound = CalendarDashboardSizing.posterWordmarkSize(
                 boxWidth, remainingHeight, density);
-        monthPaint.setTextSize(shrinkToFit(monthPaint, month, fittedMonthBound * dateScale,
+        monthPaint.setTextSize(FontScalePolicy.allowsOverflow(dateScale * ClockPreferences.DEFAULT_DATE_FONT_SCALE) ? fittedMonthBound * dateScale : shrinkToFit(monthPaint, month, fittedMonthBound * dateScale,
                 boxWidth * MONTH_WIDTH_SHARE));
         float fittedYearBound = CalendarDashboardSizing.posterYearSize(
                 monthPaint.getTextSize() / dateScale, remainingHeight, density) * dateScale;
-        yearPaint.setTextSize(shrinkToFit(yearPaint, year, fittedYearBound,
+        yearPaint.setTextSize(FontScalePolicy.allowsOverflow(dateScale * ClockPreferences.DEFAULT_DATE_FONT_SCALE) ? fittedYearBound : shrinkToFit(yearPaint, year, fittedYearBound,
                 boxWidth * YEAR_WIDTH_SHARE));
         float combinedHeight = monthPaint.descent() - monthPaint.ascent()
                 + (year.length() == 0 ? 0f : yearPaint.descent() - yearPaint.ascent()
                 + monthPaint.getTextSize() * .12f);
-        float heightFit = Math.min(1f, remainingHeight * .94f / Math.max(1f, combinedHeight));
+        float heightFit = FontScalePolicy.allowsOverflow(dateScale * ClockPreferences.DEFAULT_DATE_FONT_SCALE) ? 1f : Math.min(1f, remainingHeight * .94f / Math.max(1f, combinedHeight));
         monthPaint.setTextSize(monthPaint.getTextSize() * heightFit);
         yearPaint.setTextSize(yearPaint.getTextSize() * heightFit);
         // Ascent/descent rather than the full font height: the gap wants to track the visible

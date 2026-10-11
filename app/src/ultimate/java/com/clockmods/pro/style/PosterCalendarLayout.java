@@ -1,5 +1,7 @@
 package com.clockmods.pro.style;
 
+import com.clockmods.sdk.style.FontScalePolicy;
+
 import android.content.Context;
 import android.graphics.Canvas;
 import android.graphics.Paint;
@@ -220,7 +222,7 @@ public final class PosterCalendarLayout implements CalendarLayout, CalendarPager
         float cellHeight = Math.max(1f, grid.getHeight() / 6f);
         float weekdaySize = CalendarDashboardSizing.posterWeekdaySize(cellWidth, weekdayHeight,
                 density);
-        weekdaySize = Math.min(weekdaySize * dateFactor, weekdayHeight * .80f);
+        weekdaySize = FontScalePolicy.cap(weekdaySize * dateFactor, weekdayHeight * .80f, preferences.getDateFontScale(ClockPreferences.calendarScope(theme.id)));
         for (int index = 0; index < weekdayGrid.getChildCount(); index++) {
             View child = weekdayGrid.getChildAt(index);
             if (child instanceof TextView) {
@@ -232,7 +234,7 @@ public final class PosterCalendarLayout implements CalendarLayout, CalendarPager
         todayButton.setTextSize(TypedValue.COMPLEX_UNIT_PX, weekdaySize);
         float numberSize = CalendarDashboardSizing.posterCellNumberSize(cellWidth, cellHeight,
                 density);
-        numberSize = Math.min(numberSize * dateFactor, cellHeight * .72f);
+        numberSize = FontScalePolicy.cap(numberSize * dateFactor, cellHeight * .72f, preferences.getDateFontScale(ClockPreferences.calendarScope(theme.id)));
         int markHeight = Math.max(1,
                 Math.round(CalendarDashboardSizing.posterMarkHeight(numberSize, density)));
         applyCellSizing(grid, numberSize, markHeight);
@@ -493,6 +495,8 @@ public final class PosterCalendarLayout implements CalendarLayout, CalendarPager
         }
 
         void applySizing(float numberSize, int markHeight) {
+            number.setAllowTextOverflow(preferences.getDateFontScale(
+                    ClockPreferences.calendarScope(theme.id)) > 1f);
             number.setDayTextSize(numberSize);
             setViewHeight(mark, markHeight);
         }

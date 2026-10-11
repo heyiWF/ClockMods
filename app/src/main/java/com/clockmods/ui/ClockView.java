@@ -365,16 +365,19 @@ public class ClockView extends View {
             width, height, measuredTimeWidth, timeFontScale,
             TIME_HEIGHT_FRACTION, TIME_MAX_WIDTH_FRACTION);
         float measuredDateWidth = measureSupportingText(widestDateText);
-        float dateSize = ClockLayoutCalculator.capToWidth(
-            ClockLayoutCalculator.calculateWidthBasedTextSize(
-                width, height, measuredDateWidth, dateFontScale, 0.14f, 0.92f),
-            measuredDateWidth, width, 0.92f);
+        float dateSize = ClockLayoutCalculator.calculateWidthBasedTextSize(
+                width, height, measuredDateWidth, dateFontScale, 0.14f, 0.92f);
+        if (dateFontScale <= 1f) {
+            dateSize = ClockLayoutCalculator.capToWidth(dateSize, measuredDateWidth, width, 0.92f);
+        }
         timePaint.setTextSize(timeSize);
         secondsPaint.setTextSize(timeSize * 0.6f);
         periodPaint.setTextSize(timeSize * 0.3f);
         datePaint.setTextSize(1f);
-        dateSize = ClockLayoutCalculator.capSupportingSize(dateSize, height,
-                timePaint.descent() - timePaint.ascent(), datePaint.descent() - datePaint.ascent());
+        if (dateFontScale <= 1f) {
+            dateSize = ClockLayoutCalculator.capSupportingSize(dateSize, height,
+                    timePaint.descent() - timePaint.ascent(), datePaint.descent() - datePaint.ascent());
+        }
         datePaint.setTextSize(dateSize);
 
         float centerX = width / 2f;
@@ -454,10 +457,11 @@ public class ClockView extends View {
         String widestDate = lunarText.length() == 0 ? dateText : longerOf(dateText, lunarText);
         applySupportingTypeface(widestDate);
         float measuredDateWidth = measureSupportingText(widestDate);
-        float dateSize = ClockLayoutCalculator.capToWidth(
-                ClockLayoutCalculator.calculateWidthBasedTextSize(
-                        width, height, measuredDateWidth, dateFontScale, 0.08f, 0.92f),
-                measuredDateWidth, width, 0.92f);
+        float dateSize = ClockLayoutCalculator.calculateWidthBasedTextSize(
+                        width, height, measuredDateWidth, dateFontScale, 0.08f, 0.92f);
+        if (dateFontScale <= 1f) {
+            dateSize = ClockLayoutCalculator.capToWidth(dateSize, measuredDateWidth, width, 0.92f);
+        }
         datePaint.setTextSize(dateSize);
         Paint.FontMetrics dateMetrics = datePaint.getFontMetrics();
         float dateLineHeight = dateMetrics.descent - dateMetrics.ascent;
@@ -507,7 +511,9 @@ public class ClockView extends View {
         float blockFactor = (lines - 1) * 1.06f + 0.72f;
         float weatherReserve = weatherShown ? (weatherBlockHeight + minGap) : 0f;
         float maxBlockHeight = avail - dateBlockHeight - minGap - weatherReserve;
-        lineSize = Math.min(lineSize, maxBlockHeight / blockFactor);
+        if (timeFontScale <= 1f) {
+            lineSize = Math.min(lineSize, maxBlockHeight / blockFactor);
+        }
         timePaint.setTextSize(lineSize);
         Rect digitBounds = new Rect();
         timePaint.getTextBounds("0", 0, 1, digitBounds);

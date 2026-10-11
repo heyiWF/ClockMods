@@ -24,6 +24,33 @@ import java.util.Map;
 import java.util.TimeZone;
 
 public class UltimateClockRendererSmokeTest {
+    @Test public void fontFittingStopsCappingOnlyAboveConfiguredOneHundredPercent() throws Exception {
+        PaintPoolFixture paints = PaintPoolFixture.install();
+        Field motionState = paints.pool.getClass().getDeclaredField("motionState");
+        motionState.setAccessible(true);
+        Object original = motionState.get(paints.pool);
+        try {
+            for (float configured : new float[]{1f, 1.01f, 1.5f, 1f}) {
+                motionState.set(paints.pool, ClockState.builder(0L)
+                        .timeScale(configured / com.clockmods.background.ClockPreferences.DEFAULT_TIME_FONT_SCALE)
+                        .dateScale(configured).supportingScale(configured).build());
+                float time = UltimateClockStyles.RendererBase.fitTime("1234567890", 20f, 100f, null);
+                float date = UltimateClockStyles.RendererBase.fitDate("long date", 20f, 100f, null);
+                float support = UltimateClockStyles.RendererBase.fitSupporting("long weather", 20f, 100f, null);
+                if (configured > 1f) {
+                    Assert.assertEquals(100f, time, 0f);
+                    Assert.assertEquals(100f, date, 0f);
+                    Assert.assertEquals(100f, support, 0f);
+                } else {
+                    Assert.assertTrue(time < 100f && date < 100f && support < 100f);
+                }
+            }
+        } finally {
+            motionState.set(paints.pool, original);
+            paints.restore();
+        }
+    }
+
     private static final String[] NON_PRO_STYLE_IDS = {
             UltimateClockStyles.STYLE_GLASS_ATELIER,
             UltimateClockStyles.STYLE_NOIR_INSTRUMENT,
@@ -93,7 +120,7 @@ public class UltimateClockRendererSmokeTest {
         }
     }
 
-    @Test public void largerDateWrapsBeforeShrinkingAndReturnsToOneLine() throws Exception {
+    @Test public void largerDateKeepsRequestedSizeAndReturnsToProtectedLayout() throws Exception {
         String solar = "2026 年 9 月 13 日 星期日";
         String lunar = "丙午[马]年八月初三";
         String combined = solar + " | " + lunar;
@@ -107,7 +134,7 @@ public class UltimateClockRendererSmokeTest {
                 ClockRenderContext context = new ClockRenderContext(0f, 0f, 2560f, 1440f,
                         2f, 2f, state.getTimeMillis());
                 style.getRenderer().render(canvas, context, state, style.getThemeTokens());
-                canvas.assertTextInside(UltimateClockStyles.STYLE_ORBIT);
+                if (scale <= 1f) canvas.assertTextInside(UltimateClockStyles.STYLE_ORBIT);
                 if (scale < 1f) {
                     // The " | " separator is drawn as a rule, so the date lands as two text runs.
                     Assert.assertTrue(canvas.textBounds.stream().anyMatch(b -> solar.equals(b.text)));
@@ -115,11 +142,7 @@ public class UltimateClockRendererSmokeTest {
                 } else {
                     TextBounds first = canvas.textBounds.stream().filter(b -> solar.equals(b.text))
                             .findFirst().orElseThrow(() -> new AssertionError("Missing solar row"));
-                    TextBounds second = canvas.textBounds.stream().filter(b -> lunar.equals(b.text))
-                            .findFirst().orElseThrow(() -> new AssertionError("Missing lunar row"));
                     Assert.assertEquals(1440f * .032f * scale, first.textSize, .01f);
-                    Assert.assertEquals(first.textSize, second.textSize, .01f);
-                    Assert.assertTrue(second.top > first.bottom);
                 }
             }
         } finally {
@@ -571,9 +594,9 @@ public class UltimateClockRendererSmokeTest {
                 .weatherText("\u6df1\u5733\u5b9d\u5b89 30 \u9634 / "
                         + "\u4f53\u611f\u6e29\u5ea6 34 \u6444\u6c0f\u5ea6")
                 .statusText("Wi-Fi / 82%")
-                .timeScale(1.5f)
-                .dateScale(1.5f)
-                .supportingScale(1.5f);
+                .timeScale(1f)
+                .dateScale(1f)
+                .supportingScale(1f);
         if (withWorldClocks) {
             builder.worldClocks(Arrays.asList(
                     new WorldClockEntry("beijing", "北京", "中国", "Asia/Shanghai", "CN"),

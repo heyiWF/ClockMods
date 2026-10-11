@@ -25,6 +25,7 @@ public final class CalendarDayNumberView extends View {
     /** Pinned text size in px, or 0 to derive one from the cell. See {@link #setDayTextSize}. */
     private float pinnedTextSize;
     private float dayTextScale = 1f;
+    private boolean allowTextOverflow;
 
     public CalendarDayNumberView(Context context) { this(context, null); }
 
@@ -76,6 +77,12 @@ public final class CalendarDayNumberView extends View {
 
     public void setDayTextScale(float scale) {
         dayTextScale = scale;
+        allowTextOverflow = scale > 1f / com.clockmods.background.ClockPreferences.DEFAULT_DATE_FONT_SCALE;
+        applyTextSize(getWidth(), getHeight());
+    }
+
+    public void setAllowTextOverflow(boolean allow) {
+        allowTextOverflow = allow;
         applyTextSize(getWidth(), getHeight());
     }
 
@@ -84,7 +91,7 @@ public final class CalendarDayNumberView extends View {
                 : CalendarDashboardSizing.monthDaySize(width, height,
                         getResources().getDisplayMetrics().density)) * dayTextScale;
         dayPaint.setTextSize(size);
-        if (width > 0 && height > 0 && day.length() > 0) {
+        if (!allowTextOverflow && width > 0 && height > 0 && day.length() > 0) {
             dayPaint.getTextBounds(day, 0, day.length(), inkBounds);
             float heightFit = height * .72f / Math.max(1f, inkBounds.height());
             float widthFit = width * .72f / Math.max(1f, dayPaint.measureText(day));
