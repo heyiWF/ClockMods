@@ -17,8 +17,8 @@ public final class ClockLayoutCalculator {
      * exactly fills the usable width ({@code maxWidthFraction} of the view
      * width) or reaches its vertical cap ({@code heightFraction} of the view
      * height), whichever is smaller. The user controlled {@code sizeFraction}
-     * (0..1) then scales that maximum, so a value of 1 always renders the text
-     * as large as it can be without overflowing — it never leaves unused width.
+     * then scales that maximum. Values above 1 deliberately allow overflow;
+     * the settings repository owns the allowed scale range.
      *
      * @param width                   current view width in pixels
      * @param height                  current view height in pixels
@@ -37,7 +37,7 @@ public final class ClockLayoutCalculator {
         float heightLimited = height * heightFraction;
         float maxFittingSize = Math.min(widthLimited, heightLimited);
         float fraction = Float.isNaN(sizeFraction) || Float.isInfinite(sizeFraction)
-                ? 1f : Math.max(0f, Math.min(1f, sizeFraction));
+                ? 1f : Math.max(0f, sizeFraction);
         return Math.max(1f, maxFittingSize * fraction);
     }
 

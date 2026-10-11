@@ -696,6 +696,8 @@ public class SettingsDialog extends Dialog {
         return index >= 0 && index < values.length ? values[index] : 30;
     }
 
+    private final java.util.Map<TextView, TextView> fontSizeWarnings = new java.util.HashMap<>();
+
     private View createSizeRow(Context context, int labelRes, SeekBar bar, TextView valueLabel) {
         LinearLayout row = new LinearLayout(context);
         row.setOrientation(LinearLayout.HORIZONTAL);
@@ -717,7 +719,18 @@ public class SettingsDialog extends Dialog {
         // Keep the "占屏幕宽度 xxx%" readout on a single line even for 3-digit percentages.
         valueLabel.setSingleLine(true);
         row.addView(valueLabel, new LinearLayout.LayoutParams(dp(120), ViewGroup.LayoutParams.WRAP_CONTENT));
-        return row;
+        LinearLayout control = new LinearLayout(context);
+        control.setOrientation(LinearLayout.VERTICAL);
+        control.addView(row);
+        TextView warning = new TextView(context);
+        warning.setText(R.string.font_size_overflow_warning);
+        warning.setTextSize(12);
+        warning.setTextColor(valueLabel.getCurrentTextColor());
+        warning.setPadding(dp(64), dp(2), 0, dp(4));
+        warning.setVisibility(View.GONE);
+        control.addView(warning);
+        fontSizeWarnings.put(valueLabel, warning);
+        return control;
     }
 
     private void configureSizeBar(SeekBar bar, TextView valueLabel, float currentScale) {
@@ -741,6 +754,8 @@ public class SettingsDialog extends Dialog {
 
     private void updateSizeLabel(TextView valueLabel, int progress) {
         valueLabel.setText(getContext().getString(R.string.font_size_percent, progressToPercent(progress)));
+        fontSizeWarnings.get(valueLabel).setVisibility(
+                progressToPercent(progress) > 100 ? View.VISIBLE : View.GONE);
     }
 
     private View createStatusIconSizeRow(Context context, SeekBar bar, TextView valueLabel) {

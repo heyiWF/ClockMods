@@ -20,7 +20,12 @@ import java.util.Map;
 public final class FlavorSettingsAcceptance extends Instrumentation {
     private int checks;
     private int orientation;
-    @Override public void onCreate(Bundle args) { super.onCreate(args); start(); }
+    private boolean fontScaleOnly;
+    @Override public void onCreate(Bundle args) {
+        super.onCreate(args);
+        fontScaleOnly = args != null && "true".equals(args.getString("fontScaleOnly"));
+        start();
+    }
     private void check(boolean ok,String message) { checks++; if (!ok) throw new AssertionError(message); }
     @Override public void onStart() {
         Context context=getTargetContext(); SharedPreferences preferences=context.getSharedPreferences("clock_prefs",0);
@@ -53,6 +58,17 @@ public final class FlavorSettingsAcceptance extends Instrumentation {
                 ActivityMonitor monitor=addMonitor(component,null,false);
                 context.startActivity(new Intent().setClassName(context.getPackageName(),component).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TASK));
                 activity=monitor.waitForActivityWithTimeout(10000); check(activity!=null,"flavor launches");
+                if (fontScaleOnly) {
+                    final Activity current = activity;
+                    final Throwable[] failure = {null};
+                    runOnMainSync(() -> { try { checkFontSizeWarnings(current); }
+                        catch (Throwable error) { failure[0] = error; } });
+                    if (failure[0] != null) throw new AssertionError("font size controls", failure[0]);
+                    removeMonitor(monitor);
+                    runOnMainSync(current::finish);
+                    activity = null;
+                    continue;
+                }
                 boolean visible=false;
                 for(int attempt=0;attempt<40;attempt++) {
                     Bitmap screenshot=getUiAutomation().takeScreenshot();
@@ -69,13 +85,15 @@ public final class FlavorSettingsAcceptance extends Instrumentation {
                 if(monitor.getLastActivity()!=null) activity=monitor.getLastActivity();
                 removeMonitor(monitor);
                 final Activity current=activity; final Throwable[] failure={null};
-                runOnMainSync(()-> {try {Method method=current.getClass().getDeclaredMethod("showSettings"); method.setAccessible(true); method.invoke(current);} catch(Throwable e){failure[0]=e;}});
+                runOnMainSync(()-> {try {checkFontSizeWarnings(current); Method method=current.getClass().getDeclaredMethod("showSettings"); method.setAccessible(true); method.invoke(current);} catch(Throwable e){failure[0]=e;}});
                 if(failure[0]!=null) throw new AssertionError("settings dialog opens",failure[0]);
                 SystemClock.sleep(300); save(new File(directory,locale+"-"+orientation+"-settings.png"));
                 check(getUiAutomation().getRootInActiveWindow()!=null,"settings accessibility tree");
                 runOnMainSync(current::finish); activity=null;
             }
-            report.putString("stream","PASS: "+checks+" persisted settings and installed UI checks across 3 locales and 2 orientations.\n");
+            report.putString("stream","PASS: "+checks+" persisted settings and "
+                    +(fontScaleOnly ? "font slider" : "installed UI")
+                    +" checks across 3 locales and 2 orientations.\n");
             report.putString("evidence",directory.toString());
         } catch(Throwable error){code=Activity.RESULT_CANCELED;report.putString("stream",android.util.Log.getStackTraceString(error));}
         finally {
@@ -93,6 +111,35 @@ public final class FlavorSettingsAcceptance extends Instrumentation {
         }
         finish(code,report);
     }
+    private void checkFontSizeWarnings(Activity activity) throws Exception {
+        SettingsDialog dialog = new SettingsDialog(activity,
+                new com.clockmods.background.BackgroundRepository(activity), null);
+        java.lang.reflect.Field warningsField = SettingsDialog.class.getDeclaredField("fontSizeWarnings");
+        warningsField.setAccessible(true);
+        Map<?, ?> warnings = (Map<?, ?>) warningsField.get(dialog);
+        for (String prefix : new String[]{"time", "date"}) {
+            java.lang.reflect.Field barField = SettingsDialog.class.getDeclaredField(prefix + "SizeBar");
+            java.lang.reflect.Field valueField = SettingsDialog.class.getDeclaredField(prefix + "SizeValue");
+            barField.setAccessible(true);
+            valueField.setAccessible(true);
+            Object bar = barField.get(dialog);
+            android.widget.TextView warning = (android.widget.TextView) warnings.get(valueField.get(dialog));
+            for (int percent : new int[]{100, 101, Math.round(ClockPreferences.MAX_FONT_SCALE * 100), 100, 50}) {
+                if (bar instanceof android.widget.SeekBar) {
+                    ((android.widget.SeekBar) bar).setProgress(percent - Math.round(ClockPreferences.MIN_FONT_SCALE * 100));
+                } else {
+                    bar.getClass().getMethod("setValue", float.class).invoke(bar, (float) percent);
+                }
+                check(warning.getVisibility() == (percent > 100 ? android.view.View.VISIBLE : android.view.View.GONE),
+                        prefix + " warning follows " + percent + "%");
+                check(warning.getText().length() > 0, "localized overflow warning");
+                android.view.ViewGroup container = (android.view.ViewGroup) warning.getParent();
+                check(container.indexOfChild(warning) == 1, "warning follows slider row");
+            }
+        }
+        dialog.dismiss();
+    }
+
     private void save(File file)throws Exception {
         Bitmap bitmap=null; int stable=0;
         for(int attempt=0;attempt<60;attempt++) {
