@@ -258,6 +258,7 @@ object UltimateClockStyles {
             internal var photoText = false
             internal var photoVeil: Int? = null
             internal var motionState: ClockState? = null
+            internal var classicDateScale = false
             internal var digitTracker: ClockDigitTransitionTracker? = null
             internal var timeTextSizeObserver: ((Float) -> Unit)? = null
             private val paints = ArrayList<Paint>()
@@ -479,6 +480,31 @@ object UltimateClockStyles {
                 alpha(shadow, Color.alpha(color) * 153 / 255))
         }
 
+        // ClockState uses a normalized time multiplier, and Classic normalizes its date too.
+        protected fun timeOverflowAllowed(): Boolean = (PAINT_POOL.get().motionState?.getTimeScale() ?: 1f) >
+            1f / com.clockmods.background.ClockPreferences.DEFAULT_TIME_FONT_SCALE
+
+        protected fun dateOverflowAllowed(): Boolean {
+            val pool = PAINT_POOL.get()
+            val baseline = if (pool.classicDateScale) com.clockmods.background.ClockPreferences.DEFAULT_DATE_FONT_SCALE else 1f
+            return (pool.motionState?.getDateScale() ?: 1f) > 1f / baseline
+        }
+
+        protected fun supportingOverflowAllowed(): Boolean =
+            (PAINT_POOL.get().motionState?.getSupportingScale() ?: 1f) > 1f
+
+        protected fun fitDate(value: String?, width: Float, size: Float, face: Typeface?): Float =
+            if (dateOverflowAllowed()) size else fitText(value, width, size, face)
+
+        protected fun fitSupporting(value: String?, width: Float, size: Float, face: Typeface?): Float =
+            if (supportingOverflowAllowed()) size else fitText(value, width, size, face)
+
+        protected fun readableDateSize(context: ClockRenderContext, size: Float, minimumSp: Float): Float =
+            if (dateOverflowAllowed()) size else readableSize(context, size, minimumSp)
+
+        protected fun readableSupportingSize(context: ClockRenderContext, size: Float, minimumSp: Float): Float =
+            if (supportingOverflowAllowed()) size else readableSize(context, size, minimumSp)
+
         protected fun fitText(value: String?, maxWidth: Float, size: Float, face: Typeface?): Float {
             if (value.isNullOrEmpty()) return size
             val paint = fill(Color.WHITE)
@@ -512,7 +538,7 @@ object UltimateClockStyles {
             minimumSp: Float, color: Int, align: Paint.Align, face: Typeface?,
             applyImageDimming: Boolean = true) {
             if (maxWidth <= 0f || value.isEmpty()) return
-            val targetSize = readableSize(context, preferredSize, minimumSp)
+            val targetSize = readableSupportingSize(context, preferredSize, minimumSp)
             val floor = readableSize(context, 0f, minimumSp)
             val pool = PAINT_POOL.get()
             val state = pool.motionState
@@ -544,9 +570,10 @@ object UltimateClockStyles {
                 return
             }
             val message = contextLine && state?.isMessageActive() == true
-            val size = if (message) maxOf(floor, targetSize)
+            val unbounded = message || supportingOverflowAllowed()
+            val size = if (unbounded) targetSize
                 else maxOf(floor, fitText(value, maxWidth, maxOf(floor, targetSize), face))
-            val visible = if (message) value else ellipsize(value, maxWidth, size, face)
+            val visible = if (unbounded) value else ellipsize(value, maxWidth, size, face)
             val imageBackground = context.getBackground()?.takeIf { it.hasImage() }
             val readableColor = if (imageBackground != null) {
                 val metricsPaint = fill(Color.WHITE).apply { typeface = face; textSize = size }
@@ -561,9 +588,9 @@ object UltimateClockStyles {
                 val previous = state?.getPreviousWeatherText().orEmpty()
                 if (state != null && progress < 1f && previous.isNotEmpty() &&
                     value == contextText(state)) {
-                    val oldSize = if (state.isPreviousMessageActive()) maxOf(floor, targetSize)
+                    val oldSize = if (state.isPreviousMessageActive() || supportingOverflowAllowed()) targetSize
                         else maxOf(floor, fitText(previous, maxWidth, maxOf(floor, targetSize), face))
-                    val oldVisible = if (state.isPreviousMessageActive()) previous
+                    val oldVisible = if (state.isPreviousMessageActive() || supportingOverflowAllowed()) previous
                         else ellipsize(previous, maxWidth, oldSize, face)
                     val oldColor = alpha(readableColor,
                         (Color.alpha(readableColor) * (1f - progress)).toInt())
@@ -807,6 +834,16 @@ object UltimateClockStyles {
             state: ClockState, x: Float, lowerBaseline: Float, maxWidth: Float,
             preferredSize: Float, color: Int, align: Paint.Align, face: Typeface?,
             stackLunar: Boolean) {
+            if (dateOverflowAllowed()) {
+                val size = preferredSize * state.getDateScale()
+                val lines = if (stackLunar || state.isDateLunarDualLine()) splitDateAndLunar(state.getDateText())
+                    else arrayOf(state.getDateText(), "")
+                val firstBaseline = lowerBaseline - if (lines[1].isEmpty()) 0f else size * 1.45f
+                val dateColor = adaptiveDateColor(context, x, lowerBaseline, maxWidth, size, color, align)
+                text(canvas, lines[0], x, firstBaseline, size, dateColor, align, face)
+                if (lines[1].isNotEmpty()) text(canvas, lines[1], x, lowerBaseline, size, dateColor, align, face)
+                return
+            }
             val dateColor = adaptiveDateColor(context, x, lowerBaseline, maxWidth,
                 preferredSize, color, align)
             val inset = minOf(minOf(context.getWidth(), context.getHeight()) * .045f,
@@ -1108,7 +1145,13 @@ object UltimateClockStyles {
                 color, align, face)
         }
 
-        protected fun fitTime(value: String?, maxWidth: Float, size: Float, face: Typeface?): Float {
+        protected fun fitTime(value: String?, maxWidth: Float, size: Float, face: Typeface?): Float =
+            if (timeOverflowAllowed()) size else fitClockText(value, maxWidth, size, face)
+
+        protected fun fitSupportingTime(value: String?, maxWidth: Float, size: Float, face: Typeface?): Float =
+            if (supportingOverflowAllowed()) size else fitClockText(value, maxWidth, size, face)
+
+        private fun fitClockText(value: String?, maxWidth: Float, size: Float, face: Typeface?): Float {
             if (value.isNullOrEmpty()) return size
             val paint = fill(Color.WHITE).apply { typeface = face; textSize = size }
             val measured = ClockTimeText.stableWidth(value, paint)
@@ -1123,8 +1166,8 @@ object UltimateClockStyles {
 
         protected fun fittedContext(canvas: Canvas, state: ClockState, value: String,
             x: Float, baseline: Float, maxWidth: Float, preferredSize: Float, color: Int,
-            align: Paint.Align, face: Typeface?) = fittedText(
-            canvas, value, x, baseline, maxWidth, preferredSize, color, align, face,
+            align: Paint.Align, face: Typeface?) = text(
+            canvas, value, x, baseline, fitSupporting(value, maxWidth, preferredSize, face), color, align, face,
         )
 
         protected fun ellipsize(value: String?, maxWidth: Float, size: Float,
@@ -1237,14 +1280,14 @@ object UltimateClockStyles {
         private val tokens: ClockThemeTokens,
         renderer: ClockRenderer,
     ) : ClockStyle {
-        private val renderer = IsolatedRenderer(renderer)
+        private val renderer = IsolatedRenderer(renderer, metadata.getId() == STYLE_PRO_CLASSIC)
 
         override fun getMetadata() = metadata
         override fun getThemeTokens() = tokens
         override fun getRenderer() = renderer
     }
 
-    private class IsolatedRenderer(private val delegate: ClockRenderer) : ClockRenderer {
+    private class IsolatedRenderer(private val delegate: ClockRenderer, private val classicDateScale: Boolean) : ClockRenderer {
         private val compact = CompactClockRenderer()
         override fun render(canvas: Canvas, context: ClockRenderContext, state: ClockState,
             theme: ClockThemeTokens) {
@@ -1253,9 +1296,11 @@ object UltimateClockStyles {
             val previousPhotoText = paintPool.photoText
             val previousPhotoVeil = paintPool.photoVeil
             val previousMotionState = paintPool.motionState
+            val previousClassicDateScale = paintPool.classicDateScale
             paintPool.photoText = false
             paintPool.photoVeil = null
             paintPool.motionState = state
+            paintPool.classicDateScale = classicDateScale
             val saveCount = canvas.save()
             try {
                 val renderer = if (com.clockmods.sdk.style.ResponsiveTextPolicy.needsCompactLayout(
@@ -1267,6 +1312,7 @@ object UltimateClockStyles {
                 paintPool.photoText = previousPhotoText
                 paintPool.photoVeil = previousPhotoVeil
                 paintPool.motionState = previousMotionState
+                paintPool.classicDateScale = previousClassicDateScale
             }
         }
     }

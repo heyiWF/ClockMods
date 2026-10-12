@@ -103,8 +103,8 @@ internal class ProClassicRenderer : UltimateClockStyles.RendererBase() {
                 timeInkBottom - glyphBounds.bottom, accessoryPaint)
         }
 
-        val dateSize = readableSize(context, unit * .045f * state.getDateScale(), 12f)
-        val supportingSize = readableSize(context, unit * .045f * state.getSupportingScale(), 12f)
+        val dateSize = readableDateSize(context, unit * .045f * state.getDateScale(), 12f)
+        val supportingSize = readableSupportingSize(context, unit * .045f * state.getSupportingScale(), 12f)
         val supportingGap = max(context.getDensity() * 7f, max(dateSize, supportingSize) * .55f)
         readableDate(
             canvas, context, state, centerX, baseline + metrics.ascent - supportingGap,
@@ -144,7 +144,7 @@ internal class ProClassicRenderer : UltimateClockStyles.RendererBase() {
         val top = context.getTop() + height * if (lines.size == 3) .29f else .38f
         val bottom = context.getTop() + height * if (lines.size == 3) .71f else .62f
         val step = if (lines.size == 1) 0f else (bottom - top) / (lines.size - 1)
-        val preferredSize = min(unit * .30f * state.getTimeScale(), min(height * .18f, step * .76f))
+        val preferredSize = if (timeOverflowAllowed()) unit * .30f * state.getTimeScale() else min(unit * .30f * state.getTimeScale(), min(height * .18f, step * .76f))
         val timeSize = fitTime("00", width * .72f, preferredSize, display)
         lines.forEachIndexed { index, value ->
             drawTime(
@@ -614,7 +614,7 @@ internal class DigitalGridRenderer : UltimateClockStyles.RendererBase() {
         // Nothing is ever clipped, and no row can land on a neighbour. drawDigit keeps
         // `digitPad` of its cell free on each side, which is what the limit is measured from.
         val digitPad = minOf(digitWidth, blockHeight) * .18f
-        val segmentScale = minOf(state.getTimeScale(),
+        val segmentScale = if (timeOverflowAllowed()) state.getTimeScale() else minOf(state.getTimeScale(),
             (digitWidth + panelPad * 2f) / maxOf(1f, digitWidth - digitPad * 2f),
             (blockHeight + panelPad * 2f) / maxOf(1f, blockHeight - digitPad * 2f))
         val hoursPanel = RectF(positions[0] - panelPad, blockTop - panelPad,

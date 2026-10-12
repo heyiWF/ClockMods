@@ -49,6 +49,7 @@ final class CompactClockRenderer extends UltimateClockStyles.RendererBase {
         for (String digit : digits) primarySize = Math.min(primarySize,
                 ResponsiveTextPolicy.fitLine(primaryHeight * state.getTimeScale(), metrics.measureText(digit),
                         usableWidth, primaryHeight / digits.length, metrics.descent() - metrics.ascent()));
+        if (timeOverflowAllowed()) primarySize = primaryHeight * state.getTimeScale();
         metrics.setTextSize(primarySize);
         for (int i = 0; i < digits.length; i++) {
             String text = time.colonVisible ? digits[i] : digits[i].replace(':', ' ');
@@ -59,11 +60,12 @@ final class CompactClockRenderer extends UltimateClockStyles.RendererBase {
         float y = top + primaryHeight;
         float baseSize = Math.min(usableWidth * .065f, secondaryHeight * .65f);
         if (periodHeight > 0f) { line(canvas, time.periodText, context.getCenterX(), y, usableWidth,
-                periodHeight, baseSize, theme.getPrimaryTextColor(), supporting); y += periodHeight; }
+                periodHeight, baseSize, theme.getPrimaryTextColor(), supporting, false); y += periodHeight; }
         if (dateVisible) { line(canvas, state.getDateText(), context.getCenterX(), y, usableWidth,
-                secondaryHeight, baseSize * state.getDateScale(), theme.getPrimaryTextColor(), supporting); y += secondaryHeight; }
+                secondaryHeight, baseSize * state.getDateScale(), theme.getPrimaryTextColor(), supporting, dateOverflowAllowed()); y += secondaryHeight; }
         if (supportVisible) {
-            float size = Math.min(baseSize * state.getSupportingScale(), secondaryHeight * .65f);
+            float size = supportingOverflowAllowed() ? baseSize * state.getSupportingScale()
+                    : Math.min(baseSize * state.getSupportingScale(), secondaryHeight * .65f);
             metrics.setTypeface(supporting); metrics.setTextSize(size);
             float baseline = y + secondaryHeight / 2f - (metrics.ascent() + metrics.descent()) / 2f;
             if (state.isMessageActive()) {
@@ -72,7 +74,7 @@ final class CompactClockRenderer extends UltimateClockStyles.RendererBase {
                         state.getMessageScrollElapsedMillis(), state.isMessageContinuous());
             } else {
                 line(canvas, support, context.getCenterX(), y, usableWidth,
-                        secondaryHeight, size, theme.getPrimaryTextColor(), supporting);
+                        secondaryHeight, size, theme.getPrimaryTextColor(), supporting, supportingOverflowAllowed());
             }
         }
     }
@@ -85,10 +87,10 @@ final class CompactClockRenderer extends UltimateClockStyles.RendererBase {
     }
 
     private void line(Canvas canvas, String value, float x, float top, float width, float height,
-            float desired, int color, Typeface face) {
+            float desired, int color, Typeface face, boolean allowOverflow) {
         Paint metrics = fill(color);
         metrics.setTypeface(face); metrics.setTextSize(1f);
-        float size = ResponsiveTextPolicy.fitLine(desired, metrics.measureText(value), width, height,
+        float size = allowOverflow ? desired : ResponsiveTextPolicy.fitLine(desired, metrics.measureText(value), width, height,
                 metrics.descent() - metrics.ascent());
         metrics.setTextSize(size);
         text(canvas, value, x, top + height / 2f - (metrics.ascent() + metrics.descent()) / 2f,

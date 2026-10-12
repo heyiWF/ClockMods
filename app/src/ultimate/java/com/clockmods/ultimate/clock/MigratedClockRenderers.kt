@@ -170,7 +170,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         )
 
         val unit = min(width, height)
-        val labelSize = readableSize(context, unit * .027f * state.getSupportingScale(), 10f)
+        val labelSize = readableSupportingSize(context, unit * .027f * state.getSupportingScale(), 10f)
         text(
             canvas, if (isChinese(state)) "小时" else "HOUR",
             first.left + first.width() * .05f, first.bottom - first.height() * .052f,
@@ -183,7 +183,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         )
 
         var dateBaseline = first.top + first.height() * .078f
-        var dateSize = readableSize(context, unit * .034f * state.getDateScale(), 12f)
+        var dateSize = readableDateSize(context, unit * .034f * state.getDateScale(), 12f)
         val datePaint = fill(colors.onPanel).apply {
             typeface = supporting
             textSize = dateSize
@@ -194,9 +194,9 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         dateSize = max(
             readableSize(context, 0f, 12f),
             min(
-                fitText(dateRows[0], first.width() * .74f, dateSize, supporting),
+                fitDate(dateRows[0], first.width() * .74f, dateSize, supporting),
                 if (dateRows[1].isEmpty()) dateSize
-                else fitText(dateRows[1], first.width() * .74f, dateSize, supporting),
+                else fitDate(dateRows[1], first.width() * .74f, dateSize, supporting),
             ),
         )
         datePaint.textSize = dateSize
@@ -218,7 +218,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
             Paint.Align.RIGHT, colors.onAccent, supporting, unit * .034f,
         )
         if (secondsVisible(state)) {
-            val markerSize = readableSize(context, unit * .034f * state.getSupportingScale(), 16f)
+            val markerSize = readableSupportingSize(context, unit * .034f * state.getSupportingScale(), 16f)
             val markerRadius = max(unit * .038f, markerSize * .88f)
             val markerX = second.left + second.width() * .10f
             val markerY = second.bottom - max(second.height() * .079f, markerRadius * 1.25f)
@@ -352,7 +352,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
             minuteSize, colors.onAccent, Paint.Align.CENTER, face,
         )
         if (secondsVisible(state)) {
-            val secondSize = fitTime(
+            val secondSize = fitSupportingTime(
                 "00", secondRadius * 1.15f,
                 height * .075f * state.getSupportingScale(), supporting,
             )
@@ -364,7 +364,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         }
 
         val unit = min(width, height)
-        val labelSize = readableSize(context, unit * .027f * state.getSupportingScale(), 10f)
+        val labelSize = readableSupportingSize(context, unit * .027f * state.getSupportingScale(), 10f)
         text(
             canvas, if (isChinese(state)) "小时" else "HOUR",
             hourPanel.left + hourPanel.width() * .045f,
@@ -434,7 +434,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
             minuteSize, colors.onAccent, Paint.Align.CENTER, face,
         )
 
-        val labelSize = readableSize(
+        val labelSize = readableSupportingSize(
             context, min(width, height) * .027f * state.getSupportingScale(), 10f,
         )
         text(
@@ -454,7 +454,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
             val secondX = min(context.getRight() - width * .03f - secondRadius, desiredX)
             val secondY = minuteY + minuteRadius * .32f
             bubble(canvas, secondX, secondY, secondRadius, colors.panelAlt)
-            val secondSize = fitTime("00", secondRadius * 1.28f, secondRadius * .76f, supporting)
+            val secondSize = fitSupportingTime("00", secondRadius * 1.28f, secondRadius * .76f, supporting)
             drawTime(
                 canvas, String.format(Locale.US, "%02d", calendar.get(Calendar.SECOND)),
                 secondX, centeredBaseline(secondY, secondSize, supporting), secondSize,
@@ -528,7 +528,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
             Paint.Align.RIGHT, colors.mutedAccent, supporting, unit * .032f,
         )
         if (secondsVisible(state)) {
-            val secondSize = readableSize(
+            val secondSize = readableSupportingSize(
                 context, unit * .034f * state.getSupportingScale(), 16f,
             )
             val secondRadius = max(unit * .038f, secondSize * .88f)
@@ -745,7 +745,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         withPhotoText(glass != null && mode in PHOTO_TEXT_MODES) {
             readableText(
                 canvas, context, value, x,
-                clearOfStatusOverlay(
+                if (supportingOverflowAllowed()) baseline else clearOfStatusOverlay(
                     context, x, align, baseline, maxWidth,
                     size * max(1f, state.getSupportingScale()),
                 ),
@@ -871,8 +871,8 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
             val padding = cardWidth * .09f
             val contentWidth = cardWidth - padding * 2f
             val supportScale = state.getSupportingScale()
-            var citySize = readableSize(context, unit * .030f * supportScale, 12f)
-            citySize = min(citySize, card.height() * .18f)
+            var citySize = readableSupportingSize(context, unit * .030f * supportScale, 12f)
+            if (!supportingOverflowAllowed()) citySize = min(citySize, card.height() * .18f)
             val headerY = card.top + card.height() * .23f
             val flagWidth = citySize * 1.7f
             text(
@@ -882,7 +882,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
             )
             text(
                 canvas,
-                ellipsize(
+                if (supportingOverflowAllowed()) WorldClockCatalog.displayCity(entry, WorldClockCatalog.languageOf(state.getLocale())) else ellipsize(
                     WorldClockCatalog.displayCity(
                         entry, WorldClockCatalog.languageOf(state.getLocale()),
                     ),
@@ -896,11 +896,11 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
                 TimeZone.getTimeZone(entry.getZoneId()), state.getLocale(),
             ).apply { timeInMillis = state.getTimeMillis() }
             val localTime = timeText(local, state, false)
-            val timeSize = fitTime(
+            val timeSize = fitSupportingTime(
                 localTime, contentWidth,
-                min(
+                if (supportingOverflowAllowed()) unit * .062f * supportScale else min(
                     card.height() * .30f,
-                    readableSize(context, unit * .062f * supportScale, 22f),
+                    readableSupportingSize(context, unit * .062f * supportScale, 22f),
                 ),
                 timeFace,
             )
@@ -914,12 +914,12 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
                 centeredBaseline(card.top + card.height() * .54f, timeSize, timeFace),
                 timePaint,
             )
-            val zoneSize = min(
+            val zoneSize = if (supportingOverflowAllowed()) unit * .020f * supportScale else min(
                 card.height() * .14f,
-                readableSize(context, unit * .020f * supportScale, 10f),
+                readableSupportingSize(context, unit * .020f * supportScale, 10f),
             )
             text(
-                canvas, ellipsize(entry.getZoneId(), contentWidth, zoneSize, supporting),
+                canvas, if (supportingOverflowAllowed()) entry.getZoneId() else ellipsize(entry.getZoneId(), contentWidth, zoneSize, supporting),
                 padding, centeredBaseline(card.top + card.height() * .81f, zoneSize, supporting),
                 zoneSize, colors.mutedPanel, Paint.Align.LEFT, supporting,
             )

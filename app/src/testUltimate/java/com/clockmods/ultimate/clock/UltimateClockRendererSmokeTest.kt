@@ -134,7 +134,40 @@ class UltimateClockRendererSmokeTest {
     }
 
     @Test
-    fun largerDateWrapsBeforeShrinkingAndReturnsToOneLine() {
+    fun fontFittingUsesConfiguredPercentageIncludingClassicNormalization() {
+        val paints = PaintPoolFixture.install()
+        val pool = UltimateClockStyles.RendererBase.PAINT_POOL.get()!!
+        val previous = pool.motionState
+        val previousClassic = pool.classicDateScale
+        val probe = object : UltimateClockStyles.RendererBase() {
+            override fun render(canvas: Canvas, context: ClockRenderContext, state: ClockState,
+                theme: com.clockmods.sdk.clock.ClockThemeTokens) = Unit
+            fun sizes() = floatArrayOf(fitTime("88888888", 20f, 100f, null),
+                fitDate("long date", 20f, 100f, null), fitSupporting("long weather", 20f, 100f, null))
+        }
+        try {
+            for (classic in listOf(false, true)) {
+                pool.classicDateScale = classic
+                for (scale in floatArrayOf(.5f, 1f, 1.01f, 1.5f, 1f)) {
+                    pool.motionState = ClockState.builder(0L)
+                        .timeScale(scale / com.clockmods.background.ClockPreferences.DEFAULT_TIME_FONT_SCALE)
+                        .dateScale(if (classic) scale / com.clockmods.background.ClockPreferences.DEFAULT_DATE_FONT_SCALE else scale)
+                        .supportingScale(scale).build()
+                    for (size in probe.sizes()) {
+                        if (scale > 1f) assertEquals(100f, size, .001f)
+                        else assertTrue("Protection should apply at $scale (classic=$classic)", size < 100f)
+                    }
+                }
+            }
+        } finally {
+            pool.motionState = previous
+            pool.classicDateScale = previousClassic
+            paints.restore()
+        }
+    }
+
+    @Test
+    fun largerDateKeepsRequestedSizeAndReturnsToProtectedLayout() {
         val solar = "2026 年 9 月 13 日 星期日"
         val lunar = "丙午[马]年八月初三"
         val combined = "$solar | $lunar"
@@ -147,7 +180,7 @@ class UltimateClockRendererSmokeTest {
                 val canvas = RecordingCanvas(2560f, 1440f)
                 val context = ClockRenderContext(0f, 0f, 2560f, 1440f, 2f, 2f, state.getTimeMillis())
                 style.getRenderer().render(canvas, context, state, style.getThemeTokens())
-                canvas.assertTextInside(UltimateClockStyles.STYLE_ORBIT)
+                if (scale <= 1f) canvas.assertTextInside(UltimateClockStyles.STYLE_ORBIT)
                 if (scale < 1f) {
                     // The " | " separator is drawn as a rule, so the date lands as two text runs.
                     assertTrue(canvas.textBounds.any { it.text == solar })
@@ -159,9 +192,30 @@ class UltimateClockRendererSmokeTest {
                         ?: error("Missing lunar row")
                     assertEquals(1440f * .032f * scale, first.textSize, .01f)
                     assertEquals(first.textSize, second.textSize, .01f)
-                    assertTrue(second.top > first.bottom)
                 }
             }
+        } finally {
+            paints.restore()
+        }
+    }
+
+    @Test
+    fun enlargedDateStillHonorsExplicitLunarLineBreak() {
+        val solar = "2026 年 9 月 13 日 星期日"
+        val lunar = "丙午[马]年八月初三"
+        val style = UltimateClockStyles.createRegistry().find(UltimateClockStyles.STYLE_ORBIT)!!
+        val paints = PaintPoolFixture.install()
+        try {
+            val state = ClockState.builder(1787633430123L).dateText("$solar | $lunar")
+                .locale(Locale.SIMPLIFIED_CHINESE).dateScale(1.8f).dateLunarDualLine(true).build()
+            val canvas = RecordingCanvas(2560f, 1440f)
+            style.getRenderer().render(canvas,
+                ClockRenderContext(0f, 0f, 2560f, 1440f, 2f, 2f, state.getTimeMillis()),
+                state, style.getThemeTokens())
+            val first = canvas.textBounds.first { it.text == solar }
+            val second = canvas.textBounds.first { it.text == lunar }
+            assertEquals(1440f * .032f * 1.8f, first.textSize, .01f)
+            assertTrue(second.top > first.bottom)
         } finally {
             paints.restore()
         }
@@ -189,14 +243,14 @@ class UltimateClockRendererSmokeTest {
         ClockOverlayBounds(CORNER_MARGIN_X, CORNER_MARGIN_Y, CORNER_MARGIN_X + CAPSULE_WIDTH, CORNER_MARGIN_Y + CAPSULE_HEIGHT)
 
     @Test
-    fun portraitDateStaysLevelWithNearbyStatusCapsule() {
+    fun protectedPortraitDateStaysLevelWithNearbyStatusCapsule() {
         val width = 920f
         val height = 2048f
         val density = 2f
         val state = ClockState.builder(1787633430123L)
             .locale(Locale.SIMPLIFIED_CHINESE)
             .dateText("2026 年 9 月 24 日 星期四 | 丙午[马]年八月十四")
-            .dateScale(1.15f)
+            .dateScale(1f)
             .build()
         val paints = PaintPoolFixture.install()
         try {
@@ -289,7 +343,7 @@ class UltimateClockRendererSmokeTest {
     }
 
     @Test
-    fun wideStatusCapsuleLeavesRoomForBubbleDateOnItsOwnRow() {
+    fun wideStatusCapsuleLeavesRoomForProtectedBubbleDateOnItsOwnRow() {
         val width = 920f
         val height = 2048f
         val density = 2f
@@ -297,7 +351,7 @@ class UltimateClockRendererSmokeTest {
         val state = ClockState.builder(1787633430123L)
             .locale(Locale.SIMPLIFIED_CHINESE)
             .dateText("2026 年 9 月 24 日 星期四 | 丙午[马]年八月十四")
-            .dateScale(1.15f)
+            .dateScale(1f)
             .build()
         val placement = UltimateClockStyles.statusCapsuleBounds(
             UltimateClockStyles.STYLE_BUBBLES, width, height, density,
@@ -458,9 +512,9 @@ class UltimateClockRendererSmokeTest {
             .dateText("2026 年 8 月 25 日 星期二 | 丙午[马]年七月十三 处暑 长中文日期压力测试")
             .timeZoneText("GMT+08:00 中国标准时间")
             .weatherText("深圳宝安 30 阴 / 体感温度 34 摄氏度")
-            .timeScale(1.5f)
-            .dateScale(1.5f)
-            .supportingScale(1.5f)
+            .timeScale(1f)
+            .dateScale(1f)
+            .supportingScale(1f)
         if (withWorldClocks) {
             builder.worldClocks(
                 listOf(

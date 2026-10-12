@@ -335,6 +335,7 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
                 if (proClassic) preferences.setTimeFontScale(it)
                 else preferences.setTimeFontScale(styleId, it)
             }
+            FontScaleWarning(timeScale)
             SettingSlider(
                 stringResource(R.string.ultimate_date_size),
                 dateScale,
@@ -345,6 +346,7 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
                 if (proClassic) preferences.setDateFontScale(it)
                 else preferences.setDateFontScale(styleId, it)
             }
+            FontScaleWarning(dateScale)
             SettingSlider(
                 stringResource(R.string.ultimate_supporting_text_size),
                 supportingScale,
@@ -354,6 +356,7 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
                 supportingScale = it
                 preferences.setSupportingFontScale(styleId, it)
             }
+            FontScaleWarning(supportingScale)
         }
 
         if (proClassic) {

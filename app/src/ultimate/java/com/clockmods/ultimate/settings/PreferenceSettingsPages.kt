@@ -1345,6 +1345,7 @@ internal fun CalendarSettingsPage(modifier: Modifier, generation: Int) {
                 timeScale = it
                 preferences.setTimeFontScale(typographyScope, it)
             }
+            FontScaleWarning(timeScale)
             SettingSlider(
                 label = stringResource(R.string.ultimate_date_size),
                 value = dateScale,
@@ -1358,6 +1359,7 @@ internal fun CalendarSettingsPage(modifier: Modifier, generation: Int) {
                 dateScale = it
                 preferences.setDateFontScale(typographyScope, it)
             }
+            FontScaleWarning(dateScale)
             SettingSlider(
                 label = stringResource(R.string.ultimate_supporting_text_size),
                 value = supportingScale,
@@ -1372,6 +1374,7 @@ internal fun CalendarSettingsPage(modifier: Modifier, generation: Int) {
                 supportingScale = it
                 preferences.setSupportingFontScale(typographyScope, it)
             }
+            FontScaleWarning(supportingScale)
         }
         SettingSection(stringResource(R.string.calendar_marquee_speed)) {
             SettingChoices(options = listOf(

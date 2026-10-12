@@ -55,12 +55,13 @@ internal fun CalendarFooterCarousel(cell: CalendarCellInfo, date: String, theme:
     var viewport by remember { mutableStateOf(IntSize.Zero) }
     // Measure once per content/font/viewport change, not on every animation frame.
     val metrics = remember(lines, typography, height, density, viewport, marquee) {
-        paint.textSize = min(
+        paint.textSize = if (typography.dateScale > 1f) CalendarDashboardSizing.monthFooterSize(height * density, density) *
+            typography.dateScale / ClockPreferences.DEFAULT_DATE_FONT_SCALE else min(
             CalendarDashboardSizing.monthFooterSize(height * density, density) *
                 typography.dateScale / ClockPreferences.DEFAULT_DATE_FONT_SCALE,
             viewport.height * .78f,
         )
-        paint.textSize *= min(1f,
+        if (typography.dateScale <= 1f) paint.textSize *= min(1f,
             viewport.height * .55f / (paint.descent() - paint.ascent()).coerceAtLeast(1f))
         val lineHeight = paint.descent() - paint.ascent()
         val widths = lines.map { paint.measureText(it.second) }

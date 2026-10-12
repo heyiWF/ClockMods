@@ -412,3 +412,12 @@ internal fun SettingSlider(
         Slider(value = value, onValueChange = onChange, valueRange = range)
     }
 }
+
+@Composable
+internal fun FontScaleWarning(scale: Float) {
+    if (com.clockmods.sdk.style.FontScalePolicy.allowsOverflow(scale)) Text(
+        text = stringResource(R.string.font_size_overflow_warning),
+        style = MaterialTheme.typography.bodySmall,
+        color = MaterialTheme.colorScheme.onSurfaceVariant,
+    )
+}
