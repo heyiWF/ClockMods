@@ -4,6 +4,8 @@
 
 # ClockMods Ultimate · Compose
 
+[![Build APK](https://github.com/heyiWF/ClockMods/actions/workflows/build-apk.yml/badge.svg?branch=ultimate-compose)](https://github.com/heyiWF/ClockMods/actions/workflows/build-apk.yml?query=branch%3Aultimate-compose)
+
 **把时间、日历与天气，变成属于你的桌面**
 
 十二套时钟主题 · 五套日历主题 · 世界时钟 · 桌面小组件 · 无广告
