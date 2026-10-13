@@ -4,6 +4,8 @@
 
 # ClockMods
 
+[![Build APK](https://github.com/heyiWF/ClockMods/actions/workflows/build-apk.yml/badge.svg?branch=main)](https://github.com/heyiWF/ClockMods/actions/workflows/build-apk.yml?query=branch%3Amain)
+
 **让闲置 Android 设备成为一块清晰、实用的时钟屏幕**
 
 三档系统兼容 · 全屏常亮 · 离线农历 · 无广告 · 无账号
