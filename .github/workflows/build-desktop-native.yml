@@ -1,6 +1,7 @@
 name: Build Desktop on additional Linux architectures
 # Opt in with repository variable CLOCKMODS_NATIVE_ARCHES, a JSON array such as
 # ["riscv64","loongarch64","armv7","i686"], after registering trusted runners.
+# Self-hosted runners require Actions Runner >= 2.327.1 and a working Node.js 24 runtime.
 # No untrusted PR code is sent to self-hosted machines.
 on:
   push:
@@ -19,12 +20,12 @@ jobs:
     if: github.ref == 'refs/heads/desktop' && (github.event_name == 'workflow_dispatch' || (vars.CLOCKMODS_NATIVE_ARCHES != '' && vars.CLOCKMODS_NATIVE_ARCHES != '[]'))
     runs-on: ubuntu-24.04
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/setup-node@v4
+      - uses: actions/checkout@v7
+      - uses: actions/setup-node@v7
         with: {node-version: '24'}
       - run: npm ci && npm run build
         working-directory: desktop
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with: {name: native-frontend, path: desktop/dist}
   native:
     needs: frontend
@@ -34,8 +35,8 @@ jobs:
         architecture: ${{ fromJSON(github.event_name == 'workflow_dispatch' && format('["{0}"]', inputs.architecture) || vars.CLOCKMODS_NATIVE_ARCHES || '[]') }}
     runs-on: [self-hosted, Linux, '${{ matrix.architecture }}']
     steps:
-      - uses: actions/checkout@v4
-      - uses: actions/download-artifact@v4
+      - uses: actions/checkout@v7
+      - uses: actions/download-artifact@v8
         with: {name: native-frontend, path: desktop/dist}
       - name: Test and build on target CPU
         shell: bash
@@ -43,7 +44,7 @@ jobs:
           CLOCKMODS_EXPECT_ARCH: ${{ matrix.architecture }}
         run: bash scripts/build-native.sh
         working-directory: desktop
-      - uses: actions/upload-artifact@v4
+      - uses: actions/upload-artifact@v7
         with:
           name: clockmods-linux-${{ matrix.architecture }}
           path: desktop/artifacts/*
