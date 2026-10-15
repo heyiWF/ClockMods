@@ -1,0 +1,399 @@
+@import './clock-themes.css';
+/*
+ * The full-screen clock.
+ *
+ * Sizes arrive as CSS variables computed in src/pages/clock.ts with the same
+ * arithmetic ClockLayoutCalculator used, so the proportions match the Android
+ * build at any viewport.
+ */
+
+.page[data-page='clock'] {
+  background: var(--clock-default-bg);
+}
+
+.clock-bg {
+  position: absolute;
+  inset: 0;
+  background-color: var(--clock-default-bg);
+  background-position: center;
+  background-repeat: no-repeat;
+  /* cover reproduces ClockLayoutCalculator.centerCropScale. */
+  background-size: cover;
+}
+
+.clock-dim {
+  position: absolute;
+  inset: 0;
+  background: var(--dim-overlay);
+}
+
+.clock-dim[hidden] {
+  display: none;
+}
+
+.clock-stage {
+  position: absolute;
+  inset: 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 0 12px;
+  outline: none;
+  cursor: pointer;
+}
+
+.clock-lines {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  max-width: 100%;
+  min-width: 0;
+}
+
+/* ---- Time ---- */
+
+.clock-time {
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  color: var(--time-color, #fff);
+  font-family: var(--clock-font);
+  font-weight: var(--clock-weight, 400);
+  font-size: var(--time-size, 64px);
+  line-height: 1;
+  text-shadow: var(--clock-shadow);
+  white-space: nowrap;
+}
+
+.clock-time.is-stacked {
+  flex-direction: column;
+  align-items: center;
+  line-height: 1.06;
+}
+
+.time-period {
+  font-size: 0.3em;
+  /* The AM/PM marker and the small seconds sit on the digits' bottom edge
+     (ClockTextLayout.bottomAlignedBaseline). */
+  align-self: baseline;
+  margin-right: 0.25em;
+}
+
+.time-seconds {
+  font-size: 0.6em;
+  align-self: baseline;
+  margin-left: 0.09em;
+}
+
+.time-period:empty,
+.time-seconds:empty {
+  display: none;
+}
+
+/* ---- Characters ---- */
+
+.clock-char {
+  position: relative;
+  display: inline-block;
+  text-align: center;
+  vertical-align: baseline;
+  perspective: 1.6em;
+}
+
+/* Digits share the widest digit's advance so the clock never jitters. */
+.clock-char[data-digit] {
+  width: var(--digit-w);
+}
+
+.time-period .clock-char[data-digit] {
+  width: auto;
+}
+
+.time-seconds .clock-char[data-digit] {
+  width: calc(var(--digit-w) * 0.6);
+}
+
+.clock-char[data-colon] {
+  transform: translateY(var(--colon-shift, 0));
+}
+
+.clock-char[data-colon] .glyph {
+  transition: opacity 300ms ease;
+}
+
+.clock-char[data-colon].is-hidden .glyph {
+  opacity: 0;
+}
+
+.clock-char[data-colon].no-fade .glyph {
+  transition: none;
+}
+
+.glyph {
+  display: inline-block;
+}
+
+/* The outgoing glyph is layered over the incoming one for the transition. */
+.glyph.is-out {
+  position: absolute;
+  inset: 0;
+  pointer-events: none;
+}
+
+/* ---- Digit transitions (ClockView.drawChangedCharacterTransition) ---- */
+
+.glyph.anim-fade.is-out {
+  animation: glyph-fade-out 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.glyph.anim-fade.is-in {
+  animation: glyph-fade-in 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.glyph.anim-slide-up.is-out {
+  animation: glyph-slide-up-out 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.glyph.anim-slide-up.is-in {
+  animation: glyph-slide-up-in 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.glyph.anim-slide-down.is-out {
+  animation: glyph-slide-down-out 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.glyph.anim-slide-down.is-in {
+  animation: glyph-slide-down-in 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+.glyph.anim-scale.is-out {
+  animation: glyph-scale-out 300ms cubic-bezier(0.22, 1, 0.36, 1) forwards;
+}
+.glyph.anim-scale.is-in {
+  animation: glyph-scale-in 300ms cubic-bezier(0.22, 1, 0.36, 1);
+}
+
+/* Flip is sequential. The face fades before it turns edge-on, so no flattened
+   digit is exposed between the outgoing and incoming halves. */
+.glyph.anim-flip.is-out {
+  transform-origin: center bottom;
+  backface-visibility: hidden;
+  animation: glyph-flip-out 150ms cubic-bezier(0.4, 0, 1, 1) forwards;
+}
+.glyph.anim-flip.is-in {
+  transform-origin: center top;
+  backface-visibility: hidden;
+  animation: glyph-flip-in 150ms cubic-bezier(0, 0, 0.2, 1) 150ms backwards;
+}
+
+@keyframes glyph-fade-out {
+  to {
+    opacity: 0;
+  }
+}
+@keyframes glyph-fade-in {
+  from {
+    opacity: 0;
+  }
+}
+
+@keyframes glyph-slide-up-out {
+  to {
+    opacity: 0;
+    transform: translateY(-0.24em);
+  }
+}
+@keyframes glyph-slide-up-in {
+  from {
+    opacity: 0;
+    transform: translateY(0.24em);
+  }
+}
+
+@keyframes glyph-slide-down-out {
+  to {
+    opacity: 0;
+    transform: translateY(0.24em);
+  }
+}
+@keyframes glyph-slide-down-in {
+  from {
+    opacity: 0;
+    transform: translateY(-0.24em);
+  }
+}
+
+@keyframes glyph-scale-out {
+  to {
+    opacity: 0;
+    transform: scale(1.08);
+  }
+}
+@keyframes glyph-scale-in {
+  from {
+    opacity: 0;
+    transform: scale(0.88);
+  }
+}
+
+@keyframes glyph-flip-out {
+  70% {
+    opacity: 0;
+  }
+  to {
+    opacity: 0;
+    transform: rotateX(90deg);
+  }
+}
+@keyframes glyph-flip-in {
+  from {
+    opacity: 0;
+    transform: rotateX(-90deg);
+  }
+  30% {
+    opacity: 0;
+  }
+}
+
+/* ---- Supporting lines: date, lunar, weather ---- */
+/* Short, eased travel, matching Ultimate (0.27em / 440ms). */
+.glyph.anim-slide-right.is-out { animation: glyph-right-out 440ms cubic-bezier(.3333,1,.6667,1) both; }
+.glyph.anim-slide-right.is-in { animation: glyph-right-in 440ms cubic-bezier(.3333,1,.6667,1) both; }
+@keyframes glyph-right-out { from { opacity: 1; transform: translateX(0); } to { opacity: 0; transform: translateX(.27em); } }
+@keyframes glyph-right-in { from { opacity: 0; transform: translateX(-.27em); } to { opacity: 1; transform: translateX(0); } }
+/* Each half has its own eased left-to-right sweep and transparent feather. */
+@property --scan-edge { syntax: '<percentage>'; inherits: false; initial-value: -18%; }
+.glyph.anim-scan.is-out {
+  mask-image: linear-gradient(to right, transparent var(--scan-edge), #000 calc(var(--scan-edge) + 18%));
+  animation: glyph-scan-out 240ms cubic-bezier(.3333,1,.6667,1) forwards;
+}
+.glyph.anim-scan.is-in {
+  mask-image: linear-gradient(to right, #000 calc(var(--scan-edge) - 18%), transparent var(--scan-edge));
+  animation: glyph-scan-in 240ms cubic-bezier(.3333,1,.6667,1) 240ms both;
+}
+@keyframes glyph-scan-out { from { --scan-edge: -18%; } to { --scan-edge: 100%; } }
+@keyframes glyph-scan-in { from { --scan-edge: 0%; } to { --scan-edge: 118%; } }
+
+.supporting-row {
+  max-width: 100%;
+  color: var(--date-color, #fff);
+  font-family: var(--clock-font);
+  font-weight: var(--clock-weight, 400);
+  font-size: var(--date-size, 24px);
+  line-height: 1.2;
+  letter-spacing: var(--supporting-tracking, 0.025em);
+  text-shadow: var(--date-shadow);
+  white-space: nowrap;
+  text-align: center;
+}
+
+.supporting-row[hidden] {
+  display: none;
+}
+
+/* Suppresses tracking around a pangu-inserted space (ClockView.hasSupportingTrackingAt). */
+.no-tracking {
+  letter-spacing: 0;
+}
+
+/* The date block sits above the time, the weather block below it. */
+#clock-date {
+  margin-bottom: 0;
+}
+
+#clock-lunar {
+  margin-bottom: 0;
+}
+
+#clock-date + #clock-time,
+#clock-lunar + #clock-time {
+  margin-top: var(--time-gap, 16px);
+}
+
+#clock-date:not([hidden]) + #clock-lunar:not([hidden]) {
+  margin-top: var(--supporting-gap, 10px);
+}
+
+#clock-time + #clock-weather:not([hidden]) {
+  margin-top: var(--time-gap, 16px);
+}
+
+#clock-weather:not([hidden]) + #clock-detail:not([hidden]) {
+  margin-top: var(--supporting-gap, 10px);
+}
+
+/* ---- Carousel (weather / message / detail lines) ---- */
+
+.carousel {
+  position: relative;
+  overflow: hidden;
+  max-width: 100%;
+}
+
+.carousel[hidden] {
+  display: none;
+}
+
+.carousel-track {
+  display: inline-flex;
+  align-items: center;
+  white-space: nowrap;
+  will-change: transform, opacity;
+}
+
+/* An over-wide line scrolls from the left edge instead of staying centred. */
+.carousel.is-scrolling {
+  display: block;
+  text-align: left;
+}
+
+.weather-icon {
+  width: 0.95em;
+  height: 0.95em;
+  margin: 0 0.25em;
+  flex: 0 0 auto;
+  color: var(--weather-icon-color, #fff);
+}
+
+/* Two bounded layers retain the old sentence until the complete swap ends. */
+.carousel { min-height: 1.4em; }
+.carousel-layer { display: block; position: relative; width: 100%; line-height: inherit; }
+.carousel-layer.is-outgoing { position: absolute; inset: 0; }
+.carousel-layer.is-scrolling { text-align: left; }
+.carousel-track { vertical-align: top; }
+
+/* Browser-backed Ultimate display options. translate keeps swipe transforms intact. */
+.clock-stage,.cal-layout {translate:var(--burn-x,0px) var(--burn-y,0px);}
+#pages {margin:var(--burn-margin,0px);}
+.device-status {position:absolute;right:max(14px,var(--display-safe-right,0px));top:max(10px,var(--display-safe-top,0px));z-index:20;pointer-events:none;border:1px solid currentColor;border-radius:100px;padding:5px 9px;color:white;background:#0008;}
+.device-status[hidden] {display:none;}
+.device-status[data-style=filled] {background:#e3e7ed;color:#20252b;border-color:transparent;}
+.device-status[data-style=minimal] {border:0;background:#0005;border-radius:5px;}
+.page.has-world-clocks .clock-stage {bottom:86px;}
+.world-clock-strip {position:absolute;left:4%;right:4%;bottom:14px;display:grid;grid-template-columns:repeat(var(--world-count,6),minmax(0,1fr));gap:8px;color:var(--clock-time-color,white);}
+.world-clock-strip[hidden] {display:none;}
+.world-clock-city {display:flex;flex-direction:column;gap:4px;text-align:center;font:12px system-ui;min-width:0;background:#0003;border-radius:12px;padding:9px 3px;color:white;}
+.world-clock-city span {overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.world-clock-city strong {font-size:clamp(12px,2vw,22px);white-space:nowrap;}
+@media(orientation:portrait) { .world-clock-strip{grid-template-columns:repeat(var(--world-portrait-count,3),minmax(0,1fr));gap:4px;bottom:8px;} .page.has-world-clocks .clock-stage{bottom:132px;} }
+@media(max-height:380px) {.page.has-world-clocks .clock-stage{bottom:65px;} .world-clock-strip{bottom:6px;} .world-clock-city{padding:4px 2px;font-size:10px;} }
+
+.clock-stage {top:var(--display-safe-top,0px);left:var(--display-safe-left,0px);right:var(--display-safe-right,0px);}
+
+#pages::after {content:'';position:absolute;inset:0;background:#000;opacity:calc(1 - var(--protection-brightness,1));z-index:30;pointer-events:none;}
+.world-clock-strip {translate:var(--burn-x,0px) var(--burn-y,0px);}
+.has-glass .face-shape,.has-glass .world-clock-city {background:transparent!important;border:1px solid #ffffff38;box-shadow:none!important;overflow:hidden;isolation:isolate;}
+.has-glass .world-clock-city {position:relative;}
+/* Sample the original wallpaper independently, including overlapping and rotated cards. */
+.has-glass .face-shape::before,.has-glass .world-clock-city::before {content:'';position:absolute;left:var(--glass-left,0px);top:var(--glass-top,0px);width:var(--glass-width);height:var(--glass-height);background:var(--glass-image) center/cover no-repeat;filter:blur(var(--glass-blur));transform:rotate(var(--glass-counter-rotation,0deg));transform-origin:var(--glass-origin,center);z-index:-2;pointer-events:none;}
+.has-glass .face-shape::after,.has-glass .world-clock-city::after {content:'';position:absolute;inset:0;background:var(--glass-overlay);z-index:-1;pointer-events:none;}
+.has-glass .world-clock-city {color:var(--glass-ink);}
+
+.chime-canvas{position:absolute;inset:0;width:100%;height:100%;pointer-events:none;}
+#chime-layer .chime-text{display:flex;align-items:center;}
+
+.aligned-time-colon{display:inline-block;transform:translateY(var(--colon-shift,0));}
+
+.world-clock-city strong{display:flex;align-items:baseline;justify-content:center;line-height:1.2;}
+
+/* Respect the selected face instead of synthesizing unavailable styles. */
+.clock-time, .clock-date, .clock-lunar, .clock-weather, .ultimate-face { font-synthesis:none; }
+
+.supporting-row { font-synthesis:none; }

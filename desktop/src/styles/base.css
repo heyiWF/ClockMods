@@ -1,0 +1,294 @@
+/* App shell: page stack, navigation bar and snackbars. */
+
+*,
+*::before,
+*::after {
+  box-sizing: border-box;
+}
+
+html,
+body {
+  margin: 0;
+  padding: 0;
+  height: 100%;
+  overflow: hidden;
+  background: #000;
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-sys-typescale-body-medium-font);
+  /* A wall clock is tapped, never selected or zoomed. */
+  -webkit-user-select: none;
+  user-select: none;
+  -webkit-tap-highlight-color: transparent;
+  touch-action: manipulation;
+  overscroll-behavior: none;
+}
+
+#app {
+  position: relative;
+  display: flex;
+  flex-direction: column;
+  height: 100dvh;
+  width: 100vw;
+  overflow: hidden;
+}
+
+#pages {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.page {
+  position: absolute;
+  inset: 0;
+  display: none;
+  overflow: hidden;
+}
+
+.page.is-active,
+.page.is-swipe-target {
+  display: block;
+}
+
+.page.is-swipe-layer {
+  will-change: transform;
+  backface-visibility: hidden;
+}
+
+.page.is-swipe-target {
+  pointer-events: none;
+}
+
+/* ---- Navigation bar ----
+ * md.comp.navigation-bar: an 80px surface-container bar whose active item wears
+ * a 64x32 secondary-container pill behind its icon. No divider — M3 separates
+ * the bar from the content by surface tone alone.
+ */
+
+#nav {
+  flex: 0 0 auto;
+  display: flex;
+  align-items: stretch;
+  height: calc(var(--nav-height) + var(--safe-bottom));
+  padding-bottom: var(--safe-bottom);
+  background: var(--md-sys-color-surface-container);
+}
+
+/* Clock and calendar keep their full viewport when the temporary nav appears. */
+#nav.is-overlay {
+  position: absolute;
+  z-index: 30;
+  right: 0;
+  bottom: 0;
+  left: 0;
+}
+
+#nav.is-hidden {
+  display: none;
+}
+
+.m3-nav-item {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  min-width: 0;
+  padding: 12px 0 16px;
+  border: 0;
+  background: none;
+  color: var(--md-sys-color-on-surface-variant);
+  font: inherit;
+  cursor: pointer;
+}
+
+.m3-nav-item__indicator {
+  --m3-shape: var(--md-sys-shape-corner-full);
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  flex: 0 0 auto;
+  width: 64px;
+  height: 32px;
+  max-width: 100%;
+  border-radius: var(--m3-shape);
+  transition: background-color var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
+}
+
+.m3-nav-item__indicator svg {
+  width: 24px;
+  height: 24px;
+  fill: currentColor;
+}
+
+.m3-nav-item__label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
+  font-family: var(--md-sys-typescale-label-medium-font);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  line-height: var(--md-sys-typescale-label-medium-line-height);
+  font-weight: var(--md-sys-typescale-label-medium-weight);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+}
+
+.m3-nav-item.is-active {
+  color: var(--md-sys-color-on-surface);
+}
+
+.m3-nav-item.is-active .m3-nav-item__indicator {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+/* md.comp.navigation-bar.active-label-text-weight is the prominent weight. */
+.m3-nav-item.is-active .m3-nav-item__label {
+  font-weight: var(--md-ref-typeface-weight-bold);
+}
+
+/*
+ * A landscape phone has no room for the full 80px bar. M3 routes that window
+ * class to a navigation rail; ClockMods keeps the bar but drops it to the
+ * pre-M3 64px so the clock stays the tallest thing on screen.
+ */
+@media (max-height: 480px) {
+  :root {
+    --nav-height: 64px;
+  }
+
+  .m3-nav-item {
+    padding: 8px 0 10px;
+  }
+
+  .m3-nav-item__indicator {
+    height: 28px;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .m3-nav-item__indicator {
+    transition: none;
+  }
+}
+
+/* ---- Snackbar ----
+ * md.comp.snackbar: an inverse-surface bar at corner-extra-small, raised to
+ * elevation level 3, with the action label in inverse-primary.
+ */
+
+#toast-root {
+  position: fixed;
+  left: 50%;
+  bottom: calc(var(--nav-height) + var(--safe-bottom) + 16px);
+  transform: translateX(-50%);
+  z-index: 60;
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+  max-width: min(calc(100vw - 32px), 600px);
+  pointer-events: none;
+}
+
+.toast {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  min-height: 48px;
+  padding: 8px 16px;
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  background: var(--md-sys-color-inverse-surface);
+  color: var(--md-sys-color-inverse-on-surface);
+  font-family: var(--md-sys-typescale-body-medium-font);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+  box-shadow: var(--md-sys-elevation-level3);
+  animation: toast-in var(--md-sys-motion-duration-medium1)
+    var(--md-sys-motion-easing-emphasized-decelerate);
+}
+
+.toast .m3-button--text {
+  margin-right: -8px;
+  color: var(--md-sys-color-inverse-primary);
+}
+
+.toast.is-leaving {
+  animation: toast-out var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-emphasized-accelerate) forwards;
+}
+
+@keyframes toast-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+@keyframes toast-out {
+  to {
+    opacity: 0;
+    transform: translateY(8px);
+  }
+}
+
+/* ---- Weather attribution ---- */
+
+.weather-attribution {
+  position: absolute;
+  right: 12px;
+  bottom: calc(8px + var(--safe-bottom));
+  z-index: 5;
+  display: inline-flex;
+  align-items: center;
+  gap: 3px;
+  min-height: 18px;
+  max-width: calc(100% - 24px);
+  padding: 3px 6px;
+  border: 1px solid rgba(255, 255, 255, 0.16);
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  background: rgba(0, 0, 0, 0.48);
+  color: rgba(255, 255, 255, 0.92);
+  font-size: 9px;
+  line-height: 1.2;
+  text-decoration: none;
+  white-space: nowrap;
+  backdrop-filter: blur(4px);
+  transition: translate var(--md-sys-motion-duration-short4)
+    var(--md-sys-motion-easing-standard);
+}
+
+.weather-attribution img {
+  width: 10px;
+  height: 10px;
+  flex: 0 0 auto;
+  filter: brightness(0) invert(1);
+}
+
+.weather-attribution-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+}
+
+#pages.has-visible-overlay-nav .weather-attribution {
+  translate: 0 calc(-1 * (var(--nav-height) + var(--safe-bottom)));
+}
+
+.weather-attribution[hidden] {
+  display: none;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .weather-attribution {
+    transition: none;
+  }
+}
+
+html.is-cursor-idle, html.is-cursor-idle body, html.is-cursor-idle #app * { cursor:none!important; }
+
+#nav { position:absolute;z-index:30;left:0;right:0;bottom:0; }
+.timer-page { bottom:calc(var(--nav-height) + var(--safe-bottom)); }
+.is-page-swiping { user-select:none; }

@@ -1,94 +1,54 @@
-<div align="center">
+# ClockMods Desktop
 
-<img src="docs/media/app-icon-playstore.png" alt="ClockMods" width="120" />
+基于 `ultimate-compose` 的 **Tauri 2 桌面移植**。复用仓库 `web` 分支的主题和时间工具，在 Rust 原生进程中实现托盘、提醒调度、独立小组件和窗口控制。
 
-# ClockMods Ultimate · Compose
+- 十二套时钟主题，五套日历主题，最多六个世界时钟。
+- 离线农历、节气、节日与宜忌；天气、留言轮播、字体与图片背景。
+- 番茄钟、闹钟、倒计时、秒表、整点与半点视觉报时。
+- 四类独立桌面小组件、六套外观、独立时区与显示设置。
+- 窗口置顶、全屏、保持常亮、登录启动；关闭主窗口后保留托盘提醒。
+- 简体中文、繁體中文、English。
 
-**把时间、日历与天气，变成属于你的桌面。**
+## 开发
 
-十二套时钟主题 · 五套日历主题 · 世界时钟 · 桌面小组件 · 无广告
+安装 Node.js 24、Rust 1.99，以及 [Tauri 2 系统依赖](https://v2.tauri.app/start/prerequisites/)。Linux 需要 WebKitGTK **4.1** 和 GTK 3。
 
-</div>
+```bash
+cd desktop
+npm ci
+npm test
+npm run build
+cargo test --locked --manifest-path src-tauri/Cargo.toml
+npm run desktop:dev
+```
 
-ClockMods Ultimate · Compose 是一款面向 Android 12 及以上设备的全屏时钟与时间工具。选一套喜欢的主题，把日历、天气和常用计时工具放在手边，让手机或平板成为适合自己的桌面屏幕。
+打包：`npm run desktop:build`；仅打包 Linux AppImage 可使用 `npm run desktop:build -- --bundles appimage`。输出位于 `desktop/src-tauri/target/release/bundle/`。不需要 Android SDK。
 
-## 十二套时钟，找到你的风格
+## 平台与架构
 
-喜欢清晰的大字，还是安静的指针？从玻璃、纸张、深色仪表到圆润卡片，数字、模拟与混合布局各有自己的构图。
-
-| 主题 | 类型 | 视觉特点 |
+| 系统 | 目标架构 | 构建方式 |
 | --- | --- | --- |
-| Pro Classic / Pro 经典 | 数字 | 熟悉的大字时间与完整基础设置 |
-| Glass Atelier / 光影工坊 | 模拟 | 玻璃质感与指针表盘 |
-| Noir Instrument / 黑曜仪表 | 模拟 | 深色仪表布局 |
-| Paper Station / 纸上车站 | 模拟 | 纸张与排版风格 |
-| Orbit Neon / 轨道霓虹 | 混合 | 霓虹轨道与数字时间 |
-| Digital Grid / 数字网格 | 数字 | 网格化数字布局 |
-| Typographic / 字形时刻 | 数字 | 以字体与排版呈现时间 |
-| 双块 | 数字 | 成组时间卡片，支持世界时钟 |
-| 轨道 | 混合 | 环形布局，支持世界时钟 |
-| 气泡 | 数字 | 圆润气泡布局，支持世界时钟 |
-| 混合 | 混合 | 几何块面与圆泡布局，支持世界时钟 |
-| 丝带 | 数字 | 横向条带布局，支持世界时钟 |
+| Windows | x86、x86_64、ARM64 | GitHub Actions，NSIS 安装包 |
+| macOS | Intel x86_64、Apple Silicon ARM64 | 对应 macOS runner，DMG |
+| Linux | x86_64、ARM64 | 对应 Linux runner，AppImage/DEB/RPM |
+| Linux | x86、ARMv7、RISC-V 64、LoongArch64 | 目标架构原生 runner，压缩包 |
 
-每套主题都可按自身能力调整配色、字体、显示比例与动效。图片背景支持模糊和压暗，适用的数字布局可选择淡变、翻转、右滑或扫描等切换方式；指针布局则可选择平滑扫秒、跳秒或隐藏秒针。
+配置了构建流程不等于完成了平台认证。**目前只有 Linux x86_64 能在本云环境运行验证**；其余目标必须在对应的操作系统、CPU 和发行版执行 CI 与桌面验收。额外架构需要发行版提供 WebKitGTK 4.1、GTK 3 和 Rust 工具链，详见 [桌面移植与验证说明](docs/desktop-port.md)。
 
-## 五套日历，把今天看得更完整
+每次 push 到 `desktop` 都触发 [桌面 CI](.github/workflows/build-desktop.yml)，产物在 Actions 的 Artifacts 中下载。额外 Linux 架构配置好自托管 runner 后，设置仓库变量 `CLOCKMODS_NATIVE_ARCHES`（JSON 数组）即可随每次 push 构建，详见移植说明。
 
-| 主题 | 布局与信息 |
-| --- | --- |
-| 石墨深空 | 深色仪表盘，结合时间、月历、天气、预报与日期详情 |
-| 纯黑碳素 | 纯黑风格仪表盘，适合深色显示偏好 |
-| 宣纸水墨 | 纸张风格月历与农历 / 宜忌信息 |
-| 墨白排版 | 以月份标题和日期网格为主体的海报式布局 |
-| 靛蓝周程 | 周视图，结合天气、预报和所选日期详情 |
+AppImage 需要赋予执行权限后运行；没有 FUSE 的环境可使用 `APPIMAGE_EXTRACT_AND_RUN=1 ./ClockMods_*.AppImage`。当前 Linux 构建基线为 glibc 2.39，AppImage 不意味着兼容所有旧发行版。
 
-浏览月份或周、点选日期、回到今天，农历、节气、节日与传统宜忌都能离线查看。周起始日和周末高亮也能按习惯调整；休 / 班标记覆盖已收录的年份。
+macOS 不支持 32 位；Windows ARM32 不在本项目目标中。“国产 CPU”按指令集划分：国产 x86/ARM CPU 使用对应版本，龙芯使用 LoongArch64，旧 MIPS 龙芯不等同于 LoongArch。
 
-## 把远方的时间，也放在眼前
+## 提醒和数据
 
-“双块”“轨道”“气泡”“混合”“丝带”支持世界时钟，最多添加六个城市。按城市、国家或时区查找，再调整显示顺序，就能把家人、朋友或工作伙伴所在的时间放在同一屏幕上。
+提醒由原生进程调度；切换页面、最小化和隐藏到托盘不会取消提醒。**退出应用、注销、关机时不能提醒，也不会唤醒关机的电脑**。恢复运行后补发到期提醒。登录启动默认关闭，可在“桌面”设置中开启。
 
-## 不打开应用，也能抬眼看见
+用户设置、背景图和天气缓存保存在本地 WebView 数据目录；提醒和小组件配置保存在系统应用数据目录。天气需在设置中提供自己的 QWeather 配置或 HTTPS 代理；不开启天气也可使用离线功能。签名凭据不会写入可执行文件。
 
-长按系统桌面，添加数字时钟、模拟时钟、时钟天气或日期日历小组件。六套小组件外观涵盖动态色、玻璃、深色仪表、纸张、霓虹与透明风格。
+桌面小组件是可拖动的独立窗口，不是 Windows Widgets、macOS WidgetKit 或 Android RemoteViews 插件。透明度、托盘、定位、通知、常亮等能力取决于桌面环境；Wayland 特别需要目标环境验收。
 
-每张卡片独立保存时区、时间制、显示内容、透明度与文字比例。天气可手动刷新，离线时保留最近的数据和更新时间；日期卡片显示大日期、农历与节日信息。
+Android 原始工程仍保留在 `app/`，开发资料见 [Android 开发说明](docs/product-development-guide.md)。本分支的桌面入口位于 `desktop/`。
 
-## 为日常，留一组顺手的工具
-
-- **天气与留言**：自动定位或手动选城市，查看温度与详细天气；自定义留言过长时自动滚动。
-- **专注与计时**：番茄钟、倒计时、秒表各有独立页面，左右滑动即可切换。
-- **闹钟与报时**：按需开启响铃、振动和全屏提醒；整点、半点视觉报时可分别设置，并配合勿扰时段使用。
-- **长时间展示**：全屏常亮、横竖屏布局、定时压暗与像素微移，让桌面显示更贴合作息。
-
-支持简体中文、繁體中文与 English。天气需要联网及有效的服务配置，提醒方式受系统权限和后台策略影响。
-
-## 开始使用
-
-1. 安装后，跟随引导选择语言、主题与基本显示选项。
-2. **双击时钟区域**打开设置，定制当前主题。
-3. 左右滑动，进入日历与各个计时工具。
-4. 想把信息留在桌面，长按系统桌面添加小组件。
-
-## 下载体验
-
-[![Build APK](https://github.com/heyiWF/ClockMods/actions/workflows/build-apk.yml/badge.svg?branch=ultimate-compose)](https://github.com/heyiWF/ClockMods/actions/workflows/build-apk.yml?query=branch%3Aultimate-compose)
-
-打开 [安装包下载页面](https://github.com/heyiWF/ClockMods/actions/workflows/build-apk.yml?query=branch%3Aultimate-compose)，选择一次成功的构建，在 **Artifacts** 中下载本分支的安装包压缩文件，解压后安装 APK。
-
-目前提供开发预览版，支持 Android 12 及以上。Ultimate 与 Ultimate Compose 使用相同应用身份，不能作为两个独立应用同时安装；替换安装需要签名一致。
-
-## 本地保存，按需连接
-
-无需账号，不含广告或用户行为统计。设置与背景图片保存在设备上，没有内置云同步。自动定位天气需要位置权限，也可手动选城市；启用天气或校时时才会连接相应服务。
-
-## 更多
-
-- [反馈问题与建议](https://github.com/heyiWF/ClockMods/issues)
-- [开发与配置参考](docs/product-development-guide.md)
-- 其他版本：[Android 经典系列](https://github.com/heyiWF/ClockMods/tree/main) · [Ultimate](https://github.com/heyiWF/ClockMods/tree/ultimate) · [Ultimate Compose](https://github.com/heyiWF/ClockMods/tree/ultimate-compose) · [Web](https://github.com/heyiWF/ClockMods/tree/web) · [Web Legacy](https://github.com/heyiWF/ClockMods/tree/web-legacy)
-
-## 许可与致谢
-
-项目采用 [MIT 许可证](LICENSE)。天气数据来自 [QWeather](https://www.qweather.com)，[QWeather Icons](https://icons.qweather.com) 图标采用 CC BY 4.0；农历引擎 [tyme4j](https://github.com/6tail/tyme4j) 与节假日数据 [holiday-cn](https://github.com/NateScarlet/holiday-cn) 采用 MIT。字体及其他资源以各自随附许可为准。
+MIT；继承资源的字体、QWeather 图标、tyme4ts、holiday-cn、CLDR 和 OpenCC 许可见 `desktop/public/licenses/` 与 `desktop/src/assets/fonts/`。

@@ -1,0 +1,706 @@
+/*
+ * Calendar dashboard.
+ *
+ * Landscape puts the info column beside the month grid (layout-land); portrait
+ * stacks them (layout-port). Colours and panel radii come from
+ * res/values/calendar_dashboard.xml.
+ */
+
+.page[data-page='calendar'] {
+  background: var(--cal-bg);
+  color: var(--text);
+  font-family: var(--cal-font, inherit);
+}
+
+.cal-layout {
+  display: grid;
+  gap: var(--gutter);
+  padding: calc(var(--gutter) + var(--safe-top)) var(--gutter) var(--gutter);
+  height: 100%;
+  grid-template-columns: 1fr 1fr;
+  grid-template-rows: 1fr;
+}
+
+/* Portrait stacks the two columns, with the month taking the larger share. */
+@media (orientation: portrait) {
+  .cal-layout {
+    grid-template-columns: 1fr;
+    grid-template-rows: minmax(88px, auto) minmax(0, 1fr);
+  }
+}
+
+.cal-left {
+  display: flex;
+  flex-direction: column;
+  gap: var(--gutter);
+  min-height: 0;
+}
+
+.cal-right {
+  min-height: 0;
+  display: flex;
+}
+
+.cal-panel {
+  background: var(--md-sys-color-surface-container);
+  border-radius: var(--md-sys-shape-corner-large);
+  min-height: 0;
+}
+
+/* Symmetric padding plus centre alignment puts the clock in the middle of its
+ * card; sizing it as a container makes the digits track the card rather than the
+ * viewport, so they stay as large as the panel allows without overflowing it. */
+.cal-clock-panel {
+  flex: 1.12 1 0;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  padding: 12px 16px;
+  container-type: size;
+}
+
+.cal-clock {
+  display: flex;
+  align-items: baseline;
+  gap: 4px;
+  font-weight: 700;
+  line-height: 1;
+  color: var(--cal-time-color, var(--text));
+  /* Width sets the digits' size, capped so they never outgrow the card's
+     height. Both halves are variables because the portrait card is measured by
+     width alone and needs a fixed cap instead of a cqh one. */
+  --cal-clock-width-factor: 24;
+  --cal-clock-cap: 58cqh;
+  font-size: min(calc(var(--cal-clock-width-factor) * 1cqw), var(--cal-clock-cap));
+}
+
+/* The seconds and the AM/PM marker follow the digits, as on the clock page. */
+.cal-time {
+  font-size: 1em;
+}
+
+.cal-seconds {
+  font-size: 0.5em;
+  color: var(--blue);
+}
+
+.cal-period {
+  font-size: 0.28em;
+  color: var(--secondary);
+  align-self: flex-start;
+}
+
+/* The 12-hour marker costs another half-digit of width, so the digits give it
+ * room rather than running into the card's padding. */
+.cal-clock:has(.cal-period:not([hidden])) {
+  --cal-clock-width-factor: 21;
+}
+
+/* A colon sits low on the baseline. Lifting it by the measured gap between its
+ * optical centre and the digits' puts the two dots level with the digits'
+ * middle (the clock page's --colon-shift). */
+.cal-colon {
+  display: inline-block;
+  transform: translateY(var(--cal-colon-shift, 0));
+}
+
+/* Portrait's clock row grows with its content, so the card can only be an
+ * inline-size container and the digits size against its width alone. These
+ * overrides follow the landscape rules because a media query carries no extra
+ * specificity — placed earlier they would lose the cascade. */
+@media (orientation: portrait) {
+  .cal-clock-panel {
+    padding-block: 10px;
+    container-type: inline-size;
+  }
+
+  /* The portrait row is a fixed 88px band, so the cap is what keeps the digits
+     inside it. */
+  .cal-clock {
+    --cal-clock-cap: 64px;
+  }
+}
+
+.cal-weather-card {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 10px;
+  padding: 14px 22px;
+  text-align: center;
+}
+
+.cal-weather-card[hidden],
+.cal-forecast-card[hidden] {
+  display: none;
+}
+
+.cal-weather-main {
+  display: flex;
+  align-items: center;
+  gap: 22px;
+}
+
+.cal-weather-icon {
+  display: inline-flex;
+  width: 88px;
+  height: 88px;
+  color: var(--cal-weather-icon-color, #fff);
+}
+
+.cal-weather-icon .weather-icon {
+  width: 100%;
+  height: 100%;
+  margin: 0;
+}
+
+.cal-temp {
+  font-size: clamp(28px, 6vw, 60px);
+}
+
+.cal-feels {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-start;
+  gap: 2px;
+}
+
+.cal-feels small {
+  font-size: clamp(12px, 1.8vw, 20px);
+  color: var(--secondary);
+}
+
+.cal-feels b {
+  font-size: clamp(20px, 4vw, 40px);
+  color: var(--blue);
+  font-weight: 400;
+}
+
+.cal-weather-summary {
+  font-size: clamp(12px, 1.8vw, 20px);
+  overflow: hidden;
+  display: -webkit-box;
+  -webkit-line-clamp: 2;
+  -webkit-box-orient: vertical;
+}
+
+.cal-forecast-card {
+  flex: 0.88 1 0;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 14px 5px;
+}
+
+.cal-forecast-row {
+  flex: 1 1 auto;
+  display: flex;
+  min-height: 0;
+}
+
+.cal-forecast-col {
+  flex: 1 1 0;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 4px;
+  min-width: 0;
+}
+
+.cal-forecast-label {
+  font-size: clamp(12px, 1.6vw, 18px);
+  font-weight: 700;
+}
+
+.cal-forecast-label.is-today {
+  color: var(--blue);
+}
+
+.cal-forecast-icon {
+  width: 44px;
+  height: 44px;
+  margin: 9px 0;
+  color: #fff;
+}
+
+.cal-forecast-icon.is-today {
+  color: var(--cal-weather-icon-color, #fff);
+}
+
+.cal-forecast-text {
+  font-size: clamp(11px, 1.4vw, 16px);
+  font-weight: 700;
+  white-space: nowrap;
+}
+
+/* ---- Month panel ---- */
+
+.cal-month-panel {
+  flex: 1 1 auto;
+  display: flex;
+  flex-direction: column;
+  padding: 10px 12px 12px;
+  min-height: 0;
+}
+
+.cal-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+}
+
+.cal-title {
+  --m3-shape: var(--md-sys-shape-corner-small);
+  flex: 1 1 auto;
+  text-align: left;
+  background: none;
+  border: 0;
+  border-radius: var(--m3-shape);
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-sys-typescale-title-large-font);
+  font-size: clamp(16px, 2.4vw, 24px);
+  font-weight: 700;
+  cursor: pointer;
+  padding: 4px 8px;
+}
+
+/* The header is tight in landscape, so "today" keeps the M3 outlined button's
+ * shape and colours but not its 40px height and 24px padding. */
+.cal-today {
+  height: 32px;
+  padding: 0 12px;
+  border-color: var(--md-sys-color-outline);
+  color: var(--md-sys-color-on-surface-variant);
+  font-size: var(--md-sys-typescale-label-large-size);
+}
+
+.cal-weekdays {
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  margin-top: 6px;
+}
+
+.cal-weekday {
+  text-align: center;
+  font-size: 16px;
+  color: var(--md-sys-color-on-surface-variant);
+  font-weight: var(--md-ref-typeface-weight-medium);
+  padding: 4px 0;
+}
+
+.cal-weekday.is-weekend {
+  color: var(--weekend);
+}
+
+.cal-days-viewport {
+  position: relative;
+  flex: 1 1 auto;
+  min-height: 0;
+  overflow: hidden;
+  touch-action: pan-y;
+}
+
+.cal-days {
+  position: absolute;
+  inset: 0;
+  display: grid;
+  grid-template-columns: repeat(7, 1fr);
+  grid-template-rows: repeat(6, 1fr);
+  gap: 1px;
+  will-change: transform;
+}
+
+.cal-days--preview {
+  pointer-events: none;
+}
+
+.cal-days--preview[hidden] {
+  display: none;
+}
+
+.cal-day {
+  --m3-shape: var(--md-sys-shape-corner-small);
+  width: 100%;
+  height: 100%;
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  justify-content: center;
+  gap: 1px;
+  padding: 2px 1px;
+  border-radius: var(--m3-shape);
+  border: 0;
+  background: none;
+  color: inherit;
+  font: inherit;
+  min-width: 0;
+  cursor: pointer;
+  appearance: none;
+}
+
+.cal-day.is-other-month {
+  opacity: 0.38;
+}
+
+/* M3 marks the chosen date with a filled container. The number keeps whatever
+ * colour its own meaning gave it — today's green, a weekend's pink — because
+ * secondary-container is dark enough for all of them to stay legible. */
+.cal-day.is-selected {
+  background: var(--md-sys-color-secondary-container);
+}
+
+.cal-day-number {
+  position: relative;
+  display: flex;
+  align-items: baseline;
+  justify-content: center;
+  font-size: clamp(15px, 2vw, 27px);
+  line-height: 1.1;
+  color: #fff;
+}
+
+.cal-day.is-weekend .cal-day-number {
+  color: var(--weekend);
+}
+
+.cal-day.is-today .cal-day-number {
+  color: var(--green);
+}
+
+.cal-day-badge {
+  position: absolute;
+  top: -2px;
+  left: calc(100% + 0.15em);
+  font-size: 0.45em;
+  line-height: 1;
+}
+
+.cal-day-badge.is-off {
+  color: var(--green);
+}
+
+.cal-day-badge.is-work {
+  color: var(--amber);
+}
+
+.cal-day-label {
+  width: 100%;
+  height: 22px;
+  font-size: 14px;
+  color: var(--secondary);
+}
+
+.cal-day-label.has-festival {
+  color: var(--text);
+}
+
+.cal-footer {
+  height: 26px;
+  margin-top: 6px;
+  font-size: 17px;
+}
+
+/* ---- Shared label carousel ---- */
+
+.label-carousel {
+  position: relative;
+  overflow: hidden;
+  width: 100%;
+}
+
+.label-carousel-track {
+  display: flex;
+  flex-direction: column;
+  height: 100%;
+  transition: transform 200ms cubic-bezier(0.4, 0, 0.2, 1);
+  will-change: transform;
+}
+
+.label-carousel.is-measuring {
+  visibility: hidden;
+}
+
+.label-carousel-item {
+  display: flex;
+  flex: 0 0 100%;
+  align-items: center;
+  justify-content: center;
+  min-height: 0;
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.label-carousel-item.is-scrolling {
+  justify-content: flex-start;
+}
+
+/* The 宜/忌 glyph: bold, pinned left, and outside the strip that clips the
+   scrolling items so it never travels with them. */
+.label-carousel-pin {
+  flex: 0 0 auto;
+  font-weight: 700;
+  margin-right: 0.35em;
+}
+
+/* Clips the scrolling items. A line that fits is only as wide as its text so the
+   glyph and the items stay centred together; one that overflows takes the rest
+   of the row and scrolls inside it. */
+.label-carousel-strip {
+  flex: 0 1 auto;
+  min-width: 0;
+  overflow: hidden;
+}
+
+.label-carousel-item.is-scrolling .label-carousel-strip {
+  flex: 1 1 auto;
+}
+
+.label-carousel-text {
+  display: inline-block;
+}
+
+/* Long labels are moved once by LabelCarousel before the next upward switch. */
+.label-carousel-text.can-scroll {
+  will-change: transform;
+}
+
+.cal-day-label,
+.cal-footer {
+  container-type: inline-size;
+}
+
+/* ---- Month picker dialog ---- */
+
+.month-picker-row {
+  display: flex;
+  gap: 12px;
+}
+
+.month-picker-row select {
+  flex: 1 1 0;
+}
+
+.month-picker-actions,
+.timer-dialog-actions {
+  display: flex;
+  justify-content: flex-end;
+  gap: 8px;
+  margin-top: 20px;
+}
+
+.help-body {
+  margin: 0 0 16px;
+  max-height: 60vh;
+  overflow: auto;
+  white-space: pre-wrap;
+  color: var(--md-sys-color-on-surface-variant);
+  font-family: var(--md-sys-typescale-body-medium-font);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: 1.6;
+  letter-spacing: var(--md-sys-typescale-body-medium-tracking);
+}
+
+/* Ultimate calendar compositions and independent typography. */
+.page[data-calendar-theme] .cal-day-number {color:var(--cal-day);font-size:var(--cal-date-size);font-weight:var(--cal-weight);}
+.page[data-calendar-theme] .cal-day.is-weekend .cal-day-number {color:var(--weekend);}
+.page[data-calendar-theme] .cal-day.is-today .cal-day-number {color:var(--green);}
+.page[data-calendar-theme] .cal-day-label {font-size:var(--cal-support-size);height:1.4em;}
+.page[data-calendar-theme] .cal-clock {font-size:min(calc(var(--cal-clock-width-factor) * 1cqw * var(--cal-time-scale)),var(--cal-clock-cap));font-weight:var(--cal-weight);}
+.page[data-calendar-theme] .cal-footer {font-size:var(--cal-support-size);}
+.page[data-calendar-theme] .cal-layout {padding-left:max(var(--gutter),var(--display-safe-left,0px));padding-right:max(var(--gutter),var(--display-safe-right,0px));}
+.page[data-calendar-theme='calendar.paper'] .cal-left,.page[data-calendar-theme='calendar.poster'] .cal-left {display:none;}
+.page[data-calendar-theme='calendar.paper'] .cal-layout,.page[data-calendar-theme='calendar.poster'] .cal-layout {grid-template-columns:1fr;grid-template-rows:1fr;}
+.page[data-calendar-theme='calendar.paper'] .cal-month-panel {border:1px solid #dfd7c4;}
+.page[data-calendar-theme='calendar.poster'] .cal-day-label,.page[data-calendar-theme='calendar.poster'] .cal-footer,.page[data-calendar-theme='calendar.poster'] .cal-day-badge {display:none;}
+.page[data-calendar-theme='calendar.poster'] .cal-header {border-bottom:1px solid #9aa0a652;padding-bottom:14px;}
+.page[data-calendar-theme='calendar.poster'] .cal-title {font-size:clamp(24px,7vw,84px);font-weight:800;letter-spacing:-.05em;}
+.page[data-calendar-theme='calendar.poster'] .cal-day.is-selected {outline:0;border-radius:clamp(8px,1.2vw,20px);background:color-mix(in srgb,var(--cal-day) 10%,transparent);}
+.page[data-calendar-theme='calendar.poster'] .cal-day.is-today::after {content:'';width:5px;height:5px;border-radius:50%;background:var(--green);}
+.page[data-calendar-theme='calendar.poster'] .cal-day.is-other-month {opacity:.18;}
+
+/* Fit the composition first, then cap text against its actual cell. */
+.cal-layout {min-height:0;grid-template-columns:minmax(0,1fr) minmax(0,1fr);}
+.cal-left,.cal-right,.cal-panel {min-width:0;}
+.cal-clock {max-width:100%;}
+.page[data-calendar-theme] .cal-clock {font-size:min(calc(24cqw * var(--cal-time-scale)),21cqw,58cqh);}
+.page[data-calendar-theme] .cal-day {container-type:size;}
+.page[data-calendar-theme] .cal-day-number {font-size:var(--cal-date-size);}
+.page[data-calendar-theme] .cal-day-label {font-size:var(--cal-support-size);height:1.4em;}
+.cal-forecast-text {white-space:normal;text-align:center;overflow-wrap:anywhere;}
+.cal-forecast-row.is-unavailable .cal-forecast-col:not(:first-child) {display:none;}
+.cal-weather-main {gap:clamp(5px,2vw,22px);max-width:100%;}
+.cal-weather-icon {flex-shrink:0;}
+.cal-weather-icon[hidden] {display:none;}
+.cal-weather-card,.cal-forecast-card {overflow:hidden;}
+.cal-temp {font-size:clamp(22px,4vw,52px);white-space:nowrap;}
+.cal-feels {flex-shrink:0;}
+@media(orientation:portrait),(max-width:560px) {
+ .cal-layout {grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(150px,28%) minmax(0,1fr);}
+ .cal-layout:has(.cal-weather-card[hidden]) {grid-template-rows:minmax(64px,14%) minmax(0,1fr);}
+ .cal-left {display:grid;grid-template-columns:minmax(0,1fr) minmax(0,1fr);grid-template-rows:minmax(50px,.65fr) minmax(70px,1fr);}
+ .cal-left:has(.cal-weather-card[hidden]) {grid-template-rows:1fr;}
+ .cal-clock-panel {grid-column:1/-1;container-type:size;padding:6px 12px;}
+ .cal-weather-card {padding:6px;gap:4px;}
+ .cal-weather-icon {width:30px;height:30px;}
+ .cal-forecast-card {padding:6px;}
+ .cal-feels small {font-size:10px;} .cal-feels b {font-size:16px;}
+ .cal-weather-summary {font-size:11px;}
+ .cal-forecast-icon {width:24px;height:24px;margin:3px 0;}
+ .cal-forecast-label,.cal-forecast-text {font-size:10px;}
+ .cal-month-panel {padding:8px 6px;}
+ .cal-header {gap:3px;}
+ .cal-title {padding:4px;font-size:clamp(13px,3.8vw,22px);min-width:0;}
+ .cal-today {padding:0 6px;min-width:0;}
+ .cal-weekday {font-size:13px;}
+ .page[data-calendar-theme='calendar.paper'] .cal-layout,.page[data-calendar-theme='calendar.poster'] .cal-layout {grid-template-rows:1fr;}
+}
+@media(max-height:450px) { .cal-month-panel{padding:6px;} .cal-weekday{font-size:12px;padding:2px;} .cal-forecast-icon{width:24px;height:24px;margin:3px;} .cal-weather-card{gap:4px;} .cal-header{gap:2px;} .cal-title{font-size:17px;} .cal-footer{flex-shrink:0;} }
+
+.page[data-calendar-theme] .cal-footer{height:1.5em;min-height:1.5em;font-weight:var(--cal-weight);}
+.page[data-calendar-theme] .cal-day-label{font-weight:var(--cal-weight);}
+
+.page[data-calendar-theme] { font-synthesis:none; }
+.page[data-calendar-theme] .cal-title { font-family:var(--cal-font); font-weight:var(--cal-weight); }
+
+.page[data-calendar-theme] .cal-layout { font-weight:var(--cal-weight); }
+.page[data-calendar-theme] :is(.cal-title,.cal-feels b,.cal-forecast-label,.cal-forecast-text,.cal-weekdays,.cal-agenda-detail h2) { font-weight:var(--cal-weight); }
+
+/* Ultimate Agenda: a seven-day rail plus the selected day's card. */
+.page[data-calendar-theme='calendar.agenda'] .cal-left,
+.page[data-calendar-theme='calendar.agenda'] .cal-footer,
+.page[data-calendar-theme='calendar.agenda'] .cal-weekdays {display:none;}
+.page[data-calendar-theme='calendar.agenda'] .cal-layout {display:block;padding:clamp(10px,2vw,24px);}
+.page[data-calendar-theme='calendar.agenda'] .cal-right {height:100%;}
+.page[data-calendar-theme='calendar.agenda'] .cal-month-panel {display:grid;grid-template-columns:minmax(0,36fr) minmax(0,64fr);grid-template-rows:auto minmax(0,1fr);gap:16px 18px;background:none;padding:0;}
+.page[data-calendar-theme='calendar.agenda'] .cal-header {grid-column:1;grid-row:1;flex-wrap:wrap;}
+.page[data-calendar-theme='calendar.agenda'] .cal-title {order:-1;flex-basis:100%;font-size:clamp(16px,2.2vw,26px);padding-left:0;}
+.page[data-calendar-theme='calendar.agenda'] .cal-today {margin-left:auto;}
+.page[data-calendar-theme='calendar.agenda'] .cal-days-viewport {grid-column:1;grid-row:2;min-width:0;}
+.page[data-calendar-theme='calendar.agenda'] .cal-days {grid-template-columns:1fr;grid-template-rows:repeat(7,minmax(0,1fr));gap:4px;}
+.page[data-calendar-theme='calendar.agenda'] .cal-day {flex-direction:row;justify-content:space-around;padding:4px 10px;border-radius:12px;gap:8px;}
+.page[data-calendar-theme='calendar.agenda'] .cal-day.is-other-month {opacity:1;}
+.cal-agenda-weekday {font-size:var(--cal-support-size);color:var(--secondary);}
+.page[data-calendar-theme='calendar.agenda'] .cal-day-label {flex:0 1 42%;min-width:0;}
+.cal-agenda-detail {grid-column:2;grid-row:1/3;min-width:0;min-height:0;overflow:auto;background:var(--md-sys-color-surface-container);border:1px solid #dce0f0;border-radius:18px;padding:clamp(14px,2.5vw,32px);font-size:var(--cal-support-size);}
+.cal-agenda-detail[hidden] {display:none;}
+.cal-agenda-heading {font-size:clamp(18px,2.8vw,34px);line-height:1.35;}
+.cal-agenda-lunar {color:var(--secondary);margin-top:8px;}
+.cal-agenda-festivals {color:var(--accent);margin-top:10px;}
+.cal-agenda-weather {display:flex;align-items:center;gap:12px;border-top:1px solid #dce0f0;padding-top:18px;margin-block:18px 28px;}
+.cal-agenda-weather[hidden] {display:none;}
+.cal-agenda-weather-icon {width:clamp(36px,5vw,68px);height:clamp(36px,5vw,68px);flex-shrink:0;color:var(--cal-weather-icon-color);}
+.cal-agenda-temperature {font-size:clamp(22px,3vw,40px);white-space:nowrap;}
+.cal-agenda-weather-description {line-height:1.5;min-width:0;}
+.cal-agenda-almanac {height:1.5em;line-height:1.5;margin-top:14px;white-space:nowrap;overflow:hidden;}
+.cal-agenda-almanac.suitable {color:var(--cal-good);}.cal-agenda-almanac.avoid {color:var(--cal-bad);margin-top:6px;}
+.cal-forecast-icon {color:var(--cal-forecast-ink);}.cal-forecast-icon.is-today {color:var(--cal-weather-icon-color);}
+@media(orientation:portrait) {
+ .page[data-calendar-theme='calendar.agenda'] .cal-month-panel {grid-template-columns:minmax(0,1fr);grid-template-rows:auto minmax(80px,16%) minmax(0,1fr);gap:14px;}
+ .page[data-calendar-theme='calendar.agenda'] .cal-title {order:0;flex-basis:0;}
+ .page[data-calendar-theme='calendar.agenda'] .cal-days {grid-template-columns:repeat(7,minmax(0,1fr));grid-template-rows:1fr;gap:2px;}
+ .page[data-calendar-theme='calendar.agenda'] .cal-day {flex-direction:column;padding:4px 1px;gap:2px;}
+ .page[data-calendar-theme='calendar.agenda'] .cal-day-label {flex:none;width:100%;}
+ .cal-agenda-detail {grid-column:1;grid-row:3;}
+ .cal-agenda-weather {flex-wrap:wrap;}.cal-agenda-weather-description {flex-basis:100%;}
+}
+/* Ultimate Poster: masthead above the grid in portrait, at its left in landscape. */
+.page[data-calendar-theme='calendar.poster'] .cal-month-panel {display:grid;grid-template-columns:minmax(0,36fr) minmax(0,64fr);grid-template-rows:auto minmax(0,1fr);gap:10px 20px;padding:12px;}
+.page[data-calendar-theme='calendar.poster'] .cal-header {grid-column:1;grid-row:1/3;flex-wrap:wrap;align-content:flex-start;border-bottom:0;border-right:1px solid #9aa0a652;padding-right:16px;min-width:0;}
+.page[data-calendar-theme='calendar.poster'] .cal-title {flex-basis:100%;order:-1;display:flex;flex-direction:column;align-items:flex-start;justify-content:center;min-height:65%;padding:0;font-size:clamp(24px,4.8vw,90px);overflow-wrap:anywhere;line-height:1.05;}
+.cal-poster-year {font-size:.4em;color:var(--secondary);margin-top:.65em;letter-spacing:.12em;}
+.page[data-calendar-theme='calendar.poster'] .cal-weekdays {grid-column:2;grid-row:1;}
+.page[data-calendar-theme='calendar.poster'] .cal-days-viewport {grid-column:2;grid-row:2;}
+@media(orientation:portrait) {
+ .page[data-calendar-theme='calendar.poster'] .cal-month-panel {grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(90px,30%) auto minmax(0,1fr);gap:10px;}
+ .page[data-calendar-theme='calendar.poster'] .cal-header {grid-column:1;grid-row:1;border-right:0;border-bottom:1px solid #9aa0a652;padding:0 0 8px;align-content:stretch;}
+ .page[data-calendar-theme='calendar.poster'] .cal-title {font-size:clamp(24px,9vw,72px);}
+ .page[data-calendar-theme='calendar.poster'] .cal-weekdays {grid-column:1;grid-row:2;}
+ .page[data-calendar-theme='calendar.poster'] .cal-days-viewport {grid-column:1;grid-row:3;}
+}
+
+/* Typography is fitted independently to the region that owns it. */
+.page[data-calendar-theme] .cal-clock {font-size:var(--cal-clock-size,48px);}
+.page[data-calendar-theme] .cal-weather-card {gap:.4em;font-size:var(--cal-weather-size,20px);}
+.page[data-calendar-theme] .cal-weather-icon {width:3.6em;height:3.6em;}
+.page[data-calendar-theme] .cal-temp {font-size:2.4em;}
+.page[data-calendar-theme] .cal-feels small {font-size:.85em;}
+.page[data-calendar-theme] .cal-feels b {font-size:1.8em;}
+.page[data-calendar-theme] .cal-weather-summary {font-size:1em;line-height:1.3;}
+.page[data-calendar-theme] .cal-forecast-card {font-size:var(--cal-forecast-size,18px);}
+.page[data-calendar-theme] .cal-forecast-label,.page[data-calendar-theme] .cal-forecast-text {font-size:1em;line-height:1.25;}
+.page[data-calendar-theme] .cal-forecast-icon {width:2.4em;height:2.4em;margin:.2em 0;}
+.cal-forecast-detail {font-size:.85em;line-height:1.25;text-align:center;overflow-wrap:anywhere;}
+.page[data-calendar-theme] .cal-forecast-col {gap:.18em;}
+.label-carousel-pin {border-radius:50%;display:inline-flex;align-items:center;justify-content:center;min-width:1.4em;height:1.4em;padding:0 .2em;background:color-mix(in srgb,currentColor 15%,transparent);line-height:1;}
+
+@media(orientation:portrait) and (min-height:500px){
+ .page[data-calendar-theme="calendar.graphite"] .cal-layout,.page[data-calendar-theme="calendar.carbon"] .cal-layout{grid-template-rows:minmax(250px,40%) minmax(0,1fr);}
+ .page[data-calendar-theme="calendar.graphite"] .cal-layout:has(.cal-weather-card[hidden]),.page[data-calendar-theme="calendar.carbon"] .cal-layout:has(.cal-weather-card[hidden]){grid-template-rows:minmax(64px,14%) minmax(0,1fr);}
+ .cal-left{grid-template-columns:minmax(0,1fr);grid-template-rows:minmax(50px,.8fr) minmax(70px,1fr) minmax(95px,1.2fr);}
+ .cal-left:has(.cal-weather-card[hidden]){grid-template-rows:1fr;}
+}
+
+/* Header labels share the supporting text size, including the Today button. */
+.page[data-calendar-theme]:not([data-calendar-theme="calendar.poster"]) .cal-title,
+.page[data-calendar-theme] .cal-weekday,
+.page[data-calendar-theme]:not([data-calendar-theme="calendar.poster"]) .cal-today {font-size:var(--cal-support-size);line-height:1.2;}
+.page[data-calendar-theme] .cal-title {min-width:0;}
+.page[data-calendar-theme] .cal-today {height:auto;min-height:2em;padding-block:.25em;}
+.cal-header,.cal-weekdays {flex-shrink:0;}
+/* Keep natural content height measurable; fitting reduces text before clipping. */
+.cal-weather-main,.cal-weather-summary,.cal-forecast-col > * {flex-shrink:0;}
+.page[data-calendar-theme] .cal-weather-summary {display:block;width:100%;overflow:visible;-webkit-line-clamp:unset;overflow-wrap:anywhere;}
+.cal-forecast-label {text-align:center;overflow-wrap:anywhere;}
+.cal-forecast-condition {display:inline;color:var(--secondary);}
+.cal-forecast-col {padding-inline:.35em;}
+.cal-forecast-col > * {max-width:100%;}
+
+/* The poster month is an automatic masthead, not a supporting text label. */
+.page[data-calendar-theme="calendar.poster"] .cal-header {display:grid;grid-template-columns:44px max-content 44px minmax(0,1fr);grid-template-rows:minmax(0,1fr) 44px;align-content:stretch;align-items:center;}
+.page[data-calendar-theme="calendar.poster"] .cal-title {grid-column:1/-1;grid-row:1;width:100%;height:100%;min-height:0;flex-shrink:0;font-size:var(--cal-poster-month-size,48px);line-height:1.05;}
+.page[data-calendar-theme="calendar.poster"] #cal-prev {grid-column:1;grid-row:2;width:44px;height:44px;}
+.page[data-calendar-theme="calendar.poster"] .cal-today {grid-column:2;grid-row:2;height:44px;min-height:44px;font-size:clamp(14px,1.5vw,24px);line-height:1.2;}
+.page[data-calendar-theme="calendar.poster"] #cal-next {grid-column:3;grid-row:2;width:44px;height:44px;}
+.cal-poster-month {white-space:nowrap;flex-shrink:0;}
+.cal-poster-year {font-size:.5em;margin-top:.35em;white-space:nowrap;flex-shrink:0;}
+
+/* Agenda uses equal side columns so the date stays at the rail's true centre. */
+.page[data-calendar-theme="calendar.agenda"] .cal-header {flex-wrap:nowrap;}
+.page[data-calendar-theme="calendar.agenda"] .cal-title {order:0;flex:1 1 0;white-space:nowrap;}
+.page[data-calendar-theme="calendar.agenda"] .cal-today {margin-left:0;}
+.page[data-calendar-theme="calendar.agenda"] .cal-day {display:grid;grid-template-columns:minmax(0,1fr) auto minmax(0,1fr);justify-items:center;}
+.page[data-calendar-theme="calendar.agenda"] .cal-day-label {width:100%;}
+.cal-agenda-almanac .label-carousel-item {justify-content:flex-start;}
+.cal-agenda-detail {display:flex;flex-direction:column;}
+.cal-agenda-detail > * {flex-shrink:0;}
+.cal-agenda-schedule {display:flex;flex-direction:column;flex:1 0 130px;margin-top:20px;min-height:130px;}
+.cal-schedule-header {display:flex;align-items:center;justify-content:space-between;gap:8px;}
+.cal-schedule-header h3 {font:inherit;color:var(--secondary);margin:0;}
+.cal-schedule-add {font:inherit;color:var(--accent);min-height:44px;}
+.cal-schedule-list {flex:1;min-height:0;overflow:auto;overscroll-behavior:contain;}
+.cal-schedule-empty {text-align:center;color:var(--secondary);margin:2em 0;}
+.cal-schedule-row {display:flex;align-items:center;width:100%;min-height:48px;gap:12px;padding:8px 0;border:0;background:transparent;font:inherit;color:var(--text);text-align:left;cursor:pointer;border-radius:8px;}
+.cal-schedule-row:hover,.cal-schedule-row:focus-visible {background:color-mix(in srgb,var(--accent) 8%,transparent);}
+.cal-schedule-time {flex:0 0 4em;color:var(--accent);font-size:.92em;}
+.cal-schedule-item-title {min-width:0;overflow:hidden;text-overflow:ellipsis;white-space:nowrap;}
+.schedule-dialog {max-height:calc(100dvh - 24px);overflow:auto;}
+.schedule-dialog .timer-dialog-field input {width:100%;min-width:0;box-sizing:border-box;}
+.schedule-time-row {display:flex;gap:8px;flex-wrap:wrap;margin-block:16px;}
+.schedule-all-day[aria-pressed="true"] {background:var(--md-sys-color-secondary-container);}
+.schedule-editor-date {color:var(--md-sys-color-on-surface-variant);}
+.schedule-error,.schedule-delete {color:var(--md-sys-color-error);}
+.schedule-dialog .timer-dialog-actions {flex-wrap:wrap;}
+@media(orientation:portrait) {
+ .page[data-calendar-theme="calendar.agenda"] .cal-day {grid-template-columns:minmax(0,1fr);grid-template-rows:auto auto auto;align-content:center;}
+}
+
+.cal-schedule-time.is-all-day {color:var(--secondary);}
+
+/* Agenda lunar dates, solar terms and festivals share one supporting ink. */
+.page[data-calendar-theme="calendar.agenda"] .cal-day-label {color:var(--secondary);}
+
+/* The trailing copy crosses the clip continuously while the badge stays fixed. */
+.label-carousel-text {position:relative;}
+.label-carousel-repeat {position:absolute;top:0;white-space:nowrap;pointer-events:none;}

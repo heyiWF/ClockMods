@@ -1,0 +1,93 @@
+name: Build Desktop
+on:
+  push:
+    branches: [desktop]
+  pull_request:
+    branches: [desktop]
+  workflow_dispatch:
+permissions:
+  contents: read
+concurrency:
+  group: desktop-${{ github.ref }}
+  cancel-in-progress: true
+jobs:
+  frontend:
+    runs-on: ubuntu-24.04
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - run: npm ci
+      - run: npm test
+      - run: npm run build
+      - uses: actions/upload-artifact@v4
+        with:
+          name: desktop-frontend
+          path: desktop/dist
+  package:
+    needs: frontend
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - {os: ubuntu-24.04, target: x86_64-unknown-linux-gnu, bundle: "appimage,deb,rpm"}
+          - {os: ubuntu-24.04-arm, target: aarch64-unknown-linux-gnu, bundle: "appimage,deb,rpm"}
+          - {os: windows-latest, target: x86_64-pc-windows-msvc, bundle: nsis}
+          - {os: windows-latest, target: i686-pc-windows-msvc, bundle: nsis}
+          - {os: windows-11-arm, target: aarch64-pc-windows-msvc, bundle: nsis}
+          - {os: macos-15-intel, target: x86_64-apple-darwin, bundle: dmg}
+          - {os: macos-latest, target: aarch64-apple-darwin, bundle: dmg}
+    runs-on: ${{ matrix.os }}
+    defaults:
+      run:
+        working-directory: desktop
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: '24'
+          cache: npm
+          cache-dependency-path: desktop/package-lock.json
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          toolchain: '1.99.0'
+          targets: ${{ matrix.target }}
+      - uses: Swatinem/rust-cache@v2
+        with:
+          workspaces: desktop/src-tauri
+      - if: runner.os == 'Linux'
+        run: sudo apt-get update && sudo apt-get install -y libwebkit2gtk-4.1-dev libayatana-appindicator3-dev librsvg2-dev patchelf xvfb xauth dbus-x11 file gstreamer1.0-plugins-base gstreamer1.0-plugins-good
+      - run: npm ci
+      - uses: actions/download-artifact@v4
+        with: {name: desktop-frontend, path: desktop/dist}
+      - run: cargo test --locked --manifest-path src-tauri/Cargo.toml --target ${{ matrix.target }}
+      - run: npm run desktop:build -- --target ${{ matrix.target }} --bundles ${{ matrix.bundle }}
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+      - name: Smoke test packaged Linux application
+        if: runner.os == 'Linux'
+        shell: bash
+        env:
+          APPIMAGE_EXTRACT_AND_RUN: "1"
+          WEBKIT_DISABLE_DMABUF_RENDERER: "1"
+          LIBGL_ALWAYS_SOFTWARE: "1"
+        run: |
+          appimage=$(find "src-tauri/target/${{ matrix.target }}/release/bundle/appimage" -maxdepth 1 -name '*.AppImage' -print -quit)
+          test -n "$appimage"
+          bash scripts/smoke-linux.sh "$PWD/$appimage"
+      - uses: actions/upload-artifact@v4
+        with:
+          name: clockmods-${{ matrix.target }}
+          path: |
+            desktop/src-tauri/target/${{ matrix.target }}/release/bundle/**/*.AppImage
+            desktop/src-tauri/target/${{ matrix.target }}/release/bundle/**/*.deb
+            desktop/src-tauri/target/${{ matrix.target }}/release/bundle/**/*.rpm
+            desktop/src-tauri/target/${{ matrix.target }}/release/bundle/**/*.exe
+            desktop/src-tauri/target/${{ matrix.target }}/release/bundle/**/*.dmg
+          if-no-files-found: error

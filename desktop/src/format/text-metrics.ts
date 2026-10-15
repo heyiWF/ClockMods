@@ -1,0 +1,185 @@
+/**
+ * Text measurement and the size-fitting arithmetic the clock layout depends on.
+ *
+ * Ported from com.clockmods.ui.ClockLayoutCalculator and ClockTextLayout. The
+ * pure arithmetic is unchanged; `Paint.measureText` is replaced by an offscreen
+ * 2D canvas, which is the only way to measure text in a browser without
+ * inserting it into the document.
+ */
+import { hasSupportingTrackingAt } from './text-spacing';
+
+/**
+ * Computes the text size relative to the largest size that still fits the
+ * available space. The maximum size is the point where the text either exactly
+ * fills the usable width (`maxWidthFraction` of the view width) or reaches its
+ * vertical cap (`heightFraction` of the view height), whichever is smaller. The
+ * user-controlled `sizeFraction` (0..1) then scales that maximum, so a value of 1
+ * always renders the text as large as it can be without overflowing — it never
+ * leaves unused width.
+ *
+ * @param measuredWidthAtOnePixel text width measured with a text size of 1px
+ */
+export function calculateWidthBasedTextSize(
+  width: number,
+  height: number,
+  measuredWidthAtOnePixel: number,
+  sizeFraction: number,
+  heightFraction: number,
+  maxWidthFraction: number
+): number {
+  if (measuredWidthAtOnePixel <= 0) return 1;
+  const widthLimited = (width * maxWidthFraction) / measuredWidthAtOnePixel;
+  const heightLimited = height * heightFraction;
+  const maxFittingSize = Math.min(widthLimited, heightLimited);
+  const fraction = Number.isFinite(sizeFraction) ? Math.max(0, Math.min(1, sizeFraction)) : 1;
+  return Math.max(1, maxFittingSize * fraction);
+}
+
+export function calculateTimeGroupWidth(
+  mainWidth: number,
+  leftAccessoryWidth: number,
+  rightAccessoryWidth: number
+): number {
+  return mainWidth + leftAccessoryWidth + rightAccessoryWidth;
+}
+
+export function calculateMainCenterOffset(
+  leftAccessoryWidth: number,
+  rightAccessoryWidth: number
+): number {
+  return (leftAccessoryWidth - rightAccessoryWidth) / 2;
+}
+
+export function shouldUseSingleDateLine(
+  landscape: boolean,
+  fullTextWidth: number,
+  availableWidth: number
+): boolean {
+  return landscape && fullTextWidth <= availableWidth * 0.9;
+}
+
+export function centerCropScale(
+  imageWidth: number,
+  imageHeight: number,
+  viewWidth: number,
+  viewHeight: number
+): number {
+  return Math.max(viewWidth / imageWidth, viewHeight / imageHeight);
+}
+
+// ---- Canvas-backed measurement ----
+
+/** Text size the offscreen canvas measures at; results are divided back down. */
+const MEASURE_SIZE = 100;
+
+let measureContext: CanvasRenderingContext2D | null = null;
+let contextProbed = false;
+
+function context(): CanvasRenderingContext2D | null {
+  if (!contextProbed) {
+    contextProbed = true;
+    const canvas = document.createElement('canvas');
+    canvas.width = 8;
+    canvas.height = 8;
+    measureContext = canvas.getContext('2d');
+  }
+  return measureContext;
+}
+
+/**
+ * Rough advance widths used when no 2D context exists (headless tests, or a
+ * browser that refuses the context). Full-width characters take a full em, the
+ * rest roughly half — enough to keep the layout sane until a real measurement.
+ */
+function estimateWidth(text: string): number {
+  let width = 0;
+  for (const character of text) {
+    const codePoint = character.codePointAt(0)!;
+    width += codePoint > 0x2e80 ? 1 : 0.55;
+  }
+  return width;
+}
+
+export interface FontSpec {
+  /** CSS font-family list. */
+  family: string;
+  weight: number | string;
+}
+
+const widthCache = new Map<string, number>();
+
+function cacheKey(text: string, font: FontSpec): string {
+  return `${font.weight}\0${font.family}\0${text}`;
+}
+
+/** Advance width of `text` at a 1px font size, mirroring the Android measurement. */
+export function measureAtOnePixel(text: string, font: FontSpec): number {
+  if (!text) return 0;
+  const key = cacheKey(text, font);
+  const cached = widthCache.get(key);
+  if (cached !== undefined) return cached;
+  const ctx = context();
+  if (!ctx) return estimateWidth(text);
+  // Measuring at 100px and scaling down keeps sub-pixel precision that a 1px
+  // measurement would quantise away.
+  ctx.font = `${font.weight} ${MEASURE_SIZE}px ${font.family}`;
+  const measured = ctx.measureText(text).width / MEASURE_SIZE;
+  const width = measured > 0 ? measured : estimateWidth(text);
+  widthCache.set(key, width);
+  return width;
+}
+
+/** Widest advance among the digits 0-9, at a 1px font size. */
+export function widestDigitWidth(font: FontSpec): number {
+  let widest = 0;
+  for (let digit = 0; digit <= 9; digit++) {
+    widest = Math.max(widest, measureAtOnePixel(String(digit), font));
+  }
+  return widest;
+}
+
+/**
+ * Advance width where every digit occupies `digitWidth`, so the clock never
+ * shifts as digits change in a proportional font.
+ */
+export function stableTextWidth(text: string, font: FontSpec, digitWidth?: number): number {
+  const digit = digitWidth ?? widestDigitWidth(font);
+  let width = 0;
+  for (const character of text) width += stableCharacterWidth(character, font, digit);
+  return width;
+}
+
+export function stableCharacterWidth(character: string, font: FontSpec, digitWidth: number): number {
+  if (character.length === 1 && character >= '0' && character <= '9') return digitWidth;
+  return measureAtOnePixel(character, font);
+}
+
+/**
+ * Width of supporting text (date / lunar / weather lines) at a 1px font size,
+ * including the CJK-aware letter-spacing gaps.
+ *
+ * Ported from ClockView.measureSupportingText: the Android version also swapped
+ * the typeface per code point so CJK glyphs fell back to the system font. On the
+ * web the CSS font stack does that fallback for us, so a single measurement pass
+ * over the whole string is equivalent.
+ */
+export function measureSupportingText(
+  text: string,
+  font: FontSpec,
+  letterSpacing: number
+): number {
+  if (!text) return 0;
+  let width = 0;
+  let index = 0;
+  for (const character of text) {
+    width += measureAtOnePixel(character, font);
+    index += character.length;
+    if (hasSupportingTrackingAt(text, index)) width += letterSpacing;
+  }
+  return width;
+}
+
+/** Drops cached measurements after a webfont finishes loading. */
+export function invalidateMeasurements(): void {
+  widthCache.clear();
+}

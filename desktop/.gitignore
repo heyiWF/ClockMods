@@ -1,0 +1,46 @@
+# Credentials. The web build reads QWeather credentials from the settings sheet
+# (localStorage), but the Android-era file may still be lying around locally with
+# real keys in it — never commit it.
+qweather.properties
+.qweather.properties
+
+# Dependencies
+node_modules/
+
+# Build output
+dist/
+dist-ssr/
+*.local
+
+# Vite / tooling caches
+.vite/
+.eslintcache
+*.tsbuildinfo
+
+# Test output
+coverage/
+
+# Editors
+.vscode/*
+!.vscode/extensions.json
+.idea/
+*.swp
+*.swo
+*~
+
+# OS metadata
+.DS_Store
+Thumbs.db
+Desktop.ini
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+pnpm-debug.log*
+*.log
+
+# Rust and Tauri output
+src-tauri/target/
+src-tauri/gen/
+artifacts/

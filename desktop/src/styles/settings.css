@@ -1,0 +1,722 @@
+/*
+ * Settings sheet.
+ *
+ * A Material 3 modal bottom sheet holding two tabbed boards of filled cards.
+ * Component metrics are md.comp.* token values from
+ * @material/web/tokens/versions/v0_192 — the switch's 52x32 track and its
+ * 16px/24px/28px handles, the 40px segmented buttons, the 4px slider track with
+ * its 20px handle, the 56px outlined fields.
+ */
+
+/* ---- Modal bottom sheet ----
+ * md.comp.sheet-bottom docked: surface-container-low, corner-extra-large-top,
+ * elevation level 1, with a 32x4 drag handle.
+ */
+
+.settings-sheet {
+  position: fixed;
+  inset: auto 0 0 0;
+  width: 100%;
+  max-width: 720px;
+  max-height: 92dvh;
+  margin: 0 auto;
+  padding: 0 24px calc(24px + var(--safe-bottom));
+  border: 0;
+  border-radius: var(--md-sys-shape-corner-extra-large) var(--md-sys-shape-corner-extra-large) 0 0;
+  background: var(--md-sys-color-surface-container-low);
+  color: var(--md-sys-color-on-surface);
+  box-shadow: var(--md-sys-elevation-level1);
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+
+.settings-sheet::backdrop {
+  background: color-mix(in srgb, var(--md-sys-color-scrim) 32%, transparent);
+}
+
+/* The drag handle: 32x4, on-surface-variant, 22px of clearance above the title. */
+.settings-sheet::before {
+  content: '';
+  flex: 0 0 auto;
+  align-self: center;
+  width: 32px;
+  height: 4px;
+  margin: 16px 0 6px;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-on-surface-variant);
+  opacity: 0.4;
+}
+
+.settings-sheet[open] {
+  animation: sheet-in var(--md-sys-motion-duration-medium4)
+    var(--md-sys-motion-easing-emphasized-decelerate);
+}
+
+@keyframes sheet-in {
+  from {
+    transform: translateY(24px);
+    opacity: 0;
+  }
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-sheet[open] {
+    animation: none;
+  }
+}
+
+.settings-header {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  flex: 0 0 auto;
+  padding-bottom: 12px;
+}
+
+.settings-sheet > .settings-segmented {
+  flex: 0 0 auto;
+  margin-bottom: 16px;
+}
+
+.settings-title {
+  flex: 1 1 auto;
+  margin: 0;
+  font-family: var(--md-sys-typescale-title-large-font);
+  font-size: var(--md-sys-typescale-title-large-size);
+  line-height: var(--md-sys-typescale-title-large-line-height);
+  font-weight: var(--md-sys-typescale-title-large-weight);
+  letter-spacing: var(--md-sys-typescale-title-large-tracking);
+}
+
+.settings-body {
+  flex: 1 1 auto;
+  overflow-y: auto;
+  overscroll-behavior: contain;
+  padding-bottom: 8px;
+  -webkit-overflow-scrolling: touch;
+}
+
+.settings-board {
+  display: flex;
+  flex-direction: column;
+  gap: 12px;
+}
+
+.settings-board[hidden] {
+  display: none;
+}
+
+/* ---- Filled card ----
+ * md.comp.filled-card: surface-container-highest at corner-medium, no outline.
+ */
+
+.settings-card {
+  border: 0;
+  border-radius: var(--md-sys-shape-corner-medium);
+  background: var(--md-sys-color-surface-container-highest);
+  padding: 16px;
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-card-title {
+  margin: 0;
+  color: var(--md-sys-color-primary);
+  font-family: var(--md-sys-typescale-title-small-font);
+  font-size: var(--md-sys-typescale-title-small-size);
+  line-height: var(--md-sys-typescale-title-small-line-height);
+  font-weight: var(--md-sys-typescale-title-small-weight);
+  letter-spacing: var(--md-sys-typescale-title-small-tracking);
+}
+
+.settings-sublabel {
+  margin: 6px 0 0;
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-sys-typescale-label-large-font);
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+}
+
+.settings-summary {
+  margin: 0;
+  color: var(--md-sys-color-on-surface-variant);
+  font-family: var(--md-sys-typescale-body-small-font);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+  letter-spacing: var(--md-sys-typescale-body-small-tracking);
+}
+
+.settings-error {
+  margin: 0;
+  color: var(--md-sys-color-error);
+  font-family: var(--md-sys-typescale-body-small-font);
+  font-size: var(--md-sys-typescale-body-small-size);
+  line-height: var(--md-sys-typescale-body-small-line-height);
+}
+
+.settings-error[hidden] {
+  display: none;
+}
+
+.settings-preview {
+  margin: 8px 0 0;
+  color: var(--md-sys-color-on-surface-variant);
+  font-family: var(--md-sys-typescale-body-medium-font);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+}
+
+.settings-group {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.settings-group[hidden] {
+  display: none;
+}
+
+.settings-row {
+  display: flex;
+  gap: 8px;
+}
+
+.settings-row > * {
+  flex: 1 1 0;
+}
+
+/* ---- Switch ----
+ * md.comp.switch, drawn entirely on the checkbox: a 52x32 track with a 2px
+ * outline, ::after as the handle (16px unselected, 24px selected, 28px while
+ * pressed) and ::before as the 40px state layer that follows it.
+ */
+
+.settings-switch {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  gap: 12px;
+  min-height: 48px;
+  font-family: var(--md-sys-typescale-body-large-font);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  letter-spacing: var(--md-sys-typescale-body-large-tracking);
+  cursor: pointer;
+}
+
+.settings-switch-group {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+}
+
+.settings-switch input[type='checkbox'] {
+  appearance: none;
+  position: relative;
+  flex: 0 0 auto;
+  width: 52px;
+  height: 32px;
+  margin: 0;
+  border: 2px solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-full);
+  background: var(--md-sys-color-surface-container-highest);
+  cursor: pointer;
+  transition:
+    background-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+    border-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+
+/* State layer — 40px, centred on the handle, so it travels with it. */
+.settings-switch input[type='checkbox']::before {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: -6px;
+  width: 40px;
+  height: 40px;
+  margin-top: -20px;
+  border-radius: 50%;
+  background: var(--md-sys-color-on-surface);
+  opacity: 0;
+  pointer-events: none;
+  transition:
+    left var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+    opacity 15ms linear;
+}
+
+.settings-switch input[type='checkbox']::after {
+  content: '';
+  position: absolute;
+  top: 50%;
+  left: 6px;
+  width: 16px;
+  height: 16px;
+  border-radius: 50%;
+  background: var(--md-sys-color-outline);
+  transform: translateY(-50%);
+  transition:
+    left var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+    width var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+    height var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+    background-color var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard);
+}
+
+.settings-switch input[type='checkbox']:checked {
+  background: var(--md-sys-color-primary);
+  border-color: var(--md-sys-color-primary);
+}
+
+.settings-switch input[type='checkbox']:checked::after {
+  left: 22px;
+  width: 24px;
+  height: 24px;
+  background: var(--md-sys-color-on-primary);
+}
+
+.settings-switch input[type='checkbox']:checked::before {
+  left: 14px;
+  background: var(--md-sys-color-primary);
+}
+
+/* The handle swells to 28px under the finger without shifting its centre. */
+.settings-switch input[type='checkbox']:active::after {
+  left: 0;
+  width: 28px;
+  height: 28px;
+}
+
+.settings-switch input[type='checkbox']:checked:active::after {
+  left: 20px;
+}
+
+@media (hover: hover) {
+  .settings-switch input[type='checkbox']:hover:not(:disabled)::before {
+    opacity: var(--md-sys-state-hover-state-layer-opacity);
+  }
+}
+
+.settings-switch input[type='checkbox']:focus-visible {
+  outline: 3px solid var(--md-sys-color-secondary);
+  outline-offset: 2px;
+}
+
+.settings-switch input[type='checkbox']:focus-visible::before,
+.settings-switch input[type='checkbox']:active::before {
+  opacity: var(--md-sys-state-pressed-state-layer-opacity);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-switch input[type='checkbox'],
+  .settings-switch input[type='checkbox']::before,
+  .settings-switch input[type='checkbox']::after {
+    transition: none;
+  }
+}
+
+/* ---- Slider ----
+ * md.comp.slider: a 4px track — primary up to the value, surface-container-
+ * highest past it — under a 20px primary handle inside a 40px state layer.
+ */
+
+.settings-slider {
+  display: flex;
+  align-items: center;
+  gap: 12px;
+}
+
+.settings-slider-label {
+  flex: 0 0 64px;
+  font-family: var(--md-sys-typescale-body-medium-font);
+  font-size: var(--md-sys-typescale-body-medium-size);
+  line-height: var(--md-sys-typescale-body-medium-line-height);
+}
+
+.settings-slider input[type='range'] {
+  /* Where the centre of the 20px handle sits, in track coordinates. */
+  --m3-slider-fill: calc(10px + (100% - 20px) * var(--m3-slider-fraction, 0));
+  appearance: none;
+  flex: 1 1 auto;
+  min-width: 0;
+  height: 40px;
+  margin: 0;
+  background: none;
+  cursor: pointer;
+}
+
+.settings-slider input[type='range']::-webkit-slider-runnable-track {
+  height: 4px;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: linear-gradient(
+    to right,
+    var(--md-sys-color-primary) 0 var(--m3-slider-fill),
+    var(--md-sys-color-surface-container-highest) var(--m3-slider-fill) 100%
+  );
+}
+
+.settings-slider input[type='range']::-webkit-slider-thumb {
+  appearance: none;
+  width: 20px;
+  height: 20px;
+  /* Centre the 20px handle on the 4px track. */
+  margin-top: -8px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--md-sys-color-primary);
+}
+
+.settings-slider input[type='range']::-moz-range-track {
+  height: 4px;
+  border-radius: var(--md-sys-shape-corner-full);
+  background: linear-gradient(
+    to right,
+    var(--md-sys-color-primary) 0 var(--m3-slider-fill),
+    var(--md-sys-color-surface-container-highest) var(--m3-slider-fill) 100%
+  );
+}
+
+.settings-slider input[type='range']::-moz-range-thumb {
+  width: 20px;
+  height: 20px;
+  border: 0;
+  border-radius: 50%;
+  background: var(--md-sys-color-primary);
+}
+
+.settings-slider input[type='range']:focus-visible {
+  outline: 3px solid var(--md-sys-color-secondary);
+  outline-offset: -4px;
+  border-radius: var(--md-sys-shape-corner-full);
+}
+
+.settings-slider-value {
+  flex: 0 0 auto;
+  min-width: 96px;
+  text-align: right;
+  color: var(--md-sys-color-on-surface-variant);
+  font-family: var(--md-sys-typescale-label-medium-font);
+  font-size: var(--md-sys-typescale-label-medium-size);
+  letter-spacing: var(--md-sys-typescale-label-medium-tracking);
+  white-space: nowrap;
+}
+
+/* ---- Outlined segmented button ----
+ * md.comp.outlined-segmented-button: 40px tall, a single 1px outline around the
+ * group with dividers between segments, and a check on the selected one.
+ */
+
+.settings-segmented {
+  display: flex;
+  border: 1px solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-full);
+  overflow: hidden;
+}
+
+.settings-segment {
+  --m3-shape: 2px;
+  --m3-focus-ring-offset: -2px;
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  gap: 8px;
+  flex: 1 1 0;
+  min-width: 0;
+  height: 38px;
+  padding: 0 12px;
+  border: 0;
+  border-left: 1px solid var(--md-sys-color-outline);
+  background: none;
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-sys-typescale-label-large-font);
+  font-size: var(--md-sys-typescale-label-large-size);
+  line-height: var(--md-sys-typescale-label-large-line-height);
+  font-weight: var(--md-sys-typescale-label-large-weight);
+  letter-spacing: var(--md-sys-typescale-label-large-tracking);
+  cursor: pointer;
+}
+
+.settings-segment:first-child {
+  border-left: 0;
+}
+
+.settings-segment-label {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+/* The check occupies no space until the segment is selected, so labels stay put
+ * in a two-segment group and only shift when a selection actually moves. */
+.settings-segment-check {
+  flex: 0 0 auto;
+  width: 0;
+  height: 18px;
+  fill: currentColor;
+  opacity: 0;
+  transition:
+    width var(--md-sys-motion-duration-short4) var(--md-sys-motion-easing-standard),
+    opacity var(--md-sys-motion-duration-short2) var(--md-sys-motion-easing-standard);
+}
+
+.settings-segment.is-active {
+  background: var(--md-sys-color-secondary-container);
+  color: var(--md-sys-color-on-secondary-container);
+}
+
+.settings-segment.is-active .settings-segment-check {
+  width: 18px;
+  opacity: 1;
+}
+
+@media (prefers-reduced-motion: reduce) {
+  .settings-segment-check {
+    transition: none;
+  }
+}
+
+/* ---- Outlined text field and select ----
+ * md.comp.outlined-text-field: 56px, corner-extra-small, a 1px outline that
+ * thickens to 2px in primary on focus. The panel labels its fields from the
+ * sub-label above them, so this is the no-label configuration.
+ */
+
+.settings-select,
+.settings-input {
+  width: 100%;
+  min-height: 56px;
+  padding: 0 16px;
+  border: 1px solid var(--md-sys-color-outline);
+  border-radius: var(--md-sys-shape-corner-extra-small);
+  background: transparent;
+  color: var(--md-sys-color-on-surface);
+  font-family: var(--md-sys-typescale-body-large-font);
+  font-size: var(--md-sys-typescale-body-large-size);
+  line-height: var(--md-sys-typescale-body-large-line-height);
+  letter-spacing: var(--md-sys-typescale-body-large-tracking);
+  transition: border-color var(--md-sys-motion-duration-short2)
+    var(--md-sys-motion-easing-standard);
+}
+
+@media (hover: hover) {
+  .settings-select:hover:not(:disabled),
+  .settings-input:hover:not(:disabled) {
+    border-color: var(--md-sys-color-on-surface);
+  }
+}
+
+.settings-select:focus,
+.settings-input:focus {
+  outline: none;
+  border-width: 2px;
+  border-color: var(--md-sys-color-primary);
+  /* Keep the text from shifting when the outline thickens. */
+  padding: 0 15px;
+}
+
+.settings-input::placeholder {
+  color: var(--md-sys-color-on-surface-variant);
+}
+
+.settings-select {
+  appearance: none;
+  /* The trailing dropdown chevron md-outlined-select draws as an icon. */
+  background-image: linear-gradient(45deg, transparent 50%, var(--md-sys-color-on-surface-variant) 50%),
+    linear-gradient(135deg, var(--md-sys-color-on-surface-variant) 50%, transparent 50%);
+  background-position:
+    calc(100% - 22px) calc(50% + 2px),
+    calc(100% - 17px) calc(50% + 2px);
+  background-size:
+    5px 5px,
+    5px 5px;
+  background-repeat: no-repeat;
+  padding-right: 40px;
+}
+
+.settings-select option {
+  background: var(--md-sys-color-surface-container-high);
+  color: var(--md-sys-color-on-surface);
+}
+
+.settings-time {
+  position: relative;
+  font-weight: var(--md-ref-typeface-weight-medium);
+}
+
+.settings-time-input {
+  position: absolute;
+  inset: 0;
+  opacity: 0;
+  pointer-events: none;
+}
+
+.is-disabled {
+  opacity: 0.38;
+}
+
+.settings-reset {
+  width: 100%;
+  margin-top: 20px;
+}
+
+/* ---- Colour picker ---- */
+
+.color-picker {
+  display: flex;
+  flex-direction: column;
+  gap: 10px;
+}
+
+.color-preview {
+  height: 48px;
+  border-radius: var(--md-sys-shape-corner-small);
+  border: 1px solid var(--md-sys-color-outline-variant);
+}
+
+.color-swatches {
+  display: flex;
+  gap: 10px;
+  overflow-x: auto;
+  padding-bottom: 2px;
+}
+
+.color-swatch {
+  flex: 0 0 auto;
+  width: 40px;
+  height: 40px;
+  border-radius: var(--md-sys-shape-corner-small);
+  border: 1px solid var(--md-sys-color-outline-variant);
+  cursor: pointer;
+}
+
+.color-swatch:focus-visible {
+  outline: 3px solid var(--md-sys-color-secondary);
+  outline-offset: 2px;
+}
+
+.color-advanced {
+  align-self: flex-start;
+}
+
+.color-advanced-panel {
+  display: flex;
+  flex-direction: column;
+  gap: 8px;
+}
+
+.color-advanced-panel[hidden] {
+  display: none;
+}
+
+.color-square,
+.color-hue {
+  width: 100%;
+  border-radius: var(--md-sys-shape-corner-small);
+  touch-action: none;
+}
+
+.color-square {
+  height: 160px;
+}
+
+.color-hue {
+  height: 24px;
+}
+
+/* Ultimate settings shell: category home on phones, two panes on tablets. */
+.ultimate-settings {width:min(1120px, calc(100vw - 40px)); max-width:1120px; height:min(880px,calc(100dvh - 40px)); max-height:calc(100dvh - 40px); margin:auto; padding:0; border-radius:28px; overflow:hidden;}
+.ultimate-settings::before {display:none;}
+.ultimate-settings .settings-header {padding:24px 28px 18px; margin:0; flex-shrink:0; gap:8px;}
+.ultimate-settings .settings-title {font-size:32px; flex:1; min-width:0; margin:0;}
+.ultimate-settings-workspace {display:grid;grid-template-columns:280px minmax(0,1fr);flex:1;min-height:0;overflow:hidden;}
+.ultimate-settings-nav {padding:8px 16px 24px;overflow:auto;}
+.settings-category {display:flex;align-items:center;gap:14px;width:100%;padding:17px 14px;border:0;border-radius:20px;background:transparent;color:inherit;text-align:left;cursor:pointer;}
+.settings-category[aria-current=page] {background:var(--md-sys-color-secondary-container);color:var(--md-sys-color-on-secondary-container);}
+.settings-category-icon {font-size:25px;min-width:28px;text-align:center;}
+.settings-category-copy {display:flex;flex:1;flex-direction:column;gap:5px;min-width:0;}
+.settings-category-copy strong {font-size:16px;font-weight:600;}
+.settings-category-copy small {font-size:12px;line-height:1.5;opacity:.72;}
+.ultimate-settings-content {overflow:auto;padding:0 28px 28px 8px;overscroll-behavior:contain;min-width:0;}
+.ultimate-settings-pane {display:flex;flex-direction:column;gap:16px;min-width:0;}
+.ultimate-settings-pane[hidden] {display:none;}
+.settings-page-title {font-size:26px;font-weight:500;margin:12px 8px 8px;}
+.ultimate-settings .settings-card {padding:24px;gap:16px;min-width:0;}
+.ultimate-settings .settings-back {display:none;}
+.ultimate-settings input,.ultimate-settings select {max-width:100%;min-width:0;}
+.ultimate-settings .settings-row {flex-wrap:wrap;}
+.ultimate-settings .settings-switch-label {min-width:0;overflow-wrap:anywhere;}
+.theme-gallery {display:flex;gap:12px;overflow:auto;padding:4px 0 12px;scroll-snap-type:x proximity;max-width:100%;}
+.theme-choice {flex:0 0 182px;border:2px solid transparent;border-radius:18px;padding:5px;overflow:hidden;color:inherit;background:var(--md-sys-color-surface-container-high);cursor:pointer;scroll-snap-align:start;}
+.theme-choice[aria-pressed=true] {border-color:var(--md-sys-color-primary);background:var(--md-sys-color-secondary-container);}
+.theme-choice-name {display:block;padding:12px 4px;font-size:13px;text-align:left;}
+.theme-preview {width:168px;height:95px;overflow:hidden;border-radius:12px;position:relative;pointer-events:none;}
+.theme-preview-face {width:320px;height:180px;position:absolute;left:0;top:0;transform:scale(.525);transform-origin:0 0;}
+.theme-preview-classic {color:white;display:grid;place-items:center;font:52px system-ui;}
+.theme-preview .ultimate-face {position:absolute;inset:0;width:100%;height:100%;}
+.theme-preview .clock-date,.theme-preview .clock-lunar {position:absolute;white-space:nowrap;line-height:1.2;}
+.world-clock-row {display:flex;align-items:center;gap:2px;}
+.world-clock-row>span {flex:1;min-width:0;overflow-wrap:anywhere;}
+.world-clock-row .m3-button {min-width:36px;padding:6px;}
+@media(max-width:700px) {
+ .ultimate-settings {width:100vw;max-width:100vw;height:100dvh;max-height:100dvh;border-radius:0;margin:0;}
+ .ultimate-settings .settings-header {padding: max(16px,env(safe-area-inset-top)) 16px 16px;}
+ .ultimate-settings .settings-title {font-size:28px;}
+ .ultimate-settings-workspace {display:block;overflow:auto;}
+ .ultimate-settings-nav {padding:12px 16px;}
+ .settings-category {padding:21px 16px;}
+ .ultimate-settings-content {display:none;padding:0 16px calc(24px + env(safe-area-inset-bottom));height:100%;}
+ .ultimate-settings.is-detail .ultimate-settings-content {display:block;}
+ .ultimate-settings.is-detail .ultimate-settings-nav {display:none;}
+ .ultimate-settings.is-detail .settings-back {display:block;padding:8px;}
+ .ultimate-settings.is-detail .settings-title {display:none;}
+ .ultimate-settings.is-detail .settings-header::after {content:'';flex:1;order:-1;}
+ .ultimate-settings .settings-card {padding:18px;}
+}
+@media(max-width:360px) { .ultimate-settings .settings-segmented {flex-wrap:wrap;} .ultimate-settings .settings-segment {min-width:0;padding:8px;} .ultimate-settings .settings-slider {grid-template-columns:minmax(0,1fr) auto;} }
+@media(max-height:450px) and (min-width:701px) { .ultimate-settings{height:100dvh;max-height:100dvh;margin:0 auto;} .ultimate-settings .settings-header{padding:10px 24px;} .settings-category{padding:10px;} }
+
+.ultimate-settings {inset:0;}
+
+.ultimate-settings.is-detail .settings-header::after {display:none;}
+.ultimate-settings .settings-back {margin-right:auto;}
+
+@media(max-width:360px){.ultimate-settings .settings-slider{display:grid;grid-template-columns:minmax(0,1fr) auto;gap:2px 8px;}.ultimate-settings .settings-slider-label{grid-column:1;}.ultimate-settings .settings-slider-value{grid-column:2;grid-row:1;}.ultimate-settings .settings-slider input[type=range]{grid-column:1/-1;grid-row:2;width:100%;}}
+
+.calendar-theme-preview{width:168px;height:95px;overflow:hidden;border-radius:12px;padding:7px;display:flex;flex-direction:column;font-size:11px;gap:3px;}.calendar-preview-grid{display:grid;grid-template-columns:repeat(7,1fr);gap:3px;font-size:7px;}.calendar-theme-preview.has-clock{display:grid;grid-template-columns:40% 60%;grid-template-rows:18px 1fr;gap:2px;}.calendar-preview-time{grid-row:1/3;align-self:center;font-size:17px;}.calendar-theme-preview.has-clock .calendar-preview-grid{gap:2px;}
+
+/* Keep the rendered draft visible while the controls scroll independently. */
+.ultimate-settings-editor{display:flex;flex-direction:column;min-width:0;min-height:0;overflow:hidden;}
+.ultimate-settings-editor .ultimate-settings-content{flex:1;min-height:0;height:auto;}
+.settings-live-preview{flex:0 0 auto;margin:0 28px 10px 8px;padding:10px 12px;border-radius:16px;background:var(--md-sys-color-surface-container);min-width:0;}
+.settings-live-preview[hidden]{display:none;}
+.settings-preview-toolbar{display:flex;align-items:center;gap:6px;font-size:13px;}
+.settings-preview-toolbar strong{flex:1;}
+.settings-preview-orientation{background:transparent;color:inherit;border:1px solid var(--md-sys-color-outline);border-radius:20px;padding:5px 10px;font:inherit;cursor:pointer;}
+.settings-preview-orientation[aria-pressed=true]{background:var(--md-sys-color-secondary-container);border-color:var(--md-sys-color-primary);}
+.settings-preview-viewport{position:relative;height:clamp(88px,23dvh,220px);overflow:hidden;margin-top:8px;border-radius:10px;background:#090b0d;}
+.settings-preview-frame{position:absolute;left:50%;top:50%;transform-origin:center;border:0;pointer-events:none;}
+.settings-preview-note{display:block;font-size:11px;opacity:.7;margin-top:6px;}
+@media(max-width:700px){
+ .ultimate-settings-editor{display:none;height:100%;}
+ .ultimate-settings.is-detail .ultimate-settings-editor{display:flex;}
+ .settings-live-preview{margin:0 16px 8px;padding:8px 10px;}
+ .settings-preview-viewport{height:clamp(76px,20dvh,170px);}
+}
+@media(max-height:450px){.settings-preview-viewport{height:68px;margin-top:4px;}.settings-preview-note{display:none;}.settings-live-preview{padding:5px 10px;margin-bottom:5px;}.settings-preview-orientation{padding:2px 8px;}}
+
+.settings-preview-host{flex:0 0 auto;min-width:0;}
+
+.ultimate-settings [hidden]{display:none!important;}
+.ultimate-settings .settings-slider-label{flex-basis:96px;}
+
+.settings-font-picker { display:grid; gap:8px; min-width:0; }
+.settings-font-picker .settings-summary { margin:0; overflow-wrap:anywhere; }
+.settings-font-picker .settings-select { min-width:0; text-overflow:ellipsis; padding-right:36px; }
+.settings-font-picker .m3-button { justify-self:start; max-width:100%; white-space:normal; }
+.settings-font-picker .settings-input { min-width:0; }
+
+svg.settings-category-icon { width:24px; height:24px; flex-shrink:0; fill:currentColor; }
+
+.settings-slider:has(button[aria-pressed]){flex-wrap:wrap;}.settings-slider:has(button[aria-pressed]) .settings-slider-value{min-width:48px;}.settings-slider:has(button[aria-pressed]) button{min-width:48px;padding-inline:10px;}
