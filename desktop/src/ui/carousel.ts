@@ -98,17 +98,19 @@ export class Carousel {
     const font = parseFloat(getComputedStyle(this.viewport).fontSize) || 16;
     const oldWidth = this.track.scrollWidth;
     const oldOffset = -oldOverflow;
-    const viewportRect = this.viewport.getBoundingClientRect();
-    const oldRoom = Math.max(0, viewportRect.right - this.track.getBoundingClientRect().right);
+    // Preserve the outgoing line's actual alignment before replacing its text.
+    const oldLeft = this.track.getBoundingClientRect().left - this.viewport.getBoundingClientRect().left - oldOffset;
+    track.style.position = 'absolute';
+    track.style.left = `${oldLeft}px`;
+    track.style.width = `${oldWidth}px`;
     this.index = (this.index + 1) % this.items.length;
     this.render(); this.scroll(0);
     const newWidth = this.track.scrollWidth;
-    const newRoom = Math.max(0, this.track.getBoundingClientRect().left - viewportRect.left);
     // Freeze outgoing geometry before measuring the next sentence: different
     // lengths must not change the hold duration midway through a transition.
     this.swap = { layer, track, startedAt: now, oldOffset,
-      oldTravel: Math.min(oldRoom, supportingTravel(oldWidth, font)),
-      newTravel: Math.min(newRoom, supportingTravel(newWidth, font)) };
+      oldTravel: supportingTravel(oldWidth, font),
+      newTravel: supportingTravel(newWidth, font) };
     this.animateSwap(0);
   }
   private animateSwap(p: number): void {

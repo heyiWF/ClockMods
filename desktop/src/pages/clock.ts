@@ -1,5 +1,5 @@
 import { cityName } from '../core/cities';
-import { WeatherAttribution } from '../ui/weather-attribution';
+import { WeatherAttribution, renderWeatherAttribution } from '../ui/weather-attribution';
 import { setAlignedTime } from '../ui/clock-face';
 import { GaussianGlass } from '../ui/gaussian-glass';
 import { UltimateFace } from '../ui/ultimate-face';
@@ -168,11 +168,7 @@ export class ClockPage implements Page {
     this.render();
     const enabled = this.settings.isWeatherEnabled();
     const attributionText = t('weather_attribution');
-    this.attribution.setAttribute('aria-label', attributionText);
-    const attributionLabel = this.attribution.querySelector<HTMLElement>(
-      '.weather-attribution-label'
-    );
-    if (attributionLabel) attributionLabel.textContent = attributionText;
+    renderWeatherAttribution(this.attribution, attributionText);
     this.attributionPopup.setEnabled(enabled);
     if (!enabled) {
       this.weatherController.stop();
@@ -227,6 +223,7 @@ export class ClockPage implements Page {
 
   async applyBackground(): Promise<void> {
     const useImage = this.settings.getBackgroundMode() === MODE_IMAGE;
+    this.root.classList.toggle('has-image-background', useImage);
     this.root.classList.remove('has-glass');
     this.background.style.removeProperty('filter');this.background.style.removeProperty('scale');
     this.background.style.backgroundColor = this.settings.getBackgroundMode() === 'color' || this.settings.getClockTheme() === 'classic' ? cssColor(this.settings.getBackgroundColor()) : this.settings.getThemePalette().background;

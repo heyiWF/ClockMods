@@ -1,3 +1,4 @@
+import { automaticScaleRow } from './controls';
 import { cityName } from '../core/cities';
 import {secondaryFontSize,secondarySizeValue,saveSecondarySize} from './secondary-font-size';
 import { CALENDAR_THEMES } from '../core/calendar-themes';
@@ -34,7 +35,7 @@ export function ultimateSettings() {
         return row.row;
     }
     const seconds = card(L('秒针', 'Second hand'), choice('secondMotion', L('秒针模式', 'Second-hand motion'), [['tick', L('跳秒', 'Tick')], ['smooth', L('平滑', 'Smooth')], ['off', L('关闭秒针', 'Hide hand')]]));
-    const display = card(L('设备显示', 'Device display'), toggle('avoidCutout', L('避让刘海与屏幕边缘', 'Respect display safe area')), toggle('statusIcons', L('显示设备状态', 'Device status'), L('显示浏览器可提供的网络连接及电池状态。', 'Shows network connectivity and battery when available.')), slider('statusScale', L('状态图标大小', 'Status size'), 50, 200, '%'), choice('statusStyle', L('状态图标样式', 'Status style'), [['outline', L('描边', 'Outline')], ['filled', L('填充', 'Filled')], ['minimal', L('简约', 'Minimal')]]));
+    const display = card(L('设备显示', 'Device display'), toggle('statusIcons', L('显示设备状态', 'Device status'), L('显示浏览器可提供的网络连接及电池状态。', 'Shows network connectivity and battery when available.')), slider('statusScale', L('状态图标大小', 'Status size'), 50, 200, '%'), choice('statusStyle', L('状态图标样式', 'Status style'), [['outline', L('描边', 'Outline')], ['filled', L('填充', 'Filled')], ['minimal', L('简约', 'Minimal')]]));
     const worldEnabled = toggle('worldEnabled', L('启用世界时钟', 'Enable world clocks'));
     const worldList = element('div', 'world-clock-list');
     const intl = Intl as typeof Intl & {
@@ -78,8 +79,8 @@ export function ultimateSettings() {
     const chime = card(L('报时效果', 'Chime effects'), toggle('halfHourChime', L('半点报时', 'Half-hour chime')), choice('chimeAnimation', L('报时动画', 'Chime animation'), [['radial', L('扩散', 'Radial')], ['ripple', L('涟漪', 'Ripple')], ['pulse', L('脉冲', 'Pulse')], ['aurora', L('极光', 'Aurora')], ['orbit', L('轨道', 'Orbit')], ['comet', L('彗星', 'Comet')]]));
     const protection = element('div', 'settings-group');
     protection.append(choice('burnInterval', L('移动间隔', 'Shift interval'), [1, 10, 30, 60].map(v => [v, v + L(' 分钟', ' min')])), slider('burnAmplitude', L('移动幅度', 'Shift distance'), 0, 12, 'px'), toggle('burnDim', L('保护时降低亮度', 'Dim during protection')));
-    const system = card(L('显示保护', 'Display protection'), toggle('burnIn', L('防烧屏位移', 'Burn-in protection')), protection, summaryLabel(L('浏览器不能设置 Android 开机自启；可将网页安装到主屏幕。方向锁定由设备和浏览器决定。', 'Android autostart is unavailable in a browser. Install this app to your home screen. Orientation locking depends on your browser and device.')));
-    const calendarTheme = choice('calendarTheme', L('日历主题', 'Calendar theme'), CALENDAR_IDS.map((id, i) => [id, [L('石墨', 'Graphite'), L('纯黑', 'Carbon'), L('纸历', 'Paper'), L('海报', 'Poster'), L('周程', 'Agenda')][i]]));
+    const system = card(L('显示保护', 'Display protection'), toggle('burnIn', L('防烧屏位移', 'Burn-in protection')), protection);
+    choice('calendarTheme', L('日历主题', 'Calendar theme'), CALENDAR_IDS.map((id, i) => [id, [L('石墨', 'Graphite'), L('纯黑', 'Carbon'), L('纸历', 'Paper'), L('海报', 'Poster'), L('周程', 'Agenda')][i]]));
     const calendarGallery = element('div', 'theme-gallery');
     for (const theme of CALENDAR_THEMES) {
         const button = element('button', 'theme-choice');
@@ -111,7 +112,7 @@ export function ultimateSettings() {
     calFont.setAttribute('aria-label', L('日历字体', 'Calendar font'));
     const calWeight = fontWeightControl(L('字重', 'Font weight'), calFont.value, prefs.getFontWeight(draft.calendarTheme));
     calFont.addEventListener('change', () => calWeight.set(calFont.value, calWeight.value()));
-    const calTime = sliderRow(L('时间字号', 'Time size'), 20, 150, prefs.getTimeFontScale(draft.calendarTheme) * 100, v => v + '%');
+    const calTime = automaticScaleRow(L('时间字号', 'Time size'), 150, prefs.getFontScaleSetting('time',draft.calendarTheme) * 100);
     const calDate = secondaryFontSize(L('日期字号','Date size'),'date',draft.calendarTheme);
     const calSupport = secondaryFontSize(L('辅助文字字号','Supporting text size'),'supporting',draft.calendarTheme);
     let activeCalendar = draft.calendarTheme;
@@ -124,12 +125,12 @@ export function ultimateSettings() {
     };
     const typography = new Map<string, TypeDraft>();
     const captureCalendar = () => typography.set(activeCalendar, { font: calFont.value, weight: calWeight.value(), time: +calTime.input.value / 100, date: calDate.value(), support: calSupport.value() });
-    const loadCalendar = () => { const v = typography.get(activeCalendar) ?? { font: prefs.getFontFamily(activeCalendar), weight: prefs.getFontWeight(activeCalendar), time: prefs.getTimeFontScale(activeCalendar), date:secondarySizeValue('date',activeCalendar),support:secondarySizeValue('supporting',activeCalendar) }; setFontSelection(calFont, v.font); calWeight.set(v.font, v.weight); calDate.setTheme(activeCalendar,v.date);calSupport.setTheme(activeCalendar,v.support); for (const [r, value] of [[calTime, v.time]] as const) {
+    const loadCalendar = () => { const v = typography.get(activeCalendar) ?? { font: prefs.getFontFamily(activeCalendar), weight: prefs.getFontWeight(activeCalendar), time: prefs.getFontScaleSetting('time',activeCalendar), date:secondarySizeValue('date',activeCalendar),support:secondarySizeValue('supporting',activeCalendar) }; setFontSelection(calFont, v.font); calWeight.set(v.font, v.weight); calDate.setTheme(activeCalendar,v.date);calSupport.setTheme(activeCalendar,v.support); for (const [r, value] of [[calTime, v.time]] as const) {
         r.input.value = String(value * 100);
         r.input.dispatchEvent(new Event('input'));
     } };
     controls.get('calendarTheme')!.addEventListener('change', () => { captureCalendar(); activeCalendar = controls.get('calendarTheme')!.value; loadCalendar(); });
-    const calendar = card(L('日历样式', 'Calendar style'), calendarGallery, calendarTheme, subLabel(L('字体', 'Font')), calPicker.row, calWeight.row, calTime.row, calDate.row, calSupport.row);
+    const calendar = card(L('日历样式', 'Calendar style'), calendarGallery, subLabel(L('字体', 'Font')), calPicker.row, calWeight.row, calTime.row, calDate.row, calSupport.row);
     function syncCalendar() { for (const button of calendarGallery.querySelectorAll('button'))
         button.setAttribute('aria-pressed', String((button as HTMLElement).dataset.calendarChoice === activeCalendar)); calTime.row.hidden = !['calendar.graphite', 'calendar.carbon'].includes(activeCalendar); calSupport.row.hidden = false; }
     controls.get('calendarTheme')!.addEventListener('change', syncCalendar);
@@ -143,7 +144,7 @@ export function ultimateSettings() {
         previewSettings(): Partial<typeof prefs> {
             const options = {...draft, worldZones:[...draft.worldZones]};
             for(const [key,input] of controls) (options as unknown as Record<string,unknown>)[key] = input instanceof HTMLInputElement && input.type==='checkbox' ? input.checked : typeof ULTIMATE_DEFAULTS[key]==='number' ? Number(input.value) : input.value;
-            return {getUltimateOptions:()=>options, getFontFamily:()=>calFont.value,getFontWeight:()=>calWeight.value(),isBoldText:()=>calWeight.value()>=700,getTimeFontScale:()=>+calTime.input.value/100,getDateFontSize:()=>calDate.value(),getSupportingFontSize:()=>calSupport.value()};
+            return {getUltimateOptions:()=>options, getFontFamily:()=>calFont.value,getFontWeight:()=>calWeight.value(),isBoldText:()=>calWeight.value()>=700,getTimeFontScale:()=>+calTime.input.value/100 || .88,getDateFontSize:()=>calDate.value(),getSupportingFontSize:()=>calSupport.value()};
         },
         setHourlyChime(enabled: boolean) { hourlyChime = enabled; sync(); },
         changeTheme(id: string) { world.hidden = !id.startsWith('ultimate.'); seconds.hidden = !['glass.atelier', 'noir.instrument', 'paper.station', 'orbit.neon', 'ultimate.orbit', 'ultimate.blend'].includes(id); },
@@ -165,6 +166,6 @@ export function ultimateSettings() {
                 input.value = String(draft[key]);
             input.dispatchEvent(new Event('input'));
         } typography.clear(); for (const id of CALENDAR_IDS)
-            typography.set(id, { font: 'system', weight: 400, time: .88, date:secondarySizeValue('date',id,true),support:secondarySizeValue('supporting',id,true) }); activeCalendar = draft.calendarTheme; loadCalendar(); syncCalendar(); paintWorld(); sync(); },
+            typography.set(id, { font: 'system', weight: 400, time: 0, date:secondarySizeValue('date',id,true),support:secondarySizeValue('supporting',id,true) }); activeCalendar = draft.calendarTheme; loadCalendar(); syncCalendar(); paintWorld(); sync(); },
     };
 }

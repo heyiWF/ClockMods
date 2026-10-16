@@ -478,6 +478,11 @@
   gap: 12px;
 }
 
+.month-picker { width: min(400px, calc(100vw - 32px)); box-sizing: border-box; }
+.month-picker-row { margin-top: 24px; }
+.month-picker-row select { min-width: 0; }
+.month-picker-actions { margin-top: 28px; }
+
 .month-picker-row select {
   flex: 1 1 0;
 }

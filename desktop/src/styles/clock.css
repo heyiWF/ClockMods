@@ -277,7 +277,7 @@
   font-family: var(--clock-font);
   font-weight: var(--clock-weight, 400);
   font-size: var(--date-size, 24px);
-  line-height: 1.2;
+  line-height: 1.4;
   letter-spacing: var(--supporting-tracking, 0.025em);
   text-shadow: var(--date-shadow);
   white-space: nowrap;

@@ -1,3 +1,18 @@
+/** Keep the provider mark beside its name, within the localized sentence. */
+export function renderWeatherAttribution(badge: HTMLElement, text: string): void {
+  badge.setAttribute('aria-label', text);
+  const label = badge.querySelector<HTMLElement>('.weather-attribution-label');
+  const logo = badge.querySelector('img');
+  if (!label || !logo) return;
+  const brand = /QWeather|和风天气|和風天氣/i.exec(text);
+  if (!brand) { label.textContent = text; return; }
+  const provider = document.createElement('span');
+  provider.className = 'weather-provider';
+  provider.append(logo, document.createTextNode(brand[0]));
+  label.replaceChildren(document.createTextNode(text.slice(0, brand.index).trim() + ' '), provider,
+    document.createTextNode(' ' + text.slice(brand.index + brand[0].length).trim()));
+}
+
 /** A small source badge, visible only during mouse activity and its 3s grace period. */
 export class WeatherAttribution {
   private enabled = false;

@@ -290,6 +290,14 @@ export function format(pattern: string, fields: ZonedFields, lang: Lang): string
  */
 export function isValidPattern(pattern: string | null | undefined): boolean {
   if (!pattern || pattern.length > MAX_PATTERN_LENGTH) return false;
+  let quoted = false;
+  for (let i = 0; i < pattern.length; i++) {
+    if (pattern[i] === "'") {
+      if (pattern[i + 1] === "'") { i++; continue; }
+      quoted = !quoted;
+    }
+  }
+  if (quoted) return false;
   return scan(pattern, exampleDate(), 'chinese').tokenCount > 0;
 }
 

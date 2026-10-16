@@ -29,11 +29,11 @@ export class DisplaySettings {
         clearInterval(this.timer);
         const options = prefs.getUltimateOptions();
         const root = document.documentElement;
-        root.style.setProperty('--safe-top', options.avoidCutout ? 'env(safe-area-inset-top,0px)' : '0px');
-        root.style.setProperty('--safe-bottom', options.avoidCutout ? 'env(safe-area-inset-bottom,0px)' : '0px');
-        root.style.setProperty('--display-safe-top', options.avoidCutout ? 'env(safe-area-inset-top,0px)' : '0px');
-        root.style.setProperty('--display-safe-left', options.avoidCutout ? 'env(safe-area-inset-left,0px)' : '0px');
-        root.style.setProperty('--display-safe-right', options.avoidCutout ? 'env(safe-area-inset-right,0px)' : '0px');
+        root.style.setProperty('--safe-top', '0px');
+        root.style.setProperty('--safe-bottom', '0px');
+        root.style.setProperty('--display-safe-top', '0px');
+        root.style.setProperty('--display-safe-left', '0px');
+        root.style.setProperty('--display-safe-right', '0px');
         root.style.setProperty('--protection-brightness', options.burnIn && options.burnDim ? '.82' : '1');
         root.style.setProperty('--burn-margin', options.burnIn ? options.burnAmplitude + 'px' : '0px');
         this.shift();

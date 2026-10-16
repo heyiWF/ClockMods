@@ -41,7 +41,7 @@ export function themeSettings() {
   const gallery = element('div', 'theme-gallery');
   const previews: Array<{ id: string; button: HTMLButtonElement; host: HTMLElement; face?: UltimateFace }> = [];
   for (const item of CLOCK_THEMES) {
-    const button = element('button', 'theme-choice'); button.type = 'button';
+    const button = element('button', 'theme-choice'); button.type = 'button'; button.dataset.clockChoice = item.id;
     const viewport = element('div', 'theme-preview');
     const host = element('div', 'theme-preview-face'); viewport.append(host);
     let face: UltimateFace | undefined;
@@ -80,7 +80,7 @@ export function themeSettings() {
   paletteControls.append(restore,
     subLabel(label('背景', 'Background')), background.root, subLabel(label('卡片', 'Cards')), panel.root,
     subLabel(label('强调色', 'Accent')), accent.root, autoInk.row, shadow.row);
-  const root = card(label('主题与配色', 'Theme and palette'), gallery, theme, paletteControls, glassControls,
+  const root = card(label('主题与配色', 'Theme and palette'), gallery, paletteControls, glassControls,
     subLabel(label('天气轮播动效', 'Weather transition')), transition);
   const temperature = card(label('温度单位', 'Temperature unit'), unit);
   glassControls.hidden=!active.startsWith('ultimate.');

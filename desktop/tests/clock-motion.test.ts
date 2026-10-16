@@ -74,3 +74,17 @@ it('stopping or replacing content clears masks and outgoing sentences immediatel
   carousel.setItems([plainItem('replacement')]);
   expect(host.textContent).toBe('replacement');
 });
+
+it('slides at both edges on every swap including the last-to-first wrap', () => {
+  const {host,carousel}=mount();
+  carousel.setItems([plainItem('one'),plainItem('two')]);
+  carousel.setTransition('slide_right');
+  for(let cycle=0;cycle<4;cycle++) {
+    vi.advanceTimersByTime(cycle===0?3120:3680);
+    const incoming=host.querySelector<HTMLElement>('.carousel-layer:not(.is-outgoing) .carousel-track')!;
+    const outgoing=host.querySelector<HTMLElement>('.is-outgoing .carousel-track')!;
+    expect(incoming.style.transform).toMatch(/translateX\(-[\d.]+px\)/);
+    expect(outgoing.style.transform).toMatch(/translateX\([\d.]+px\)$/);
+  }
+  carousel.setActive(false);
+});

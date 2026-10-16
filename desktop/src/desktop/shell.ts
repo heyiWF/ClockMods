@@ -1,6 +1,5 @@
 import { invoke } from "@tauri-apps/api/core";
 import { getCurrentWindow } from "@tauri-apps/api/window";
-import { isEnabled, enable, disable } from "@tauri-apps/plugin-autostart";
 import { prefs } from "../core/prefs";
 import { CLOCK_THEMES, themeName } from "../core/clock-themes";
 import { refreshLanguage } from "../core/i18n";
@@ -133,11 +132,6 @@ async function openDesktopSettings(): Promise<void> {
       localStorage.setItem("desktop.keepAwake", String(enabled));
     },
   );
-  toggle(
-    desktopText("登录后启动", "Start at login", "登入後啟動"),
-    await isEnabled(),
-    (enabled) => (enabled ? enable() : disable()),
-  );
   dialog.append(
     action(
       desktopText(
@@ -171,9 +165,9 @@ async function openDesktopSettings(): Promise<void> {
     );
   const note = document.createElement("p");
   note.textContent = desktopText(
-    "关闭主窗口后应用留在托盘。退出应用、注销或关机时不会响铃；从睡眠恢复后补发到期提醒。系统不支持振动或蜂窝信号时不显示这些信息。",
-    "Closing the main window keeps the app in the tray. Quit, sign-out and shutdown stop alerts; overdue alerts are delivered on resume. Vibration and cellular signal require hardware support.",
-    "關閉主視窗後保留托盤提醒；退出、登出或關機時不會響鈴，喚醒後補發到期提醒。",
+    "关闭主窗口后应用留在托盘；从睡眠恢复后补发到期提醒。",
+    "Closing the main window keeps the app in the tray. Overdue alerts are delivered on resume.",
+    "關閉主視窗後保留托盤提醒；喚醒後補發到期提醒。",
   );
   dialog.append(note);
   dialog.append(

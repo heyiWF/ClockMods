@@ -3,7 +3,7 @@ import {prefs,defaultTextSize,MIN_FONT_SCALE,MAX_SECONDARY_FONT_SCALE,MIN_TEXT_F
 import {sliderRow,element} from './controls';
 export type TextRole = 'date' | 'supporting';
 export function secondarySizeValue(role: TextRole,id: string,reset=false): number {
-  if(id==='classic') return reset ? (role==='date'?55:100) : Math.round((role==='date'?prefs.getDateFontScale(id):prefs.getSupportingScale(id))*100);
+  if(id==='classic') return reset ? 0 : Math.round(prefs.getFontScaleSetting(role,id)*100);
   return reset ? 0 : role==='date'?prefs.getDateFontSize(id):prefs.getSupportingFontSize(id);
 }
 export function saveSecondarySize(role:TextRole,id:string,value:number):void {
@@ -18,12 +18,12 @@ export function secondaryFontSize(label:string,role:TextRole,theme:string) {
   const automatic=element('button','m3-button m3-button--text',autoLabel());automatic.type='button';
   let auto=false,setting=false;
   control.row.append(automatic);
-  const syncAuto=()=>{automatic.hidden=active==='classic';automatic.setAttribute('aria-pressed',String(auto));control.row.querySelector('.settings-slider-value')!.textContent=auto?autoLabel():control.input.value+(active==='classic'?'%':' px');};
+  const syncAuto=()=>{automatic.setAttribute('aria-pressed',String(auto));control.row.querySelector('.settings-slider-value')!.textContent=auto?autoLabel():control.input.value+(active==='classic'?'%':' px');};
   control.input.addEventListener('input',()=>{if(!setting){auto=false;syncAuto();}});
   automatic.addEventListener('click',()=>{auto=!auto;syncAuto();control.row.dispatchEvent(new Event('input',{bubbles:true}));});
   function setTheme(id:string,value=secondarySizeValue(role,id)) {
     active=id;control.input.min=String(id==='classic'?MIN_FONT_SCALE*100:MIN_TEXT_FONT_SIZE);control.input.max=String(id==='classic'?MAX_SECONDARY_FONT_SCALE*100:MAX_TEXT_FONT_SIZE);
-    auto=id!=='classic'&&value===0;control.input.value=String(auto?defaultTextSize(role,id):value);setting=true;control.input.dispatchEvent(new Event('input'));setting=false;syncAuto();
+    auto=value===0;control.input.value=String(auto?(id==='classic'?(role==='date'?55:100):defaultTextSize(role,id)):value);setting=true;control.input.dispatchEvent(new Event('input'));setting=false;syncAuto();
   }
   setTheme(theme);
   return {...control,setTheme,value:()=>auto?0:Number(control.input.value)};

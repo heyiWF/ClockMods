@@ -1,4 +1,5 @@
 import { openTimePicker } from './time-picker';
+import { language } from '../core/i18n';
 /**
  * Building blocks for the settings sheet.
  *
@@ -107,6 +108,28 @@ export interface SegmentedControl<T> {
   value(): T;
   setValue(value: T): void;
   onChange(listener: (value: T) => void): void;
+}
+
+/** Zero persists Auto; rendering resolves it against the current layout budget. */
+export function automaticScaleRow(label: string, max: number, value: number, fallback = 88): SliderRow {
+  const autoLabel = language() === 'en' ? 'Auto' : language() === 'zh-Hant' ? '自動' : '自动';
+  const control = sliderRow(label, 0, max, value, v => v === 0 ? autoLabel : `${v}%`);
+  const automatic = element('button', 'm3-button m3-button--text', autoLabel);
+  automatic.type = 'button';
+  const sync = () => automatic.setAttribute('aria-pressed', String(Number(control.input.value) === 0));
+  automatic.addEventListener('click', () => {
+    control.input.value = Number(control.input.value) === 0 ? String(fallback) : '0';
+    control.input.dispatchEvent(new Event('input', {bubbles: true}));
+  });
+  control.input.addEventListener('input', () => {
+    if (+control.input.value > 0 && +control.input.value < 20) {
+      control.input.value = '20';
+      control.input.dispatchEvent(new Event('input', {bubbles: true}));
+    }
+    sync();
+  });
+  control.row.append(automatic); sync();
+  return control;
 }
 
 /** md.comp.outlined-segmented-button's leading check, drawn on the selected segment. */
