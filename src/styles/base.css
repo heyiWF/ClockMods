@@ -292,3 +292,5 @@ html.is-cursor-idle, html.is-cursor-idle body, html.is-cursor-idle #app * { curs
 #nav { position:absolute;z-index:30;left:0;right:0;bottom:0; }
 .timer-page { bottom:calc(var(--nav-height) + var(--safe-bottom)); }
 .is-page-swiping { user-select:none; }
+.weather-provider { display: inline-flex; align-items: center; gap: .25em; white-space: nowrap; }
+.weather-attribution-label { display: inline-flex; align-items: center; gap: .25em; }

@@ -1,5 +1,5 @@
 import { agendaSchedule } from '../ui/agenda-schedule';
-import { WeatherAttribution } from '../ui/weather-attribution';
+import { WeatherAttribution, renderWeatherAttribution } from '../ui/weather-attribution';
 import { applyCalendarTheme } from '../core/calendar-themes';
 import { temperature } from '../core/clock-themes';
 /**
@@ -237,11 +237,7 @@ export class CalendarPage implements Page {
     this.weatherCard.hidden = !weatherEnabled;
     this.forecastCard.hidden = !weatherEnabled;
     const attributionText = t('weather_attribution');
-    this.attribution.setAttribute('aria-label', attributionText);
-    const attributionLabel = this.attribution.querySelector<HTMLElement>(
-      '.weather-attribution-label'
-    );
-    if (attributionLabel) attributionLabel.textContent = attributionText;
+    renderWeatherAttribution(this.attribution, attributionText);
     this.attributionPopup.setEnabled(weatherEnabled);
     this.feelsLabel.textContent = t('calendar_feels_like');
     this.root.querySelector('#cal-today')!.textContent = t('calendar_today');
@@ -809,6 +805,8 @@ export class CalendarPage implements Page {
     dialog.className = 'month-picker';
     const heading = document.createElement('h2');
     heading.textContent = t('calendar_jump_title');
+    heading.id = 'month-picker-title';
+    dialog.setAttribute('aria-labelledby', heading.id);
 
     const yearSelect = document.createElement('select');
     for (let year = 1901; year <= 2099; year++) {
@@ -817,6 +815,8 @@ export class CalendarPage implements Page {
       option.textContent = `${year} ${t('calendar_jump_year')}`;
       yearSelect.appendChild(option);
     }
+    yearSelect.className = 'settings-select';
+    yearSelect.setAttribute('aria-label', t('calendar_jump_year'));
     yearSelect.value = String(this.visibleYear);
 
     const monthSelect = document.createElement('select');
@@ -826,6 +826,8 @@ export class CalendarPage implements Page {
       option.textContent = t('calendar_month_short', month);
       monthSelect.appendChild(option);
     }
+    monthSelect.className = 'settings-select';
+    monthSelect.setAttribute('aria-label', t('calendar_jump_title'));
     monthSelect.value = String(this.visibleMonth0);
 
     const row = document.createElement('div');

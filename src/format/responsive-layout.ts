@@ -3,6 +3,6 @@ export function fitSupportingRows(height:number,primaryHeight:number,dateSize:nu
  const count=dateRows+supportingRows,available=Math.max(0,height-primaryHeight);
  const timeGap=Math.min(height*.015,available*.06),rowGap=Math.min(height*.01,available*.04);
  const gaps=timeGap*(Number(dateRows>0)+Number(supportingRows>0))+rowGap*(Math.max(0,dateRows-1)+Math.max(0,supportingRows-1));
- const cap=count?Math.max(0,available-gaps)/count/1.2:Infinity;
+ const cap=count?Math.max(0,available-gaps)/count/1.4:Infinity;
  return {dateSize:Math.min(dateSize,cap),supportingSize:Math.min(supportingSize,cap),timeGap,rowGap};
 }

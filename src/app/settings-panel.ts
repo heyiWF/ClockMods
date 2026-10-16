@@ -1,3 +1,4 @@
+import { automaticScaleRow } from '../ui/controls';
 import { materialIcon } from '../ui/material-icons';
 import { localizeUiTree } from '../core/ui-language';
 import {secondaryFontSize,secondarySizeValue,saveSecondarySize} from '../ui/secondary-font-size';
@@ -40,7 +41,6 @@ import {
   DEFAULT_SHOW_LUNAR,
   DEFAULT_SHOW_SECONDS,
   DEFAULT_SMALL_SECONDS,
-  DEFAULT_TIME_FONT_SCALE,
   DEFAULT_USE_24_HOUR,
   DEFAULT_WEATHER_ENABLED,
   DEFAULT_WEATHER_DETAILED,
@@ -53,7 +53,6 @@ import {
   LANGUAGE_SIMPLIFIED,
   LANGUAGE_TRADITIONAL,
   MAX_FONT_SCALE,
-  MIN_FONT_SCALE,
   MODE_THEME,
   MODE_COLOR,
   MODE_IMAGE,
@@ -100,7 +99,6 @@ import {
   segmented,
   select,
   setTreeEnabled,
-  sliderRow,
   subLabel,
   summaryLabel,
   switchRow,
@@ -110,7 +108,6 @@ import {
 import { createColorPicker } from '../ui/color-picker';
 import { toast } from '../ui/toast';
 
-const MIN_FONT_PERCENT = Math.round(MIN_FONT_SCALE * 100);
 const MAX_FONT_PERCENT = Math.round(MAX_FONT_SCALE * 100);
 
 /** The eight quick swatches SettingsDialog offered for each colour. */
@@ -144,7 +141,7 @@ class SettingsPanel {
   }
   private selectTheme(id: string): void {
     this.captureTypography(); this.activeTheme=id;
-    const v=this.typography.get(id) ?? {font:this.resetThemes?'system':prefs.getFontFamily(id),bold:!this.resetThemes&&prefs.isBoldText(id),weight:this.resetThemes?400:prefs.getFontWeight(id),time:this.resetThemes ? .88:prefs.getTimeFontScale(id),date:secondarySizeValue('date',id,this.resetThemes),transition:this.resetThemes?'fade':prefs.getTimeTransition(id),animate:this.resetThemes||prefs.isAnimateTimeChanges(id)};
+    const v=this.typography.get(id) ?? {font:this.resetThemes?'system':prefs.getFontFamily(id),bold:!this.resetThemes&&prefs.isBoldText(id),weight:this.resetThemes?400:prefs.getFontWeight(id),time:this.resetThemes ? 0:prefs.getFontScaleSetting('time',id),date:secondarySizeValue('date',id,this.resetThemes),transition:this.resetThemes?'fade':prefs.getTimeTransition(id),animate:this.resetThemes||prefs.isAnimateTimeChanges(id)};
     const c=this.controls;setFontSelection(c.fontFamily,v.font);c.boldText.input.checked=v.bold;c.fontWeight.set(v.font,v.weight);setSlider(c.timeSize,v.time);c.dateSize.setTheme(id,v.date);c.transition.value=v.transition;c.animate.input.checked=v.animate;
     this.ultimate.changeTheme(id);
     for(const row of [c.blinkColon.row,c.portraitStacked.row,c.smallSeconds.row,c.dualLine.row]) row.hidden=id!=='classic';
@@ -207,7 +204,7 @@ class SettingsPanel {
     const c = this.controls, extra = this.ultimate.previewSettings();
     const typography: Partial<typeof prefs> = this.previewCategory === 1 || this.previewCategory === 5 ? extra : {
       getFontFamily:()=>c.fontFamily.value,getFontWeight:()=>c.fontWeight.value(),hasFontWeight:()=>true,
-      isBoldText:()=>c.fontWeight.value()>=700,getTimeFontScale:()=>+c.timeSize.input.value/100,getDateFontScale:()=>c.dateSize.value()/100,getDateFontSize:()=>c.dateSize.value(),
+      isBoldText:()=>c.fontWeight.value()>=700,getTimeFontScale:()=>+c.timeSize.input.value/100 || .88,getDateFontScale:()=>c.dateSize.value()/100 || .55,getDateFontSize:()=>c.dateSize.value(),
     };
     const settings: typeof prefs = {...prefs,...this.themes.previewSettings(),...typography,
       getUltimateOptions:extra.getUltimateOptions!, getBackgroundMode:()=>this.backgroundMode,getBackgroundColor:()=>this.backgroundColor,
@@ -265,7 +262,6 @@ class SettingsPanel {
     });
 
     const font = fontPicker(prefs.getFontFamily(), prefs.isClockUseEnglish());
-    const percent = (value: number) => t('font_size_percent', Math.round(value));
     return {
       modeGroup,
       backgroundPicker,
@@ -279,13 +275,7 @@ class SettingsPanel {
       fontFamily: font.input,
       fontWeight: fontWeightControl(prefs.isClockUseEnglish()?'Font weight':'字重',prefs.getFontFamily(),prefs.getFontWeight()),
       boldText: switchRow(t('bold_text'), prefs.isBoldText()),
-      timeSize: sliderRow(
-        t('font_size'),
-        MIN_FONT_PERCENT,
-        MAX_FONT_PERCENT,
-        Math.round(prefs.getTimeFontScale() * 100),
-        percent
-      ),
+      timeSize: automaticScaleRow(t('font_size'), MAX_FONT_PERCENT, Math.round(prefs.getFontScaleSetting('time') * 100)),
       dateSize: secondaryFontSize(prefs.isClockUseEnglish()?'Date size':'日期字号','date',this.activeTheme),
       transition: select(
         [TRANSITION_FADE, TRANSITION_SLIDE_UP, TRANSITION_SLIDE_DOWN, TRANSITION_SCALE, TRANSITION_FLIP, TRANSITION_SLIDE_RIGHT, TRANSITION_SCAN].map(
@@ -895,8 +885,6 @@ class SettingsPanel {
     prefs.setTimeSourceUrl(c.timeSourceUrl.value);
     prefs.setTimeZoneId(c.region.value);
     prefs.setClockLanguage(this.selectedLanguage);
-    prefs.setDatePatternCn(this.pendingPatternCn);
-    prefs.setDatePatternEn(this.pendingPatternEn);
     this.persistDateState(false);
     this.persistDateState(true);
     prefs.setCustomMessage(c.customMessage.value);
@@ -938,6 +926,11 @@ class SettingsPanel {
     const coreIndex = english ? this.coreIndexEn : this.coreIndexCn;
     const comboIndex = english ? this.comboIndexEn : this.comboIndexCn;
     const custom = coreIndex === cores.length;
+    // An invalid draft must preserve the entire previously saved selection,
+    // including its custom flag, core, combo and pattern.
+    if (custom && !isValidPattern(this.customText(english))) return;
+    if (english) prefs.setDatePatternEn(this.pendingPatternEn);
+    else prefs.setDatePatternCn(this.pendingPatternCn);
     prefs.setDateFormatState(
       english,
       custom ? '' : (cores[coreIndex] ?? ''),
@@ -968,7 +961,7 @@ class SettingsPanel {
     setTimeValue(c.dimEnd, DEFAULT_DIM_END_MINUTES);
     setFontSelection(c.fontFamily, 'system');
     c.boldText.input.checked = DEFAULT_BOLD_TEXT;c.fontWeight.set('system',400);
-    setSlider(c.timeSize, DEFAULT_TIME_FONT_SCALE);
+    setSlider(c.timeSize, 0);
     c.dateSize.setTheme('classic',DEFAULT_DATE_FONT_SCALE*100);
     c.transition.value = TRANSITION_FADE;
     c.blinkColon.input.checked = DEFAULT_BLINK_COLON;

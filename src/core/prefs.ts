@@ -313,14 +313,14 @@ export interface UltimateOptions {
   secondMotion: 'smooth' | 'tick' | 'off';
   worldEnabled: boolean; worldZones: string[];
   halfHourChime: boolean; chimeAnimation: string;
-  avoidCutout: boolean; statusIcons: boolean; statusScale: number; statusStyle: string;
+  statusIcons: boolean; statusScale: number; statusStyle: string;
   burnIn: boolean; burnInterval: number; burnAmplitude: number; burnDim: boolean;
   calendarTheme: string;
 }
 export const ULTIMATE_DEFAULTS: UltimateOptions = {
   secondMotion: 'tick', worldEnabled: false, worldZones: ['Asia/Shanghai', 'Europe/London', 'America/New_York'],
   halfHourChime: false, chimeAnimation: 'radial',
-  avoidCutout: true, statusIcons: false, statusScale: 100, statusStyle: 'outline',
+  statusIcons: false, statusScale: 100, statusStyle: 'outline',
   burnIn: false, burnInterval: 10, burnAmplitude: 4, burnDim: false,
   calendarTheme: 'calendar.graphite',
 };
@@ -376,8 +376,8 @@ export const prefs = {
   setThemeAutoInk: (value: boolean, id: string = prefs.getClockTheme()): void => store.write(scopeKey('web_theme_auto_ink', id), String(value)),
   isCardShadow: (id: string = prefs.getClockTheme()): boolean => store.bool(scopeKey('web_card_shadow', id), true),
   setCardShadow: (value: boolean, id: string = prefs.getClockTheme()): void => store.write(scopeKey('web_card_shadow', id), String(value)),
-  getSupportingScale: (id: string = prefs.getClockTheme()): number => id !== 'classic' && store.raw(scopeKey('supporting_font_size_px',id)) !== null ? (clampTextSize(store.float(scopeKey('supporting_font_size_px',id),defaultTextSize('supporting',id)),defaultTextSize('supporting',id))||defaultTextSize('supporting',id))/defaultTextSize('supporting',id) : clampSecondaryScale(store.float(scopeKey('web_supporting_scale', id), 1), 1),
-  setSupportingScale: (value: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey('web_supporting_scale', id), String(clampSecondaryScale(value,1))),
+  getSupportingScale: (id: string = prefs.getClockTheme()): number => id !== 'classic' && store.raw(scopeKey('supporting_font_size_px',id)) !== null ? (clampTextSize(store.float(scopeKey('supporting_font_size_px',id),defaultTextSize('supporting',id)),defaultTextSize('supporting',id))||defaultTextSize('supporting',id))/defaultTextSize('supporting',id) : clampSecondaryScale(store.float(scopeKey('web_supporting_scale', id), 1) || 1, 1),
+  setSupportingScale: (value: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey('web_supporting_scale', id), String(value === 0 ? 0 : clampSecondaryScale(value,1))),
   getWeatherTransition: (id: string = prefs.getClockTheme()): string => normalizeTimeTransition(store.string('web_weather_transition__' + id, TRANSITION_FADE)),
   setWeatherTransition: (value: string, id: string = prefs.getClockTheme()): void => store.write('web_weather_transition__' + id, normalizeTimeTransition(value)),
   getTemperatureUnit: (): string => store.string('weather_temperature_unit', 'celsius') === 'fahrenheit' ? 'fahrenheit' : 'celsius',
@@ -408,15 +408,16 @@ export const prefs = {
   getFontWeight: (id: string = prefs.getClockTheme()): number => nearestWeight(prefs.getFontFamily(id),store.int(scopeKey('font_weight',id),prefs.isBoldText(id)?700:400)),
   hasFontWeight: (id: string = prefs.getClockTheme()): boolean => store.has(scopeKey('font_weight',id)),
   setFontWeight: (weight: number,id: string=prefs.getClockTheme()): void => store.write(scopeKey('font_weight',id),String(nearestWeight(prefs.getFontFamily(id),weight))),
-  getTimeFontScale: (id: string = prefs.getClockTheme()): number => clampScale(store.float(scopeKey(K.timeFontScale, id), DEFAULT_TIME_FONT_SCALE)),
-  setTimeFontScale: (scale: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey(K.timeFontScale, id), String(clampScale(scale))),
+  getFontScaleSetting: (role: 'time' | 'date' | 'supporting', id: string = prefs.getClockTheme()): number => store.float(scopeKey(role === 'time' ? K.timeFontScale : role === 'date' ? K.dateFontScale : 'web_supporting_scale', id), 0),
+  getTimeFontScale: (id: string = prefs.getClockTheme()): number => clampScale(store.float(scopeKey(K.timeFontScale, id), DEFAULT_TIME_FONT_SCALE) || DEFAULT_TIME_FONT_SCALE),
+  setTimeFontScale: (scale: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey(K.timeFontScale, id), String(scale === 0 ? 0 : clampScale(scale))),
 
   getDateFontSize: (id: string = prefs.getClockTheme()): number => clampTextSize(store.float(scopeKey('date_font_size_px',id), prefs.getDateFontScale(id) === DEFAULT_DATE_FONT_SCALE ? 0 : Math.round(defaultTextSize('date',id)*prefs.getDateFontScale(id)/DEFAULT_DATE_FONT_SCALE)),defaultTextSize('date',id)),
   setDateFontSize: (value: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey('date_font_size_px',id),String(clampTextSize(value,defaultTextSize('date',id)))),
   getSupportingFontSize: (id: string = prefs.getClockTheme()): number => clampTextSize(store.float(scopeKey('supporting_font_size_px',id),prefs.getSupportingScale(id) === 1 ? 0 : Math.round(defaultTextSize('supporting',id)*prefs.getSupportingScale(id))),defaultTextSize('supporting',id)),
   setSupportingFontSize: (value: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey('supporting_font_size_px',id),String(clampTextSize(value,defaultTextSize('supporting',id)))),
-  getDateFontScale: (id: string = prefs.getClockTheme()): number => clampSecondaryScale(store.float(scopeKey(K.dateFontScale, id), DEFAULT_DATE_FONT_SCALE), DEFAULT_DATE_FONT_SCALE),
-  setDateFontScale: (scale: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey(K.dateFontScale, id), String(clampSecondaryScale(scale, DEFAULT_DATE_FONT_SCALE))),
+  getDateFontScale: (id: string = prefs.getClockTheme()): number => clampSecondaryScale(store.float(scopeKey(K.dateFontScale, id), DEFAULT_DATE_FONT_SCALE) || DEFAULT_DATE_FONT_SCALE, DEFAULT_DATE_FONT_SCALE),
+  setDateFontScale: (scale: number, id: string = prefs.getClockTheme()): void => store.write(scopeKey(K.dateFontScale, id), String(scale === 0 ? 0 : clampSecondaryScale(scale, DEFAULT_DATE_FONT_SCALE))),
 
   getTimeColor: (): number => store.int(K.timeColor, DEFAULT_TEXT_COLOR),
   setTimeColor: (color: number): void => store.write(K.timeColor, String(color)),
@@ -514,12 +515,12 @@ export const prefs = {
   getDatePatternCn: (): string =>
     normalizeDatePattern(store.string(K.datePatternCn, DEFAULT_PATTERN_CN), DEFAULT_PATTERN_CN),
   setDatePatternCn: (pattern: string): void =>
-    store.write(K.datePatternCn, normalizeDatePattern(pattern, DEFAULT_PATTERN_CN)),
+    store.write(K.datePatternCn, normalizeDatePattern(pattern, prefs.getDatePatternCn())),
 
   getDatePatternEn: (): string =>
     normalizeDatePattern(store.string(K.datePatternEn, DEFAULT_PATTERN_EN), DEFAULT_PATTERN_EN),
   setDatePatternEn: (pattern: string): void =>
-    store.write(K.datePatternEn, normalizeDatePattern(pattern, DEFAULT_PATTERN_EN)),
+    store.write(K.datePatternEn, normalizeDatePattern(pattern, prefs.getDatePatternEn())),
 
   // Settings-UI restoration state (does not affect rendering directly).
   getDateCore: (english: boolean): string =>

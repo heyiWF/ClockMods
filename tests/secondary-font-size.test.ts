@@ -4,6 +4,18 @@ import {prefs,CALENDAR_IDS} from '../src/core/prefs';
 import {CLOCK_THEMES} from '../src/core/clock-themes';
 import {secondaryFontSize,secondarySizeValue,saveSecondarySize} from '../src/ui/secondary-font-size';
 beforeEach(()=>localStorage.clear());
+it('persists Auto independently for all classic roles and returns to manual values',()=>{
+ for(const role of ['date','supporting'] as const){
+  saveSecondarySize(role,'classic',0);expect(secondarySizeValue(role,'classic')).toBe(0);
+  const c=secondaryFontSize(role,role,'classic');expect(c.value()).toBe(0);
+  c.input.value='75';c.input.dispatchEvent(new Event('input'));saveSecondarySize(role,'classic',c.value());
+  expect(secondarySizeValue(role,'classic')).toBe(75);
+ }
+ prefs.setTimeFontScale(0,'classic');prefs.setTimeFontScale(1.2,'calendar.paper');
+ expect(prefs.getFontScaleSetting('time','classic')).toBe(0);
+ expect(prefs.getTimeFontScale('classic')).toBe(.88);
+ expect(prefs.getTimeFontScale('calendar.paper')).toBe(1.2);
+});
 describe('secondary font size units and ranges',()=>{
  it('uses equal bounds and units for date and supporting controls in every theme',()=>{
   for(const id of [...CLOCK_THEMES.map(t=>t.id),...CALENDAR_IDS]){
