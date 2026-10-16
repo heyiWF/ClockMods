@@ -294,3 +294,30 @@ html.is-cursor-idle, html.is-cursor-idle body, html.is-cursor-idle #app * { curs
 .is-page-swiping { user-select:none; }
 .weather-provider { display: inline-flex; align-items: center; gap: .25em; white-space: nowrap; }
 .weather-attribution-label { display: inline-flex; align-items: center; gap: .25em; }
+
+/* High contrast controls remain legible over every clock/calendar theme. */
+.fullscreen-button {
+  position: absolute;
+  z-index: 25;
+  top: max(12px, env(safe-area-inset-top));
+  left: max(12px, env(safe-area-inset-left));
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  width: 44px;
+  height: 44px;
+  padding: 10px;
+  border: 1px solid rgba(255,255,255,.25);
+  border-radius: 50%;
+  background: rgba(0,0,0,.7);
+  color: #fff;
+  cursor: pointer;
+  opacity: .65;
+  transition: opacity .18s ease;
+}
+.fullscreen-button svg { width: 24px; height: 24px; fill: currentColor; }
+.fullscreen-button:hover, .fullscreen-button:focus-visible { opacity: 1; }
+.fullscreen-button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
+html.is-cursor-idle .fullscreen-button { opacity: 0; pointer-events: none; }
+html.is-cursor-idle .fullscreen-button:focus-visible { opacity: 1; pointer-events: auto; }
+@media (prefers-reduced-motion: reduce) { .fullscreen-button { transition: none; } }

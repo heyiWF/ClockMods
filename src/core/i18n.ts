@@ -20,6 +20,9 @@ export type { ArrayKey, MessageKey };
 /** Web-only copy, plus overrides where the Android wording named Android APIs. */
 const WEB_MESSAGES: Record<string, Record<string, string>> = {
   'zh-Hans': {
+    fullscreen_enter: '进入全屏',
+    fullscreen_exit: '退出全屏',
+    fullscreen_unavailable: '无法切换全屏，请检查宿主或浏览器权限',
     schedule_title: "日程",
     schedule_add: "添加日程",
     schedule_edit: "编辑日程",
@@ -63,6 +66,9 @@ const WEB_MESSAGES: Record<string, Record<string, string>> = {
     stopwatch_no_laps: '暂无计次',
   },
   'zh-Hant': {
+    fullscreen_enter: '進入全螢幕',
+    fullscreen_exit: '退出全螢幕',
+    fullscreen_unavailable: '無法切換全螢幕，請檢查宿主或瀏覽器權限',
     schedule_title: "日程",
     schedule_add: "新增日程",
     schedule_edit: "編輯日程",
@@ -105,6 +111,9 @@ const WEB_MESSAGES: Record<string, Record<string, string>> = {
     stopwatch_no_laps: '尚無計次',
   },
   en: {
+    fullscreen_enter: 'Enter fullscreen',
+    fullscreen_exit: 'Exit fullscreen',
+    fullscreen_unavailable: 'Fullscreen is unavailable. Check your host or browser permissions.',
     schedule_title: "Schedule",
     schedule_add: "Add event",
     schedule_edit: "Edit event",
