@@ -256,4 +256,5 @@
         <item>Day 3</item>
     </string-array>
     <string name="font_size_overflow_warning">Layout protection is off. Text may overlap or extend beyond the screen.</string>
+    <string name="font_size_auto">Auto</string>
 </resources>

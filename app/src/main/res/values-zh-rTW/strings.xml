@@ -256,4 +256,5 @@
         <item>後天</item>
     </string-array>
     <string name="font_size_overflow_warning">已關閉版面保護，文字可能重疊或超出螢幕。</string>
+    <string name="font_size_auto">自動</string>
 </resources>

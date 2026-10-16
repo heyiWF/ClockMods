@@ -421,3 +421,30 @@ internal fun FontScaleWarning(scale: Float) {
         color = MaterialTheme.colorScheme.onSurfaceVariant,
     )
 }
+
+
+/** Zero is a persisted automatic mode; manual sizes keep their existing range. */
+@Composable
+internal fun AutomaticFontSlider(
+    label: String,
+    value: Float,
+    range: ClosedFloatingPointRange<Float>,
+    valueLabel: String,
+    enabled: Boolean = true,
+    onChange: (Float) -> Unit,
+) {
+    Column(Modifier.fillMaxWidth().padding(vertical = 5.dp)) {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Text(label, Modifier.weight(1f))
+            androidx.compose.material3.FilterChip(
+                selected = value == 0f,
+                enabled = enabled,
+                onClick = { onChange(0f) },
+                label = { Text(stringResource(R.string.font_size_auto)) },
+            )
+        }
+        if (value != 0f) Text(valueLabel, color = MaterialTheme.colorScheme.primary)
+        Slider(value = value.coerceIn(range), onValueChange = onChange,
+            valueRange = range, enabled = enabled)
+    }
+}

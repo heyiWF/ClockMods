@@ -26,10 +26,12 @@ open class ClockPreferences(context: Context) {
     fun getDimEndMinutes(): Int = preferences.getInt(KEY_DIM_END_MINUTES, DEFAULT_DIM_END_MINUTES)
     fun setDimEndMinutes(value: Int) { preferences.edit().putInt(KEY_DIM_END_MINUTES, value).apply() }
 
-    fun getTimeFontScale(): Float = clampScale(preferences.getFloat(KEY_TIME_FONT_SCALE, DEFAULT_TIME_FONT_SCALE))
-    fun setTimeFontScale(value: Float) { preferences.edit().putFloat(KEY_TIME_FONT_SCALE, clampScale(value)).apply() }
-    fun getDateFontScale(): Float = clampDateScale(preferences.getFloat(KEY_DATE_FONT_SCALE, DEFAULT_DATE_FONT_SCALE))
-    fun setDateFontScale(value: Float) { preferences.edit().putFloat(KEY_DATE_FONT_SCALE, clampDateScale(value)).apply() }
+    fun getTimeFontScaleSetting(): Float = preferences.getFloat(KEY_TIME_FONT_SCALE, 0f).let { if (it == 0f) 0f else clampScale(it) }
+    fun getTimeFontScale(): Float = getTimeFontScaleSetting().let { if (it == 0f) DEFAULT_TIME_FONT_SCALE else it }
+    fun setTimeFontScale(value: Float) { preferences.edit().putFloat(KEY_TIME_FONT_SCALE, if (value == 0f) 0f else clampScale(value)).apply() }
+    fun getDateFontScaleSetting(): Float = preferences.getFloat(KEY_DATE_FONT_SCALE, 0f).let { if (it == 0f) 0f else clampDateScale(it) }
+    fun getDateFontScale(): Float = getDateFontScaleSetting().let { if (it == 0f) DEFAULT_DATE_FONT_SCALE else it }
+    fun setDateFontScale(value: Float) { preferences.edit().putFloat(KEY_DATE_FONT_SCALE, if (value == 0f) 0f else clampDateScale(value)).apply() }
     fun getTimeColor(): Int = preferences.getInt(KEY_TIME_COLOR, DEFAULT_TEXT_COLOR)
     fun setTimeColor(value: Int) { preferences.edit().putInt(KEY_TIME_COLOR, value).apply() }
     fun getDateColor(): Int = preferences.getInt(KEY_DATE_COLOR, DEFAULT_TEXT_COLOR)
@@ -82,12 +84,15 @@ open class ClockPreferences(context: Context) {
         return if (scoped > 0) clampWeight(scoped) else if (isBoldText() || usesBoldReferenceWeight(scopeId)) BOLD_WEIGHT else FontCatalog.DEFAULT_WEIGHT
     }
     fun setFontWeight(scopeId: String?, weight: Int) { preferences.edit().putInt(KEY_FONT_WEIGHT_PREFIX + normalizeScope(scopeId), clampWeight(weight)).apply() }
-    fun getTimeFontScale(scopeId: String?): Float = clampScale(preferences.getFloat(KEY_TIME_FONT_SCALE_PREFIX + normalizeScope(scopeId), getTimeFontScale()))
-    fun setTimeFontScale(scopeId: String?, value: Float) { preferences.edit().putFloat(KEY_TIME_FONT_SCALE_PREFIX + normalizeScope(scopeId), clampScale(value)).apply() }
-    fun getDateFontScale(scopeId: String?): Float = clampDateScale(preferences.getFloat(KEY_DATE_FONT_SCALE_PREFIX + normalizeScope(scopeId), if (normalizeScope(scopeId).startsWith(CALENDAR_SCOPE_PREFIX)) getDateFontScale() else DEFAULT_STYLE_TEXT_SCALE))
-    fun setDateFontScale(scopeId: String?, value: Float) { preferences.edit().putFloat(KEY_DATE_FONT_SCALE_PREFIX + normalizeScope(scopeId), clampDateScale(value)).apply() }
-    fun getSupportingFontScale(scopeId: String?): Float = normalizeSupportingScale(preferences.getFloat(KEY_SUPPORTING_FONT_SCALE_PREFIX + normalizeScope(scopeId), DEFAULT_SUPPORTING_FONT_SCALE))
-    fun setSupportingFontScale(scopeId: String?, value: Float) { preferences.edit().putFloat(KEY_SUPPORTING_FONT_SCALE_PREFIX + normalizeScope(scopeId), normalizeSupportingScale(value)).apply() }
+    fun getTimeFontScaleSetting(scopeId: String?): Float = preferences.getFloat(KEY_TIME_FONT_SCALE_PREFIX + normalizeScope(scopeId), getTimeFontScaleSetting()).let { if (it == 0f) 0f else clampScale(it) }
+    fun getTimeFontScale(scopeId: String?): Float = getTimeFontScaleSetting(scopeId).let { if (it == 0f) DEFAULT_TIME_FONT_SCALE else it }
+    fun setTimeFontScale(scopeId: String?, value: Float) { preferences.edit().putFloat(KEY_TIME_FONT_SCALE_PREFIX + normalizeScope(scopeId), if (value == 0f) 0f else clampScale(value)).apply() }
+    fun getDateFontScaleSetting(scopeId: String?): Float = preferences.getFloat(KEY_DATE_FONT_SCALE_PREFIX + normalizeScope(scopeId), if (normalizeScope(scopeId).startsWith(CALENDAR_SCOPE_PREFIX)) getDateFontScaleSetting() else 0f).let { if (it == 0f) 0f else clampDateScale(it) }
+    fun getDateFontScale(scopeId: String?): Float = getDateFontScaleSetting(scopeId).let { if (it == 0f) (if (normalizeScope(scopeId).startsWith(CALENDAR_SCOPE_PREFIX)) DEFAULT_DATE_FONT_SCALE else DEFAULT_STYLE_TEXT_SCALE) else it }
+    fun setDateFontScale(scopeId: String?, value: Float) { preferences.edit().putFloat(KEY_DATE_FONT_SCALE_PREFIX + normalizeScope(scopeId), if (value == 0f) 0f else clampDateScale(value)).apply() }
+    fun getSupportingFontScaleSetting(scopeId: String?): Float = preferences.getFloat(KEY_SUPPORTING_FONT_SCALE_PREFIX + normalizeScope(scopeId), 0f).let { if (it == 0f) 0f else normalizeSupportingScale(it) }
+    fun getSupportingFontScale(scopeId: String?): Float = getSupportingFontScaleSetting(scopeId).let { if (it == 0f) DEFAULT_SUPPORTING_FONT_SCALE else it }
+    fun setSupportingFontScale(scopeId: String?, value: Float) { preferences.edit().putFloat(KEY_SUPPORTING_FONT_SCALE_PREFIX + normalizeScope(scopeId), if (value == 0f) 0f else normalizeSupportingScale(value)).apply() }
 
     fun isShowSeconds(): Boolean = preferences.getBoolean(KEY_SHOW_SECONDS, DEFAULT_SHOW_SECONDS)
     fun setShowSeconds(value: Boolean) { preferences.edit().putBoolean(KEY_SHOW_SECONDS, value).apply() }
@@ -135,15 +140,16 @@ open class ClockPreferences(context: Context) {
     fun getCustomMessage(): String = normalizeCustomMessage(preferences.getString(KEY_CUSTOM_MESSAGE, DEFAULT_CUSTOM_MESSAGE))
     fun setCustomMessage(value: String?) { preferences.edit().putString(KEY_CUSTOM_MESSAGE, normalizeCustomMessage(value)).apply() }
     fun getDatePatternCn(): String = normalizeDatePattern(preferences.getString(KEY_DATE_PATTERN_CN, DEFAULT_DATE_PATTERN_CN), DEFAULT_DATE_PATTERN_CN)
-    fun setDatePatternCn(value: String?) { preferences.edit().putString(KEY_DATE_PATTERN_CN, normalizeDatePattern(value, DEFAULT_DATE_PATTERN_CN)).apply() }
+    fun setDatePatternCn(value: String?) { preferences.edit().putString(KEY_DATE_PATTERN_CN, normalizeDatePattern(value, getDatePatternCn())).apply() }
     fun getDatePatternEn(): String = normalizeDatePattern(preferences.getString(KEY_DATE_PATTERN_EN, DEFAULT_DATE_PATTERN_EN), DEFAULT_DATE_PATTERN_EN)
-    fun setDatePatternEn(value: String?) { preferences.edit().putString(KEY_DATE_PATTERN_EN, normalizeDatePattern(value, DEFAULT_DATE_PATTERN_EN)).apply() }
+    fun setDatePatternEn(value: String?) { preferences.edit().putString(KEY_DATE_PATTERN_EN, normalizeDatePattern(value, getDatePatternEn())).apply() }
 
     fun getDateCore(english: Boolean): String = preferences.getString(if (english) KEY_DATE_CORE_EN else KEY_DATE_CORE_CN, "") ?: ""
     fun getDateCombo(english: Boolean): String = preferences.getString(if (english) KEY_DATE_COMBO_EN else KEY_DATE_COMBO_CN, "") ?: ""
     fun isDateCustomEnabled(english: Boolean): Boolean = preferences.getBoolean(if (english) KEY_DATE_CUSTOM_ENABLED_EN else KEY_DATE_CUSTOM_ENABLED_CN, false)
     fun getDateCustomText(english: Boolean): String = preferences.getString(if (english) KEY_DATE_CUSTOM_TEXT_EN else KEY_DATE_CUSTOM_TEXT_CN, "") ?: ""
     fun setDateFormatState(english: Boolean, core: String?, combo: String?, customEnabled: Boolean, customText: String?) {
+        if (customEnabled && !DateFormatter.isValidPattern(customText?.trim())) return
         preferences.edit()
             .putString(if (english) KEY_DATE_CORE_EN else KEY_DATE_CORE_CN, core ?: "")
             .putString(if (english) KEY_DATE_COMBO_EN else KEY_DATE_COMBO_CN, combo ?: "")
