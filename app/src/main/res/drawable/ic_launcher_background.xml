@@ -1,2 +1,15 @@
 <?xml version="1.0" encoding="utf-8"?>
-<bitmap xmlns:android="http://schemas.android.com/apk/res/android" android:src="@drawable/ic_launcher_artwork" android:gravity="fill" android:filter="true" />
+<layer-list xmlns:android="http://schemas.android.com/apk/res/android">
+    <item>
+        <shape android:shape="rectangle">
+            <gradient android:angle="270" android:startColor="#142130" android:endColor="#050B12" />
+        </shape>
+    </item>
+    <!-- Adaptive layers are 108dp; the launcher exposes the central 72dp. -->
+    <item>
+        <inset android:insetLeft="16.666667%" android:insetTop="16.666667%"
+            android:insetRight="16.666667%" android:insetBottom="16.666667%">
+            <bitmap android:src="@drawable/ic_launcher_artwork" android:gravity="fill" android:filter="true" />
+        </inset>
+    </item>
+</layer-list>
