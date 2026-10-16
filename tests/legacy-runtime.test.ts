@@ -14,7 +14,7 @@ it('preserves the saved date after invalid final drafts and accepts quoted liter
     const open = win.document.getElementById('settings-button') as HTMLButtonElement;
     const apply = win.document.getElementById('settings-apply') as HTMLButtonElement;
     open.click(); input.value = 'yyyy/MM/dd'; apply.click();
-    for (const invalid of ['', "yyyy 'unfinished", "'literal'", 'z'.repeat(201)]) {
+    for (const invalid of ['', 'y', "yyyy 'unfinished", "'literal'", 'z'.repeat(201)]) {
       open.click(); input.value = 'dd-MM-yyyy'; input.dispatchEvent(new win.Event('input'));
       input.value = invalid; apply.click();
       expect(win.localStorage.getItem('clockmods_legacy.date-pattern')).toBe('yyyy/MM/dd');

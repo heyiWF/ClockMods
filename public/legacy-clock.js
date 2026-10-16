@@ -111,7 +111,7 @@
       if (character === "'") {
         if (pattern.charAt(i + 1) === "'") i++;
         else quoted = !quoted;
-      } else if (!quoted && /[yMdE]/.test(character)) tokens = true;
+      } else if (!quoted && (/[MdE]/.test(character) || (character === 'y' && pattern.charAt(i + 1) === 'y'))) tokens = true;
     }
     return !quoted && tokens;
   }
@@ -146,9 +146,9 @@
   function dateText(date) {
     var en = prefs.language === 'en', cn = ['日','一','二','三','四','五','六'], english = ['Sunday','Monday','Tuesday','Wednesday','Thursday','Friday','Saturday'];
     var pattern = prefs['date-pattern'];
-    return pattern.replace(/''|'([^']*)'|yyyy|yy|MMMM|MMM|MM|M|dd|d|EEEE|EEE|E/g, function (token, literal) {
+    return pattern.replace(/''|'((?:[^']|'')*)'|yyyy|yy|MMMM|MMM|MM|M|dd|d|EEEE|EEE|E/g, function (token, literal) {
       if (token === "''") return "'";
-      if (literal !== undefined) return literal;
+      if (literal !== undefined) return literal.replace(/''/g, "'");
       if (token === 'yyyy') return String(date.getFullYear());
       if (token === 'yy') return pad(date.getFullYear() % 100);
       if (token === 'MM') return pad(date.getMonth() + 1);
