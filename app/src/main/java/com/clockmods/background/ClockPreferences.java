@@ -269,31 +269,48 @@ public class ClockPreferences {
         preferences.edit().putInt(KEY_DIM_END_MINUTES, minutes).apply();
     }
 
+    public float getTimeFontScaleSetting() {
+        float value = preferences.getFloat(KEY_TIME_FONT_SCALE, 0f);
+        return value == 0f ? 0f : clampScale(value);
+    }
+
     public float getTimeFontScale() {
-        return clampScale(preferences.getFloat(KEY_TIME_FONT_SCALE, DEFAULT_TIME_FONT_SCALE));
+        float value = getTimeFontScaleSetting();
+        return value == 0f ? DEFAULT_TIME_FONT_SCALE : value;
     }
 
     public void setTimeFontScale(float scale) {
-        preferences.edit().putFloat(KEY_TIME_FONT_SCALE, clampScale(scale)).apply();
+        preferences.edit().putFloat(KEY_TIME_FONT_SCALE, scale == 0f ? 0f : clampScale(scale)).apply();
+    }
+
+    public float getDateFontScaleSetting() {
+        float value = preferences.getFloat(KEY_DATE_FONT_SCALE, 0f);
+        return value == 0f ? 0f : clampDateScale(value);
     }
 
     public float getDateFontScale() {
-        return clampDateScale(preferences.getFloat(KEY_DATE_FONT_SCALE, DEFAULT_DATE_FONT_SCALE));
+        float value = getDateFontScaleSetting();
+        return value == 0f ? DEFAULT_DATE_FONT_SCALE : value;
     }
 
     public void setDateFontScale(float scale) {
-        preferences.edit().putFloat(KEY_DATE_FONT_SCALE, clampDateScale(scale)).apply();
+        preferences.edit().putFloat(KEY_DATE_FONT_SCALE, scale == 0f ? 0f : clampDateScale(scale)).apply();
     }
 
     /** Global size factor for labels, weather, status, and world-clock metadata. */
+    public float getSupportingFontScaleSetting() {
+        float value = preferences.getFloat(KEY_SUPPORTING_FONT_SCALE, 0f);
+        return value == 0f ? 0f : normalizeSupportingScale(value);
+    }
+
     public float getSupportingFontScale() {
-        return normalizeSupportingScale(
-                preferences.getFloat(KEY_SUPPORTING_FONT_SCALE, DEFAULT_SUPPORTING_FONT_SCALE));
+        float value = getSupportingFontScaleSetting();
+        return value == 0f ? DEFAULT_SUPPORTING_FONT_SCALE : value;
     }
 
     public void setSupportingFontScale(float scale) {
         preferences.edit().putFloat(KEY_SUPPORTING_FONT_SCALE,
-                normalizeSupportingScale(scale)).apply();
+                scale == 0f ? 0f : normalizeSupportingScale(scale)).apply();
     }
 
     public int getTimeColor() {
@@ -513,37 +530,50 @@ public class ClockPreferences {
     }
 
     /** Per-style main time size, falling back to the pre-theme global preference. */
+    public float getTimeFontScaleSetting(String scopeId) {
+        float value = preferences.getFloat(KEY_TIME_FONT_SCALE_PREFIX + normalizeScope(scopeId), getTimeFontScaleSetting());
+        return value == 0f ? 0f : clampScale(value);
+    }
+
     public float getTimeFontScale(String scopeId) {
-        return clampScale(preferences.getFloat(
-                KEY_TIME_FONT_SCALE_PREFIX + normalizeScope(scopeId), getTimeFontScale()));
+        float value = getTimeFontScaleSetting(scopeId);
+        return value == 0f ? DEFAULT_TIME_FONT_SCALE : value;
     }
 
     public void setTimeFontScale(String scopeId, float scale) {
         preferences.edit().putFloat(KEY_TIME_FONT_SCALE_PREFIX + normalizeScope(scopeId),
-                clampScale(scale)).apply();
+                scale == 0f ? 0f : clampScale(scale)).apply();
     }
 
     /** Per-style date size, falling back to the pre-theme global preference. */
+    public float getDateFontScaleSetting(String scopeId) {
+        float value = preferences.getFloat(KEY_DATE_FONT_SCALE_PREFIX + normalizeScope(scopeId), normalizeScope(scopeId).startsWith(CALENDAR_SCOPE_PREFIX) ? getDateFontScaleSetting() : 0f);
+        return value == 0f ? 0f : clampDateScale(value);
+    }
+
     public float getDateFontScale(String scopeId) {
-        return clampDateScale(preferences.getFloat(
-                KEY_DATE_FONT_SCALE_PREFIX + normalizeScope(scopeId),
-                normalizeScope(scopeId).startsWith(CALENDAR_SCOPE_PREFIX) ? getDateFontScale() : 1f));
+        float value = getDateFontScaleSetting(scopeId);
+        return value == 0f ? (normalizeScope(scopeId).startsWith(CALENDAR_SCOPE_PREFIX) ? DEFAULT_DATE_FONT_SCALE : 1f) : value;
     }
 
     public void setDateFontScale(String scopeId, float scale) {
         preferences.edit().putFloat(KEY_DATE_FONT_SCALE_PREFIX + normalizeScope(scopeId),
-                clampDateScale(scale)).apply();
+                scale == 0f ? 0f : clampDateScale(scale)).apply();
+    }
+
+    public float getSupportingFontScaleSetting(String scopeId) {
+        float value = preferences.getFloat(KEY_SUPPORTING_FONT_SCALE_PREFIX + normalizeScope(scopeId), 0f);
+        return value == 0f ? 0f : normalizeSupportingScale(value);
     }
 
     public float getSupportingFontScale(String scopeId) {
-        return normalizeSupportingScale(preferences.getFloat(
-                KEY_SUPPORTING_FONT_SCALE_PREFIX + normalizeScope(scopeId),
-                DEFAULT_SUPPORTING_FONT_SCALE));
+        float value = getSupportingFontScaleSetting(scopeId);
+        return value == 0f ? DEFAULT_SUPPORTING_FONT_SCALE : value;
     }
 
     public void setSupportingFontScale(String scopeId, float scale) {
         preferences.edit().putFloat(KEY_SUPPORTING_FONT_SCALE_PREFIX + normalizeScope(scopeId),
-                normalizeSupportingScale(scale)).apply();
+                scale == 0f ? 0f : normalizeSupportingScale(scale)).apply();
     }
 
     private static String normalizeScope(String scopeId) {
@@ -771,7 +801,7 @@ public class ClockPreferences {
 
     public void setDatePatternCn(String pattern) {
         preferences.edit().putString(KEY_DATE_PATTERN_CN,
-                normalizeDatePattern(pattern, DEFAULT_DATE_PATTERN_CN)).apply();
+                normalizeDatePattern(pattern, getDatePatternCn())).apply();
     }
 
     /** @return the full date pattern applied when the interface is English. */
@@ -783,7 +813,7 @@ public class ClockPreferences {
 
     public void setDatePatternEn(String pattern) {
         preferences.edit().putString(KEY_DATE_PATTERN_EN,
-                normalizeDatePattern(pattern, DEFAULT_DATE_PATTERN_EN)).apply();
+                normalizeDatePattern(pattern, getDatePatternEn())).apply();
     }
 
     /** Falls back to {@code fallback} when {@code pattern} fails validation, guarding stored data. */
@@ -813,6 +843,7 @@ public class ClockPreferences {
     /** Persists the Pro date-format UI state for one language in a single edit. */
     public void setDateFormatState(boolean english, String core, String combo,
             boolean customEnabled, String customText) {
+        if (customEnabled && !DateFormatter.isValidPattern(customText == null ? null : customText.trim())) return;
         preferences.edit()
                 .putString(english ? KEY_DATE_CORE_EN : KEY_DATE_CORE_CN, core == null ? "" : core)
                 .putString(english ? KEY_DATE_COMBO_EN : KEY_DATE_COMBO_CN, combo == null ? "" : combo)

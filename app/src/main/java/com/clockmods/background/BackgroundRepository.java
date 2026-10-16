@@ -80,6 +80,8 @@ public class BackgroundRepository {
         preferences.setDimEndMinutes(minutes);
     }
 
+    public float getTimeFontScaleSetting() { return preferences.getTimeFontScaleSetting(); }
+
     public float getTimeFontScale() {
         return preferences.getTimeFontScale();
     }
@@ -87,6 +89,8 @@ public class BackgroundRepository {
     public void setTimeFontScale(float scale) {
         preferences.setTimeFontScale(scale);
     }
+
+    public float getDateFontScaleSetting() { return preferences.getDateFontScaleSetting(); }
 
     public float getDateFontScale() {
         return preferences.getDateFontScale();
@@ -96,6 +100,8 @@ public class BackgroundRepository {
         preferences.setDateFontScale(scale);
     }
 
+    public float getTimeFontScaleSetting(String scopeId) { return preferences.getTimeFontScaleSetting(scopeId); }
+
     public float getTimeFontScale(String scopeId) {
         return preferences.getTimeFontScale(scopeId);
     }
@@ -104,9 +110,13 @@ public class BackgroundRepository {
         preferences.setTimeFontScale(scopeId, scale);
     }
 
+    public float getDateFontScaleSetting(String scopeId) { return preferences.getDateFontScaleSetting(scopeId); }
+
     public float getDateFontScale(String scopeId) {
         return preferences.getDateFontScale(scopeId);
     }
+
+    public float getSupportingFontScaleSetting() { return preferences.getSupportingFontScaleSetting(); }
 
     public float getSupportingFontScale() {
         return preferences.getSupportingFontScale();
@@ -119,6 +129,8 @@ public class BackgroundRepository {
     public void setDateFontScale(String scopeId, float scale) {
         preferences.setDateFontScale(scopeId, scale);
     }
+
+    public float getSupportingFontScaleSetting(String scopeId) { return preferences.getSupportingFontScaleSetting(scopeId); }
 
     public float getSupportingFontScale(String scopeId) {
         return preferences.getSupportingFontScale(scopeId);

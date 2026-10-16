@@ -1452,17 +1452,17 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         // face predates the per-style keys and the legacy view reads the global ones.
         if (!UltimateClockStyles.STYLE_PRO_CLASSIC.equals(scopeId)) {
             addScaleSlider(body, R.string.ultimate_time_size,
-                    repository.getTimeFontScale(scopeId), ClockPreferences.MIN_FONT_SCALE,
+                    repository.getTimeFontScaleSetting(scopeId), ClockPreferences.MIN_FONT_SCALE,
                     ClockPreferences.MAX_FONT_SCALE,
                     value -> repository.setTimeFontScale(scopeId, value),
                     "time_font_scale:" + scopeId, pageToRefresh);
             addScaleSlider(body, R.string.ultimate_date_size,
-                    repository.getDateFontScale(scopeId), ClockPreferences.MIN_FONT_SCALE,
+                    repository.getDateFontScaleSetting(scopeId), ClockPreferences.MIN_FONT_SCALE,
                     ClockPreferences.MAX_DATE_FONT_SCALE,
                     value -> repository.setDateFontScale(scopeId, value),
                     "date_font_scale:" + scopeId, pageToRefresh);
             addScaleSlider(body, R.string.ultimate_supporting_text_size,
-                    repository.getSupportingFontScale(scopeId),
+                    repository.getSupportingFontScaleSetting(scopeId),
                     ClockPreferences.MIN_SUPPORTING_FONT_SCALE,
                     ClockPreferences.MAX_SUPPORTING_FONT_SCALE,
                     value -> repository.setSupportingFontScale(scopeId, value),
@@ -1544,7 +1544,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     private void addProClassicTimeAppearanceSettings(LinearLayout body) {
         addSectionLabel(body, R.string.ultimate_time_appearance_section, 22);
         addScaleSlider(body, R.string.ultimate_time_size,
-                repository.getTimeFontScale(), ClockPreferences.MIN_FONT_SCALE,
+                repository.getTimeFontScaleSetting(), ClockPreferences.MIN_FONT_SCALE,
                 ClockPreferences.MAX_FONT_SCALE, repository::setTimeFontScale,
                 "time_font_scale", Page.STYLE);
         addActionRow(body, R.string.ultimate_time_color,
@@ -1616,7 +1616,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     private void addProClassicDateAppearanceSettings(LinearLayout body) {
         addSectionLabel(body, R.string.ultimate_date_appearance_section, 22);
         addScaleSlider(body, R.string.ultimate_date_size,
-                repository.getDateFontScale(), ClockPreferences.MIN_FONT_SCALE,
+                repository.getDateFontScaleSetting(), ClockPreferences.MIN_FONT_SCALE,
                 ClockPreferences.MAX_DATE_FONT_SCALE, repository::setDateFontScale,
                 "date_font_scale", Page.STYLE);
         addActionRow(body, R.string.ultimate_date_color,
@@ -1645,7 +1645,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         // The weather summary and the detail carousel are the supporting rows here, so they get
         // the supporting size; the date and lunar rows keep the date one.
         addScaleSlider(body, R.string.ultimate_supporting_text_size,
-                repository.getSupportingFontScale(), ClockPreferences.MIN_SUPPORTING_FONT_SCALE,
+                repository.getSupportingFontScaleSetting(), ClockPreferences.MIN_SUPPORTING_FONT_SCALE,
                 ClockPreferences.MAX_SUPPORTING_FONT_SCALE, repository::setSupportingFontScale,
                 "supporting_font_scale", Page.STYLE);
         String weatherTransition = repository.getWeatherTransition();
@@ -2719,7 +2719,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         row.setPadding(0, dp(8), 0, dp(4));
         TextView title = label(titleRes, 16, false);
         row.addView(title, wrapParams());
-        TextView value = label(percentSummary(current), 13, false);
+        TextView value = label(current == 0f ? getString(R.string.font_size_auto) : percentSummary(current), 13, false);
         value.setTextColor(onSurfaceVariantColor());
         row.addView(value, topMargin(wrapParams(), dp(2)));
         Slider slider = new Slider(this);
@@ -2739,6 +2739,18 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         TextView warning = label(R.string.font_size_overflow_warning, 12, false);
         warning.setTextColor(onSurfaceVariantColor());
         warning.setVisibility(fontSize && current > 1f ? View.VISIBLE : View.GONE);
+        if (fontSize) {
+            com.google.android.material.button.MaterialButton automatic = new com.google.android.material.button.MaterialButton(this);
+            automatic.setText(R.string.font_size_auto);
+            automatic.setCheckable(true);
+            automatic.setChecked(current == 0f);
+            automatic.setOnClickListener(view -> {
+                change.apply(0f);
+                markChanged(source);
+                showPage(pageToRefresh);
+            });
+            row.addView(automatic, wrapParams());
+        }
         final boolean[] trackingTouch = {false};
         slider.addOnChangeListener((control, selected, fromUser) -> {
             value.setText(percentSummary(selected / 100f));

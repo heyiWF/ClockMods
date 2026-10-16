@@ -1160,10 +1160,9 @@ public final class UltimateClockStyles {
                     inkWidth, lineInk.getTextSize());
             float inkLeft = align == Paint.Align.LEFT ? x
                     : align == Paint.Align.RIGHT ? x - inkWidth : x - inkWidth * .5f;
-            float outwardTravel = ClockDigitTransitionTiming.outwardSweepTravel(
-                    horizontalDistance, inkLeft, inkWidth, canvas.getWidth());
-            float inwardTravel = ClockDigitTransitionTiming.inwardSweepTravel(
-                    horizontalDistance, inkLeft);
+            // Edge alignment must not turn a rightward carousel swap into a fade.
+            float outwardTravel = horizontalDistance;
+            float inwardTravel = horizontalDistance;
             switch (transition) {
                 case SLIDE_RIGHT: {
                     float travel = ClockDigitTransitionTiming.easeOutCubic(progress);

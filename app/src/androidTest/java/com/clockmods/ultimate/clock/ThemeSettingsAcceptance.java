@@ -55,8 +55,8 @@ public final class ThemeSettingsAcceptance extends Instrumentation {
     private boolean hasContent(Bitmap bitmap) {
         if (bitmap==null) return false;
         Set<Integer> colors=new HashSet<>();
-        for (int y=bitmap.getHeight()/4; y<bitmap.getHeight()*3/4; y+=11)
-            for (int x=bitmap.getWidth()/4; x<bitmap.getWidth()*3/4; x+=11) {
+        for (int y=bitmap.getHeight()/10; y<bitmap.getHeight()*9/10; y+=2)
+            for (int x=bitmap.getWidth()/20; x<bitmap.getWidth()*19/20; x+=2) {
                 colors.add(bitmap.getPixel(x,y)); if(colors.size()>8) return true;
             }
         return false;
@@ -72,6 +72,16 @@ public final class ThemeSettingsAcceptance extends Instrumentation {
             NetworkTimeProvider provider=new NetworkTimeProvider(); provider.shutdown(); provider.setEnabled(true);
             check(!provider.isEnabled(),"closed time provider stays disabled"); provider.currentTimeMillis(); provider.shutdown();
             ClockPreferences settings=new ClockPreferences(context);
+            settings.setDatePatternCn("yyyy/MM/dd");
+            settings.setDatePatternEn("dd MMM yyyy");
+            settings.setDatePatternCn("yyyy 'unfinished");
+            settings.setDatePatternEn("'literal'");
+            check(settings.getDatePatternCn().equals("yyyy/MM/dd") && settings.getDatePatternEn().equals("dd MMM yyyy"), "invalid date preserves previous format");
+            settings.setDateFormatState(false, "yyyy/MM/dd", "", false, "");
+            settings.setDateFormatState(false, "custom", "", true, "yyyy 'unfinished");
+            check(!settings.isDateCustomEnabled(false), "invalid custom date preserves mode");
+            settings.setTimeFontScale(0f); settings.setDateFontScale(0f);
+            check(settings.getTimeFontScaleSetting()==0f && settings.getDateFontScaleSetting()==0f, "global automatic mode persists");
             UltimateClockPreferences faceSettings=new UltimateClockPreferences(context);
             for(java.lang.reflect.Method setter:ClockPreferences.class.getMethods()) {
                 if(!setter.getName().startsWith("set") || setter.getParameterTypes().length!=1 || setter.getParameterTypes()[0]!=boolean.class) continue;
@@ -90,6 +100,20 @@ public final class ThemeSettingsAcceptance extends Instrumentation {
                 check(settings.getFontWeight(scope)==700,id+" font weight persists");
                 settings.setTimeFontScale(scope,1.5f); settings.setDateFontScale(scope,2f); settings.setSupportingFontScale(scope,2f);
                 check(settings.getTimeFontScale(scope)==1.5f && settings.getDateFontScale(scope)==2f && settings.getSupportingFontScale(scope)==2f,id+" maximum font sizes persist");
+                settings.setTimeFontScale(scope,0f); settings.setDateFontScale(scope,0f); settings.setSupportingFontScale(scope,0f);
+                ClockPreferences reopened = new ClockPreferences(context);
+                check(reopened.getTimeFontScaleSetting(scope)==0f && reopened.getDateFontScaleSetting(scope)==0f && reopened.getSupportingFontScaleSetting(scope)==0f,id+" automatic modes reopen");
+                check(reopened.getTimeFontScale(scope)>0f && reopened.getTimeFontScale(scope)<=1f && reopened.getDateFontScale(scope)>0f && reopened.getDateFontScale(scope)<=1f && reopened.getSupportingFontScale(scope)==1f,id+" automatic render scales fit");
+                for (int[] viewport : new int[][] {{320,240},{240,320},{720,1280},{1280,720},{1600,240},{240,1600}}) {
+                    ClockState automatic = ClockState.builder(1791292500123L).locale(Locale.US)
+                        .dateText("Wednesday, September 30, 2026").weatherText("Long weather and message text scrolls within its available width")
+                        .timeScale(reopened.getTimeFontScale(scope)).dateScale(reopened.getDateFontScale(scope))
+                        .supportingScale(reopened.getSupportingFontScale(scope)).build();
+                    Bitmap frame=render(style,automatic,viewport[0],viewport[1]);
+                    try(FileOutputStream out=new FileOutputStream(new File(directory,"auto-"+id+"-"+viewport[0]+"x"+viewport[1]+".png"))) { frame.compress(Bitmap.CompressFormat.PNG,100,out); }
+                    check(hasContent(frame),id+" automatic layout has content at "+viewport[0]+"x"+viewport[1]);
+                    frame.recycle();
+                }
                 for(String motion:new String[]{"fade","slide_up","slide_down","scale","flip","slide_right","scan"}) {
                     faceSettings.setDigitTransition(id,motion); faceSettings.setWeatherTransition(id,motion);
                     check(faceSettings.getDigitTransition(id).equals(motion) && faceSettings.getWeatherTransition(id).equals(motion),id+" independent transitions persist");

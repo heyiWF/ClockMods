@@ -6,6 +6,11 @@ import org.junit.Test;
 import java.util.Calendar;
 
 public class DateFormatterTest {
+    @Test public void validatesBalancedLiteralQuotes() {
+        Assert.assertFalse(DateFormatter.isValidPattern("yyyy 'unfinished"));
+        Assert.assertTrue(DateFormatter.isValidPattern("yyyy 'year'"));
+        Assert.assertTrue(DateFormatter.isValidPattern("yyyy '' MM"));
+    }
 
     private static Calendar example() {
         return DateFormatter.exampleDate();

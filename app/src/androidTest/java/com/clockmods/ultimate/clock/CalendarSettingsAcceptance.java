@@ -37,6 +37,11 @@ final class CalendarSettingsAcceptance {
                     String scope=ClockPreferences.calendarScope(id);
                     settings.setDateFontScale(scope,2f);settings.setSupportingFontScale(scope,2f);
                     settings.setTimeFontScale(scope,1.5f);settings.setFontWeight(scope,700);
+                    if (arguments != null && "true".equals(arguments.getString("automatic"))) {
+                        settings.setTimeFontScale(scope,0f);settings.setDateFontScale(scope,0f);settings.setSupportingFontScale(scope,0f);
+                        if(settings.getTimeFontScaleSetting(scope)!=0f || settings.getDateFontScaleSetting(scope)!=0f || settings.getSupportingFontScaleSetting(scope)!=0f)throw new AssertionError(id+" automatic settings persist");
+                        checks++;
+                    }
                     prefs.edit().putInt("screen_orientation",orientation).putBoolean("weather_enabled",false).commit();
                     test.getUiAutomation().setRotation(orientation-1);SystemClock.sleep(700);
                     Instrumentation.ActivityMonitor monitor=test.addMonitor("com.clockmods.ultimate.UltimateMainActivity",null,false);
@@ -73,7 +78,7 @@ final class CalendarSettingsAcceptance {
                     try(FileOutputStream output=new FileOutputStream(new File(directory,id+"-"+orientation+".png"))){bitmap.compress(Bitmap.CompressFormat.PNG,100,output);}bitmap.recycle();
                     test.runOnMainSync(current::finish);activity=null;SystemClock.sleep(400);
                 }
-            report.putString("stream","PASS: "+checks+" installed calendar checks with maximum typography.\n");
+            report.putString("stream","PASS: "+checks+" installed calendar checks with configured typography.\n");
         }catch(Throwable error){code=Activity.RESULT_CANCELED;report.putString("stream",android.util.Log.getStackTraceString(error));}
         finally {
             test.getUiAutomation().setRotation(android.app.UiAutomation.ROTATION_UNFREEZE);
