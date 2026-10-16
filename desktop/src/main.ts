@@ -1,5 +1,7 @@
+import { desktopFullscreen } from './desktop/fullscreen';
 import { isDesktop, installNativeAlerts } from './desktop/bridge';
 import { installDesktopShell } from './desktop/shell';
+import { installFullscreenButtons } from './ui/fullscreen';
 import { installIdleCursor } from './ui/idle-cursor';
 import { DisplaySettings } from './core/display-settings';
 /**
@@ -58,6 +60,7 @@ async function boot(): Promise<void> {
   // ones the pages build later.
   installRipples();
   installIdleCursor();
+  installFullscreenButtons(document, isDesktop() ? desktopFullscreen() : undefined);
 
   const container = document.getElementById('pages')!;
   const nav = document.getElementById('nav')!;
