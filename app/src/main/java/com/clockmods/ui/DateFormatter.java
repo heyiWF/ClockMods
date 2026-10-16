@@ -162,6 +162,14 @@ public final class DateFormatter {
         if (pattern == null || pattern.length() == 0 || pattern.length() > MAX_PATTERN_LENGTH) {
             return false;
         }
+        boolean quoted = false;
+        for (int i = 0; i < pattern.length(); i++) {
+            if (pattern.charAt(i) == '\'') {
+                if (i + 1 < pattern.length() && pattern.charAt(i + 1) == '\'') i++;
+                else quoted = !quoted;
+            }
+        }
+        if (quoted) return false;
         StringBuilder scratch = new StringBuilder(pattern.length() + 16);
         return appendFormatted(scratch, pattern, exampleDate(), Lang.CHINESE) > 0;
     }

@@ -32,11 +32,19 @@ public final class FlavorSettingsAcceptance extends Instrumentation {
         Map<String,?> original=new HashMap<>(preferences.getAll()); Bundle report=new Bundle(); int code=Activity.RESULT_OK;
         Activity activity=null; File directory=new File(context.getExternalFilesDir(null),"flavor-settings-audit"); directory.mkdirs();
         try {
+            android.graphics.drawable.Drawable icon = context.getPackageManager().getApplicationIcon(context.getPackageName());
+            Bitmap iconBitmap = Bitmap.createBitmap(512,512,Bitmap.Config.ARGB_8888);
+            icon.setBounds(0,0,512,512);icon.draw(new android.graphics.Canvas(iconBitmap));
+            try(FileOutputStream output=new FileOutputStream(new File(directory,"adaptive-icon.png"))) { iconBitmap.compress(Bitmap.CompressFormat.PNG,100,output); }
+            iconBitmap.recycle();
             com.clockmods.time.NetworkTimeProvider provider=new com.clockmods.time.NetworkTimeProvider();
             provider.shutdown(); provider.setEnabled(true); check(!provider.isEnabled(),"closed provider stays disabled");
             provider.currentTimeMillis(); provider.shutdown();
             // Verify persisted booleans through the real getters/setters on Android.
             ClockPreferences settings=new ClockPreferences(context);
+            settings.setDatePatternCn("yyyy/MM/dd");settings.setDatePatternEn("dd MMM yyyy");
+            settings.setDatePatternCn("yyyy 'unfinished");settings.setDatePatternEn("'literal'");
+            check("yyyy/MM/dd".equals(settings.getDatePatternCn()) && "dd MMM yyyy".equals(settings.getDatePatternEn()), "invalid date preserves previous patterns");
             for(Method setter:ClockPreferences.class.getMethods()) {
                 if(!setter.getName().startsWith("set") || setter.getParameterTypes().length!=1 || setter.getParameterTypes()[0]!=boolean.class) continue;
                 String suffix=setter.getName().substring(3); Method getter=null;
@@ -136,6 +144,20 @@ public final class FlavorSettingsAcceptance extends Instrumentation {
                 android.view.ViewGroup container = (android.view.ViewGroup) warning.getParent();
                 check(container.indexOfChild(warning) == 1, "warning follows slider row");
             }
+        }
+        if (activity.getPackageName().endsWith(".pro")) {
+            ClockPreferences settings = new ClockPreferences(activity);
+            settings.setDatePatternCn("yyyy/MM/dd");
+            settings.setDateFormatState(false,"yyyy/MM/dd","",false,"");
+            for (String name : new String[]{"proCoreIndexCn","proCustomTextCn","pendingDatePatternCn"}) {
+                java.lang.reflect.Field field = SettingsDialog.class.getDeclaredField(name);
+                field.setAccessible(true);
+                if (name.equals("proCoreIndexCn")) field.setInt(dialog, DateFormatter.dateCores(DateFormatter.Lang.CHINESE).length);
+                else field.set(dialog,name.equals("proCustomTextCn") ? "yyyy 'unfinished" : "dd-MM-yyyy");
+            }
+            Method persist = SettingsDialog.class.getDeclaredMethod("persistProDateState",boolean.class);
+            persist.setAccessible(true);persist.invoke(dialog,false);
+            check("yyyy/MM/dd".equals(settings.getDatePatternCn()) && !settings.isDateCustomEnabled(false), "invalid final draft preserves previous format and mode");
         }
         dialog.dismiss();
     }

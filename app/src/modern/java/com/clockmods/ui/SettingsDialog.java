@@ -1330,11 +1330,12 @@ public class SettingsDialog extends BottomSheetDialog {
         repository.setUse24Hour(use24HourSwitch.isChecked());
         repository.setClockLanguage(selectedLanguage);
         captureDateSectionInto(dateSectionEnglish);
-        repository.setDatePatternCn(pendingDatePatternCn);
-        repository.setDatePatternEn(pendingDatePatternEn);
         if (isPro()) {
             persistProDateState(false);
             persistProDateState(true);
+        } else {
+            repository.setDatePatternCn(pendingDatePatternCn);
+            repository.setDatePatternEn(pendingDatePatternEn);
         }
         repository.setCustomMessage(customMessageInput.getText().toString());
         repository.setScreenOrientation(orientationForId(orientationGroup.getCheckedButtonId()));
@@ -1682,6 +1683,9 @@ public class SettingsDialog extends BottomSheetDialog {
         String core = (!custom && coreIndex >= 0 && coreIndex < cores.length) ? cores[coreIndex] : "";
         int comboIndex = proComboIndex(english);
         String combo = (comboIndex >= 0 && comboIndex < combos.length) ? combos[comboIndex] : "";
+        if (custom && !DateFormatter.isValidPattern(proCustomText(english).trim())) return;
+        if (english) repository.setDatePatternEn(pendingDatePatternEn);
+        else repository.setDatePatternCn(pendingDatePatternCn);
         repository.setDateFormatState(english, core, combo, custom, proCustomText(english));
     }
 

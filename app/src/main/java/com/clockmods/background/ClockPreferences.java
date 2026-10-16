@@ -562,7 +562,7 @@ public class ClockPreferences {
 
     public void setDatePatternCn(String pattern) {
         preferences.edit().putString(KEY_DATE_PATTERN_CN,
-                normalizeDatePattern(pattern, DEFAULT_DATE_PATTERN_CN)).apply();
+                normalizeDatePattern(pattern, getDatePatternCn())).apply();
     }
 
     /** @return the full date pattern applied when the interface is English. */
@@ -574,7 +574,7 @@ public class ClockPreferences {
 
     public void setDatePatternEn(String pattern) {
         preferences.edit().putString(KEY_DATE_PATTERN_EN,
-                normalizeDatePattern(pattern, DEFAULT_DATE_PATTERN_EN)).apply();
+                normalizeDatePattern(pattern, getDatePatternEn())).apply();
     }
 
     /** Falls back to {@code fallback} when {@code pattern} fails validation, guarding stored data. */
@@ -604,6 +604,7 @@ public class ClockPreferences {
     /** Persists the Pro date-format UI state for one language in a single edit. */
     public void setDateFormatState(boolean english, String core, String combo,
             boolean customEnabled, String customText) {
+        if (customEnabled && !DateFormatter.isValidPattern(customText == null ? null : customText.trim())) return;
         preferences.edit()
                 .putString(english ? KEY_DATE_CORE_EN : KEY_DATE_CORE_CN, core == null ? "" : core)
                 .putString(english ? KEY_DATE_COMBO_EN : KEY_DATE_COMBO_CN, combo == null ? "" : combo)
