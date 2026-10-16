@@ -5,6 +5,11 @@ import org.junit.Assert
 import org.junit.Test
 
 class DateFormatterTest {
+    @Test fun rejectsUnclosedLiteralWithoutRejectingEscapedQuotes() {
+        Assert.assertFalse(DateFormatter.isValidPattern("yyyy 'unfinished"))
+        Assert.assertTrue(DateFormatter.isValidPattern("yyyy 'year'"))
+        Assert.assertTrue(DateFormatter.isValidPattern("yyyy '' MM"))
+    }
     private fun example(): Calendar = DateFormatter.exampleDate()
 
     @Test fun exampleDateIsFriday() {

@@ -117,6 +117,17 @@ object DateFormatter {
     @JvmStatic
     fun isValidPattern(pattern: String?): Boolean {
         if (pattern.isNullOrEmpty() || pattern.length > MAX_PATTERN_LENGTH) return false
+        // Doubled apostrophes are literal; every other quote must be paired.
+        var quoted = false
+        var index = 0
+        while (index < pattern.length) {
+            if (pattern[index] == '\'') {
+                if (index + 1 < pattern.length && pattern[index + 1] == '\'') index++
+                else quoted = !quoted
+            }
+            index++
+        }
+        if (quoted) return false
         return appendFormatted(
             StringBuilder(pattern.length + 16),
             pattern,

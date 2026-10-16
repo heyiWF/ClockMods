@@ -58,6 +58,14 @@ object CalendarAcceptance {
                 else -> listOf("graphite", "carbon", "paper", "poster", "agenda")
             }
             for (id in themes) {
+                val automatic = ClockPreferences(context)
+                val scope = ClockPreferences.calendarScope("calendar.$id")
+                automatic.setTimeFontScale(scope, 0f)
+                automatic.setDateFontScale(scope, 0f)
+                automatic.setSupportingFontScale(scope, 0f)
+                check(automatic.getTimeFontScaleSetting(scope) == 0f &&
+                    automatic.getDateFontScaleSetting(scope) == 0f &&
+                    automatic.getSupportingFontScaleSetting(scope) == 0f)
                 for (orientation in listOf(1, 2)) {
                     instrumentation.runOnMainSync {
                         activity?.finish()

@@ -1224,13 +1224,13 @@ internal fun CalendarSettingsPage(modifier: Modifier, generation: Int) {
         mutableIntStateOf(preferences.getFontWeight(typographyScope))
     }
     var timeScale by remember(generation, themeId) {
-        mutableFloatStateOf(preferences.getTimeFontScale(typographyScope))
+        mutableFloatStateOf(preferences.getTimeFontScaleSetting(typographyScope))
     }
     var dateScale by remember(generation, themeId) {
-        mutableFloatStateOf(preferences.getDateFontScale(typographyScope))
+        mutableFloatStateOf(preferences.getDateFontScaleSetting(typographyScope))
     }
     var supportingScale by remember(generation, themeId) {
-        mutableFloatStateOf(preferences.getSupportingFontScale(typographyScope))
+        mutableFloatStateOf(preferences.getSupportingFontScaleSetting(typographyScope))
     }
 
     var marquee by remember(generation, themeId) { mutableStateOf(preferences.getCalendarMarquee(themeId)) }
@@ -1332,7 +1332,7 @@ internal fun CalendarSettingsPage(modifier: Modifier, generation: Int) {
                 weight = font.weightAt(it.roundToInt())
                 preferences.setFontWeight(typographyScope, weight)
             }
-            SettingSlider(
+            AutomaticFontSlider(
                 label = stringResource(R.string.ultimate_time_size),
                 value = timeScale,
                 range = ClockPreferences.MIN_FONT_SCALE..ClockPreferences.MAX_FONT_SCALE,
@@ -1346,7 +1346,7 @@ internal fun CalendarSettingsPage(modifier: Modifier, generation: Int) {
                 preferences.setTimeFontScale(typographyScope, it)
             }
             FontScaleWarning(timeScale)
-            SettingSlider(
+            AutomaticFontSlider(
                 label = stringResource(R.string.ultimate_date_size),
                 value = dateScale,
                 range = ClockPreferences.MIN_FONT_SCALE..ClockPreferences.MAX_DATE_FONT_SCALE,
@@ -1360,7 +1360,7 @@ internal fun CalendarSettingsPage(modifier: Modifier, generation: Int) {
                 preferences.setDateFontScale(typographyScope, it)
             }
             FontScaleWarning(dateScale)
-            SettingSlider(
+            AutomaticFontSlider(
                 label = stringResource(R.string.ultimate_supporting_text_size),
                 value = supportingScale,
                 range = ClockPreferences.MIN_SUPPORTING_FONT_SCALE..

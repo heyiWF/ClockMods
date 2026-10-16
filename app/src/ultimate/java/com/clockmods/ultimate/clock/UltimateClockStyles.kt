@@ -609,19 +609,15 @@ object UltimateClockStyles {
                     val horizontalDistance = ClockTransitionTiming.supportingSlideDistance(
                         inkWidth, lineInk.textSize,
                     )
-                    // The sweep is translation and opacity, nothing else. Fencing it in with a clip
-                    // rectangle is what used to shear the tops off CJK glyphs, so instead each copy
-                    // may travel only as far as the canvas edge it is heading for — and by then it
-                    // has faded out, so the line is never seen cut.
+                    // Keep travel independent of alignment and available edge whitespace.
+                    // Otherwise an edge-aligned line silently becomes a fade on some swaps.
                     val inkLeft = when (align) {
                         Paint.Align.LEFT -> x
                         Paint.Align.RIGHT -> x - inkWidth
                         else -> x - inkWidth / 2f
                     }
-                    val outwardTravel = ClockTransitionTiming.outwardSweepTravel(
-                        horizontalDistance, inkLeft, inkWidth, canvas.width.toFloat())
-                    val inwardTravel = ClockTransitionTiming.inwardSweepTravel(
-                        horizontalDistance, inkLeft)
+                    val outwardTravel = horizontalDistance
+                    val inwardTravel = horizontalDistance
                     // The carousel line travels on its own setting, not the digits'.
                     val transition = state.getWeatherTransition()
                     when (transition) {

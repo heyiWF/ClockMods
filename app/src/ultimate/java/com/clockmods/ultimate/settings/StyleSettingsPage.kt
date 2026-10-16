@@ -131,23 +131,23 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
     var timeScale by remember(generation, styleId) {
         mutableFloatStateOf(
             if (styleId == UltimateClockStyles.STYLE_PRO_CLASSIC) {
-                preferences.getTimeFontScale()
+                preferences.getTimeFontScaleSetting()
             } else {
-                preferences.getTimeFontScale(styleId)
+                preferences.getTimeFontScaleSetting(styleId)
             },
         )
     }
     var dateScale by remember(generation, styleId) {
         mutableFloatStateOf(
             if (styleId == UltimateClockStyles.STYLE_PRO_CLASSIC) {
-                preferences.getDateFontScale()
+                preferences.getDateFontScaleSetting()
             } else {
-                preferences.getDateFontScale(styleId)
+                preferences.getDateFontScaleSetting(styleId)
             },
         )
     }
     var supportingScale by remember(generation, styleId) {
-        mutableFloatStateOf(preferences.getSupportingFontScale(styleId))
+        mutableFloatStateOf(preferences.getSupportingFontScaleSetting(styleId))
     }
     var blinkColon by remember(generation) { mutableStateOf(preferences.isBlinkColon()) }
     var animateDigits by remember(generation, styleId) {
@@ -198,16 +198,16 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
                             family = preferences.getFontFamily(styleId)
                             weight = preferences.getFontWeight(styleId)
                             timeScale = if (metadata.getId() == UltimateClockStyles.STYLE_PRO_CLASSIC) {
-                                preferences.getTimeFontScale()
+                                preferences.getTimeFontScaleSetting()
                             } else {
-                                preferences.getTimeFontScale(styleId)
+                                preferences.getTimeFontScaleSetting(styleId)
                             }
                             dateScale = if (metadata.getId() == UltimateClockStyles.STYLE_PRO_CLASSIC) {
-                                preferences.getDateFontScale()
+                                preferences.getDateFontScaleSetting()
                             } else {
-                                preferences.getDateFontScale(styleId)
+                                preferences.getDateFontScaleSetting(styleId)
                             }
-                            supportingScale = preferences.getSupportingFontScale(styleId)
+                            supportingScale = preferences.getSupportingFontScaleSetting(styleId)
                             weatherTransition = if (metadata.getId() ==
                                 UltimateClockStyles.STYLE_PRO_CLASSIC) {
                                 preferences.getWeatherTransition()
@@ -325,7 +325,7 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
             )
             // Every face draws a time, a date and a context line of its own, and each of them
             // reads its own slider, so all three are always offered.
-            SettingSlider(
+            AutomaticFontSlider(
                 stringResource(R.string.ultimate_time_size),
                 timeScale,
                 ClockPreferences.MIN_FONT_SCALE..ClockPreferences.MAX_FONT_SCALE,
@@ -336,7 +336,7 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
                 else preferences.setTimeFontScale(styleId, it)
             }
             FontScaleWarning(timeScale)
-            SettingSlider(
+            AutomaticFontSlider(
                 stringResource(R.string.ultimate_date_size),
                 dateScale,
                 ClockPreferences.MIN_FONT_SCALE..ClockPreferences.MAX_DATE_FONT_SCALE,
@@ -347,7 +347,7 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
                 else preferences.setDateFontScale(styleId, it)
             }
             FontScaleWarning(dateScale)
-            SettingSlider(
+            AutomaticFontSlider(
                 stringResource(R.string.ultimate_supporting_text_size),
                 supportingScale,
                 ClockPreferences.MIN_SUPPORTING_FONT_SCALE..ClockPreferences.MAX_SUPPORTING_FONT_SCALE,
