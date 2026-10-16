@@ -427,12 +427,12 @@ export const prefs = {
   getDatePatternCn: (): string =>
     normalizeDatePattern(store.string(K.datePatternCn, DEFAULT_PATTERN_CN), DEFAULT_PATTERN_CN),
   setDatePatternCn: (pattern: string): void =>
-    store.write(K.datePatternCn, normalizeDatePattern(pattern, DEFAULT_PATTERN_CN)),
+    store.write(K.datePatternCn, normalizeDatePattern(pattern, prefs.getDatePatternCn())),
 
   getDatePatternEn: (): string =>
     normalizeDatePattern(store.string(K.datePatternEn, DEFAULT_PATTERN_EN), DEFAULT_PATTERN_EN),
   setDatePatternEn: (pattern: string): void =>
-    store.write(K.datePatternEn, normalizeDatePattern(pattern, DEFAULT_PATTERN_EN)),
+    store.write(K.datePatternEn, normalizeDatePattern(pattern, prefs.getDatePatternEn())),
 
   // Settings-UI restoration state (does not affect rendering directly).
   getDateCore: (english: boolean): string =>

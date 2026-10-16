@@ -5,6 +5,24 @@ import { expect, it } from 'vitest';
 
 const html = readFileSync('index.html', 'utf8');
 const script = readFileSync('public/legacy-clock.js', 'utf8');
+it('preserves the saved date after invalid final drafts and accepts quoted literals', () => {
+  const dom = new JSDOM(html, { url: 'https://clock.example/', runScripts: 'outside-only' });
+  const win = dom.window;
+  try {
+    win.eval(script);
+    const input = win.document.getElementById('pref-date-pattern') as HTMLInputElement;
+    const open = win.document.getElementById('settings-button') as HTMLButtonElement;
+    const apply = win.document.getElementById('settings-apply') as HTMLButtonElement;
+    open.click(); input.value = 'yyyy/MM/dd'; apply.click();
+    for (const invalid of ['', "yyyy 'unfinished", "'literal'", 'z'.repeat(201)]) {
+      open.click(); input.value = 'dd-MM-yyyy'; input.dispatchEvent(new win.Event('input'));
+      input.value = invalid; apply.click();
+      expect(win.localStorage.getItem('clockmods_legacy.date-pattern')).toBe('yyyy/MM/dd');
+    }
+    open.click(); input.value = "yyyy '' MM 'month'"; apply.click();
+    expect(win.localStorage.getItem('clockmods_legacy.date-pattern')).toBe("yyyy '' MM 'month'");
+  } finally { win.close(); }
+});
 it('ships every production asset referenced by the classic-script entry', () => {
   for (const name of ['legacy-clock.css', 'legacy-clock.js', 'legacy-lunar.js', 'legacy-language.js']) {
     expect(html).toContain(name); expect(existsSync('public/' + name)).toBe(true);

@@ -794,8 +794,6 @@ class SettingsPanel {
     prefs.setTimeSourceUrl(c.timeSourceUrl.value);
     prefs.setTimeZoneId(c.region.value);
     prefs.setClockLanguage(this.selectedLanguage);
-    prefs.setDatePatternCn(this.pendingPatternCn);
-    prefs.setDatePatternEn(this.pendingPatternEn);
     this.persistDateState(false);
     this.persistDateState(true);
     prefs.setCustomMessage(c.customMessage.value);
@@ -838,6 +836,9 @@ class SettingsPanel {
     const coreIndex = english ? this.coreIndexEn : this.coreIndexCn;
     const comboIndex = english ? this.comboIndexEn : this.comboIndexCn;
     const custom = coreIndex === cores.length;
+    if (custom && !isValidPattern(this.customText(english))) return;
+    if (english) prefs.setDatePatternEn(this.pendingPatternEn);
+    else prefs.setDatePatternCn(this.pendingPatternCn);
     prefs.setDateFormatState(
       english,
       custom ? '' : (cores[coreIndex] ?? ''),
