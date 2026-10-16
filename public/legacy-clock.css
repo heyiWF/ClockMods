@@ -84,3 +84,10 @@ button:focus,input:focus,select:focus { outline:2px solid #435f91; outline-offse
 .settings-preview{position:relative;}.settings-preview iframe{position:absolute;top:0;transform-origin:top left;}
 
 .settings-preview{-ms-flex-negative:0;}
+
+.fullscreen-button { padding:10px; width:44px; height:44px; vertical-align:middle; opacity:.65; transition:opacity .18s ease; }
+.fullscreen-button svg { display:block; fill:currentColor; }
+.fullscreen-button:hover,.fullscreen-button:focus { opacity:1; }
+.is-cursor-idle .fullscreen-button { opacity:0; pointer-events:none; }
+.is-cursor-idle.is-keyboard .fullscreen-button:focus { opacity:1; pointer-events:auto; outline:2px solid #fff; }
+@media (prefers-reduced-motion:reduce) { .fullscreen-button { transition:none; } }

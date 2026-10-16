@@ -98,7 +98,7 @@
   function previewOpen(){if(isPreview)return;previewFrame=doc.createElement('iframe');previewFrame.title='Clock preview';previewFrame.setAttribute('tabindex','-1');previewFrame.src=win.location.pathname+'?preview=1';previewFrame.onload=preview;node('settings-preview').appendChild(previewFrame);fitPreview();}
   var uiText=[];
   function collectUi(element){var child;for(child=element.firstChild;child;child=child.nextSibling){if(child.nodeType===3&&child.nodeValue.replace(/\s/g,''))uiText.push({node:child,source:child.nodeValue});else if(child.nodeType===1&&child.tagName!=='SCRIPT'&&child.tagName!=='IFRAME')collectUi(child);}}
-  function localize(language){var i,item,elements=doc.querySelectorAll('[title],[aria-label],[placeholder]');for(i=0;i<uiText.length;i++){item=uiText[i];item.node.nodeValue=win.LegacyText?win.LegacyText(language,item.source):item.source;}for(i=0;i<elements.length;i++){var el=elements[i],names=['title','aria-label','placeholder'],j;for(j=0;j<names.length;j++){var a=names[j],value=el.getAttribute('data-source-'+a)||el.getAttribute(a);if(value){el.setAttribute('data-source-'+a,value);el.setAttribute(a,win.LegacyText?win.LegacyText(language,value):value);}}}}
+  function localize(language){var i,item,elements=doc.querySelectorAll('[title],[aria-label],[placeholder]');for(i=0;i<uiText.length;i++){item=uiText[i];item.node.nodeValue=win.LegacyText?win.LegacyText(language,item.source):item.source;}for(i=0;i<elements.length;i++){var el=elements[i],names=['title','aria-label','placeholder'],j;for(j=0;j<names.length;j++){var a=names[j],value=el.getAttribute('data-source-'+a)||el.getAttribute(a);if(value){el.setAttribute('data-source-'+a,value);el.setAttribute(a,win.LegacyText?win.LegacyText(language,value):value);}}}fullscreenLabel(language);}
 
   function open() {
     fill(prefs); draftImage = image; show(node('settings-overlay'), true);localize(prefs.language);revealCursor();previewOpen();node('settings-close').focus();
@@ -384,13 +384,32 @@
     if (file.size > 16*1024*1024 || !/^image\//.test(file.type)) { status('Choose an image smaller than 16 MB'); return; }
     var reader = new win.FileReader(); reader.onload = function () { draftImage = String(reader.result); node('pref-use-image').checked = true;preview(); }; reader.readAsDataURL(file);
   };
+  function fullscreenElement() { return doc.fullscreenElement || doc.msFullscreenElement || doc.webkitFullscreenElement; }
+  function fullscreenLabel(language) {
+    var button = node('fullscreen-button'), full = !!fullscreenElement();
+    var label = language === 'en' ? (full ? 'Exit fullscreen' : 'Enter fullscreen') : language === 'zh-Hant' ? (full ? '退出全螢幕' : '進入全螢幕') : (full ? '退出全屏' : '进入全屏');
+    button.title = label; button.setAttribute('aria-label', label); button.setAttribute('aria-pressed', String(full));
+    button.setAttribute('data-source-title', label); button.setAttribute('data-source-aria-label', label);
+    button.querySelector('path').setAttribute('d', full ? 'M5 16h3v3h2v-5H5v2zM8 8H5v2h5V5H8v3zm6 11h2v-3h3v-2h-5v5zm2-11V5h-2v5h5V8h-3z' : 'M7 14H5v5h5v-2H7v-3zm-2-4h2V7h3V5H5v5zm12 7h-3v2h5v-5h-2v3zM14 5v2h3v3h2V5h-5z');
+  }
+  function fullscreenChanged() { fullscreenLabel(prefs.language); revealCursor(); }
   node('fullscreen-button').onclick = function () {
     var element = doc.documentElement, enter = element.requestFullscreen || element.msRequestFullscreen || element.webkitRequestFullscreen;
-    var exit = doc.exitFullscreen || doc.msExitFullscreen || doc.webkitExitFullscreen;
-    try { if (doc.fullscreenElement || doc.msFullscreenElement || doc.webkitFullscreenElement) { if (exit) exit.call(doc); } else if (enter) enter.call(element); } catch (ignore) { status('Fullscreen unavailable'); }
+    var exit = doc.exitFullscreen || doc.msExitFullscreen || doc.webkitExitFullscreen, result;
+    try {
+      if (fullscreenElement() && exit) result = exit.call(doc);
+      else if (enter) result = enter.call(element);
+      else { status('Fullscreen unavailable'); return; }
+      if (result && typeof result.then === 'function') result.then(fullscreenChanged, function () { status('Fullscreen unavailable'); });
+    } catch (ignore) { status('Fullscreen unavailable'); }
   };
+  doc.addEventListener('fullscreenchange', fullscreenChanged, false);
+  doc.addEventListener('MSFullscreenChange', fullscreenChanged, false);
+  doc.addEventListener('webkitfullscreenchange', fullscreenChanged, false);
   doc.onkeydown = function (event) {
     event = event || win.event;
+    if (doc.documentElement.className.indexOf('is-keyboard') < 0) doc.documentElement.className += ' is-keyboard';
+    revealCursor();
     if (event.keyCode === 27) close();
     if (event.keyCode === 9 && node('settings-overlay').style.display !== 'none') {
       var controls = node('settings-panel').querySelectorAll('button, input, select'), first = controls[0], last = controls[controls.length-1];
@@ -401,7 +420,9 @@
   collectUi(node('settings-panel'));collectUi(node('weather-attribution'));
   node('settings-panel').addEventListener('change',function(e){var input=e.target;if(input.id==='pref-date-size'||input.id==='pref-support-size'){input.value=Number(input.value)===0?'0':String(finite(input.value,24,8,80));}},false);
   node('settings-panel').addEventListener('input',preview,false);node('settings-panel').addEventListener('change',preview,false);
-  doc.addEventListener('mousemove',function(){if(isPreview)return;revealCursor();show(node('weather-attribution'),prefs.weather);win.clearTimeout(attributionTimer);attributionTimer=win.setTimeout(function(){show(node('weather-attribution'),false);},3000);},false);
+  doc.addEventListener('mousemove',function(){if(isPreview)return;doc.documentElement.className=doc.documentElement.className.replace(/ ?is-keyboard/g,'');revealCursor();show(node('weather-attribution'),prefs.weather);win.clearTimeout(attributionTimer);attributionTimer=win.setTimeout(function(){show(node('weather-attribution'),false);},3000);},false);
+  doc.addEventListener('mousedown',function(){doc.documentElement.className=doc.documentElement.className.replace(/ ?is-keyboard/g,'');revealCursor();},false);
+  win.addEventListener('focus',revealCursor,false);
   var touchX=0,touchY=0,touchAt=0,lastTap=0;
   node('clock-face').addEventListener('touchstart',function(e){if(e.touches.length===1){touchX=e.touches[0].clientX;touchY=e.touches[0].clientY;touchAt=Date.now();}},false);
   node('clock-face').addEventListener('touchend',function(e){var t=e.changedTouches[0],now=Date.now();if(t&&now-touchAt<350&&Math.abs(t.clientX-touchX)<12&&Math.abs(t.clientY-touchY)<12){if(now-lastTap<400){e.preventDefault();open();lastTap=0;}else lastTap=now;}},false);
@@ -410,5 +431,5 @@
   track = doc.createElement('span'); track.className = 'carousel-track'; node('clock-weather').appendChild(track);
   win.onresize = function(){render();fitPreview();};
   show(node('clock-message'),false); show(node('settings-overlay'),false);
-  load(); configure(); render(); win.setInterval(function () { carousel(Date.now()); },40);
+  load(); configure(); render(); if (!isPreview) revealCursor(); win.setInterval(function () { carousel(Date.now()); },40);
 }());
