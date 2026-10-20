@@ -293,12 +293,12 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
         }
 
         SettingSection(stringResource(R.string.ultimate_typography_section)) {
-            Text(stringResource(R.string.ultimate_font_family))
+            Text(stringResource(R.string.font_western))
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                 horizontalArrangement = Arrangement.spacedBy(8.dp),
             ) {
-                FontCatalog.options().forEach { option ->
+                com.clockmods.background.ScriptFontPreferences.options("en").forEach { option ->
                     FilterChip(
                         selected = family == option.id,
                         onClick = {
@@ -311,7 +311,7 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
                     )
                 }
             }
-            val font = FontCatalog.optionFor(family)
+            val font = FontCatalog.optionForLanguage(family, "en")
             val weights = font.availableWeights()
             Text("${stringResource(R.string.ultimate_font_weight)} $weight")
             Slider(
@@ -322,9 +322,11 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
                 },
                 valueRange = 0f..(weights.size - 1).coerceAtLeast(1).toFloat(),
                 steps = (weights.size - 2).coerceAtLeast(0),
+                enabled = weights.size > 1,
             )
             // Every face draws a time, a date and a context line of its own, and each of them
             // reads its own slider, so all three are always offered.
+            ScriptFontControls(preferences, styleId, generation)
             AutomaticFontSlider(
                 stringResource(R.string.ultimate_time_size),
                 timeScale,

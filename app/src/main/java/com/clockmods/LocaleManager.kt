@@ -15,6 +15,8 @@ object LocaleManager {
 
     @JvmStatic
     fun resolveLocale(language: String?): Locale = when (language) {
+        ClockPreferences.LANGUAGE_JAPANESE -> Locale.JAPANESE
+        ClockPreferences.LANGUAGE_KOREAN -> Locale.KOREAN
         ClockPreferences.LANGUAGE_ENGLISH -> Locale.ENGLISH
         ClockPreferences.LANGUAGE_TRADITIONAL -> Locale.TRADITIONAL_CHINESE
         else -> Locale.CHINA
@@ -22,6 +24,8 @@ object LocaleManager {
 
     @JvmStatic
     fun dateLang(clockLanguage: String?): DateFormatter.Lang = when (clockLanguage) {
+        ClockPreferences.LANGUAGE_JAPANESE -> DateFormatter.Lang.JAPANESE
+        ClockPreferences.LANGUAGE_KOREAN -> DateFormatter.Lang.KOREAN
         ClockPreferences.LANGUAGE_ENGLISH -> DateFormatter.Lang.ENGLISH
         ClockPreferences.LANGUAGE_TRADITIONAL -> DateFormatter.Lang.TRADITIONAL
         else -> DateFormatter.Lang.CHINESE

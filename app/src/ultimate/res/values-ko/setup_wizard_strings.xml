@@ -1,0 +1,26 @@
+<resources>
+    <string name="setup_wizard_step_short">%1$d / %2$d</string>
+    <string name="setup_wizard_tab_language">언어</string>
+    <string name="setup_wizard_tab_weather">날씨</string>
+    <string name="setup_wizard_tab_style">모양</string>
+    <string name="setup_wizard_title">ClockMods에 오신 것을 환영합니다</string>
+    <string name="setup_wizard_intro">기본 설정을 선택하세요. 모든 항목은 나중에 설정에서 변경할 수 있습니다.</string>
+    <string name="setup_wizard_step">%2$d단계 중 %1$d</string>
+    <string name="setup_wizard_language_title">언어 선택</string>
+    <string name="setup_wizard_language_summary">언어를 선택하고 나만의 시계를 만들어 보세요.</string>
+    <string name="setup_wizard_weather_title">날씨 설정</string>
+    <string name="setup_wizard_weather_summary">현재 위치의 날씨를 표시합니다. 위치 권한은 필요할 때만 요청합니다.</string>
+    <string name="setup_wizard_weather_enabled">날씨 표시</string>
+    <string name="setup_wizard_weather_enabled_summary">현재 위치의 실시간 날씨를 표시합니다</string>
+    <string name="setup_wizard_temperature_title">온도 단위</string>
+    <string name="setup_wizard_style_title">시계 스타일 선택</string>
+    <string name="setup_wizard_style_summary">테마 갤러리에서 시계 스타일을 선택하세요.</string>
+    <string name="setup_wizard_calendar_style_title">달력 테마 선택</string>
+    <string name="setup_wizard_calendar_style_summary">달력 레이아웃과 색상을 선택하세요.</string>
+    <string name="setup_wizard_choose_option">계속하려면 항목을 선택하세요</string>
+    <string name="setup_wizard_settings_hint">설정 후 시계 화면을 두 번 탭하면 설정 패널이 열립니다.</string>
+    <string name="setup_wizard_skip">나중에 설정</string>
+    <string name="setup_wizard_back">뒤로</string>
+    <string name="setup_wizard_next">다음</string>
+    <string name="setup_wizard_done">설정 완료</string>
+</resources>

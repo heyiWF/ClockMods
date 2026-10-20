@@ -169,7 +169,8 @@ internal fun previewClockTheme(
     }
     val timeColor = repository.getTimeColor()
     val dateColor = repository.getDateColor()
-    return remember(context, styleId, palette, timeColor, dateColor) {
+    val fontRevision = rememberPreviewFontRevision(context)
+    return remember(context, styleId, palette, timeColor, dateColor, fontRevision) {
         val tokens = style.getThemeTokens()
         val themed = if (ClockPalette.supports(styleId)) palette.applyTo(tokens) else tokens
         ClockTypography().apply(context,
@@ -349,6 +350,8 @@ internal fun ClockScreen(
 
     val locale = remember(refreshGeneration) {
         when (repository.getClockLanguage()) {
+            ClockPreferences.LANGUAGE_JAPANESE -> Locale.JAPANESE
+            ClockPreferences.LANGUAGE_KOREAN -> Locale.KOREAN
             ClockPreferences.LANGUAGE_ENGLISH -> Locale.ENGLISH
             ClockPreferences.LANGUAGE_TRADITIONAL -> Locale.TRADITIONAL_CHINESE
             else -> Locale.SIMPLIFIED_CHINESE
@@ -398,7 +401,7 @@ internal fun ClockScreen(
         messageLayout, weatherTransition, styleId)
     val deviceStatus = rememberDeviceStatus()
     val showStatusIcons = repository.isShowStatusIcons()
-    val statusFontFamily = repository.getFontFamily(styleId)
+    val statusFontFamily = repository.getRenderFontFamily(styleId)
     val statusFontWeight = repository.getFontWeight(styleId)
     val statusTextScale = repository.getSupportingFontScale(styleId)
     val statusBaseFontSize = MaterialTheme.typography.labelMedium.fontSize
@@ -547,7 +550,7 @@ internal fun ClockPreviewCanvas(
     val context = LocalContext.current
     val density = LocalDensity.current
     val hostSize = LocalWindowInfo.current.containerSize
-    val locale = remember { Locale.SIMPLIFIED_CHINESE }
+    val locale = remember(context) { LocaleManager.resolveLocale(context) }
     val timeZone = remember { TimeZone.getDefault() }
     val theme = previewClockTheme(context, styleId, palette, repository)
     val glassPreparation = prepareGlassForDraw(background, theme)
@@ -587,7 +590,7 @@ internal fun ClockStyleThumbnail(
     val context = LocalContext.current
     val density = LocalDensity.current
     val hostSize = LocalWindowInfo.current.containerSize
-    val locale = remember { Locale.SIMPLIFIED_CHINESE }
+    val locale = remember(context) { LocaleManager.resolveLocale(context) }
     val timeZone = remember { TimeZone.getDefault() }
     val theme = previewClockTheme(context, styleId, palette, repository)
     val glassPreparation = prepareGlassForDraw(background, theme)
@@ -1575,7 +1578,7 @@ internal fun ChimeIndicator(
         animation == ClockPreferences.CHIME_ORBIT || animation == ClockPreferences.CHIME_COMET
     val textProgress = smoothStep(if (alternative) .13f else .28f,
         if (alternative) .31f else .48f, progress)
-    val family = repository.getFontFamily(styleId)
+    val family = repository.getRenderFontFamily(styleId)
     val weight = repository.getFontWeight(styleId)
     val timeFontScale = configuredTimeFontScaleForStyle(repository, styleId)
     val clockTime = ClockTimeFormatter.format(
@@ -1718,6 +1721,8 @@ private fun measureThemeTimeTextSize(
         styleId,
     )
     val locale = when (repository.getClockLanguage()) {
+        ClockPreferences.LANGUAGE_JAPANESE -> Locale.JAPANESE
+        ClockPreferences.LANGUAGE_KOREAN -> Locale.KOREAN
         ClockPreferences.LANGUAGE_ENGLISH -> Locale.ENGLISH
         ClockPreferences.LANGUAGE_TRADITIONAL -> Locale.TRADITIONAL_CHINESE
         else -> Locale.SIMPLIFIED_CHINESE

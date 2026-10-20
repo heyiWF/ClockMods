@@ -178,7 +178,7 @@ internal fun CalendarScreen(
     }
     val typographyScope = remember(theme.id) { ClockPreferences.calendarScope(theme.id) }
     val typography = remember(context, preferences, typographyScope, refreshGeneration) {
-        val family = preferences.getFontFamily(typographyScope)
+        val family = preferences.getRenderFontFamily(typographyScope)
         val option = FontCatalog.optionFor(family)
         val weight = option.nearestWeight(preferences.getFontWeight(typographyScope))
         val emphasizedWeight = option.emphasizedWeight(weight)
@@ -296,7 +296,7 @@ internal fun CalendarScreen(
     val monthTitle = remember(year, month, locale, refreshGeneration) {
         val anchor = Calendar.getInstance(timeZone).apply { clear(); set(year, month, 1) }
         com.clockmods.ui.DateFormatter.format(
-            if (preferences.isClockUseEnglish()) "MMMM yyyy" else "yyyy年M月", anchor,
+            when (preferences.getClockLanguage()) { "en" -> "MMMM yyyy"; "ko" -> "yyyy년 M월"; else -> "yyyy年M月" }, anchor,
             LocaleManager.dateLang(preferences.getClockLanguage()))
     }
 

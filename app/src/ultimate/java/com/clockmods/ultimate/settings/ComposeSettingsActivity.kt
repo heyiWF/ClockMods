@@ -27,6 +27,15 @@ open class UltimateSettingsActivity : ComponentActivity() {
         super.applyOverrideConfiguration(overrideConfiguration)
     }
 
+    private var fontRevision = -1L
+
+    override fun onResume() {
+        super.onResume()
+        val revision = com.clockmods.background.UserFontStore.revision()
+        if (fontRevision >= 0 && fontRevision != revision) recreate()
+        fontRevision = revision
+    }
+
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
         enableEdgeToEdge()

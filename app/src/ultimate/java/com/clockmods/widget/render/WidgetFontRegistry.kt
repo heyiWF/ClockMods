@@ -8,7 +8,7 @@ import com.clockmods.widget.model.WidgetConfig
 object WidgetFontRegistry {
     const val THEME: String = WidgetConfig.FONT_THEME
     private const val STRUCTURAL_COLUMNS = 3
-    private val bundled = FontCatalog.options().filterNot { it.isSystem() }
+    private val bundled = FontCatalog.bundledOptions().filterNot { it.isSystem() }
     @JvmField val COLUMNS: Int = STRUCTURAL_COLUMNS + bundled.size
 
     @JvmStatic fun ids(): List<String> = WidgetConfig.FONT_IDS.toList()
@@ -20,7 +20,7 @@ object WidgetFontRegistry {
     @JvmStatic fun isKnown(id: String?): Boolean = WidgetConfig.FONT_IDS.contains(id)
 
     @JvmStatic fun labels(context: Context): Array<String> {
-        val families = FontCatalog.displayNames(context)
+        val families = FontCatalog.bundledOptions().map { FontCatalog.displayName(context, it.id) }.toTypedArray()
         return arrayOf(context.getString(R.string.widget_font_theme), *families)
     }
 

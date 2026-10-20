@@ -172,12 +172,12 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         val unit = min(width, height)
         val labelSize = readableSupportingSize(context, unit * .027f * state.getSupportingScale(), 10f)
         text(
-            canvas, if (isChinese(state)) "小时" else "HOUR",
+            canvas, unitLabel(state, true),
             first.left + first.width() * .05f, first.bottom - first.height() * .052f,
             labelSize, colors.mutedPanel, Paint.Align.LEFT, supporting,
         )
         text(
-            canvas, if (isChinese(state)) "分钟" else "MINUTE",
+            canvas, unitLabel(state, false),
             second.right - second.width() * .05f, second.bottom - second.height() * .052f,
             labelSize, colors.onAccent, Paint.Align.RIGHT, supporting,
         )
@@ -366,13 +366,13 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         val unit = min(width, height)
         val labelSize = readableSupportingSize(context, unit * .027f * state.getSupportingScale(), 10f)
         text(
-            canvas, if (isChinese(state)) "小时" else "HOUR",
+            canvas, unitLabel(state, true),
             hourPanel.left + hourPanel.width() * .045f,
             hourPanel.bottom - hourPanel.height() * .06f,
             labelSize, colors.mutedPanel, Paint.Align.LEFT, supporting,
         )
         text(
-            canvas, if (isChinese(state)) "分钟" else "MINUTE", minuteX,
+            canvas, unitLabel(state, false), minuteX,
             minuteY + minuteRadius * .82f, labelSize, colors.onAccent,
             Paint.Align.CENTER, supporting,
         )
@@ -438,13 +438,13 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
             context, min(width, height) * .027f * state.getSupportingScale(), 10f,
         )
         text(
-            canvas, if (isChinese(state)) "小时" else "HOUR",
+            canvas, unitLabel(state, true),
             hourPanel.left + hourPanel.width() * .06f,
             hourPanel.bottom - hourPanel.height() * .055f, labelSize,
             colors.mutedPanel, Paint.Align.LEFT, supporting,
         )
         text(
-            canvas, if (isChinese(state)) "分钟" else "MINUTE", minuteX,
+            canvas, unitLabel(state, false), minuteX,
             minuteY + minuteRadius * .79f, labelSize, colors.onAccent,
             Paint.Align.CENTER, supporting,
         )
@@ -986,6 +986,12 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         private fun secondsVisible(state: ClockState): Boolean =
             state.isShowSeconds() && state.getSecondHandMotion() != ClockState.SecondHandMotion.OFF
 
+        private fun unitLabel(state: ClockState, hour: Boolean): String = when (state.getLocale().language) {
+            "ja" -> if (hour) "時" else "分"
+            "ko" -> if (hour) "시" else "분"
+            "zh" -> if (hour) "小时" else "分钟"
+            else -> if (hour) "HOUR" else "MINUTE"
+        }
         private fun isChinese(state: ClockState): Boolean =
             state.getLocale().language == Locale.CHINESE.language
     }

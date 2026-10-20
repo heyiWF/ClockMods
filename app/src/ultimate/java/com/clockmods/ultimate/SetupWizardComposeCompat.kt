@@ -283,6 +283,8 @@ private fun LanguageStep(selected: String?, onSelected: (String) -> Unit) {
             ClockPreferences.LANGUAGE_SIMPLIFIED to R.string.ultimate_language_simplified,
             ClockPreferences.LANGUAGE_TRADITIONAL to R.string.ultimate_language_traditional,
             ClockPreferences.LANGUAGE_ENGLISH to R.string.ultimate_language_english,
+            ClockPreferences.LANGUAGE_JAPANESE to R.string.ultimate_language_japanese,
+            ClockPreferences.LANGUAGE_KOREAN to R.string.ultimate_language_korean,
         ).forEach { (value, label) ->
             ChoiceRow(
                 label = stringResource(label),

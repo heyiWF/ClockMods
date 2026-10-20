@@ -7,7 +7,7 @@ import java.util.TimeZone
 import kotlin.math.abs
 
 object DateFormatter {
-    enum class Lang { CHINESE, TRADITIONAL, ENGLISH }
+    enum class Lang { CHINESE, TRADITIONAL, ENGLISH, JAPANESE, KOREAN }
 
     const val MAX_PATTERN_LENGTH = 200
     const val DEFAULT_PATTERN_CN = "yyyy年M月d日 EEEE"
@@ -110,7 +110,7 @@ object DateFormatter {
     fun format(pattern: String?, cal: Calendar, lang: Lang): String {
         if (pattern == null) return ""
         val output = StringBuilder(pattern.length + 16)
-        appendFormatted(output, pattern, cal, lang)
+        appendFormatted(output, if (lang == Lang.KOREAN && pattern == DEFAULT_PATTERN_CN) "yyyy년 M월 d일 EEEE" else pattern, cal, lang)
         return TextSpacing.pangu(output.toString())!!
     }
 
@@ -147,7 +147,11 @@ object DateFormatter {
 
     @JvmStatic
     fun dateCores(lang: Lang): Array<String> =
-        (if (lang == Lang.ENGLISH) enDateCores else cnDateCores).clone()
+        when (lang) {
+            Lang.JAPANESE -> arrayOf("yyyy年M月d日", "yyyy/MM/dd", "M月d日", "yyyy-MM-dd")
+            Lang.KOREAN -> arrayOf("yyyy년 M월 d일", "yyyy/MM/dd", "M월 d일", "yyyy-MM-dd")
+            else -> (if (lang == Lang.ENGLISH) enDateCores else cnDateCores).clone()
+        }
 
     @JvmStatic
     fun weekdayCombos(lang: Lang): Array<String> =
@@ -222,7 +226,9 @@ object DateFormatter {
         when (letter) {
             'y' -> output.append(if (run == 2) String.format(Locale.US, "%02d", Math.floorMod(year, 100)) else year.toString())
             'Y' -> output.append(if (lang == Lang.ENGLISH) year.toString() else chineseYear(year, if (run == 3) '〇' else '零'))
-            'M' -> if (lang == Lang.ENGLISH) {
+            'M' -> if ((lang == Lang.JAPANESE || lang == Lang.KOREAN) && run >= 3) {
+                output.append(java.text.DateFormatSymbols(if (lang == Lang.JAPANESE) Locale.JAPANESE else Locale.KOREAN).months[month - 1])
+            } else if (lang == Lang.ENGLISH) {
                 output.append(
                     when (run) {
                         1 -> month.toString()
@@ -244,6 +250,7 @@ object DateFormatter {
             'D' -> output.append(if (lang == Lang.ENGLISH) day.toString() else chineseCardinal(day))
             'E' -> output.append(
                 when (lang) {
+                    Lang.JAPANESE, Lang.KOREAN -> java.text.DateFormatSymbols(if (lang == Lang.JAPANESE) Locale.JAPANESE else Locale.KOREAN).let { if (run >= 4) it.weekdays[dayOfWeek + 1] else it.shortWeekdays[dayOfWeek + 1] }
                     Lang.ENGLISH -> if (run >= 4) enWeekFull[dayOfWeek] else enWeekShort[dayOfWeek]
                     Lang.TRADITIONAL -> if (run >= 4) cnWeekFull[dayOfWeek] else cnWeekShortTw[dayOfWeek]
                     Lang.CHINESE -> if (run >= 4) cnWeekFull[dayOfWeek] else cnWeekShort[dayOfWeek]

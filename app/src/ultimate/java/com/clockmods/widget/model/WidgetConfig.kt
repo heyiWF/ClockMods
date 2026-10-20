@@ -120,7 +120,7 @@ class WidgetConfig private constructor(builder: Builder) {
         private val TAP_ACTIONS = setOf("open_clock", "open_calendar", "open_weather", "open_config")
 
         private fun buildFontIds(): Array<String> {
-            val families = FontCatalog.options()
+            val families = FontCatalog.bundledOptions()
             return Array(families.size + 1) { index ->
                 if (index == 0) FONT_THEME else families[index - 1].id
             }

@@ -1,0 +1,25 @@
+<resources>
+    <string name="font_import_title">Import and manage fonts</string>
+    <string name="font_import_summary">Import TTF, OTF, TTC, OTC and variable fonts. Family weights are grouped automatically; delete individual files. Missing characters use the system font.</string>
+    <string name="font_import_add">Choose font files</string>
+    <string name="font_import_back">Back to settings</string>
+    <string name="font_import_empty">No imported fonts yet</string>
+    <string name="font_import_busy">Checking fonts…</string>
+    <string name="font_import_success">Imported: %1$s</string>
+    <string name="font_import_duplicate">This family and weight have already been imported.</string>
+    <string name="font_import_no_language">This font does not support the Chinese, English, Japanese or Korean text used by the app and cannot be imported.</string>
+    <string name="font_import_invalid">Cannot read this font. Choose a valid TTF, OTF, TTC or OTC file.</string>
+    <string name="font_import_limit">Up to 32 MB per file, 64 files and 128 MB in total.</string>
+    <string name="font_import_weights">Weights: %1$s</string>
+    <string name="font_import_coverage">App character coverage: Chinese %1$d%% · English %2$d%% · Japanese %3$d%% · Korean %4$d%%. Missing characters use the system font.</string>
+    <string name="font_import_delete">Delete file</string>
+    <string name="font_import_delete_confirm">Delete %1$s? Its weights will be removed. Themes using a family with no remaining files will fall back to the system font.</string>
+    <string name="font_import_deleted">Font file deleted</string>
+    <string name="font_import_delete_failed">Could not delete the font file. Please try again.</string>
+    <string name="font_western">Latin letters, numbers and symbols</string>
+    <string name="font_script_chinese">Chinese font</string>
+    <string name="font_script_japanese">Japanese font</string>
+    <string name="font_script_korean">Korean font</string>
+    <string name="ultimate_language_japanese">日本語</string>
+    <string name="ultimate_language_korean">한국어</string>
+</resources>

@@ -1,0 +1,7 @@
+<resources>
+    <string name="calendar_tomorrow">明日</string>
+    <string name="calendar_after_tomorrow">明後日</string>
+    <string name="calendar_month_picker_title">月を選択</string>
+    <string name="calendar_year">年</string>
+    <string name="calendar_month">月</string>
+</resources>

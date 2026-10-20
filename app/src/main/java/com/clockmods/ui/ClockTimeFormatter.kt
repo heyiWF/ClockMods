@@ -40,7 +40,11 @@ object ClockTimeFormatter {
     fun periodText(hour: Int, useEnglish: Boolean): String = if (useEnglish) {
         if (hour < 12) "AM" else "PM"
     } else {
-        if (hour < 12) "上午" else "下午"
+        when (Locale.getDefault().language) {
+            "ja" -> if (hour < 12) "午前" else "午後"
+            "ko" -> if (hour < 12) "오전" else "오후"
+            else -> if (hour < 12) "上午" else "下午"
+        }
     }
 
     private fun twoDigits(value: Int): String = String.format(Locale.CHINA, "%02d", value)

@@ -29,7 +29,7 @@ android {
     }
 
     defaultConfig {
-        applicationId = "com.clockmods"
+        applicationId = providers.gradleProperty("clockmods.auditApplicationId").getOrElse("com.clockmods")
         minSdk = 31
         targetSdk = 37
         testInstrumentationRunner = providers.gradleProperty("clockmods.testRunner").getOrElse("com.clockmods.widget.WidgetAcceptanceInstrumentation")

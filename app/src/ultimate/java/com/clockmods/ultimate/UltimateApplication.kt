@@ -27,6 +27,7 @@ class UltimateApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        com.clockmods.background.UserFontStore.initialize(this)
         getSharedPreferences("clock_prefs", MODE_PRIVATE)
             .registerOnSharedPreferenceChangeListener(widgetPreferences)
         widgetHandler.post(refreshWidgets)

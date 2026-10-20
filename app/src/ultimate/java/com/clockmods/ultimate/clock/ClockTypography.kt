@@ -10,6 +10,7 @@ class ClockTypography {
     private var cachedScopeId: String? = null
     private var cachedFamily: String? = null
     private var cachedWeight = 0
+    private var cachedFontRevision = -1L
     private var cachedSource: ClockThemeTokens? = null
     private var cachedResult: ClockThemeTokens? = null
 
@@ -20,7 +21,7 @@ class ClockTypography {
             context,
             tokens,
             scopeId,
-            preferences.getFontFamily(scopeId),
+            preferences.getRenderFontFamily(scopeId),
             preferences.getFontWeight(scopeId),
         )
     }
@@ -34,7 +35,7 @@ class ClockTypography {
     ): ClockThemeTokens {
         if (context == null || tokens == null) return tokens
         cachedResult?.let { result ->
-            if (tokens === cachedSource && weight == cachedWeight &&
+            if (cachedFontRevision == com.clockmods.background.UserFontStore.revision() && tokens === cachedSource && weight == cachedWeight &&
                 scopeId == cachedScopeId && family == cachedFamily
             ) {
                 return result
@@ -46,6 +47,7 @@ class ClockTypography {
         cachedScopeId = scopeId
         cachedFamily = family
         cachedWeight = weight
+        cachedFontRevision = com.clockmods.background.UserFontStore.revision()
         cachedSource = tokens
         cachedResult = result
         return result

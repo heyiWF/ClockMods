@@ -76,6 +76,8 @@ open class BackgroundRepository(context: Context) {
     fun setHourlyChimeQuietEnd(value: Int) = preferences.setHourlyChimeQuietEnd(value)
     fun isBoldText() = preferences.isBoldText()
     fun setBoldText(value: Boolean) = preferences.setBoldText(value)
+    fun getRenderFontFamily() = preferences.getRenderFontFamily()
+    fun getRenderFontFamily(scope: String?) = preferences.getRenderFontFamily(scope)
     fun getFontFamily() = preferences.getFontFamily()
     fun setFontFamily(value: String?) = preferences.setFontFamily(value)
     fun getFontFamily(scopeId: String?) = preferences.getFontFamily(scopeId)

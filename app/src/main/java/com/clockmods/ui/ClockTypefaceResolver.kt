@@ -10,6 +10,11 @@ object ClockTypefaceResolver {
 
     @JvmStatic
     fun resolve(context: Context, family: String?, weight: Int): Typeface {
+        com.clockmods.background.UserFontStore.initialize(context)
+        if (com.clockmods.background.MixedFontResolver.isMixed(family)) return com.clockmods.background.MixedFontResolver.resolve(context, family, weight)
+        if (com.clockmods.background.UserFontStore.family(family) != null) {
+            return com.clockmods.background.UserFontStore.resolve(family, FontCatalog.optionFor(family).nearestWeight(weight))
+        }
         val normalized = ClockPreferences.normalizeFontFamily(family)
         val option = FontCatalog.optionFor(normalized)
         val resolvedWeight = option.nearestWeight(weight)
@@ -28,7 +33,7 @@ object ClockTypefaceResolver {
         scopeId: String,
         emphasized: Boolean,
     ): Typeface {
-        val family = preferences.getFontFamily(scopeId)
+        val family = preferences.getRenderFontFamily(scopeId)
         var weight = preferences.getFontWeight(scopeId)
         if (emphasized) weight = FontCatalog.optionFor(family).emphasizedWeight(weight)
         return resolve(context, family, weight)
@@ -40,7 +45,7 @@ object ClockTypefaceResolver {
         family: String?,
         weight: Int,
         containsChinese: Boolean,
-    ): Typeface = if (containsChinese) systemTypeface(weight) else resolve(context, family, weight)
+    ): Typeface = if (containsChinese && !com.clockmods.background.UserFontStore.isImported(family) && !com.clockmods.background.MixedFontResolver.isMixed(family)) systemTypeface(weight) else resolve(context, family, weight)
 
     @JvmStatic
     fun resolveSupporting(
