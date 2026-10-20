@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chinese_calendar_title">中国历法</string>
+    <string name="chinese_calendar_summary">在时钟和日历中显示中国大陆法定节假日、调休上班标记、农历与宜忌。</string>
+</resources>

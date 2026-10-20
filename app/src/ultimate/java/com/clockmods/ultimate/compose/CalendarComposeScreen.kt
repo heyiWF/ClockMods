@@ -81,6 +81,7 @@ internal data class CalendarCellInfo(
     val suitable: List<String>,
     val avoid: List<String>,
     val hasSchedule: Boolean,
+    val showChineseCalendar: Boolean = true,
 )
 
 internal data class CalendarTypography(
@@ -219,9 +220,10 @@ internal fun CalendarScreen(
             kotlinx.coroutines.delay(1_000L)
         }
     }
-    val cellCache = remember(holidayRepository, scheduleStore, refreshGeneration, scheduleRevision) {
+    val showChineseCalendar = preferences.isChineseCalendarEnabled()
+    val cellCache = remember(holidayRepository, scheduleStore, refreshGeneration, scheduleRevision, showChineseCalendar) {
         CalendarCellCache { day ->
-            val almanac = LunarAlmanac.of(day.year, day.month, day.dayOfMonth)
+            val almanac = if (showChineseCalendar) LunarAlmanac.of(day.year, day.month, day.dayOfMonth) else null
             val date = String.format(
                 Locale.US,
                 "%04d-%02d-%02d",
@@ -231,12 +233,13 @@ internal fun CalendarScreen(
             )
             CalendarCellInfo(
                 day = day,
-                lunar = almanac.shortLabel(),
-                festivals = almanac.festivals(),
-                holiday = holidayRepository.statusOn(date),
-                suitable = almanac.suitable(),
-                avoid = almanac.avoid(),
+                lunar = almanac?.shortLabel().orEmpty(),
+                festivals = almanac?.festivals().orEmpty(),
+                holiday = if (showChineseCalendar) holidayRepository.statusOn(date) else null,
+                suitable = almanac?.suitable().orEmpty(),
+                avoid = almanac?.avoid().orEmpty(),
                 hasSchedule = scheduleStore.itemsFor(day.year, day.month, day.dayOfMonth).isNotEmpty(),
+                showChineseCalendar = showChineseCalendar,
             )
         }
     }

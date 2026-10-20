@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chinese_calendar_title">中國曆法</string>
+    <string name="chinese_calendar_summary">在時鐘與日曆中顯示中國大陸法定節假日、調休上班標記、農曆與宜忌。</string>
+</resources>

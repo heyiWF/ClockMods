@@ -10,6 +10,8 @@ Western family/weight retain the existing per-theme keys. East Asian family/weig
 
 Application clocks, calendars and previews use this resolver. Widgets retain their bundled font inventory and RemoteViews behavior. Theme colors, images and fills are not changed by font selection.
 
+English, Japanese and Korean offer a **Chinese calendar** switch in System & Language. It defaults on. Turning it off suppresses mainland China holiday/workday marks, lunar dates, festivals and almanac content in application clocks, calendars and previews. It preserves the separate clock lunar preference and does not affect Chinese locales.
+
 ## Reproduce validation
 
 Use Java from Android Studio and an installed SDK, then run (quote properties in PowerShell):
@@ -26,4 +28,4 @@ adb shell am instrument -w com.clockmods.fontaudit.ultimate.test/com.clockmods.u
 
 The device runner uses bundled Latin files and Android's Noto Serif CJK collection. It checks import rejection, deduplication, family weights, language filtering, independent theme settings, actual mixed-render glyph pixels, deletion/fallback, fixed marquee defaults and Japanese/Korean locales. Screenshots are saved under the audit app's external files in `font-import-acceptance`. Test imports and preferences are cleaned up by the runner.
 
-Validation on 2026-10-20: 270 unit tests, debug/test APK assembly and Lint passed. The Android 15 device runner passed 90 checks, including document-picker callbacks, duplicate feedback, per-file deletion and Western/East Asian preview updates while the screen stays open. Japanese and Korean settings, font management, clocks and calendars were captured in portrait and landscape. Each locale includes all 596 translatable resources with matching format arguments and array lengths.
+Validation on 2026-10-20: 270 unit tests, debug/test APK assembly and Lint passed. The Android 15 device runner passed 269 checks, including document-picker callbacks, duplicate feedback, per-file deletion and Western/East Asian preview updates while the screen stays open. Japanese and Korean settings, font management, clocks and calendars were captured in portrait and landscape. The Chinese-calendar switch was checked in English, Japanese and Korean across all five calendar themes in both orientations, including accessibility text and restoration of language/lunar preferences. Each locale includes all 598 translatable resources with matching format arguments and array lengths.

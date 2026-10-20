@@ -25,7 +25,10 @@ public final class FontImportAcceptance extends Instrumentation {
     private int checks;
     private Bundle args;
     @Override public void onCreate(Bundle args) { super.onCreate(args); this.args = args; start(); }
-    private void check(boolean condition, String message) { checks++; if (!condition) throw new AssertionError(message); }
+    private void check(boolean condition, String message) {
+        checks++; if (!condition) throw new AssertionError(message);
+        Bundle progress=new Bundle();progress.putString("check",checks+": "+message);sendStatus(0,progress);
+    }
     private void error(Context context, InputStream input, String expected) throws Exception {
         try { UserFontStore.importStream(context, input, "test.font"); throw new AssertionError("Import should fail: " + expected); }
         catch (UserFontStore.FontException e) { check(e.reason.equals(expected), "reason " + e.reason + " expected " + expected); }
@@ -144,6 +147,7 @@ public final class FontImportAcceptance extends Instrumentation {
                             "calendar-"+lang+"-"+orientation,orientation,true,null);
                 }
             }
+            checkChineseCalendar(context, output);
             for (UserFontStore.ImportedFile file : new ArrayList<>(UserFontStore.files())) if (file.faces.get(0).identity.equals(regular.faces.get(0).identity) && !prior.contains(file.id)) UserFontStore.delete(file.id);
             check(settings.getFontFamily("font.audit.a").equals(ClockPreferences.FONT_SYSTEM), "deleted family falls back to system");
             result.putString("result", "PASS " + checks + " checks");
@@ -175,6 +179,48 @@ public final class FontImportAcceptance extends Instrumentation {
     }
     /** Exercise the real document URI, activity-result callback, worker and management buttons.
      * The OS picker choice is supplied by an ActivityMonitor so the test needs no external files. */
+    private void checkChineseCalendar(Context context, File output) throws Exception {
+        ClockPreferences settings=new ClockPreferences(context);
+        SharedPreferences prefs=context.getSharedPreferences("clock_prefs",0);
+        settings.setClockLanguage("en");
+        prefs.edit().remove("show_chinese_calendar").commit();
+        check(settings.isChineseCalendarEnabled(),"Chinese calendar defaults on");
+        settings.setShowLunar(true);
+        for(String language:new String[]{"en","ja","ko"}) {
+            settings.setClockLanguage(language);settings.setChineseCalendarEnabled(false);
+            check(settings.canToggleChineseCalendar(),"toggle available "+language);
+            check(!settings.isChineseCalendarEnabled() && !settings.isShowLunarInApp(),"clock lunar suppressed "+language);
+            check(settings.isShowLunar(),"original lunar preference preserved "+language);
+            prefs.edit().putBoolean("weather_enabled",false).putBoolean("use_network_time",false)
+                    .putBoolean("hourly_visual_chime",false).putBoolean("half_hour_visual_chime",false).commit();
+            context.getSharedPreferences("clockmods_onboarding",0).edit().putBoolean("completed",true).commit();
+            Context localized=LocaleManager.wrap(context);
+            capture(context,UltimateSettingsActivity.createSubpageIntent(context,"system"),output,
+                    "chinese-calendar-switch-"+language,1,false,localized.getString(R.string.chinese_calendar_title));
+            for(int orientation:new int[]{1,2}) {
+                prefs.edit().putInt("screen_orientation",orientation).commit();
+                Intent live=new Intent().setClassName(context.getPackageName(),"com.clockmods.ultimate.UltimateMainActivity");
+                capture(context,live,output,"clock-hidden-"+language+"-"+orientation,orientation,false,null);
+                for(String theme:new String[]{"graphite","carbon","paper","poster","agenda"}) {
+                    prefs.edit().putString("calendar_theme","calendar."+theme).commit();
+                    capture(context,new Intent(live).putExtra("com.clockmods.ultimate.extra.DESTINATION","calendar"),output,
+                            "calendar-hidden-"+language+"-"+theme+"-"+orientation,orientation,true,null);
+                }
+            }
+            settings.setChineseCalendarEnabled(true);
+            check(settings.isShowLunarInApp(),"clock lunar restored "+language);
+        }
+        settings.setChineseCalendarEnabled(false);
+        for(String language:new String[]{"zh-Hans","zh-Hant"}) {
+            settings.setClockLanguage(language);
+            check(!settings.canToggleChineseCalendar() && settings.isShowLunarInApp(),"Chinese locale unaffected "+language);
+        }
+        settings.setClockLanguage("en");
+        check(!settings.isChineseCalendarEnabled(),"foreign-language choice survives language changes");
+        settings.setChineseCalendarEnabled(true);settings.setShowLunar(false);
+        check(!settings.isShowLunarInApp(),"master switch preserves separately disabled lunar text");
+    }
+
     private void checkDocumentImport(Context context, File output) throws Exception {
         android.accessibilityservice.AccessibilityServiceInfo service=getUiAutomation().getServiceInfo();
         service.flags |= android.accessibilityservice.AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS;
@@ -277,6 +323,13 @@ public final class FontImportAcceptance extends Instrumentation {
                 if(!targets.isEmpty()) {targets.get(0).performAction(android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.getId());SystemClock.sleep(250);break;}
                 if(!scroll(root))break;SystemClock.sleep(250);
             }
+            if(name.contains("-hidden-")) {
+                android.view.accessibility.AccessibilityNodeInfo root=getUiAutomation().getRootInActiveWindow();
+                check(root!=null && context.getPackageName().contentEquals(root.getPackageName()),"hidden-content screen visible "+name);
+                String spoken=spokenText(root);
+                check(!spoken.contains("宜") && !spoken.contains("忌") && !spoken.contains("农历") && !spoken.contains("農曆"),"almanac absent from accessibility "+name);
+                if(name.contains("-hidden-en-")) check(spoken.codePoints().noneMatch(cp->Character.UnicodeScript.of(cp)==Character.UnicodeScript.HAN),"English calendar contains no Chinese annotations "+name);
+            }
             Bitmap screen=getUiAutomation().takeScreenshot();
             check(screen!=null && ((screen.getWidth()<screen.getHeight())==(orientation==1)),"screen orientation "+name);
             save(screen,new File(output,name+".png"));
@@ -290,6 +343,16 @@ public final class FontImportAcceptance extends Instrumentation {
         if(node.isScrollable() && node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_SCROLL_FORWARD))return true;
         for(int i=0;i<node.getChildCount();i++){android.view.accessibility.AccessibilityNodeInfo child=node.getChild(i);if(child!=null&&scroll(child))return true;}
         return false;
+    }
+    private static String spokenText(android.view.accessibility.AccessibilityNodeInfo node) {
+        StringBuilder text=new StringBuilder();
+        if(node.getText()!=null)text.append(node.getText());
+        if(node.getContentDescription()!=null)text.append(node.getContentDescription());
+        for(int i=0;i<node.getChildCount();i++) {
+            android.view.accessibility.AccessibilityNodeInfo child=node.getChild(i);
+            if(child!=null)text.append(spokenText(child));
+        }
+        return text.toString();
     }
     private static byte[] read(InputStream input)throws IOException { ByteArrayOutputStream out=new ByteArrayOutputStream();byte[] b=new byte[16384];int n;while((n=input.read(b))!=-1)out.write(b,0,n);return out.toByteArray(); }
     private static Bitmap draw(Paint paint,String text) { Bitmap b=Bitmap.createBitmap(1400,130,Bitmap.Config.ARGB_8888);new Canvas(b).drawText(text,20,90,paint);return b; }

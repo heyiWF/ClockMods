@@ -107,6 +107,10 @@ open class ClockPreferences(context: Context) {
     fun isShowSeconds(): Boolean = preferences.getBoolean(KEY_SHOW_SECONDS, DEFAULT_SHOW_SECONDS)
     fun setShowSeconds(value: Boolean) { preferences.edit().putBoolean(KEY_SHOW_SECONDS, value).apply() }
     fun isShowLunar(): Boolean = preferences.getBoolean(KEY_SHOW_LUNAR, DEFAULT_SHOW_LUNAR)
+    fun canToggleChineseCalendar(): Boolean = getClockLanguage() in listOf(LANGUAGE_ENGLISH, LANGUAGE_JAPANESE, LANGUAGE_KOREAN)
+    fun isChineseCalendarEnabled(): Boolean = !canToggleChineseCalendar() || preferences.getBoolean("show_chinese_calendar", true)
+    fun setChineseCalendarEnabled(enabled: Boolean) { preferences.edit().putBoolean("show_chinese_calendar", enabled).apply() }
+    fun isShowLunarInApp(): Boolean = isShowLunar() && isChineseCalendarEnabled()
     fun setShowLunar(value: Boolean) { preferences.edit().putBoolean(KEY_SHOW_LUNAR, value).apply() }
     fun isAutoStart(): Boolean = preferences.getBoolean(KEY_AUTO_START, DEFAULT_AUTO_START)
     fun setAutoStart(value: Boolean) { preferences.edit().putBoolean(KEY_AUTO_START, value).apply() }
@@ -221,7 +225,7 @@ open class ClockPreferences(context: Context) {
             .putBoolean(KEY_HALF_HOUR_CHIME, DEFAULT_HALF_HOUR_CHIME).putString(KEY_CHIME_ANIMATION, CHIME_RADIAL).putBoolean(KEY_HOURLY_CHIME_QUIET, DEFAULT_HOURLY_CHIME_QUIET)
             .putInt(KEY_HOURLY_CHIME_QUIET_START, DEFAULT_HOURLY_CHIME_QUIET_START).putInt(KEY_HOURLY_CHIME_QUIET_END, DEFAULT_HOURLY_CHIME_QUIET_END)
             .putBoolean(KEY_BOLD_TEXT, DEFAULT_BOLD_TEXT).putString(KEY_FONT_FAMILY, DEFAULT_FONT_FAMILY)
-            .putBoolean(KEY_SHOW_SECONDS, DEFAULT_SHOW_SECONDS).putBoolean(KEY_SHOW_LUNAR, DEFAULT_SHOW_LUNAR).putBoolean(KEY_AUTO_START, DEFAULT_AUTO_START)
+            .putBoolean(KEY_SHOW_SECONDS, DEFAULT_SHOW_SECONDS).putBoolean(KEY_SHOW_LUNAR, DEFAULT_SHOW_LUNAR).putBoolean("show_chinese_calendar", true).putBoolean(KEY_AUTO_START, DEFAULT_AUTO_START)
             .putInt(KEY_CALENDAR_WEEK_START, DEFAULT_CALENDAR_WEEK_START).putBoolean(KEY_CALENDAR_HIGHLIGHT_WEEKENDS, DEFAULT_CALENDAR_HIGHLIGHT_WEEKENDS)
             .putString(KEY_CALENDAR_THEME, DEFAULT_CALENDAR_THEME).putBoolean(KEY_SMALL_SECONDS, DEFAULT_SMALL_SECONDS)
             .putBoolean(KEY_PORTRAIT_STACKED, DEFAULT_PORTRAIT_STACKED).putBoolean(KEY_DATE_LUNAR_DUAL_LINE, DEFAULT_DATE_LUNAR_DUAL_LINE)

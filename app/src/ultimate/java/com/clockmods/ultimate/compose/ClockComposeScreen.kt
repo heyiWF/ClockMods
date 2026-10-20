@@ -264,7 +264,7 @@ internal fun renderClockPreview(
     val solarDate = DateFormatter.format(
         datePattern, calendar, LocaleManager.dateLang(repository.getClockLanguage()),
     )
-    val dateText = if (repository.isShowLunar()) {
+    val dateText = if (repository.isShowLunarInApp()) {
         LunarCalendar.format(calendar).takeIf(String::isNotBlank)?.let { "$solarDate | $it" }
             ?: solarDate
     } else solarDate
@@ -374,7 +374,7 @@ internal fun ClockScreen(
         calendar,
         LocaleManager.dateLang(repository.getClockLanguage()),
     )
-    val dateText = if (!repository.isShowLunar()) solarDate else {
+    val dateText = if (!repository.isShowLunarInApp()) solarDate else {
         LunarCalendar.format(calendar).takeIf(String::isNotBlank)?.let { "$solarDate | $it" }
             ?: solarDate
     }

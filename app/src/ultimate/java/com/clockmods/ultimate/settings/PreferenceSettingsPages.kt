@@ -1506,6 +1506,7 @@ internal fun SystemSettingsPage(
         mutableIntStateOf(preferences.getScreenOrientation())
     }
     var language by remember(generation) { mutableStateOf(preferences.getClockLanguage()) }
+    var chineseCalendar by remember(generation, language) { mutableStateOf(preferences.isChineseCalendarEnabled()) }
     var autoStart by remember(generation) { mutableStateOf(preferences.isAutoStart()) }
     var dialog by rememberSaveable { mutableStateOf<SystemDialog?>(null) }
     val periodOptions = listOf(1, 10, 30, 60).map {
@@ -1601,6 +1602,13 @@ internal fun SystemSettingsPage(
             }
             SettingAction(stringResource(R.string.font_import_title), stringResource(R.string.font_import_summary)) {
                 context.startActivity(android.content.Intent(context, FontManagerActivity::class.java))
+            }
+            if (preferences.canToggleChineseCalendar()) {
+                SettingSwitch(stringResource(R.string.chinese_calendar_title), chineseCalendar,
+                    stringResource(R.string.chinese_calendar_summary)) {
+                    chineseCalendar = it
+                    preferences.setChineseCalendarEnabled(it)
+                }
             }
             SettingSwitch(
                 stringResource(R.string.ultimate_auto_start),

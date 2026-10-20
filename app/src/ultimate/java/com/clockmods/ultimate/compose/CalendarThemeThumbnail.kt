@@ -2,6 +2,7 @@ package com.clockmods.ultimate.compose
 
 import android.graphics.Paint
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.stringArrayResource
 import com.clockmods.LocaleManager
 import com.clockmods.R
 import com.clockmods.background.ClockPreferences
@@ -30,6 +31,7 @@ internal fun CalendarThemeThumbnail(theme: ComposeCalendarTheme, modifier: Modif
         ClockTypefaceResolver.resolve(context, preferences.getRenderFontFamily(scope), preferences.getFontWeight(scope))
     }
     val language = preferences.getClockLanguage()
+    val showChineseCalendar = preferences.isChineseCalendarEnabled()
     val dateLang = LocaleManager.dateLang(language)
     val anchor = remember { Calendar.getInstance().apply { clear(); set(2026, Calendar.SEPTEMBER, 21) } }
     val month = DateFormatter.format(when (language) {
@@ -39,8 +41,8 @@ internal fun CalendarThemeThumbnail(theme: ComposeCalendarTheme, modifier: Modif
     val selectedDate = DateFormatter.format(when (language) {
         "en" -> "MMM d EEE"; "ko" -> "M월 d일 EEEE"; else -> "M月d日 EEEE"
     }, anchor, dateLang)
-    val weekdays = context.resources.getStringArray(R.array.calendar_weekday_names)
-    val forecast = context.resources.getStringArray(R.array.forecast_day_labels).take(3).joinToString("    ")
+    val weekdays = stringArrayResource(R.array.calendar_weekday_names)
+    val forecast = stringArrayResource(R.array.forecast_day_labels).take(3).joinToString("    ")
     val paint = remember { Paint(Paint.ANTI_ALIAS_FLAG) }
     Canvas(modifier) {
         paint.typeface = face
@@ -100,12 +102,15 @@ internal fun CalendarThemeThumbnail(theme: ComposeCalendarTheme, modifier: Modif
                 for (row in 0..6) {
                     val y = 14*u + row*(h-18*u)/7
                     if (row == 1) panel(4*u, y, size.width*.32f, (h-18*u)/7)
-                    label("${row+20}    初${row+1}", 7*u, y+6*u, 5f, if (row == 1) theme.today else theme.day)
+                    label(if (showChineseCalendar) "${row+20}    初${row+1}" else "${row+20}",
+                        7*u, y+6*u, 5f, if (row == 1) theme.today else theme.day)
                 }
                 panel(size.width*.39f, 5*u, size.width*.57f, h-10*u)
                 label(selectedDate, size.width*.43f, 17*u, 7f, theme.text)
-                almanacLabel("宜", "出行 · 会友", size.width*.43f, h*.5f, theme.suitable)
-                almanacLabel("忌", "动土", size.width*.43f, h*.66f, theme.avoid)
+                if (showChineseCalendar) {
+                    almanacLabel("宜", "出行 · 会友", size.width*.43f, h*.5f, theme.suitable)
+                    almanacLabel("忌", "动土", size.width*.43f, h*.66f, theme.avoid)
+                }
             }
         }
     }

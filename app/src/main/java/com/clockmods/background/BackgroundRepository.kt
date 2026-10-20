@@ -87,6 +87,8 @@ open class BackgroundRepository(context: Context) {
     fun isShowSeconds() = preferences.isShowSeconds()
     fun setShowSeconds(value: Boolean) = preferences.setShowSeconds(value)
     fun isShowLunar() = preferences.isShowLunar()
+    fun isChineseCalendarEnabled() = preferences.isChineseCalendarEnabled()
+    fun isShowLunarInApp() = preferences.isShowLunarInApp()
     fun setShowLunar(value: Boolean) = preferences.setShowLunar(value)
     fun isAutoStart() = preferences.isAutoStart()
     fun setAutoStart(value: Boolean) = preferences.setAutoStart(value)

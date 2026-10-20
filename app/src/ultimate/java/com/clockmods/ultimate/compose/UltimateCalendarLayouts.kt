@@ -251,8 +251,11 @@ private fun OriginalMonthGrid(cells: List<CalendarCellInfo>, weekdays: List<Stri
 private fun OriginalDayCell(cell: CalendarCellInfo, selected: Boolean, theme: ComposeCalendarTheme,
     typography: CalendarTypography, highlightWeekends: Boolean, onSelect: () -> Unit, modifier: Modifier) {
     val shape = RoundedCornerShape(6.dp)
-    val description = stringResource(if (cell.day.today) R.string.calendar_day_today_accessibility else R.string.calendar_day_accessibility,
-        cell.day.dayOfMonth, cell.lunar)
+    val description = if (cell.showChineseCalendar) stringResource(
+        if (cell.day.today) R.string.calendar_day_today_accessibility else R.string.calendar_day_accessibility,
+        cell.day.dayOfMonth, cell.lunar) else stringResource(
+        if (cell.day.today) R.string.calendar_day_today_number_accessibility else R.string.calendar_day_number_accessibility,
+        cell.day.dayOfMonth)
     BoxWithConstraints(modifier.alpha(if (cell.day.currentMonth) 1f else if (theme.flatGrid) .18f else .38f)
         .then(if (selected && !theme.flatGrid) Modifier.background(Color(theme.selectionFill), shape)
             .border(1.dp, Color(theme.selectionStroke), shape) else Modifier)
@@ -352,7 +355,8 @@ private fun calendarDateLine(cell: CalendarCellInfo): String {
     val solar = com.clockmods.ui.DateFormatter.format(
         if (prefs.isClockUseEnglish()) prefs.getDatePatternEn() else prefs.getDatePatternCn(), date,
         com.clockmods.LocaleManager.dateLang(prefs.getClockLanguage()))
-    return stringResource(R.string.calendar_selected_date, solar, LunarAlmanac.of(cell.day.year, cell.day.month, cell.day.dayOfMonth).naturalLabel())
+    return if (cell.showChineseCalendar) stringResource(R.string.calendar_selected_date, solar,
+        LunarAlmanac.of(cell.day.year, cell.day.month, cell.day.dayOfMonth).naturalLabel()) else solar
 }
 
 @Composable
@@ -362,9 +366,11 @@ private fun PosterCalendar(theme: ComposeCalendarTheme, typography: CalendarTypo
         val date = remember(selection.day) { Calendar.getInstance().apply {
             clear(); set(selection.day.year, selection.day.month, selection.day.dayOfMonth)
         } }
-        val lunar = remember(selection.day) { LunarCalendar.formatNatural(date) }
+        val lunar = remember(selection.day, selection.showChineseCalendar) {
+            if (selection.showChineseCalendar) LunarCalendar.formatNatural(date) else ""
+        }
         Column(modifier.testTag("poster-masthead")) {
-            CalendarText(lunar, if (landscape) 17f else 15f, theme.secondary, typography,
+            if (selection.showChineseCalendar) CalendarText(lunar, if (landscape) 17f else 15f, theme.secondary, typography,
                 Modifier.fillMaxWidth().testTag("poster-selected-lunar"))
             if (selection.festivals.isNotEmpty()) {
                 CalendarText(selection.festivals.joinToString(" · "), if (landscape) 14f else 12f,
