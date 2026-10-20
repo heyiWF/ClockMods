@@ -75,12 +75,12 @@ public final class CalendarAlmanacAcceptance extends Instrumentation {
             com.clockmods.background.ClockPreferences settings = new com.clockmods.background.ClockPreferences(context);
             com.clockmods.sdk.style.MarqueeSpec custom = new com.clockmods.sdk.style.MarqueeSpec(80, 2000, 48);
             settings.setCalendarMarquee("calendar.audit", custom);
-            check(custom.equals(new com.clockmods.background.ClockPreferences(context)
-                    .getCalendarMarquee("calendar.audit")), "motion settings survive host recreation");
-            check(!custom.equals(settings.getCalendarMarquee("calendar.other")), "motion settings are theme scoped");
+            check(com.clockmods.sdk.style.MarqueeSpec.DEFAULT.equals(new com.clockmods.background.ClockPreferences(context)
+                    .getCalendarMarquee("calendar.audit")), "legacy motion overrides use fixed defaults after recreation");
+            check(com.clockmods.sdk.style.MarqueeSpec.DEFAULT.equals(settings.getCalendarMarquee("calendar.other")), "all themes use fixed motion defaults");
             settings.restoreDefaults();
             check(com.clockmods.sdk.style.MarqueeSpec.DEFAULT.equals(settings.getCalendarMarquee("calendar.audit")),
-                    "restore defaults clears scoped motion settings");
+                    "restore defaults preserves fixed motion defaults");
 
             for (Map.Entry<String, Map<String, ?>> entry : original.entrySet()) restore(context, entry.getKey(), entry.getValue());
             boolean pro = context.getPackageName().endsWith(".pro");

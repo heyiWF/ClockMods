@@ -418,9 +418,7 @@ public class ClockPreferences {
     }
 
     public com.clockmods.sdk.style.MarqueeSpec getCalendarMarquee(String themeId) {
-        String key = calendarMotionKey(themeId);
-        return new com.clockmods.sdk.style.MarqueeSpec(preferences.getFloat(key + "_speed", 40f),
-                preferences.getLong(key + "_pause", 1000L), preferences.getFloat(key + "_gap", 24f));
+        return com.clockmods.sdk.style.MarqueeSpec.DEFAULT;
     }
 
     public void setCalendarMarquee(String themeId, com.clockmods.sdk.style.MarqueeSpec value) {
