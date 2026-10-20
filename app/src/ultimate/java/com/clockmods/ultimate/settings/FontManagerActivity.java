@@ -1,144 +1,151 @@
 package com.clockmods.ultimate.settings;
 
-import android.app.Application;
-import android.app.AlertDialog;
 import android.content.Context;
-import android.net.Uri;
+import android.content.res.ColorStateList;
 import android.os.Bundle;
+import android.view.Gravity;
 import android.view.View;
 import android.view.WindowInsets;
-import android.widget.Button;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
-import androidx.activity.ComponentActivity;
 import androidx.activity.result.ActivityResultLauncher;
 import androidx.activity.result.contract.ActivityResultContracts;
-import androidx.lifecycle.AndroidViewModel;
-import androidx.lifecycle.MutableLiveData;
+import androidx.appcompat.app.AppCompatActivity;
 import androidx.lifecycle.ViewModelProvider;
 import com.clockmods.LocaleManager;
 import com.clockmods.R;
 import com.clockmods.background.OpenTypeFont;
 import com.clockmods.background.UserFontStore;
-import java.util.ArrayList;
-import java.util.List;
-import java.util.concurrent.ExecutorService;
-import java.util.concurrent.Executors;
+import com.google.android.material.appbar.MaterialToolbar;
+import com.google.android.material.button.MaterialButton;
+import com.google.android.material.card.MaterialCardView;
+import com.google.android.material.color.DynamicColors;
+import com.google.android.material.color.MaterialColors;
+import com.google.android.material.dialog.MaterialAlertDialogBuilder;
+import com.google.android.material.progressindicator.LinearProgressIndicator;
 
-/** File-level management shared by the View and Compose editions. */
-public final class FontManagerActivity extends ComponentActivity {
+/** Material 3 font library with family cards and file-level actions. */
+public final class FontManagerActivity extends AppCompatActivity {
     private LinearLayout content;
-    private ImportModel model;
+    private ScrollView scroll;
+    private MaterialButton add;
+    private FontImportModel model;
     private final ActivityResultLauncher<String[]> picker = registerForActivityResult(
-            new ActivityResultContracts.OpenMultipleDocuments(), uris -> { if (!uris.isEmpty()) model.importFiles(uris); });
-
+            new ActivityResultContracts.OpenMultipleDocuments(),
+            uris -> { if (!uris.isEmpty()) model.importFiles(uris); });
     @Override protected void attachBaseContext(Context base) { super.attachBaseContext(LocaleManager.wrap(base)); }
+    @Override public void applyOverrideConfiguration(android.content.res.Configuration configuration) {
+        if (configuration != null) configuration.setLocale(LocaleManager.resolveLocale(this));
+        super.applyOverrideConfiguration(configuration);
+    }
     @Override public void onCreate(Bundle savedInstanceState) {
+        DynamicColors.applyToActivityIfAvailable(this);
         super.onCreate(savedInstanceState);
-        if (getActionBar() != null) getActionBar().hide();
         UserFontStore.initialize(this);
-        model = new ViewModelProvider(this, ViewModelProvider.AndroidViewModelFactory.getInstance(getApplication())).get(ImportModel.class);
-        ScrollView scroll = new ScrollView(this);
-        content = new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(dp(24), dp(16), dp(24), dp(24)); scroll.addView(content);
-        scroll.setOnApplyWindowInsetsListener((view, insets) -> {
+        model = new ViewModelProvider(this).get(FontImportModel.class);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(color(com.google.android.material.R.attr.colorSurface));
+        root.setOnApplyWindowInsetsListener((view, insets) -> {
             android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom); return insets;
         });
-        setContentView(scroll);
+        MaterialToolbar toolbar = new MaterialToolbar(this);
+        toolbar.setTitle(R.string.font_library_title);
+        toolbar.setNavigationIcon(R.drawable.import_ic_back);
+        toolbar.setNavigationIconTint(color(com.google.android.material.R.attr.colorOnSurface));
+        toolbar.setNavigationContentDescription(R.string.font_import_back);
+        toolbar.setNavigationOnClickListener(view -> finish());
+        root.addView(toolbar, new LinearLayout.LayoutParams(-1, dp(64)));
+        scroll = new ScrollView(this); scroll.setClipToPadding(false);
+        LinearLayout center = new LinearLayout(this); center.setGravity(Gravity.CENTER_HORIZONTAL);
+        content = new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL);
+        content.setPadding(dp(24), dp(8), dp(24), dp(24));
+        center.addView(content, new LinearLayout.LayoutParams(dp(Math.min(getResources().getConfiguration().screenWidthDp, 840)), -2));
+        scroll.addView(center); root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
+        LinearLayout actions = new LinearLayout(this); actions.setGravity(Gravity.END);
+        actions.setPadding(dp(24), dp(8), dp(24), dp(16));
+        add = new MaterialButton(this); add.setText(R.string.font_import_add);
+        add.setIconResource(R.drawable.import_ic_add); add.setMinHeight(dp(56));
+        add.setOnClickListener(view -> picker.launch(new String[]{"*/*"}));
+        actions.addView(add); root.addView(actions); setContentView(root);
         model.state.observe(this, ignored -> render());
     }
     private void render() {
-        content.removeAllViews();
-        Button back = button(getString(R.string.font_import_back), this::finish); content.addView(back);
-        text(content, getString(R.string.font_import_title), 25, true);
-        text(content, getString(R.string.font_import_summary), 14, false);
-        Button add = button(getString(R.string.font_import_add), () -> picker.launch(new String[]{"*/*"}));
-        add.setEnabled(!model.busy); content.addView(add);
-        if (model.busy) text(content, getString(R.string.font_import_busy), 16, false);
-        for (Result result : model.results) {
-            TextView feedback = text(content, getString(result.message, result.name), 15, false);
-            feedback.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        int scrollY = scroll.getScrollY();
+        content.removeAllViews(); add.setEnabled(!model.busy);
+        text(content, getString(R.string.font_import_summary), 16, false, false);
+        if (model.busy) {
+            LinearProgressIndicator progress = new LinearProgressIndicator(this);
+            progress.setIndeterminate(true); content.addView(progress, new LinearLayout.LayoutParams(-1, dp(8)));
+            text(content, getString(R.string.font_import_busy), 14, false, true);
         }
-        if (UserFontStore.files().isEmpty()) text(content, getString(R.string.font_import_empty), 16, false);
+        for (FontImportModel.Result result : model.results) {
+            TextView message = text(card(com.google.android.material.R.attr.colorSecondaryContainer),
+                    getString(result.message, result.name), 14, false, false);
+            message.setAccessibilityLiveRegion(View.ACCESSIBILITY_LIVE_REGION_POLITE);
+        }
+        if (UserFontStore.files().isEmpty()) {
+            LinearLayout empty = card(com.google.android.material.R.attr.colorSurfaceContainerLow);
+            text(empty, "Aa", 48, true, false);
+            text(empty, getString(R.string.font_import_empty), 22, true, false);
+            text(empty, getString(R.string.font_library_empty_hint), 15, false, true);
+        }
         for (UserFontStore.Family family : UserFontStore.families()) {
-            text(content, family.name, 21, true);
-            TextView sample = text(content, "12:34 · Aa · 中文 · 日本語 · 한국어", 22, false);
-            sample.setTypeface(UserFontStore.resolve(family.id, 400));
+            LinearLayout group = card(com.google.android.material.R.attr.colorSurfaceContainerLow);
+            text(group, family.name, 22, true, false).setAccessibilityHeading(true);
+            text(group, "12:34 · Aa · 中文 · 日本語 · 한국어", 24, false, false)
+                    .setTypeface(UserFontStore.resolve(family.id, 400));
             java.util.HashSet<String> shown = new java.util.HashSet<>();
             for (UserFontStore.Face face : family.faces) {
                 if (!shown.add(face.source.id)) continue;
-                text(content, face.source.name + "\n" + getString(R.string.font_import_weights, weights(face.font.weights)), 15, true);
-                text(content, coverage(this, face.font), 13, false);
-                Button remove = button(getString(R.string.font_import_delete), () -> new AlertDialog.Builder(this)
+                View divider = new View(this);
+                divider.setBackgroundColor(color(com.google.android.material.R.attr.colorOutlineVariant));
+                LinearLayout.LayoutParams line = new LinearLayout.LayoutParams(-1, dp(1));
+                line.topMargin = dp(16); line.bottomMargin = dp(12); group.addView(divider, line);
+                text(group, face.source.name, 16, true, false);
+                text(group, getString(R.string.font_import_weights, weights(face.font.weights)), 14, false, true);
+                text(group, coverage(this, face.font), 13, false, true);
+                MaterialButton remove = new MaterialButton(this, null, androidx.appcompat.R.attr.borderlessButtonStyle);
+                remove.setText(R.string.font_import_delete); remove.setIconResource(R.drawable.import_ic_delete);
+                remove.setTextColor(color(androidx.appcompat.R.attr.colorError));
+                remove.setIconTint(ColorStateList.valueOf(color(androidx.appcompat.R.attr.colorError)));
+                remove.setContentDescription(getString(R.string.font_import_delete) + " " + face.source.name);
+                remove.setMinHeight(dp(48)); remove.setEnabled(!model.busy);
+                remove.setOnClickListener(view -> new MaterialAlertDialogBuilder(this)
                         .setTitle(R.string.font_import_delete)
                         .setMessage(getString(R.string.font_import_delete_confirm, face.source.name))
                         .setNegativeButton(android.R.string.cancel, null)
                         .setPositiveButton(R.string.font_import_delete, (dialog, which) -> model.delete(face.source.id)).show());
-                remove.setContentDescription(getString(R.string.font_import_delete) + " " + face.source.name);
-                remove.setEnabled(!model.busy); content.addView(remove);
+                LinearLayout.LayoutParams action = new LinearLayout.LayoutParams(-2, -2);
+                action.gravity = Gravity.END; group.addView(remove, action);
             }
         }
+        content.post(() -> scroll.scrollTo(0, scrollY));
+    }
+    private LinearLayout card(int colorAttr) {
+        MaterialCardView card = new MaterialCardView(this);
+        card.setRadius(dp(28)); card.setCardElevation(0); card.setStrokeWidth(0); card.setCardBackgroundColor(color(colorAttr));
+        LinearLayout body = new LinearLayout(this); body.setOrientation(LinearLayout.VERTICAL);
+        body.setPadding(dp(20), dp(16), dp(20), dp(12)); card.addView(body);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-1, -2);
+        params.topMargin = dp(16); content.addView(card, params); return body;
+    }
+    private TextView text(LinearLayout parent, String value, int size, boolean bold, boolean supporting) {
+        TextView text = new TextView(this); text.setText(value); text.setTextSize(size);
+        text.setTextColor(color(supporting ? com.google.android.material.R.attr.colorOnSurfaceVariant : com.google.android.material.R.attr.colorOnSurface));
+        if (bold) text.setTypeface(null, android.graphics.Typeface.BOLD);
+        text.setPadding(0, dp(6), 0, dp(6)); parent.addView(text, new LinearLayout.LayoutParams(-1, -2)); return text;
+    }
+    public static String coverage(Context context, OpenTypeFont font) {
+        return context.getString(R.string.font_import_coverage, font.coverage(FontLanguageSamples.CHINESE),
+                font.coverage(FontLanguageSamples.ENGLISH), font.coverage(FontLanguageSamples.JAPANESE), font.coverage(FontLanguageSamples.KOREAN));
     }
     private static String weights(int[] values) {
         StringBuilder result = new StringBuilder();
-        for (int value : values) { if (result.length() > 0) result.append(" · "); result.append(value); }
-        return result.toString();
+        for (int value : values) { if (result.length() > 0) result.append(" · "); result.append(value); } return result.toString();
     }
-    public static String coverage(Context context, OpenTypeFont font) {
-        return context.getString(R.string.font_import_coverage,
-                font.coverage(FontLanguageSamples.CHINESE), font.coverage(FontLanguageSamples.ENGLISH),
-                font.coverage(FontLanguageSamples.JAPANESE), font.coverage(FontLanguageSamples.KOREAN));
-    }
-    private TextView text(LinearLayout parent, String value, int size, boolean bold) {
-        TextView text = new TextView(this); text.setText(value); text.setTextSize(size);
-        if (bold) text.setTypeface(null, android.graphics.Typeface.BOLD);
-        text.setPadding(0, dp(12), 0, dp(8)); parent.addView(text); return text;
-    }
-    private Button button(String title, Runnable action) {
-        Button button = new Button(this); button.setText(title); button.setAllCaps(false);
-        button.setMinHeight(dp(48)); button.setOnClickListener(view -> action.run()); return button;
-    }
+    private int color(int attr) { return MaterialColors.getColor(this, attr, "FontManagerActivity"); }
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
-    private static final class Result {
-        final int message; final String name;
-        Result(int message, String name) { this.message = message; this.name = name; }
-    }
-    public static final class ImportModel extends AndroidViewModel {
-        final MutableLiveData<Integer> state = new MutableLiveData<>(0);
-        volatile boolean busy;
-        volatile List<Result> results = new ArrayList<>();
-        private final ExecutorService worker = Executors.newSingleThreadExecutor();
-        public ImportModel(Application application) { super(application); }
-        void importFiles(List<Uri> uris) {
-            if (busy) return; busy = true; results = new ArrayList<>(); state.setValue(1);
-            worker.execute(() -> {
-                List<Result> next = new ArrayList<>();
-                for (Uri uri : uris) {
-                    try {
-                        UserFontStore.ImportedFile file = UserFontStore.importUri(getApplication(), uri);
-                        next.add(new Result(R.string.font_import_success, file.name));
-                    } catch (Exception e) {
-                        String reason = e instanceof UserFontStore.FontException ? ((UserFontStore.FontException)e).reason : "invalid";
-                        int message = reason.equals("duplicate") ? R.string.font_import_duplicate
-                                : reason.equals("language") ? R.string.font_import_no_language
-                                : reason.equals("limit") ? R.string.font_import_limit : R.string.font_import_invalid;
-                        next.add(new Result(message, ""));
-                    }
-                }
-                results = next; busy = false; state.postValue(2);
-            });
-        }
-        void delete(String id) {
-            if (busy) return; busy = true; state.setValue(1);
-            worker.execute(() -> {
-                boolean deleted = UserFontStore.delete(id);
-                List<Result> next = new ArrayList<>();
-                next.add(new Result(deleted ? R.string.font_import_deleted : R.string.font_import_delete_failed, ""));
-                results = next; busy = false; state.postValue(2);
-            });
-        }
-        @Override protected void onCleared() { worker.shutdown(); }
-    }
 }

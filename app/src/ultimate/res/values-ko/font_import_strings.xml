@@ -22,4 +22,6 @@
     <string name="font_script_korean">한국어 글꼴</string>
     <string name="ultimate_language_japanese">日本語</string>
     <string name="ultimate_language_korean">한국어</string>
+    <string name="font_library_title">글꼴 라이브러리</string>
+    <string name="font_library_empty_hint">글꼴을 가져온 뒤 테마별로 글자와 숫자에 각각 지정할 수 있습니다.</string>
 </resources>

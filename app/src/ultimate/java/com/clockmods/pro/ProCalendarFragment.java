@@ -426,7 +426,7 @@ public final class ProCalendarFragment extends Fragment implements CalendarLayou
         if (details.isEmpty()) return new CalendarPageState.Selection(index, "", "", "");
         boolean english = preferences.isClockUseEnglish();
         String datePattern =
-                english ? preferences.getDatePatternEn() : preferences.getDatePatternCn();
+                preferences.getDatePattern();
         String formattedDate = DateFormatter.format(datePattern, selectedDate,
                 com.clockmods.LocaleManager.dateLang(preferences.getClockLanguage()));
         if (!preferences.isChineseCalendarEnabled()) {

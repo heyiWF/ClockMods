@@ -58,6 +58,15 @@ public final class DateFormatter {
     /** English default: renders "2026/8/7 Friday". */
     public static final String DEFAULT_PATTERN_EN = "yyyy/M/d EEEE";
 
+    public static final String DEFAULT_PATTERN_JA = "yyyy年M月d日（E）";
+    public static final String DEFAULT_PATTERN_KO = "yyyy년 M월 d일 EEEE";
+
+    public static String defaultPattern(Lang lang) {
+        if (lang == Lang.JAPANESE) return DEFAULT_PATTERN_JA;
+        if (lang == Lang.KOREAN) return DEFAULT_PATTERN_KO;
+        return lang == Lang.ENGLISH ? DEFAULT_PATTERN_EN : DEFAULT_PATTERN_CN;
+    }
+
     // ---- Chinese date cores (documentation table 二) ----
     private static final String[] CN_DATE_CORES = {
             "yyyy年MM月dd日", "yyyy年M月d日", "yy年M月d日", "yy年MM月dd日",
@@ -148,10 +157,9 @@ public final class DateFormatter {
         if (pattern == null) {
             return "";
         }
-        if (lang == Lang.KOREAN && DEFAULT_PATTERN_CN.equals(pattern)) pattern = "yyyy년 M월 d일 EEEE";
         StringBuilder out = new StringBuilder(pattern.length() + 16);
         appendFormatted(out, pattern, cal, lang);
-        return TextSpacing.pangu(out.toString());
+        return lang == Lang.JAPANESE ? out.toString() : TextSpacing.pangu(out.toString());
     }
 
     /**
@@ -191,16 +199,20 @@ public final class DateFormatter {
     // ---- Accessors for the settings UI ----
 
     public static String[] dateCores(Lang lang) {
-        if (lang == Lang.JAPANESE) return new String[]{"yyyy年M月d日", "yyyy/MM/dd", "M月d日", "yyyy-MM-dd"};
-        if (lang == Lang.KOREAN) return new String[]{"yyyy년 M월 d일", "yyyy/MM/dd", "M월 d일", "yyyy-MM-dd"};
+        if (lang == Lang.JAPANESE) return new String[]{"yyyy年M月d日", "yyyy年MM月dd日", "yyyy/MM/dd", "yyyy/M/d", "yy/MM/dd", "M月d日", "MM月dd日", "M/d", "MM/dd", "yyyy-MM-dd", "yyyy.MM.dd"};
+        if (lang == Lang.KOREAN) return new String[]{"yyyy년 M월 d일", "yyyy년 MM월 dd일", "yyyy. M. d.", "yyyy. MM. dd.", "yy. M. d.", "M월 d일", "M. d.", "MM.dd", "yyyy-MM-dd", "yyyy/MM/dd", "M/d"};
         return (lang == Lang.ENGLISH ? EN_DATE_CORES : CN_DATE_CORES).clone();
     }
 
     public static String[] weekdayCombos(Lang lang) {
+        if (lang == Lang.JAPANESE) return new String[]{"DATE", "DATE（E）", "DATE（EEEE）", "DATE EEEE", "DATE E", "E DATE", "EEEE DATE", "DATE · E", "DATE | EEEE"};
+        if (lang == Lang.KOREAN) return new String[]{"DATE", "DATE EEEE", "DATE (E)", "DATE (EEEE)", "EEEE, DATE", "E, DATE", "DATE · E", "DATE | EEEE"};
         return (lang == Lang.ENGLISH ? EN_WEEKDAY_COMBOS : CN_WEEKDAY_COMBOS).clone();
     }
 
     public static String[] fixedFormats(Lang lang) {
+        if (lang == Lang.JAPANESE) return new String[]{DEFAULT_PATTERN_JA, "yyyy/MM/dd（E）", "yyyy年M月d日 EEEE", "M月d日（E）", "M/d（E）"};
+        if (lang == Lang.KOREAN) return new String[]{DEFAULT_PATTERN_KO, "yyyy. M. d. (E)", "yyyy-MM-dd EEEE", "M월 d일 EEEE", "M. d. (E)"};
         return (lang == Lang.ENGLISH ? EN_FIXED_FORMATS : CN_FIXED_FORMATS).clone();
     }
 
@@ -284,7 +296,7 @@ public final class DateFormatter {
             case 'Y':
                 // Chinese-numeral year token; degrades to an Arabic year in English so a mistyped
                 // token never injects Chinese numerals into an otherwise-English date.
-                if (lang == Lang.ENGLISH) {
+                if (lang == Lang.ENGLISH || lang == Lang.KOREAN) {
                     out.append(Integer.toString(year));
                 } else {
                     out.append(chineseYear(year, run == 3 ? '〇' : '零'));
@@ -322,7 +334,7 @@ public final class DateFormatter {
                 break;
             case 'D':
                 // Chinese-numeral day token; degrades to an Arabic day in English for the same reason.
-                if (lang == Lang.ENGLISH) {
+                if (lang == Lang.ENGLISH || lang == Lang.KOREAN) {
                     out.append(Integer.toString(day));
                 } else {
                     out.append(chineseCardinal(day));

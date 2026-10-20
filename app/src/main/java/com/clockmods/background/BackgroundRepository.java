@@ -398,6 +398,9 @@ public class BackgroundRepository {
         preferences.setWeatherTemperatureUnit(unit);
     }
 
+    public String getDatePattern() { return preferences.getDatePattern(); }
+    public boolean saveDatePattern(String language, String pattern) { return preferences.saveDatePattern(language, pattern); }
+
     public String getDatePatternCn() {
         return preferences.getDatePatternCn();
     }

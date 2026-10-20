@@ -818,6 +818,11 @@ public class ClockPreferences {
         return trimmed;
     }
 
+    public String getDatePattern() { return DatePatternPreferences.get(preferences, getClockLanguage()); }
+    public boolean saveDatePattern(String language, String pattern) {
+        return DatePatternPreferences.save(preferences, language, pattern);
+    }
+
     /** @return the full date pattern applied when the interface is Chinese. */
     public String getDatePatternCn() {
         return normalizeDatePattern(
@@ -1044,6 +1049,7 @@ public class ClockPreferences {
     public void restoreDefaults() {
         SharedPreferences.Editor editor = preferences.edit();
         clearPerThemeTypography(editor);
+        DatePatternPreferences.clearAdditionalLanguages(editor);
         for (String key : preferences.getAll().keySet()) {
             if (key.startsWith("calendar_marquee__")) editor.remove(key);
         }

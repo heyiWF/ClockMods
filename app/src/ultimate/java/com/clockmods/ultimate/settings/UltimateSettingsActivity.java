@@ -3040,10 +3040,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         String clockLanguage = repository.getClockLanguage();
         boolean english = ClockPreferences.LANGUAGE_ENGLISH.equals(clockLanguage);
         DateFormatter.Lang lang = LocaleManager.dateLang(clockLanguage);
-        String current = english ? repository.getDatePatternEn() : repository.getDatePatternCn();
+        String current = repository.getDatePattern();
         TextInputLayout field = new TextInputLayout(this, null,
                 com.google.android.material.R.attr.textInputOutlinedStyle);
-        field.setHint(english ? DateFormatter.DEFAULT_PATTERN_EN : DateFormatter.DEFAULT_PATTERN_CN);
+        field.setHint(DateFormatter.defaultPattern(lang));
         TextInputEditText input = new TextInputEditText(field.getContext());
         input.setSingleLine(true);
         input.setInputType(InputType.TYPE_CLASS_TEXT | InputType.TYPE_TEXT_FLAG_NO_SUGGESTIONS);
@@ -3107,15 +3107,14 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 .setView(content)
                 .setNegativeButton(R.string.ultimate_cancel, null)
                 .setNeutralButton(R.string.ultimate_restore_default, (ignored, which) -> {
-                    String value = english ? DateFormatter.DEFAULT_PATTERN_EN
-                            : DateFormatter.DEFAULT_PATTERN_CN;
-                    saveDatePattern(english, value);
+                    String value = DateFormatter.defaultPattern(lang);
+                    saveDatePattern(clockLanguage, value);
                 })
                 .setPositiveButton(R.string.ultimate_apply, (ignored, which) -> {
                     String value = input.getText() == null ? ""
                             : input.getText().toString().trim();
                     if (DateFormatter.isValidPattern(value)) {
-                        saveDatePattern(english, value);
+                        saveDatePattern(clockLanguage, value);
                     }
                 })
                 .create();
@@ -3155,13 +3154,8 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         return Calendar.getInstance(zone, Locale.getDefault());
     }
 
-    private void saveDatePattern(boolean english, String value) {
-        if (english) {
-            repository.setDatePatternEn(value);
-        } else {
-            repository.setDatePatternCn(value);
-        }
-        repository.setDateFormatState(english, "", "", true, value);
+    private void saveDatePattern(String language, String value) {
+        if (!repository.saveDatePattern(language, value)) return;
         markChanged("date_format");
         showPage(Page.TIME_DATE);
     }
@@ -3217,8 +3211,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     }
 
     private String currentDatePattern() {
-        return ClockPreferences.LANGUAGE_ENGLISH.equals(repository.getClockLanguage())
-                ? repository.getDatePatternEn() : repository.getDatePatternCn();
+        return repository.getDatePattern();
     }
 
     private String weatherLocationSummary() {
@@ -3792,7 +3785,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     .use24Hour(true)
                     .showSeconds(true)
                     .secondHandMotion(ClockState.SecondHandMotion.TICK)
-                    .dateText(DateFormatter.format(repository.isClockUseEnglish() ? repository.getDatePatternEn() : repository.getDatePatternCn(),
+                    .dateText(DateFormatter.format(repository.getDatePattern(),
                             calendar, LocaleManager.dateLang(repository.getClockLanguage())))
                     .timeZoneText("")
                     .weatherText("24℃")

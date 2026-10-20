@@ -22,4 +22,6 @@
     <string name="font_script_korean">Korean font</string>
     <string name="ultimate_language_japanese">日本語</string>
     <string name="ultimate_language_korean">한국어</string>
+    <string name="font_library_title">Font library</string>
+    <string name="font_library_empty_hint">Import fonts to pair text and numbers independently in each theme.</string>
 </resources>

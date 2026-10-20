@@ -512,7 +512,7 @@ public class UltimateClockView extends FrameLayout {
             boolean english = ClockPreferences.LANGUAGE_ENGLISH.equals(language);
             setLocale(com.clockmods.LocaleManager.resolveLocale(repository.getClockLanguage()));
             dateLanguage = LocaleManager.dateLang(language);
-            datePattern = english ? repository.getDatePatternEn() : repository.getDatePatternCn();
+            datePattern = repository.getDatePattern();
             showLunar = repository.isShowLunarInApp();
             customDateText = "";
             setStatusText("");

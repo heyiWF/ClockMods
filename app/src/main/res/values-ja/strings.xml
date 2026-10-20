@@ -143,8 +143,8 @@
     <string name="date_format_preview">プレビュー：%1$s</string>
     <string name="date_format_help_button">書式ガイド</string>
     <string name="date_format_help_title">日付の書式を指定</string>
-    <string name="date_format_help_body_cn">書式の項目は日付に置き換わり、その他の文字はそのまま表示されます。\n\nyyyy：4桁の年、yy：2桁の年\nM：月、MM：2桁の月、MMM・MMMM：月の名前\nd：日、dd：2桁の日\nEEEE：曜日、E：短い曜日名\nYYY・YYYY：漢数字の年、DD：漢数字の日\n\n文字を単引用符で囲むとそのまま表示されます。単引用符2つで1つを表示します。最大200文字。</string>
-    <string name="date_format_help_body_en">書式の項目は日付に置き換わり、その他の文字はそのまま表示されます。\n\nyyyy：4桁の年、yy：2桁の年\nM：月、MM：2桁の月、MMM・MMMM：月の名前\nd：日、dd：2桁の日\nEEEE：曜日、E：短い曜日名\nYYY・YYYY：漢数字の年、DD：漢数字の日\n\n文字を単引用符で囲むとそのまま表示されます。単引用符2つで1つを表示します。最大200文字。</string>
+    <string name="date_format_help_body_cn">yyyy：西暦（2026）、yy：下2桁（26）\nM：月（8）、MM：2桁（08）、MMM・MMMM：月名（8月）\nd：日（7）、dd：2桁（07）\nE：曜日の略称（金）、EEEE：曜日名（金曜日）\nYYY・YYYY：漢数字の年、DD：漢数字の日\n\nよく使う書式\nyyyy年M月d日（E） → 2026年8月7日（金）\nyyyy/MM/dd EEEE → 2026/08/07 金曜日\nM月d日（E） → 8月7日（金）\n\n単引用符で囲むと文字をそのまま表示します。単引用符2つで1つを表示します。最大200文字。この言語の書式は個別に保存されます。</string>
+    <string name="date_format_help_body_en">yyyy：西暦（2026）、yy：下2桁（26）\nM：月（8）、MM：2桁（08）、MMM・MMMM：月名（8月）\nd：日（7）、dd：2桁（07）\nE：曜日の略称（金）、EEEE：曜日名（金曜日）\nYYY・YYYY：漢数字の年、DD：漢数字の日\n\nよく使う書式\nyyyy年M月d日（E） → 2026年8月7日（金）\nyyyy/MM/dd EEEE → 2026/08/07 金曜日\nM月d日（E） → 8月7日（金）\n\n単引用符で囲むと文字をそのまま表示します。単引用符2つで1つを表示します。最大200文字。この言語の書式は個別に保存されます。</string>
     <string name="custom_message_settings_group">カスタムメッセージ</string>
     <string name="custom_message_hint">天気欄のメッセージ（空欄で非表示）</string>
     <string name="weather_settings_group">天気</string>

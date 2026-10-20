@@ -325,7 +325,7 @@ public class ClockView extends View {
             now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE), now.get(Calendar.SECOND),
             showSeconds, blinkColon, smallSeconds, use24Hour, clockUseEnglish);
         String dateText = DateFormatter.format(
-                clockUseEnglish ? datePatternEn : datePatternCn, now, dateLang);
+                datePatternCn, now, dateLang);
         String lunarText = showLunar ? LunarCalendar.format(now) : "";
 
         // Portrait stacked layout is a fully separate path; landscape is untouched.
@@ -1327,7 +1327,7 @@ public class ClockView extends View {
             weatherTemperatureUnit = selectedTemperatureUnit;
             refreshWeatherDetailCarousel();
         }
-        datePatternCn = backgroundRepository.getDatePatternCn();
+        datePatternCn = backgroundRepository.getDatePattern();
         datePatternEn = backgroundRepository.getDatePatternEn();
         portraitStacked = backgroundRepository.isPortraitStacked();
         dateLunarDualLine = backgroundRepository.isDateLunarDualLine();
