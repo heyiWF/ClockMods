@@ -104,11 +104,8 @@ open class ClockPreferences(context: Context) {
     fun setCalendarWeekStart(value: Int) { preferences.edit().putInt(KEY_CALENDAR_WEEK_START, normalizeCalendarWeekStart(value)).apply() }
     fun isCalendarHighlightWeekends(): Boolean = preferences.getBoolean(KEY_CALENDAR_HIGHLIGHT_WEEKENDS, DEFAULT_CALENDAR_HIGHLIGHT_WEEKENDS)
     fun setCalendarHighlightWeekends(value: Boolean) { preferences.edit().putBoolean(KEY_CALENDAR_HIGHLIGHT_WEEKENDS, value).apply() }
-    fun getCalendarMarquee(themeId: String?): com.clockmods.sdk.style.MarqueeSpec {
-        val key = "calendar_marquee__" + normalizeScope(calendarScope(themeId))
-        return com.clockmods.sdk.style.MarqueeSpec(preferences.getFloat(key + "_speed", 40f),
-            preferences.getLong(key + "_pause", 1000L), preferences.getFloat(key + "_gap", 24f))
-    }
+    fun getCalendarMarquee(themeId: String?): com.clockmods.sdk.style.MarqueeSpec = com.clockmods.sdk.style.MarqueeSpec.DEFAULT
+
     fun setCalendarMarquee(themeId: String?, value: com.clockmods.sdk.style.MarqueeSpec?) {
         val spec = value ?: com.clockmods.sdk.style.MarqueeSpec.DEFAULT
         val key = "calendar_marquee__" + normalizeScope(calendarScope(themeId))
