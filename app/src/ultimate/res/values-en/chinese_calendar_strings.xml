@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chinese_calendar_title">Chinese calendar</string>
+    <string name="chinese_calendar_summary">Show mainland China public holidays and make-up workdays, lunar dates, and almanac guidance in clocks and calendars.</string>
+</resources>

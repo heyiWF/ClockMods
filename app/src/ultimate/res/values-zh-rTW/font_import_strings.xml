@@ -1,0 +1,25 @@
+<resources>
+    <string name="font_import_title">匯入與管理字型</string>
+    <string name="font_import_summary">匯入 TTF、OTF、TTC、OTC 及可變字型。同族字重自動歸組，可按檔案刪除。缺失字元使用系統字型。</string>
+    <string name="font_import_add">選擇字型檔案</string>
+    <string name="font_import_back">返回設定</string>
+    <string name="font_import_empty">尚未匯入字型</string>
+    <string name="font_import_busy">正在檢查字型…</string>
+    <string name="font_import_success">已匯入：%1$s</string>
+    <string name="font_import_duplicate">此字型及字重已匯入，無需重複新增。</string>
+    <string name="font_import_no_language">此字型不支援應用程式使用的中文、英文、日文或韓文，無法匯入。</string>
+    <string name="font_import_invalid">無法讀取或解析字型。請選擇有效的 TTF、OTF、TTC 或 OTC 檔案。</string>
+    <string name="font_import_limit">每個字型檔案最多 32 MB，最多匯入 64 個檔案，總計 128 MB。</string>
+    <string name="font_import_weights">字重：%1$s</string>
+    <string name="font_import_coverage">應用程式文字涵蓋率：中文 %1$d%% · 英文 %2$d%% · 日文 %3$d%% · 韓文 %4$d%%。未涵蓋字元使用系統字型。</string>
+    <string name="font_import_delete">刪除檔案</string>
+    <string name="font_import_delete_confirm">刪除「%1$s」？此檔案提供的字重會被移除；若字型家族已無可用檔案，已選用它的主題會回退到系統字型。</string>
+    <string name="font_import_deleted">字型檔案已刪除</string>
+    <string name="font_import_delete_failed">無法刪除字型檔案，請重試。</string>
+    <string name="font_western">西文、數字與符號字型</string>
+    <string name="font_script_chinese">中文字型</string>
+    <string name="font_script_japanese">日文字型</string>
+    <string name="font_script_korean">韓文字型</string>
+    <string name="ultimate_language_japanese">日本語</string>
+    <string name="ultimate_language_korean">한국어</string>
+</resources>

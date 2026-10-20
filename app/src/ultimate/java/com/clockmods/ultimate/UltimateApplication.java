@@ -18,6 +18,7 @@ public final class UltimateApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        com.clockmods.background.UserFontStore.initialize(this);
         UltimateEmbeddingRules.install(this);
         widgetPreferences = (prefs, key) -> {
             if (key != null && (key.startsWith("weather_") || key.equals("clock_language"))) {

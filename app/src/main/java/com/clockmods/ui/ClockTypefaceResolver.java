@@ -22,6 +22,11 @@ public final class ClockTypefaceResolver {
      * three-weight family for 250 yields its Regular rather than a synthesized approximation.
      */
     public static Typeface resolve(Context context, String family, int weight) {
+        com.clockmods.background.UserFontStore.initialize(context);
+        if (com.clockmods.background.MixedFontResolver.isMixed(family)) return com.clockmods.background.MixedFontResolver.resolve(context, family, weight);
+        if (com.clockmods.background.UserFontStore.family(family) != null) {
+            return com.clockmods.background.UserFontStore.resolve(family, FontCatalog.optionFor(family).nearestWeight(weight));
+        }
         String normalized = ClockPreferences.normalizeFontFamily(family);
         FontCatalog.FontOption option = FontCatalog.optionFor(normalized);
         int resolvedWeight = option.nearestWeight(weight);
@@ -42,7 +47,7 @@ public final class ClockTypefaceResolver {
      */
     public static Typeface resolveForTheme(Context context, ClockPreferences preferences,
             String scopeId, boolean emphasized) {
-        String family = preferences.getFontFamily(scopeId);
+        String family = preferences.getRenderFontFamily(scopeId);
         int weight = preferences.getFontWeight(scopeId);
         if (emphasized) {
             weight = FontCatalog.optionFor(family).emphasizedWeight(weight);
@@ -52,7 +57,7 @@ public final class ClockTypefaceResolver {
 
     static Typeface resolveSupporting(Context context, String family, int weight,
             boolean containsChinese) {
-        if (containsChinese) {
+        if (containsChinese && !com.clockmods.background.UserFontStore.isImported(family) && !com.clockmods.background.MixedFontResolver.isMixed(family)) {
             // The bundled families carry no CJK glyphs, so Chinese keeps the system typeface and
             // only borrows the weight.
             return systemTypeface(weight);

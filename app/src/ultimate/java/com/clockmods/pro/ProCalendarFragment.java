@@ -336,12 +336,12 @@ public final class ProCalendarFragment extends Fragment implements CalendarLayou
             weekdayWeekend[offset] = isWeekend(dayOfWeek);
         }
         DateFormatter.Lang lang =
-                english ? DateFormatter.Lang.ENGLISH : DateFormatter.Lang.CHINESE;
+                com.clockmods.LocaleManager.dateLang(preferences.getClockLanguage());
         // The masthead halves use the spelled-out month (八月 / August) rather than the toolbar's
         // numeric form, because a wordmark set in digits reads as a label, not as typography.
         CalendarPageState.Title title = new CalendarPageState.Title(
-                DateFormatter.format(english ? "MMMM yyyy" : "yyyy年M月", anchor, lang),
-                DateFormatter.format(english ? "MMMM" : "MMMM月", anchor, lang),
+                DateFormatter.format(lang == DateFormatter.Lang.KOREAN ? "yyyy년 M월" : english ? "MMMM yyyy" : "yyyy年M月", anchor, lang),
+                DateFormatter.format(lang == DateFormatter.Lang.CHINESE || lang == DateFormatter.Lang.TRADITIONAL ? "MMMM月" : "MMMM", anchor, lang),
                 DateFormatter.format("yyyy", anchor, lang),
                 titleSub(unit, anchor, lang));
         return new CalendarPageState(calendarMonth.columns, days, buildSelection(selectedIndex),
@@ -374,15 +374,16 @@ public final class ProCalendarFragment extends Fragment implements CalendarLayou
      */
     private CalendarPageState.DayInfo buildDayInfo(CalendarMonth.Day day, boolean english,
             Set<CalendarPageState.DayDetail> details) {
-        boolean wantsLunar = details.contains(CalendarPageState.DayDetail.LUNAR);
-        boolean wantsFestivals = details.contains(CalendarPageState.DayDetail.FESTIVALS);
+        boolean showChineseCalendar = preferences.isChineseCalendarEnabled();
+        boolean wantsLunar = showChineseCalendar && details.contains(CalendarPageState.DayDetail.LUNAR);
+        boolean wantsFestivals = showChineseCalendar && details.contains(CalendarPageState.DayDetail.FESTIVALS);
         LunarAlmanac almanac = wantsLunar || wantsFestivals
                 ? almanacCache.get(day.year, day.month, day.dayOfMonth) : null;
         String lunarShort = wantsLunar ? almanac.shortLabel() : "";
         List<String> festivals = wantsFestivals ? almanac.festivals()
                 : Collections.<String>emptyList();
         HolidayRepository.HolidayStatus status =
-                details.contains(CalendarPageState.DayDetail.HOLIDAY)
+                showChineseCalendar && details.contains(CalendarPageState.DayDetail.HOLIDAY)
                         ? holidayRepository.statusOn(dateKey(day.year, day.month, day.dayOfMonth))
                         : null;
         // "农历 " with nothing after it is worse than saying only the date, so the plain wording is
@@ -424,12 +425,15 @@ public final class ProCalendarFragment extends Fragment implements CalendarLayou
         // formatting three strings nothing will read.
         if (details.isEmpty()) return new CalendarPageState.Selection(index, "", "", "");
         boolean english = preferences.isClockUseEnglish();
-        LunarAlmanac almanac = almanacCache.get(selectedDate.get(Calendar.YEAR),
-                selectedDate.get(Calendar.MONTH), selectedDate.get(Calendar.DAY_OF_MONTH));
         String datePattern =
                 english ? preferences.getDatePatternEn() : preferences.getDatePatternCn();
         String formattedDate = DateFormatter.format(datePattern, selectedDate,
                 com.clockmods.LocaleManager.dateLang(preferences.getClockLanguage()));
+        if (!preferences.isChineseCalendarEnabled()) {
+            return new CalendarPageState.Selection(index, formattedDate, "", "");
+        }
+        LunarAlmanac almanac = almanacCache.get(selectedDate.get(Calendar.YEAR),
+                selectedDate.get(Calendar.MONTH), selectedDate.get(Calendar.DAY_OF_MONTH));
         String dateLine = getString(R.string.calendar_selected_date, formattedDate,
                 almanac.naturalLabel());
         boolean wantsTaboo = details.contains(CalendarPageState.DayDetail.ALMANAC_TABOO);

@@ -1,0 +1,25 @@
+<resources>
+    <string name="font_import_title">フォントの読み込みと管理</string>
+    <string name="font_import_summary">TTF、OTF、TTC、OTC、可変フォントを読み込めます。同じファミリーのウェイトは自動でまとめられ、ファイルごとに削除できます。不足する文字にはシステムフォントを使います。</string>
+    <string name="font_import_add">フォントファイルを選択</string>
+    <string name="font_import_back">設定に戻る</string>
+    <string name="font_import_empty">読み込んだフォントはありません</string>
+    <string name="font_import_busy">フォントを確認中…</string>
+    <string name="font_import_success">読み込み完了：%1$s</string>
+    <string name="font_import_duplicate">このファミリーとウェイトはすでに読み込まれています。</string>
+    <string name="font_import_no_language">このフォントはアプリで使用する中国語、英語、日本語、韓国語に対応していないため、読み込めません。</string>
+    <string name="font_import_invalid">フォントを読み取れません。有効な TTF、OTF、TTC、OTC ファイルを選択してください。</string>
+    <string name="font_import_limit">1ファイル32 MB、最大64ファイル、合計128 MBまで読み込めます。</string>
+    <string name="font_import_weights">ウェイト：%1$s</string>
+    <string name="font_import_coverage">アプリの文字対応率：中国語 %1$d%%・英語 %2$d%%・日本語 %3$d%%・韓国語 %4$d%%。不足する文字にはシステムフォントを使います。</string>
+    <string name="font_import_delete">ファイルを削除</string>
+    <string name="font_import_delete_confirm">%1$s を削除しますか？このファイルのウェイトが削除されます。ファミリー内のファイルがなくなると、そのフォントを使うテーマはシステムフォントに戻ります。</string>
+    <string name="font_import_deleted">フォントファイルを削除しました</string>
+    <string name="font_import_delete_failed">フォントファイルを削除できませんでした。もう一度お試しください。</string>
+    <string name="font_western">英数字と記号のフォント</string>
+    <string name="font_script_chinese">中国語のフォント</string>
+    <string name="font_script_japanese">日本語のフォント</string>
+    <string name="font_script_korean">韓国語のフォント</string>
+    <string name="ultimate_language_japanese">日本語</string>
+    <string name="ultimate_language_korean">한국어</string>
+</resources>

@@ -24,7 +24,7 @@ android {
     buildToolsVersion = '36.1.0'
 
     defaultConfig {
-        applicationId "com.clockmods"
+        applicationId providers.gradleProperty('clockmods.auditApplicationId').getOrElse('com.clockmods')
         minSdk = 31
         targetSdk = 36
         testInstrumentationRunner providers.gradleProperty('clockmods.testRunner')

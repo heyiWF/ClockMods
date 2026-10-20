@@ -1,0 +1,25 @@
+<resources>
+    <string name="font_import_title">导入与管理字体</string>
+    <string name="font_import_summary">导入 TTF、OTF、TTC、OTC 及可变字体。同族字重自动归组，可按文件删除。缺失字符使用系统字体。</string>
+    <string name="font_import_add">选择字体文件</string>
+    <string name="font_import_back">返回设置</string>
+    <string name="font_import_empty">尚未导入字体</string>
+    <string name="font_import_busy">正在检查字体…</string>
+    <string name="font_import_success">已导入：%1$s</string>
+    <string name="font_import_duplicate">此字体及字重已导入，无需重复添加。</string>
+    <string name="font_import_no_language">该字体不支持应用使用的中文、英文、日文或韩文，无法导入。</string>
+    <string name="font_import_invalid">无法读取或解析字体。请选择有效的 TTF、OTF、TTC 或 OTC 文件。</string>
+    <string name="font_import_limit">每个字体文件最多 32 MB，最多导入 64 个文件，总计 128 MB。</string>
+    <string name="font_import_weights">字重：%1$s</string>
+    <string name="font_import_coverage">应用文字覆盖率：中文 %1$d%% · 英文 %2$d%% · 日文 %3$d%% · 韩文 %4$d%%。未覆盖字符使用系统字体。</string>
+    <string name="font_import_delete">删除文件</string>
+    <string name="font_import_delete_confirm">删除“%1$s”？该文件提供的字重会被移除；若字体族已无可用文件，已选用它的主题会回退到系统字体。</string>
+    <string name="font_import_deleted">字体文件已删除</string>
+    <string name="font_import_delete_failed">无法删除字体文件，请重试。</string>
+    <string name="font_western">西文、数字与符号字体</string>
+    <string name="font_script_chinese">中文字体</string>
+    <string name="font_script_japanese">日文字体</string>
+    <string name="font_script_korean">韩文字体</string>
+    <string name="ultimate_language_japanese">日本語</string>
+    <string name="ultimate_language_korean">한국어</string>
+</resources>

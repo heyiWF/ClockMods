@@ -617,9 +617,17 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         embeddingWindowInfoListener = null;
     }
 
+    private long fontRevision = -1;
+
     @Override
     protected void onResume() {
         super.onResume();
+        long currentFontRevision = com.clockmods.background.UserFontStore.revision();
+        if (fontRevision >= 0 && fontRevision != currentFontRevision) {
+            showPage(currentPage);
+            markChanged("imported_fonts");
+        }
+        fontRevision = currentFontRevision;
         syncExternalChanges();
         if (settingsChanged) publishResult();
         updateEmbeddingChrome();
@@ -1431,22 +1439,12 @@ public class UltimateSettingsActivity extends AppCompatActivity {
      */
     private void addTypographySettings(LinearLayout body, String scopeId, Page pageToRefresh) {
         addSectionLabel(body, R.string.ultimate_typography_section, 22);
-        String[] fontNames = FontCatalog.displayNames(this);
-        addActionRow(body, R.string.ultimate_font_family,
-                fontNames[FontCatalog.indexOf(repository.getFontFamily(scopeId))],
-                R.drawable.ultimate_ic_chevron_right, () -> showSingleChoiceDialog(
-                        R.string.ultimate_font_family, fontNames,
-                        FontCatalog.indexOf(repository.getFontFamily(scopeId)), value -> {
-                            String chosen = FontCatalog.idForIndex(value);
-                            repository.setFontFamily(scopeId, chosen);
-                            // The new family may not offer the weight the old one did (Lora stops
-                            // at 700), so pull the stored weight onto a stop it can actually render
-                            // rather than leaving a value the slider cannot represent.
-                            repository.setFontWeight(scopeId, FontCatalog.optionFor(chosen)
-                                    .nearestWeight(repository.getFontWeight(scopeId)));
-                        },
-                        "font_family", true));
-        addWeightSlider(body, scopeId, pageToRefresh);
+        addFontChoice(body, scopeId, pageToRefresh, false);
+        addWeightSlider(body, scopeId, pageToRefresh, false);
+        if (com.clockmods.background.ScriptFontPreferences.hasSeparateScript(repository.getClockLanguage())) {
+            addFontChoice(body, scopeId, pageToRefresh, true);
+            addWeightSlider(body, scopeId, pageToRefresh, true);
+        }
         // Every clock style sizes its own time, date, and supporting text. Pro Classic is the one
         // exception: its three controls live in its own appearance sections below, because that
         // face predates the per-style keys and the legacy view reads the global ones.
@@ -1475,11 +1473,36 @@ public class UltimateSettingsActivity extends AppCompatActivity {
      * per-family, so Roboto shows nine and Google Sans three; a slider offering nine positions for
      * a three-weight font would be six positions that quietly do nothing.
      */
-    private void addWeightSlider(LinearLayout body, String scopeId, Page pageToRefresh) {
+    private void addFontChoice(LinearLayout body, String scopeId, Page page, boolean script) {
+        String language = repository.getClockLanguage();
+        java.util.List<FontCatalog.FontOption> options = com.clockmods.background.ScriptFontPreferences.options(script ? language : "en");
+        String selected = script ? repository.getScriptFontFamily(scopeId) : repository.getFontFamily(scopeId);
+        String[] names = new String[options.size()]; int selectedIndex = 0;
+        for (int i = 0; i < options.size(); i++) {
+            names[i] = FontCatalog.displayName(this, options.get(i).id);
+            if (options.get(i).id.equals(selected)) selectedIndex = i;
+        }
+        int title = !script ? R.string.font_western : language.equals("ja") ? R.string.font_script_japanese
+                : language.equals("ko") ? R.string.font_script_korean : R.string.font_script_chinese;
+        final int initial = selectedIndex;
+        addActionRow(body, title, names[initial], R.drawable.ultimate_ic_chevron_right,
+                () -> showSingleChoiceDialog(title, names, initial, index -> {
+                    FontCatalog.FontOption chosen = options.get(index);
+                    if (script) {
+                        repository.setScriptFontFamily(scopeId, chosen.id);
+                        repository.setScriptFontWeight(scopeId, chosen.nearestWeight(repository.getScriptFontWeight(scopeId)));
+                    } else {
+                        repository.setFontFamily(scopeId, chosen.id);
+                        repository.setFontWeight(scopeId, chosen.nearestWeight(repository.getFontWeight(scopeId)));
+                    }
+                }, "font_family", true));
+    }
+
+    private void addWeightSlider(LinearLayout body, String scopeId, Page pageToRefresh, boolean script) {
         FontCatalog.FontOption option =
-                FontCatalog.optionFor(repository.getFontFamily(scopeId));
+                FontCatalog.optionForLanguage((script ? repository.getScriptFontFamily(scopeId) : repository.getFontFamily(scopeId)), script ? repository.getClockLanguage() : "en");
         int[] weights = option.availableWeights();
-        int selectedIndex = option.indexOfNearestWeight(repository.getFontWeight(scopeId));
+        int selectedIndex = option.indexOfNearestWeight((script ? repository.getScriptFontWeight(scopeId) : repository.getFontWeight(scopeId)));
 
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.VERTICAL);
@@ -1498,6 +1521,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         slider.setStepSize(1f);
         slider.setValue(Math.min(selectedIndex, Math.max(1, weights.length - 1)));
         slider.setTickVisible(weights.length <= 9);
+        slider.setEnabled(weights.length > 1);
         slider.setContentDescription(getString(R.string.ultimate_font_weight));
         slider.setLabelFormatter(position -> weightLabel(
                 option.weightAt(Math.round(position))));
@@ -1513,8 +1537,8 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             // touches a stale child (ViewGroup.resolvePadding on a null view).
             @Override public void onStopTrackingTouch(Slider control) {
                 row.post(() -> {
-                    repository.setFontWeight(scopeId,
-                            option.weightAt(Math.round(control.getValue())));
+                    if (script) repository.setScriptFontWeight(scopeId, option.weightAt(Math.round(control.getValue())));
+                    else repository.setFontWeight(scopeId, option.weightAt(Math.round(control.getValue())));
                     markChanged("font_weight");
                     showPage(pageToRefresh);
                 });
@@ -1959,40 +1983,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         String selectedId = addCalendarThemes(body);
         String scopeId = ClockPreferences.calendarScope(selectedId);
         addTypographySettings(body, scopeId, Page.CALENDAR_STYLE);
-        addCalendarMotionSettings(body, selectedId);
         return scrollable(body);
     }
 
-    private void addCalendarMotionSettings(LinearLayout body, String themeId) {
-        com.clockmods.sdk.style.MarqueeSpec motion = repository.getCalendarMarquee(themeId);
-        addSectionLabel(body, R.string.calendar_marquee_speed);
-        addSegmented(body, new int[] {R.string.calendar_marquee_slow, R.string.calendar_marquee_normal,
-                R.string.calendar_marquee_fast}, motion.speedDpPerSecond < 30f ? 0
-                : motion.speedDpPerSecond > 50f ? 2 : 1, choice -> {
-            com.clockmods.sdk.style.MarqueeSpec current = repository.getCalendarMarquee(themeId);
-            repository.setCalendarMarquee(themeId, new com.clockmods.sdk.style.MarqueeSpec(
-                    new float[] {20f, 40f, 80f}[choice], current.pauseMillis, current.gapDp));
-            markChanged("calendar_marquee_speed");
-        });
-        addSectionLabel(body, R.string.calendar_marquee_pause);
-        addSegmented(body, new int[] {R.string.calendar_marquee_pause_none,
-                R.string.calendar_marquee_pause_normal, R.string.calendar_marquee_pause_long},
-                motion.pauseMillis < 500 ? 0 : motion.pauseMillis > 1500 ? 2 : 1, choice -> {
-            com.clockmods.sdk.style.MarqueeSpec current = repository.getCalendarMarquee(themeId);
-            repository.setCalendarMarquee(themeId, new com.clockmods.sdk.style.MarqueeSpec(
-                    current.speedDpPerSecond, new long[] {0L, 1000L, 2000L}[choice], current.gapDp));
-            markChanged("calendar_marquee_pause");
-        });
-        addSectionLabel(body, R.string.calendar_marquee_gap);
-        addSegmented(body, new int[] {R.string.calendar_marquee_gap_small,
-                R.string.calendar_marquee_gap_normal, R.string.calendar_marquee_gap_large},
-                motion.gapDp < 18f ? 0 : motion.gapDp > 36f ? 2 : 1, choice -> {
-            com.clockmods.sdk.style.MarqueeSpec current = repository.getCalendarMarquee(themeId);
-            repository.setCalendarMarquee(themeId, new com.clockmods.sdk.style.MarqueeSpec(
-                    current.speedDpPerSecond, current.pauseMillis, new float[] {12f, 24f, 48f}[choice]));
-            markChanged("calendar_marquee_gap");
-        });
-    }
+
 
     /** What the calendar does, not how it looks; the themes moved to {@link #calendarStylePage()}. */
     private View calendarPage() {
@@ -2220,16 +2214,30 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         addSectionLabel(body, R.string.ultimate_language_section, 22);
         String language = repository.getClockLanguage();
         int languagePosition = ClockPreferences.LANGUAGE_TRADITIONAL.equals(language) ? 1
-                : ClockPreferences.LANGUAGE_ENGLISH.equals(language) ? 2 : 0;
+                : ClockPreferences.LANGUAGE_ENGLISH.equals(language) ? 2
+                : ClockPreferences.LANGUAGE_JAPANESE.equals(language) ? 3
+                : ClockPreferences.LANGUAGE_KOREAN.equals(language) ? 4 : 0;
         addSegmented(body, new int[] {R.string.ultimate_language_simplified,
-                        R.string.ultimate_language_traditional, R.string.ultimate_language_english},
+                        R.string.ultimate_language_traditional, R.string.ultimate_language_english,
+                        R.string.ultimate_language_japanese, R.string.ultimate_language_korean},
                 languagePosition, value -> {
                     String selected = value == 1 ? ClockPreferences.LANGUAGE_TRADITIONAL
                             : value == 2 ? ClockPreferences.LANGUAGE_ENGLISH
+                            : value == 3 ? ClockPreferences.LANGUAGE_JAPANESE
+                            : value == 4 ? ClockPreferences.LANGUAGE_KOREAN
                             : ClockPreferences.LANGUAGE_SIMPLIFIED;
                     repository.setClockLanguage(selected);
                     markChanged(CHANGE_SOURCE_CLOCK_LANGUAGE);
                 });
+        addActionRow(body, R.string.font_import_title, R.string.font_import_summary,
+                R.drawable.ultimate_ic_language, () -> startActivity(new Intent(this, FontManagerActivity.class)));
+        if (repository.canToggleChineseCalendar()) {
+            addSwitch(body, R.string.chinese_calendar_title, R.string.chinese_calendar_summary,
+                    repository.isChineseCalendarEnabled(), value -> {
+                        repository.setChineseCalendarEnabled(value);
+                        markChanged("show_chinese_calendar");
+                    });
+        }
         addSwitch(body, R.string.ultimate_auto_start,
                 R.string.ultimate_auto_start_summary, repository.isAutoStart(), value -> {
                     repository.setAutoStart(value);
@@ -3784,9 +3792,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     .use24Hour(true)
                     .showSeconds(true)
                     .secondHandMotion(ClockState.SecondHandMotion.TICK)
-                    .dateText("2026 / 06 / 18  WED")
+                    .dateText(DateFormatter.format(repository.isClockUseEnglish() ? repository.getDatePatternEn() : repository.getDatePatternCn(),
+                            calendar, LocaleManager.dateLang(repository.getClockLanguage())))
                     .timeZoneText("")
-                    .weatherText("24 C  CLEAR")
+                    .weatherText("24℃")
                     .timeScale(repository.getTimeFontScale(scopeId)
                             / ClockPreferences.DEFAULT_TIME_FONT_SCALE)
                     .dateScale(repository.getDateFontScale(scopeId))
@@ -3803,7 +3812,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                         getHeight() / (float) renderHeight);
                 style.getRenderer().render(canvas, context, state,
                         typography.apply(getContext(), previewTokens, scopeId,
-                                repository.getFontFamily(scopeId),
+                                repository.getRenderFontFamily(scopeId),
                                 repository.getFontWeight(scopeId)));
             } finally {
                 canvas.restoreToCount(saveCount);
@@ -3814,9 +3823,11 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     /** Thin wrapper: the drawing itself lives with the compositions, in CalendarPreviewPainter. */
     private static final class CalendarThemePreviewView extends View {
         private final CalendarPreviewPainter painter;
+        private final ClockPreferences preferences;
 
         CalendarThemePreviewView(Context context, CalendarStyle style) {
             super(context);
+            preferences = new ClockPreferences(context);
             painter = new CalendarPreviewPainter(style,
                     context.getResources().getDisplayMetrics().density);
         }
@@ -3830,6 +3841,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
+            painter.setChineseCalendarEnabled(preferences.isChineseCalendarEnabled());
             painter.draw(canvas, getWidth(), getHeight());
         }
     }

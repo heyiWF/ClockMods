@@ -31,7 +31,7 @@ public final class ProFontApplier {
         if (root == null) return;
         ClockPreferences preferences = new ClockPreferences(root.getContext());
         String family = scopeId == null
-                ? preferences.getFontFamily() : preferences.getFontFamily(scopeId);
+                ? preferences.getRenderFontFamily() : preferences.getRenderFontFamily(scopeId);
         int weight = scopeId == null
                 ? (preferences.isBoldText() ? ClockPreferences.BOLD_WEIGHT
                         : FontCatalog.DEFAULT_WEIGHT)

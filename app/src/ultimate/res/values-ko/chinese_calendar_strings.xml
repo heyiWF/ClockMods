@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="chinese_calendar_title">중국 달력</string>
+    <string name="chinese_calendar_summary">시계와 달력에 중국 본토의 법정 공휴일·대체 근무일, 음력 및 길흉 정보(宜·忌)를 표시합니다.</string>
+</resources>

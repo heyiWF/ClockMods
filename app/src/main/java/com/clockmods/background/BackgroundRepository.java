@@ -223,6 +223,15 @@ public class BackgroundRepository {
         preferences.setBoldText(boldText);
     }
 
+    public String getScriptFontFamily(String scope) { return preferences.getScriptFontFamily(scope); }
+    public void setScriptFontFamily(String scope, String id) { preferences.setScriptFontFamily(scope, id); }
+    public int getScriptFontWeight(String scope) { return preferences.getScriptFontWeight(scope); }
+    public void setScriptFontWeight(String scope, int weight) { preferences.setScriptFontWeight(scope, weight); }
+    public String getRenderFontFamily() { return getRenderFontFamily("pro.classic"); }
+    public String getRenderFontFamily(String scope) {
+        return preferences.getRenderFontFamily(scope);
+    }
+
     public String getFontFamily() {
         return preferences.getFontFamily();
     }
@@ -259,6 +268,11 @@ public class BackgroundRepository {
     public boolean isShowLunar() {
         return preferences.isShowLunar();
     }
+
+    public boolean isChineseCalendarEnabled() { return preferences.isChineseCalendarEnabled(); }
+    public boolean canToggleChineseCalendar() { return preferences.canToggleChineseCalendar(); }
+    public void setChineseCalendarEnabled(boolean enabled) { preferences.setChineseCalendarEnabled(enabled); }
+    public boolean isShowLunarInApp() { return preferences.isShowLunarInApp(); }
 
     public void setShowLunar(boolean showLunar) {
         preferences.setShowLunar(showLunar);

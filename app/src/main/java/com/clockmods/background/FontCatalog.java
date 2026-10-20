@@ -82,7 +82,7 @@ public final class FontCatalog {
         }
 
         public boolean isSystem() {
-            return variableAsset == null && staticAssets == null;
+            return !UserFontStore.isImported(id) && variableAsset == null && staticAssets == null;
         }
 
         /** {@code true} when this family renders weights from a {@code wght} axis. */
@@ -198,24 +198,44 @@ public final class FontCatalog {
     }
 
     /** Ordered list of the font families available in ClockMods Ultimate. */
+    public static List<FontOption> bundledOptions() { return OPTIONS; }
+
     public static List<FontOption> options() {
-        return OPTIONS;
+        List<FontOption> options = new ArrayList<>(OPTIONS);
+        for (UserFontStore.Family family : UserFontStore.families()) {
+            options.add(new FontOption(family.id, family.name, null, null, family.weights.clone(), null));
+        }
+        return Collections.unmodifiableList(options);
+    }
+
+    /** Only expose weights whose files can actually render the selected language. */
+    public static FontOption optionForLanguage(String id, String language) {
+        UserFontStore.Family family = UserFontStore.family(id);
+        if (family == null) return optionFor(id);
+        java.util.TreeSet<Integer> weights = new java.util.TreeSet<>();
+        for (UserFontStore.Face face : family.faces) if (ScriptFontPreferences.supportsFace(face.font, language))
+            for (int weight : face.font.weights) weights.add(weight);
+        if (weights.isEmpty()) return OPTIONS.get(0);
+        int[] stops = new int[weights.size()]; int index = 0;
+        for (int weight : weights) stops[index++] = weight;
+        return new FontOption(id, family.name, null, null, stops, null);
     }
 
     /** Returns the option for {@code id}, or the system option when unknown. */
     public static FontOption optionFor(String id) {
-        for (FontOption option : OPTIONS) {
+        id = MixedFontResolver.western(id);
+        for (FontOption option : options()) {
             if (option.id.equals(id)) {
                 return option;
             }
         }
-        return OPTIONS.get(0);
+        return options().get(0);
     }
 
     /** Position of {@code id} in {@link #options()}, or 0 (system) when unknown. */
     public static int indexOf(String id) {
-        for (int i = 0; i < OPTIONS.size(); i++) {
-            if (OPTIONS.get(i).id.equals(id)) {
+        for (int i = 0; i < options().size(); i++) {
+            if (options().get(i).id.equals(id)) {
                 return i;
             }
         }
@@ -224,15 +244,15 @@ public final class FontCatalog {
 
     /** Font id at {@code index}, clamped to the valid range. */
     public static String idForIndex(int index) {
-        if (index < 0 || index >= OPTIONS.size()) {
+        if (index < 0 || index >= options().size()) {
             return ClockPreferences.FONT_SYSTEM;
         }
-        return OPTIONS.get(index).id;
+        return options().get(index).id;
     }
 
     /** {@code true} when {@code id} is a bundled family. */
     public static boolean isAvailable(String id) {
-        for (FontOption option : OPTIONS) {
+        for (FontOption option : options()) {
             if (option.id.equals(id)) {
                 return true;
             }
@@ -242,9 +262,9 @@ public final class FontCatalog {
 
     /** Display names in catalog order, for populating a spinner adapter. */
     public static String[] displayNames() {
-        String[] names = new String[OPTIONS.size()];
-        for (int i = 0; i < OPTIONS.size(); i++) {
-            names[i] = OPTIONS.get(i).displayName;
+        String[] names = new String[options().size()];
+        for (int i = 0; i < options().size(); i++) {
+            names[i] = options().get(i).displayName;
         }
         return names;
     }
@@ -255,11 +275,16 @@ public final class FontCatalog {
      */
     public static String[] displayNames(Context context) {
         String[] names = displayNames();
-        for (int i = 0; i < OPTIONS.size(); i++) {
-            if (OPTIONS.get(i).isSystem()) {
+        for (int i = 0; i < options().size(); i++) {
+            if (options().get(i).isSystem()) {
                 names[i] = context.getString(R.string.font_system);
             }
         }
         return names;
+    }
+
+    public static String displayName(Context context, String id) {
+        FontOption option = optionFor(id);
+        return option.isSystem() ? context.getString(R.string.font_system) : option.displayName;
     }
 }

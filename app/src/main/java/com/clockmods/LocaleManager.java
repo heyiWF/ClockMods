@@ -30,6 +30,8 @@ public final class LocaleManager {
 
     /** Resolves a draft language choice without changing the stored app preference. */
     public static Locale resolveLocale(String language) {
+        if (ClockPreferences.LANGUAGE_JAPANESE.equals(language)) return Locale.JAPANESE;
+        if (ClockPreferences.LANGUAGE_KOREAN.equals(language)) return Locale.KOREAN;
         if (ClockPreferences.LANGUAGE_ENGLISH.equals(language)) {
             return Locale.ENGLISH;
         }
@@ -41,6 +43,8 @@ public final class LocaleManager {
 
     /** Maps a stored interface-language code to the matching {@link DateFormatter.Lang}. */
     public static DateFormatter.Lang dateLang(String clockLanguage) {
+        if (ClockPreferences.LANGUAGE_JAPANESE.equals(clockLanguage)) return DateFormatter.Lang.JAPANESE;
+        if (ClockPreferences.LANGUAGE_KOREAN.equals(clockLanguage)) return DateFormatter.Lang.KOREAN;
         if (ClockPreferences.LANGUAGE_ENGLISH.equals(clockLanguage)) {
             return DateFormatter.Lang.ENGLISH;
         }

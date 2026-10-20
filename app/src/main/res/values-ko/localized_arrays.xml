@@ -1,0 +1,60 @@
+<resources>
+    <string-array name="region_names">
+        <item>시스템 설정 따르기</item>
+        <item>중국(베이징)</item>
+        <item>중국(우루무치)</item>
+        <item>홍콩</item>
+        <item>마카오</item>
+        <item>대만(타이베이)</item>
+        <item>일본(도쿄)</item>
+        <item>한국(서울)</item>
+        <item>싱가포르</item>
+        <item>태국(방콕)</item>
+        <item>인도네시아(자카르타)</item>
+        <item>인도(콜카타)</item>
+        <item>아랍에미리트(두바이)</item>
+        <item>러시아(모스크바)</item>
+        <item>영국(런던)</item>
+        <item>프랑스(파리)</item>
+        <item>독일(베를린)</item>
+        <item>튀르키예(이스탄불)</item>
+        <item>남아프리카공화국(요하네스버그)</item>
+        <item>이집트(카이로)</item>
+        <item>브라질(상파울루)</item>
+        <item>아르헨티나(부에노스아이레스)</item>
+        <item>미국 동부(뉴욕)</item>
+        <item>미국 중부(시카고)</item>
+        <item>미국 산악(덴버)</item>
+        <item>미국 태평양(로스앤젤레스)</item>
+        <item>미국 알래스카</item>
+        <item>미국 하와이</item>
+        <item>캐나다(토론토)</item>
+        <item>멕시코(멕시코시티)</item>
+        <item>호주(시드니)</item>
+        <item>호주(퍼스)</item>
+        <item>뉴질랜드(오클랜드)</item>
+    </string-array>
+    <string-array name="calendar_weekday_names">
+        <item>일</item>
+        <item>월</item>
+        <item>화</item>
+        <item>수</item>
+        <item>목</item>
+        <item>금</item>
+        <item>토</item>
+    </string-array>
+    <string-array name="forecast_day_labels">
+        <item>오늘</item>
+        <item>내일</item>
+        <item>모레</item>
+    </string-array>
+    <string-array name="pro_time_transitions">
+        <item>페이드</item>
+        <item>위로 슬라이드</item>
+        <item>아래로 슬라이드</item>
+        <item>확대·축소</item>
+        <item>뒤집기</item>
+        <item>오른쪽으로 넘기기</item>
+        <item>스캔 표시</item>
+    </string-array>
+</resources>

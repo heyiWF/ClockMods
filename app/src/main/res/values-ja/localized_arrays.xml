@@ -1,0 +1,60 @@
+<resources>
+    <string-array name="region_names">
+        <item>システムに従う</item>
+        <item>中国（北京）</item>
+        <item>中国（ウルムチ）</item>
+        <item>香港</item>
+        <item>マカオ</item>
+        <item>台湾（台北）</item>
+        <item>日本（東京）</item>
+        <item>韓国（ソウル）</item>
+        <item>シンガポール</item>
+        <item>タイ（バンコク）</item>
+        <item>インドネシア（ジャカルタ）</item>
+        <item>インド（コルカタ）</item>
+        <item>UAE（ドバイ）</item>
+        <item>ロシア（モスクワ）</item>
+        <item>英国（ロンドン）</item>
+        <item>フランス（パリ）</item>
+        <item>ドイツ（ベルリン）</item>
+        <item>トルコ（イスタンブール）</item>
+        <item>南アフリカ（ヨハネスブルク）</item>
+        <item>エジプト（カイロ）</item>
+        <item>ブラジル（サンパウロ）</item>
+        <item>アルゼンチン（ブエノスアイレス）</item>
+        <item>米国東部（ニューヨーク）</item>
+        <item>米国中部（シカゴ）</item>
+        <item>米国山岳部（デンバー）</item>
+        <item>米国太平洋（ロサンゼルス）</item>
+        <item>米国アラスカ</item>
+        <item>米国ハワイ</item>
+        <item>カナダ（トロント）</item>
+        <item>メキシコ（メキシコシティ）</item>
+        <item>オーストラリア（シドニー）</item>
+        <item>オーストラリア（パース）</item>
+        <item>ニュージーランド（オークランド）</item>
+    </string-array>
+    <string-array name="calendar_weekday_names">
+        <item>日</item>
+        <item>月</item>
+        <item>火</item>
+        <item>水</item>
+        <item>木</item>
+        <item>金</item>
+        <item>土</item>
+    </string-array>
+    <string-array name="forecast_day_labels">
+        <item>今日</item>
+        <item>明日</item>
+        <item>明後日</item>
+    </string-array>
+    <string-array name="pro_time_transitions">
+        <item>フェード</item>
+        <item>上へスライド</item>
+        <item>下へスライド</item>
+        <item>拡大・縮小</item>
+        <item>フリップ</item>
+        <item>右へスワイプ</item>
+        <item>スキャン表示</item>
+    </string-array>
+</resources>

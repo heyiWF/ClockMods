@@ -167,8 +167,8 @@ public class StatusBarView extends View {
                 : backgroundRepository.getSupportingFontScale(typographyScope);
         textPaint.setTextSize(iconHeight * .9f * scale);
         if (backgroundRepository != null) {
-            String family = typographyScope == null ? backgroundRepository.getFontFamily()
-                    : backgroundRepository.getFontFamily(typographyScope);
+            String family = typographyScope == null ? backgroundRepository.getRenderFontFamily()
+                    : backgroundRepository.getRenderFontFamily(typographyScope);
             int weight = typographyScope == null ? com.clockmods.background.FontCatalog.DEFAULT_WEIGHT
                     : backgroundRepository.getFontWeight(typographyScope);
             textPaint.setTypeface(ClockTypefaceResolver.resolve(getContext(), family, weight));

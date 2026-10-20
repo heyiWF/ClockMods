@@ -44,6 +44,9 @@ public final class ClockTimeFormatter {
         if (useEnglish) {
             return hour < 12 ? "AM" : "PM";
         }
+        String language = Locale.getDefault().getLanguage();
+        if (language.equals("ja")) return hour < 12 ? "午前" : "午後";
+        if (language.equals("ko")) return hour < 12 ? "오전" : "오후";
         return hour < 12 ? "上午" : "下午";
     }
 

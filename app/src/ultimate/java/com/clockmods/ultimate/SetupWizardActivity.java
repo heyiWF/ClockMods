@@ -342,6 +342,8 @@ public final class SetupWizardActivity extends AppCompatActivity {
         addLanguageOption(ClockPreferences.LANGUAGE_SIMPLIFIED, R.string.ultimate_language_simplified);
         addLanguageOption(ClockPreferences.LANGUAGE_TRADITIONAL, R.string.ultimate_language_traditional);
         addLanguageOption(ClockPreferences.LANGUAGE_ENGLISH, R.string.ultimate_language_english);
+        addLanguageOption(ClockPreferences.LANGUAGE_JAPANESE, R.string.ultimate_language_japanese);
+        addLanguageOption(ClockPreferences.LANGUAGE_KOREAN, R.string.ultimate_language_korean);
         pageContent.addView(languageGroup, topMargin(wrap(), dp(compactLandscape ? 4
                 : compactHeight ? 8 : 16)));
         for (int i = 0; i < languageGroup.getChildCount(); i++) {

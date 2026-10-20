@@ -22,14 +22,14 @@
 
 `MarqueeSpec` 是不可变值，可直接传入 View 或 Compose adapter；不能把 SharedPreferences 传给 SDK 绘制模型。
 
-| 参数 | 默认 | 接口范围 | 设置预设 |
-| --- | --- | --- | --- |
-| speedDpPerSecond | 40 dp/s | 10–120 | 20 / 40 / 80 |
-| pauseMillis | 1000 ms | 0–5000 | 0 / 1000 / 2000 |
-| gapDp | 24 dp | 8–96 | 12 / 24 / 48 |
+| 参数 | 固定默认值 | SDK 接口范围 |
+| --- | --- | --- |
+| speedDpPerSecond | 40 dp/s | 10–120 |
+| pauseMillis | 1000 ms | 0–5000 |
+| gapDp | 24 dp | 8–96 |
 
 非法浮点配置回退默认值，超界值截断。输入几何应为有限非负像素，density 为有限正数；elapsed 为宿主单调时钟的相对毫秒。
-每个日历主题独立保存；无旧值时行为与旧版一致。切换参数重置该行时间轴，不修改其他主题。
+应用统一使用默认值，设置面板不再提供这三个选项；已保存的旧参数不参与渲染。SDK 保留参数接口以兼容已有渲染器。
 循环宜忌行使用 `loopDistance` / `loopOffset`：接缝至少为 1.5 倍字号，第二份正文无缝接替首份后停顿。
 轮播页脚使用 `scrollOffset` / `holdMillis`：头尾停顿后切换项目，短行至少展示 3 秒；接缝间距仅对循环行有效。
 `loopFrameDelay` / `scrollFrameDelay` 返回下一次绘制延时；`IDLE` 表示没有待执行帧，宿主不能把它当作普通延时提交。

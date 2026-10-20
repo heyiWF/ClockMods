@@ -1285,7 +1285,7 @@ public class ClockView extends View {
 
     private Typeface supportingTypefaceFor(int codePoint) {
         return ClockTypefaceResolver.resolveSupportingForCodePoint(
-            getContext(), backgroundRepository.getFontFamily(), boldText, codePoint);
+            getContext(), backgroundRepository.getRenderFontFamily(), boldText, codePoint);
     }
 
     private void applyTextStyles() {
@@ -1304,7 +1304,7 @@ public class ClockView extends View {
         timeTransition = backgroundRepository.getTimeTransition();
         weatherTransition = backgroundRepository.getWeatherTransition();
         boldText = backgroundRepository.isBoldText();
-        String fontFamily = backgroundRepository.getFontFamily();
+        String fontFamily = backgroundRepository.getRenderFontFamily();
         Typeface timeTypeface = ClockTypefaceResolver.resolveTime(getContext(), fontFamily, boldText);
         timePaint.setTypeface(timeTypeface);
         secondsPaint.setTypeface(timeTypeface);
@@ -1312,7 +1312,7 @@ public class ClockView extends View {
         datePaint.setTypeface(ClockTypefaceResolver.resolveSupporting(
             getContext(), fontFamily, boldText, true));
         showSeconds = backgroundRepository.isShowSeconds();
-        showLunar = backgroundRepository.isShowLunar();
+        showLunar = backgroundRepository.isShowLunarInApp();
         smallSeconds = backgroundRepository.isSmallSeconds();
         use24Hour = backgroundRepository.isUse24Hour();
         clockUseEnglish = backgroundRepository.isClockUseEnglish();
@@ -1340,7 +1340,7 @@ public class ClockView extends View {
 
     private void applySupportingTypeface(String text) {
         datePaint.setTypeface(ClockTypefaceResolver.resolveSupporting(
-                getContext(), backgroundRepository.getFontFamily(), boldText, containsChinese(text)));
+                getContext(), backgroundRepository.getRenderFontFamily(), boldText, containsChinese(text)));
     }
 
     static boolean containsChinese(String text) {

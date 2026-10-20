@@ -2733,8 +2733,8 @@ public final class UltimateClockStyles {
             float supportScale = state.getSupportingScale();
             float labelSize = readableSupportingSize(context,
                     Math.min(w, h) * .027f * supportScale, 10f);
-            String hourLabel = isChinese(state) ? "小时" : "HOUR";
-            String minuteLabel = isChinese(state) ? "分钟" : "MINUTE";
+            String hourLabel = unitLabel(state, true);
+            String minuteLabel = unitLabel(state, false);
             text(canvas, hourLabel, first.left + first.width() * .05f,
                     first.bottom - first.height() * .052f, labelSize, colors.mutedPanel,
                     Paint.Align.LEFT, supporting);
@@ -2877,11 +2877,11 @@ public final class UltimateClockStyles {
             }
             float labelSize = readableSupportingSize(context,
                     Math.min(w, h) * .027f * state.getSupportingScale(), 10f);
-            text(canvas, isChinese(state) ? "小时" : "HOUR",
+            text(canvas, unitLabel(state, true),
                     hourPanel.left + hourPanel.width() * .045f,
                     hourPanel.bottom - hourPanel.height() * .06f,
                     labelSize, colors.mutedPanel, Paint.Align.LEFT, supporting);
-            text(canvas, isChinese(state) ? "分钟" : "MINUTE", minuteX,
+            text(canvas, unitLabel(state, false), minuteX,
                     minuteY + minuteRadius * .82f, labelSize, colors.onAccent,
                     Paint.Align.CENTER, supporting);
             drawDate(canvas, context, state, context.getLeft() + w * .029f,
@@ -2935,11 +2935,11 @@ public final class UltimateClockStyles {
 
             float labelSize = readableSupportingSize(context,
                     Math.min(w, h) * .027f * state.getSupportingScale(), 10f);
-            text(canvas, isChinese(state) ? "小时" : "HOUR",
+            text(canvas, unitLabel(state, true),
                     hour.left + hour.width() * .06f,
                     hour.bottom - hour.height() * .055f, labelSize, colors.mutedPanel,
                     Paint.Align.LEFT, supporting);
-            text(canvas, isChinese(state) ? "分钟" : "MINUTE", minuteX,
+            text(canvas, unitLabel(state, false), minuteX,
                     minuteY + minuteRadius * .79f, labelSize, colors.onAccent,
                     Paint.Align.CENTER, supporting);
 
@@ -3190,6 +3190,12 @@ public final class UltimateClockStyles {
                     && state.getSecondHandMotion() != ClockState.SecondHandMotion.OFF;
         }
 
+        private static String unitLabel(ClockState state, boolean hour) {
+            String language = state.getLocale().getLanguage();
+            if ("ja".equals(language)) return hour ? "時" : "分";
+            if ("ko".equals(language)) return hour ? "시" : "분";
+            return isChinese(state) ? (hour ? "小时" : "分钟") : (hour ? "HOUR" : "MINUTE");
+        }
         private static boolean isChinese(ClockState state) {
             String language = state.getLocale().getLanguage();
             return Locale.CHINESE.getLanguage().equals(language);

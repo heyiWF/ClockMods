@@ -257,7 +257,7 @@ public class UltimateClockView extends FrameLayout {
     private void reloadTypography() {
         BackgroundRepository repository = backgroundRepository != null
                 ? backgroundRepository : new BackgroundRepository(getContext());
-        fontFamily = repository.getFontFamily(styleId);
+        fontFamily = repository.getRenderFontFamily(styleId);
         fontWeight = repository.getFontWeight(styleId);
         timeScale = repository.getTimeFontScale(styleId)
                 / ClockPreferences.DEFAULT_TIME_FONT_SCALE;
@@ -510,12 +510,10 @@ public class UltimateClockView extends FrameLayout {
             setTimeZoneId(zone);
             String language = repository.getClockLanguage();
             boolean english = ClockPreferences.LANGUAGE_ENGLISH.equals(language);
-            setLocale(english ? Locale.ENGLISH
-                    : ClockPreferences.LANGUAGE_TRADITIONAL.equals(language)
-                            ? Locale.TRADITIONAL_CHINESE : Locale.SIMPLIFIED_CHINESE);
+            setLocale(com.clockmods.LocaleManager.resolveLocale(repository.getClockLanguage()));
             dateLanguage = LocaleManager.dateLang(language);
             datePattern = english ? repository.getDatePatternEn() : repository.getDatePatternCn();
-            showLunar = repository.isShowLunar();
+            showLunar = repository.isShowLunarInApp();
             customDateText = "";
             setStatusText("");
             String message = repository.getCustomMessage();

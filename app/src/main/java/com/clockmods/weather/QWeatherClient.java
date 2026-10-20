@@ -40,6 +40,8 @@ public final class QWeatherClient {
 
     /** Maps the stored interface language to the QWeather {@code lang} query value. */
     static String apiLang(String clockLanguage) {
+        if (ClockPreferences.LANGUAGE_JAPANESE.equals(clockLanguage)) return "ja";
+        if (ClockPreferences.LANGUAGE_KOREAN.equals(clockLanguage)) return "ko";
         if (ClockPreferences.LANGUAGE_ENGLISH.equals(clockLanguage)) return "en";
         if (ClockPreferences.LANGUAGE_TRADITIONAL.equals(clockLanguage)) return "zh-hant";
         return "zh";
@@ -170,6 +172,8 @@ public final class QWeatherClient {
             return colorName.length() == 0
                     ? event + " Warning" : event + " " + colorName + " Warning";
         }
+        if ("ja".equals(lang)) return event + "警報";
+        if ("ko".equals(lang)) return event + " 경보";
         boolean traditional = "zh-hant".equals(lang);
         String colorName = traditional ? warningColorNameTraditional(colorCode)
                 : warningColorName(colorCode);

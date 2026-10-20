@@ -32,7 +32,7 @@ public final class DateFormatter {
      * Rendering language. {@code CHINESE} and {@code TRADITIONAL} share identical numerals, month
      * and full-weekday forms; they differ only in the short weekday glyph (周五 vs 週五).
      */
-    public enum Lang { CHINESE, TRADITIONAL, ENGLISH }
+    public enum Lang { CHINESE, TRADITIONAL, ENGLISH, JAPANESE, KOREAN }
 
     /** Upper bound on a user-supplied pattern, guarding against pathological input. */
     public static final int MAX_PATTERN_LENGTH = 200;
@@ -148,6 +148,7 @@ public final class DateFormatter {
         if (pattern == null) {
             return "";
         }
+        if (lang == Lang.KOREAN && DEFAULT_PATTERN_CN.equals(pattern)) pattern = "yyyy년 M월 d일 EEEE";
         StringBuilder out = new StringBuilder(pattern.length() + 16);
         appendFormatted(out, pattern, cal, lang);
         return TextSpacing.pangu(out.toString());
@@ -190,6 +191,8 @@ public final class DateFormatter {
     // ---- Accessors for the settings UI ----
 
     public static String[] dateCores(Lang lang) {
+        if (lang == Lang.JAPANESE) return new String[]{"yyyy年M月d日", "yyyy/MM/dd", "M月d日", "yyyy-MM-dd"};
+        if (lang == Lang.KOREAN) return new String[]{"yyyy년 M월 d일", "yyyy/MM/dd", "M월 d일", "yyyy-MM-dd"};
         return (lang == Lang.ENGLISH ? EN_DATE_CORES : CN_DATE_CORES).clone();
     }
 
@@ -288,6 +291,10 @@ public final class DateFormatter {
                 }
                 break;
             case 'M':
+                if ((lang == Lang.JAPANESE || lang == Lang.KOREAN) && run >= 3) {
+                    out.append(new java.text.DateFormatSymbols(lang == Lang.JAPANESE ? Locale.JAPANESE : Locale.KOREAN).getMonths()[month - 1]);
+                    break;
+                }
                 if (lang == Lang.ENGLISH) {
                     if (run == 1) {
                         out.append(Integer.toString(month));
@@ -322,6 +329,11 @@ public final class DateFormatter {
                 }
                 break;
             case 'E':
+                if (lang == Lang.JAPANESE || lang == Lang.KOREAN) {
+                    java.text.DateFormatSymbols symbols = new java.text.DateFormatSymbols(lang == Lang.JAPANESE ? Locale.JAPANESE : Locale.KOREAN);
+                    out.append((run >= 4 ? symbols.getWeekdays() : symbols.getShortWeekdays())[dayOfWeek + 1]);
+                    break;
+                }
                 if (lang == Lang.ENGLISH) {
                     out.append(run >= 4 ? EN_WEEK_FULL[dayOfWeek] : EN_WEEK_SHORT[dayOfWeek]);
                 } else if (lang == Lang.TRADITIONAL) {

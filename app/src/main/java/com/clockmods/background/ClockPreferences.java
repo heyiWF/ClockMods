@@ -170,6 +170,8 @@ public class ClockPreferences {
     public static final String LANGUAGE_SIMPLIFIED = "zh-Hans";
     public static final String LANGUAGE_TRADITIONAL = "zh-Hant";
     public static final String LANGUAGE_ENGLISH = "en";
+    public static final String LANGUAGE_JAPANESE = "ja";
+    public static final String LANGUAGE_KOREAN = "ko";
     public static final String DEFAULT_CLOCK_LANGUAGE = LANGUAGE_SIMPLIFIED;
     /** Optional free-text message shown on the weather line; empty means "no message". */
     public static final String DEFAULT_CUSTOM_MESSAGE = "";
@@ -476,6 +478,17 @@ public class ClockPreferences {
         preferences.edit().putBoolean(KEY_BOLD_TEXT, boldText).apply();
     }
 
+    public String getScriptFontFamily(String scope) { return new ScriptFontPreferences(preferences).family(scope, getClockLanguage()); }
+    public void setScriptFontFamily(String scope, String id) { new ScriptFontPreferences(preferences).family(scope, getClockLanguage(), id); }
+    public int getScriptFontWeight(String scope) { return new ScriptFontPreferences(preferences).weight(scope, getClockLanguage()); }
+    public void setScriptFontWeight(String scope, int weight) { new ScriptFontPreferences(preferences).weight(scope, getClockLanguage(), weight); }
+    public String getRenderFontFamily() { return getRenderFontFamily("pro.classic"); }
+    public String getRenderFontFamily(String scope) {
+        String western = getFontFamily(scope);
+        if (!ScriptFontPreferences.supports(western, "en")) western = FONT_SYSTEM;
+        return MixedFontResolver.id(western, getScriptFontFamily(scope), getScriptFontWeight(scope), getClockLanguage());
+    }
+
     public String getFontFamily() {
         return normalizeFontFamily(preferences.getString(KEY_FONT_FAMILY, DEFAULT_FONT_FAMILY));
     }
@@ -583,14 +596,13 @@ public class ClockPreferences {
     }
 
     private static int clampWeight(int weight) {
-        int[] stops = FontCatalog.WEIGHT_STOPS;
-        return Math.max(stops[0], Math.min(stops[stops.length - 1], weight));
+        return Math.max(1, Math.min(1000, weight));
     }
 
     /** Drops every per-theme typography override, returning all themes to the shared fallback. */
     private void clearPerThemeTypography(SharedPreferences.Editor editor) {
         for (String key : preferences.getAll().keySet()) {
-            if (key.startsWith(KEY_FONT_FAMILY_PREFIX) || key.startsWith(KEY_FONT_WEIGHT_PREFIX)
+            if (key.startsWith("script_font__") || key.startsWith(KEY_FONT_FAMILY_PREFIX) || key.startsWith(KEY_FONT_WEIGHT_PREFIX)
                     || key.startsWith(KEY_TIME_FONT_SCALE_PREFIX)
                     || key.startsWith(KEY_DATE_FONT_SCALE_PREFIX)
                     || key.startsWith(KEY_SUPPORTING_FONT_SCALE_PREFIX)) {
@@ -621,6 +633,22 @@ public class ClockPreferences {
         return preferences.getBoolean(KEY_SHOW_LUNAR, DEFAULT_SHOW_LUNAR);
     }
 
+    public boolean canToggleChineseCalendar() {
+        String language = getClockLanguage();
+        return LANGUAGE_ENGLISH.equals(language) || LANGUAGE_JAPANESE.equals(language)
+                || LANGUAGE_KOREAN.equals(language);
+    }
+
+    public boolean isChineseCalendarEnabled() {
+        return !canToggleChineseCalendar() || preferences.getBoolean("show_chinese_calendar", true);
+    }
+
+    public void setChineseCalendarEnabled(boolean enabled) {
+        preferences.edit().putBoolean("show_chinese_calendar", enabled).apply();
+    }
+
+    public boolean isShowLunarInApp() { return isShowLunar() && isChineseCalendarEnabled(); }
+
     public void setShowLunar(boolean showLunar) {
         preferences.edit().putBoolean(KEY_SHOW_LUNAR, showLunar).apply();
     }
@@ -635,11 +663,7 @@ public class ClockPreferences {
 
     /** Per-theme motion policy; the host resolves preferences before calling renderers. */
     public com.clockmods.sdk.style.MarqueeSpec getCalendarMarquee(String themeId) {
-        String key = "calendar_marquee__" + normalizeScope(calendarScope(themeId));
-        return new com.clockmods.sdk.style.MarqueeSpec(
-                preferences.getFloat(key + "_speed", 40f),
-                preferences.getLong(key + "_pause", 1000L),
-                preferences.getFloat(key + "_gap", 24f));
+        return com.clockmods.sdk.style.MarqueeSpec.DEFAULT;
     }
 
     public void setCalendarMarquee(String themeId, com.clockmods.sdk.style.MarqueeSpec value) {
@@ -754,6 +778,8 @@ public class ClockPreferences {
     }
 
     private static String normalizeClockLanguage(String language) {
+        if (LANGUAGE_JAPANESE.equals(language)) return LANGUAGE_JAPANESE;
+        if (LANGUAGE_KOREAN.equals(language)) return LANGUAGE_KOREAN;
         if (LANGUAGE_ENGLISH.equals(language)) {
             return LANGUAGE_ENGLISH;
         }
@@ -1051,6 +1077,7 @@ public class ClockPreferences {
                 .putString(KEY_FONT_FAMILY, DEFAULT_FONT_FAMILY)
                 .putBoolean(KEY_SHOW_SECONDS, DEFAULT_SHOW_SECONDS)
                 .putBoolean(KEY_SHOW_LUNAR, DEFAULT_SHOW_LUNAR)
+                .putBoolean("show_chinese_calendar", true)
                 .putBoolean(KEY_AUTO_START, DEFAULT_AUTO_START)
                 .putInt(KEY_CALENDAR_WEEK_START, DEFAULT_CALENDAR_WEEK_START)
                 .putBoolean(KEY_CALENDAR_HIGHLIGHT_WEEKENDS,

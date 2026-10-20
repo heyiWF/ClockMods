@@ -21,6 +21,7 @@ public final class ClockTypography {
     private String cachedScopeId;
     private String cachedFamily;
     private int cachedWeight;
+    private long cachedFontRevision = -1;
     private ClockThemeTokens cachedSource;
     private ClockThemeTokens cachedResult;
 
@@ -33,14 +34,14 @@ public final class ClockTypography {
         if (context == null || tokens == null) return tokens;
         ClockPreferences preferences = new ClockPreferences(context);
         return apply(context, tokens, scopeId,
-                preferences.getFontFamily(scopeId), preferences.getFontWeight(scopeId));
+                preferences.getRenderFontFamily(scopeId), preferences.getFontWeight(scopeId));
     }
 
     /** As {@link #apply(Context, ClockThemeTokens, String)}, with the choice already read. */
     public ClockThemeTokens apply(Context context, ClockThemeTokens tokens, String scopeId,
             String family, int weight) {
         if (context == null || tokens == null) return tokens;
-        if (cachedResult != null && tokens == cachedSource && weight == cachedWeight
+        if (cachedFontRevision == com.clockmods.background.UserFontStore.revision() && cachedResult != null && tokens == cachedSource && weight == cachedWeight
                 && equal(scopeId, cachedScopeId) && equal(family, cachedFamily)) {
             return cachedResult;
         }
@@ -50,6 +51,7 @@ public final class ClockTypography {
         cachedScopeId = scopeId;
         cachedFamily = family;
         cachedWeight = weight;
+        cachedFontRevision = com.clockmods.background.UserFontStore.revision();
         cachedSource = tokens;
         cachedResult = result;
         return result;

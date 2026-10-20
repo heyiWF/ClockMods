@@ -29,6 +29,9 @@ public final class CalendarPreviewPainter {
     private final GradientDrawable page;
     private final GradientDrawable card;
     private final GradientDrawable panel;
+    private boolean showChineseCalendar = true;
+
+    public void setChineseCalendarEnabled(boolean enabled) { showChineseCalendar = enabled; }
 
     public CalendarPreviewPainter(CalendarStyle style, float density) {
         kind = style.getMetadata().getKind();
@@ -166,7 +169,7 @@ public final class CalendarPreviewPainter {
                     canvas.drawCircle(centerX, centerY, dot, paint);
                     continue;
                 }
-                paint.setColor(row == 1 && column == 1 ? theme.restBadge : theme.day);
+                paint.setColor(showChineseCalendar && row == 1 && column == 1 ? theme.restBadge : theme.day);
                 canvas.drawCircle(centerX, centerY, dot, paint);
             }
         }
@@ -314,7 +317,7 @@ public final class CalendarPreviewPainter {
         y = shape.bottom + lineHeight * 0.85f;
 
         // The same circular badges as the live almanac detail card.
-        for (int row = 0; row < 2; row++) {
+        for (int row = 0; showChineseCalendar && row < 2; row++) {
             int color = row == 0 ? theme.suitable : theme.avoid;
             paint.setColor(withAlpha(color, .18f));
             canvas.drawCircle(lineLeft + lineHeight / 2f, y + lineHeight / 2f,
