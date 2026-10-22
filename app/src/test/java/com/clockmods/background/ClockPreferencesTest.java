@@ -11,7 +11,7 @@ public class ClockPreferencesTest {
         Assert.assertEquals(0.85f,
                 ClockPreferences.normalizeStatusIconScale(0.85f), 0f);
         Assert.assertEquals(ClockPreferences.MAX_STATUS_ICON_SCALE,
-                ClockPreferences.normalizeStatusIconScale(2f), 0f);
+                ClockPreferences.normalizeStatusIconScale(4f), 0f);
     }
 
     @Test

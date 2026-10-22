@@ -71,7 +71,7 @@ public class ClockPreferences {
     public static final boolean DEFAULT_SHOW_STATUS_ICONS = true;
     public static final float DEFAULT_STATUS_ICON_SCALE = 1.0f;
     public static final float MIN_STATUS_ICON_SCALE = 0.60f;
-    public static final float MAX_STATUS_ICON_SCALE = 2.00f;
+    public static final float MAX_STATUS_ICON_SCALE = 3.00f;
     public static final boolean DEFAULT_BLINK_COLON = false;
     public static final boolean DEFAULT_ANIMATE_TIME_CHANGES = false;
     public static final String DEFAULT_TIME_TRANSITION = TRANSITION_FADE;

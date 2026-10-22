@@ -14,9 +14,9 @@ public class StatusBarViewTest {
     }
 
     @Test
-    public void supportsScalingUpToTwoHundredPercent() {
-        Assert.assertEquals(2f, ClockPreferences.MAX_STATUS_ICON_SCALE, 0f);
-        Assert.assertEquals(29f,
+    public void supportsScalingUpToThreeHundredPercent() {
+        Assert.assertEquals(3f, ClockPreferences.MAX_STATUS_ICON_SCALE, 0f);
+        Assert.assertEquals(43.5f,
                 StatusBarView.calculateStatusTextSize(1f, ClockPreferences.MAX_STATUS_ICON_SCALE),
                 0.0001f);
     }

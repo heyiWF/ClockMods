@@ -32,8 +32,10 @@
     <string name="status_icon_size">文字大小</string>
     <string name="status_icon_size_percent">%1$d%%</string>
     <string name="status_network_and_battery">%1$s，%2$s</string>
-    <string name="status_network_online">网络正常</string>
-    <string name="status_network_offline">网络断开</string>
+    <string name="status_network_online">在线</string>
+    <string name="status_network_offline">离线</string>
+    <string name="status_battery">电量 %1$d%%</string>
+    <string name="status_battery_charging">充电中 %1$d%%</string>
     <string name="display_settings_group">显示</string>
     <string name="time_settings_group">时间</string>
     <string name="use_24_hour">使用 24 小时制</string>

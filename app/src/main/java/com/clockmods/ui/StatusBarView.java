@@ -16,8 +16,8 @@ import com.clockmods.R;
 import com.clockmods.background.ClockPreferences;
 
 /**
- * Draws the network state and the battery percentage in the corner of the clock as
- * two equally sized text lines ("网络正常" / "网络断开" above the percentage).
+ * Draws the network state and the battery level in the corner of the clock as two equally
+ * sized text lines ("在线" / "离线" above "电量 78%" or "充电中 78%").
  */
 public class StatusBarView extends View {
     /** Text size of one line at 100%, in dp (matches the previous 44dp two-line box). */
@@ -28,6 +28,7 @@ public class StatusBarView extends View {
     private final ClockPreferences preferences;
 
     private int batteryLevel = -1;
+    private boolean charging;
     private boolean networkConnected;
     private boolean contentAlignedStart;
 
@@ -110,6 +111,9 @@ public class StatusBarView extends View {
         if (level >= 0 && scale > 0) {
             batteryLevel = Math.round(level * 100f / scale);
         }
+        int status = intent.getIntExtra(BatteryManager.EXTRA_STATUS, -1);
+        int plugged = intent.getIntExtra(BatteryManager.EXTRA_PLUGGED, 0);
+        charging = plugged != 0 || status == BatteryManager.BATTERY_STATUS_CHARGING;
         updateAccessibilityDescription();
     }
 
@@ -133,7 +137,11 @@ public class StatusBarView extends View {
     }
 
     private String batteryText() {
-        return batteryLevel >= 0 ? batteryLevel + "%" : "--";
+        if (batteryLevel < 0) {
+            return "--";
+        }
+        return getContext().getString(charging
+                ? R.string.status_battery_charging : R.string.status_battery, batteryLevel);
     }
 
     private float resolveStatusTextScale() {
