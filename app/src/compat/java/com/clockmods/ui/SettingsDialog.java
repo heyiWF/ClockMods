@@ -478,12 +478,12 @@ public class SettingsDialog extends Dialog {
 
     private LinearLayout.LayoutParams switchParams(int topMarginPx) {
         LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
-                ViewGroup.LayoutParams.WRAP_CONTENT, dp(38));
+                ViewGroup.LayoutParams.MATCH_PARENT, dp(38));
         params.topMargin = topMarginPx;
         return params;
     }
 
-    /** Switch rows stay compact so each label sits right next to its own switch. */
+    /** Full-width rows keep every switch thumb aligned with the card's right edge. */
     private void addSwitchRow(LinearLayout container, Switch control, int topMarginPx) {
         container.addView(control, switchParams(topMarginPx));
     }
