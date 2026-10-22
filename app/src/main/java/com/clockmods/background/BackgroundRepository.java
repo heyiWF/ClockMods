@@ -230,22 +230,6 @@ public class BackgroundRepository {
         preferences.setClockLanguage(language);
     }
 
-    public boolean isWeatherIconFill() {
-        return preferences.isWeatherIconFill();
-    }
-
-    public void setWeatherIconFill(boolean fill) {
-        preferences.setWeatherIconFill(fill);
-    }
-
-    public boolean isWeatherIconDynamicColor() {
-        return preferences.isWeatherIconDynamicColor();
-    }
-
-    public void setWeatherIconDynamicColor(boolean dynamicColor) {
-        preferences.setWeatherIconDynamicColor(dynamicColor);
-    }
-
     public int getScreenOrientation() {
         return preferences.getScreenOrientation();
     }

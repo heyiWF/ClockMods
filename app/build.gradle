@@ -40,31 +40,7 @@ android {
             minSdk = 14
             resValue "string", "app_name", "ClockMods Lite"
             manifestPlaceholders = [launcherActivity: ".MainActivity"]
-            buildConfigField 'boolean', 'WEATHER_DETAIL_USES_TIME_TRANSITION', 'false'
         }
-        modern {
-            dimension "experience"
-            applicationIdSuffix ".modern"
-            versionNameSuffix "-modern"
-            minSdk = 23
-            resValue "string", "app_name", "ClockMods"
-            manifestPlaceholders = [launcherActivity: ".MainActivity"]
-            buildConfigField 'boolean', 'WEATHER_DETAIL_USES_TIME_TRANSITION', 'false'
-        }
-        pro {
-            dimension "experience"
-            applicationIdSuffix ".pro"
-            versionNameSuffix "-pro"
-            minSdk = 31
-            resValue "string", "app_name", "ClockMods Pro"
-            manifestPlaceholders = [launcherActivity: ".pro.ProMainActivity"]
-            buildConfigField 'boolean', 'WEATHER_DETAIL_USES_TIME_TRANSITION', 'true'
-        }
-    }
-
-    sourceSets {
-        pro.java.srcDir "src/modern/java"
-        pro.res.srcDir "src/modern/res"
     }
 
     buildTypes {
@@ -103,13 +79,8 @@ android {
 
 dependencies {
     implementation 'androidx.exifinterface:exifinterface:1.3.7'
-    modernImplementation 'com.google.android.material:material:1.14.0'
-    proImplementation 'com.google.android.material:material:1.14.0'
-    proImplementation 'androidx.appcompat:appcompat:1.7.1'
-    proImplementation 'androidx.viewpager2:viewpager2:1.1.0'
     // Offline almanac engine (6tail, MIT, pure-Java/no deps): lunar date, solar terms, festivals and
-    // 宜忌, computed astronomically for years 1–9999. Shared by the main clock (LunarCalendar) and the
-    // Pro calendar (LunarAlmanac), so it must be available to every flavor.
+    // 宜忌, computed astronomically for years 1–9999.
     implementation 'cn.6tail:tyme4j:1.5.1'
 
     testImplementation 'junit:junit:4.13.2'

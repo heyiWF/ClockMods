@@ -13,14 +13,6 @@ public final class ExperienceBridge {
         // Compatibility flavor keeps the platform theme on API 14+.
     }
 
-    /**
-     * The compat flavour has no Material dynamic-colour palette, so weather icons that opt into
-     * accent tinting simply fall back to the caller-supplied colour.
-     */
-    public static int resolveAccentColor(Context context, int fallback) {
-        return fallback;
-    }
-
     public static Intent createImagePickerIntent() {
         Intent intent;
         if (Build.VERSION.SDK_INT >= 19) {

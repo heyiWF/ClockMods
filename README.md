@@ -17,15 +17,9 @@ ClockMods 是一款可定制的 Android 全屏时钟。把手机放在书桌、�
 > 相比 `main`，这里砍掉了英文界面、日期格式自定义和天气行自定义留言，字体固定为内置 Roboto，状态栏改成「网络 + 电量」两行文字，并顺手压缩了安装包体积。
 > `main` 才是正式的公开分支，功能与发布流程都以它为准。
 
-## 为你的设备，选一个合适的版本
+## 只有一个版本：兼容版
 
-| 版本 | 支持系统 | 适合这样的你 |
-| --- | --- | --- |
-| ClockMods Lite · 兼容版 | Android 4.0 及以上 | 想让旧手机稳定显示时间，保留熟悉、简洁的设置方式 |
-| ClockMods · 现代版 | Android 6.0 及以上 | 喜欢现代设置界面，希望轻松调整字体、背景和显示信息 |
-| ClockMods Pro · 专业版 | Android 12 及以上 | 希望在时钟之外，一并查看月历、设置提醒和管理计时 |
-
-三个版本可在满足系统要求的设备上同时安装。经典系列以兼容性与日常使用为主，持续进行问题修复和安全维护。
+本分支只保留兼容版（ClockMods Lite），支持 Android 4.0 及以上，安装后包名为 `com.clockmods.compat`。现代版与专业版的源码、依赖和构建配置都已移除。
 
 ## 远一点，也能看清时间
 
@@ -37,39 +31,23 @@ ClockMods 是一款可定制的 Android 全屏时钟。把手机放在书桌、�
 
 选一张本机照片作为背景，或者用简单的纯色衬托时间。立即压暗和定时压暗让显示亮度随作息变化，跨过午夜也能按设定运行。
 
-现代版与专业版在 Android 12 及以上支持系统动态取色。专业版还提供多种数字切换动效，让时间变化更自然。
-
 ## 日期与天气
 
 公历、星期和中国农历可离线查看。启用天气后，可以轮播温度、体感、湿度、风力等信息；文字过长时会滚动展示。
 
 天气支持手动选择城市或自动定位，需要联网及有效的天气服务配置。网络校时可以按需开启，基础时钟和离线日期不依赖天气服务。
 
-## 专业版，让常用工具就在手边
-
-| 工具 | 用来做什么 |
-| --- | --- |
-| 月历 | 浏览月份、选择日期，查看农历、节气、节日与传统宜忌 |
-| 番茄钟 | 为工作与休息安排一段专注时间 |
-| 闹钟 | 设置定时提醒，按设备权限提供响铃、振动与全屏提示 |
-| 倒计时 | 为一件事设定时长，到点提醒 |
-| 秒表 | 连续计时与记录计次 |
-
-月历支持已收录年份的休 / 班标记，横屏还可结合天气与预报展示。整点视觉报时与勿扰时段，让提醒更贴合作息。传统宜忌作为民俗历法内容提供，调休安排以已收录的数据为准。
-
-[观看专业版工具演示](docs/media/pro-features-overview.mp4) · [观看中文报时演示](docs/media/pro-chime-12h-zh.mp4)
-
 ## 开始使用
 
 1. 下载适合设备系统的版本并安装。
 2. **双击时钟区域**打开设置，调整样式和功能，点击“应用”保存。
 3. 将设备横放或竖放，按需要开启常亮、压暗和天气。
-4. 专业版可左右滑动切换工具页；使用提醒时按系统提示授予相应权限。
+4. 使用网络校时或天气时，按系统提示授予相应权限。
 
 ## 下载体验
 [![Build APK](https://github.com/heyiWF/ClockMods/actions/workflows/build-apk.yml/badge.svg?branch=main)](https://github.com/heyiWF/ClockMods/actions/workflows/build-apk.yml?query=branch%3Amain)
 
-打开 [安装包下载页面](https://github.com/heyiWF/ClockMods/actions/workflows/build-apk.yml?query=branch%3Amain)，选择一次成功的构建，在 **Artifacts** 中下载 `clockmods-apks-main-运行序号`。解压后选择兼容版、现代版或专业版的 APK 安装。
+打开 [安装包下载页面](https://github.com/heyiWF/ClockMods/actions/workflows/build-apk.yml?query=branch%3Amain)，选择一次成功的构建，在 **Artifacts** 中下载 `clockmods-apks-main-运行序号`，解压后安装其中的 `app-compat-debug.apk`。
 
 目前提供开发预览版 APK。
 

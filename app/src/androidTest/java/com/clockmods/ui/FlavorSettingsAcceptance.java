@@ -51,7 +51,7 @@ public final class FlavorSettingsAcceptance extends Instrumentation {
                 setter.invoke(settings,!saved); check((Boolean)getter.invoke(settings)!=saved,setter.getName()+" persists");
                 setter.invoke(settings,saved);
             }
-            String component=context.getPackageName().endsWith(".pro")?"com.clockmods.pro.ProMainActivity":"com.clockmods.MainActivity";
+            String component="com.clockmods.MainActivity";
             for(String locale:new String[]{"zh-Hans","zh-Hant"}) for(int orientation:new int[]{1,2}) {
                 this.orientation=orientation;
                 preferences.edit().putString("clock_language",locale).putInt("screen_orientation",orientation)

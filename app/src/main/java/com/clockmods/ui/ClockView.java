@@ -14,7 +14,6 @@ import android.util.AttributeSet;
 import android.view.View;
 
 import com.clockmods.LocaleManager;
-import com.clockmods.platform.ExperienceBridge;
 import com.clockmods.background.BackgroundRepository;
 import com.clockmods.background.BackgroundDimSchedule;
 import com.clockmods.background.ClockPreferences;
@@ -106,8 +105,7 @@ public class ClockView extends View {
     // Cycle timing for the single weather summary line (shared with the detail line).
     private final Carousel mainLineCarousel = new Carousel();
     // Weather-icon styling (Pro exposes these; other flavours keep fill + date colour).
-    private boolean weatherIconFill = true;
-    private int weatherIconColor = 0xFFFFFFFF;
+    private int weatherIconColor = ClockPreferences.TEXT_COLOR;
     private final Paint weatherIconPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
 
     public ClockView(Context context) {
@@ -512,7 +510,7 @@ public class ClockView extends View {
                 String leftText = WeatherModels.locationText(
                         weatherState.data.city, weatherState.data.district);
                 String rightText = weatherState.data.text + " " + weatherState.data.temperature + "℃";
-                WeatherIcon icon = WeatherIcon.load(getContext(), weatherState.data.icon, weatherIconFill);
+                WeatherIcon icon = WeatherIcon.load(getContext(), weatherState.data.icon, true);
                 weatherItem = icon != null
                         ? WeatherLineItem.weather(leftText, rightText, icon)
                         : WeatherLineItem.plain(leftText + "  " + rightText);
@@ -701,14 +699,12 @@ public class ClockView extends View {
             float centerX, float baseline, Paint.FontMetrics metrics, float progress,
             long itemElapsed) {
         boolean transitioning = next != null;
-        boolean useTimeTransition =
-            com.clockmods.BuildConfig.WEATHER_DETAIL_USES_TIME_TRANSITION;
         if (!transitioning) {
             drawWeatherDetailLine(canvas, current, centerX, baseline, metrics, 255,
                 ClockPreferences.TRANSITION_FADE, 0f, itemElapsed);
             return;
         }
-        String transition = useTimeTransition ? timeTransition : ClockPreferences.TRANSITION_FADE;
+        String transition = ClockPreferences.TRANSITION_FADE;
         if (progress < 0.5f) {
             float outProgress = progress / 0.5f;
             drawWeatherDetailLine(canvas, current, centerX, baseline, metrics,
@@ -952,15 +948,7 @@ public class ClockView extends View {
         smallSeconds = backgroundRepository.isSmallSeconds();
         use24Hour = backgroundRepository.isUse24Hour();
         dateLang = LocaleManager.dateLang(backgroundRepository.getClockLanguage());
-        // Weather-icon style/colour are Pro-only options; other flavours keep the solid fill
-        // style and follow the fixed text colour (their historical behaviour).
-        boolean proIcons = "pro".equals(com.clockmods.BuildConfig.FLAVOR);
-        weatherIconFill = !proIcons || backgroundRepository.isWeatherIconFill();
-        weatherIconColor = proIcons
-                ? (backgroundRepository.isWeatherIconDynamicColor()
-                        ? ExperienceBridge.resolveAccentColor(getContext(), 0xFFFFFFFF)
-                        : 0xFFFFFFFF)
-                : ClockPreferences.TEXT_COLOR;
+        weatherIconColor = ClockPreferences.TEXT_COLOR;
         portraitStacked = backgroundRepository.isPortraitStacked();
         dateLunarDualLine = backgroundRepository.isDateLunarDualLine();
         NetworkTimeProvider timeProvider = networkTimeProvider;

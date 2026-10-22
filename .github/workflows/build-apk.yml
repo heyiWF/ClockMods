@@ -61,8 +61,8 @@ jobs:
             echo "privateKeyBase64=${QWEATHER_PRIVATE_KEY_BASE64}"
           } > qweather.properties
 
-      - name: Test, lint and assemble debug APKs
-        run: ./gradlew --no-daemon --stacktrace testCompatDebugUnitTest testModernDebugUnitTest testProDebugUnitTest lintCompatDebug lintModernDebug lintProDebug assembleDebug
+      - name: Test, lint and assemble the debug APK
+        run: ./gradlew --no-daemon --stacktrace testCompatDebugUnitTest lintCompatDebug assembleCompatDebug
 
       # Push/manual APK artifacts include the configured QWeather credentials.
       - name: Upload APKs
