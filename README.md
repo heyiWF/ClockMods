@@ -39,17 +39,20 @@ ClockMods 是一款可定制的 Android 全屏时钟。把手机放在书桌、�
 
 ## 开始使用
 
-1. 下载适合设备系统的版本并安装。
+1. 构建并安装兼容版 APK（见下方「自己构建」）。
 2. **双击时钟区域**打开设置，调整样式和功能，点击“应用”保存。
 3. 将设备横放或竖放，按需要开启常亮、压暗和天气。
 4. 使用网络校时或天气时，按系统提示授予相应权限。
 
-## 下载体验
-[![Build APK](https://github.com/heyiWF/ClockMods/actions/workflows/build-apk.yml/badge.svg?branch=main)](https://github.com/heyiWF/ClockMods/actions/workflows/build-apk.yml?query=branch%3Amain)
+## 自己构建
 
-打开 [安装包下载页面](https://github.com/heyiWF/ClockMods/actions/workflows/build-apk.yml?query=branch%3Amain)，选择一次成功的构建，在 **Artifacts** 中下载 `clockmods-apks-main-运行序号`，解压后安装其中的 `app-compat-debug.apk`。
+本分支不配置 CI，不会自动产出安装包，需要时在本地构建：
 
-目前提供开发预览版 APK。
+```bash
+./gradlew assembleCompatDebug
+```
+
+产物位于 `app/build/outputs/apk/compat/debug/app-compat-debug.apk`。
 
 ## 本地使用，按需联网
 
