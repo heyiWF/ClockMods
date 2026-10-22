@@ -76,7 +76,6 @@ public class MainActivity extends Activity {
             @Override public void onWeatherState(WeatherState state) { clockView.setWeatherState(state); }
         });
         clockView.setBackgroundRepository(backgroundRepository);
-        statusBarView.setBackgroundRepository(backgroundRepository);
         applyStatusIconVisibility();
         applyWeatherEnabled();
         weatherAttribution.setOnClickListener(new View.OnClickListener() {
@@ -180,6 +179,7 @@ public class MainActivity extends Activity {
                 applyScreenOrientation();
                 clockView.invalidate();
                 applyStatusIconVisibility();
+                statusBarView.requestLayout();
                 statusBarView.invalidate();
                 applyWeatherEnabled();
                 startWeatherIfEnabled();

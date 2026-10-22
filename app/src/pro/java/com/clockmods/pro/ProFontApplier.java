@@ -5,7 +5,6 @@ import android.view.View;
 import android.view.ViewGroup;
 import android.widget.TextView;
 
-import com.clockmods.background.ClockPreferences;
 import com.clockmods.ui.ClockTypefaceResolver;
 
 import java.util.Map;
@@ -19,11 +18,10 @@ public final class ProFontApplier {
 
     public static void apply(View root) {
         if (root == null) return;
-        ClockPreferences preferences = new ClockPreferences(root.getContext());
-        apply(root, preferences.getFontFamily());
+        applyTo(root);
     }
 
-    private static void apply(View view, String fontFamily) {
+    private static void applyTo(View view) {
         if (view instanceof TextView) {
             TextView textView = (TextView) view;
             Boolean originalBold = ORIGINAL_BOLD.get(textView);
@@ -33,12 +31,12 @@ public final class ProFontApplier {
                 ORIGINAL_BOLD.put(textView, originalBold);
             }
             textView.setTypeface(ClockTypefaceResolver.resolveTime(
-                    textView.getContext(), fontFamily, originalBold));
+                    textView.getContext(), originalBold));
         }
         if (!(view instanceof ViewGroup)) return;
         ViewGroup group = (ViewGroup) view;
         for (int index = 0; index < group.getChildCount(); index++) {
-            apply(group.getChildAt(index), fontFamily);
+            applyTo(group.getChildAt(index));
         }
     }
 }

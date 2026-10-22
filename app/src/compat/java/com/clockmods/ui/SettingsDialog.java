@@ -52,7 +52,8 @@ public class SettingsDialog extends Dialog {
     }
 
     private static final int MIN_FONT_PERCENT = 20;
-    private static final int MAX_FONT_PERCENT = 150;
+    /** TEMP (compat verification build): font sliders run up to 200%. */
+    private static final int MAX_FONT_PERCENT = 200;
     private static final int FONT_PERCENT_RANGE = MAX_FONT_PERCENT - MIN_FONT_PERCENT;
     private static final int MIN_STATUS_ICON_PERCENT =
             Math.round(ClockPreferences.MIN_STATUS_ICON_SCALE * 100f);
@@ -77,10 +78,6 @@ public class SettingsDialog extends Dialog {
             0xFF101418, 0xFF1F2933, 0xFF173F5F, 0xFF20639B,
             0xFF2A6F4E, 0xFF7A3E48, 0xFF8C5B2D, 0xFFF4F1EA
     };
-    private static final int[] TEXT_COLORS = {
-            0xFFFFFFFF, 0xFFF4F1EA, 0xFFF4C430, 0xFF4FB0E5,
-            0xFF3CB371, 0xFFE07A9A, 0xFFE05A5A, 0xFF111827
-    };
 
     private final BackgroundRepository repository;
     private final Listener listener;
@@ -96,8 +93,6 @@ public class SettingsDialog extends Dialog {
     private final Button dimStartButton;
     private final Button dimEndButton;
 
-    private final ColorPickerView timeColorPicker;
-    private final ColorPickerView dateColorPicker;
     private final SeekBar timeSizeBar;
     private final SeekBar dateSizeBar;
     private final TextView timeSizeValue;
@@ -106,7 +101,6 @@ public class SettingsDialog extends Dialog {
     private final Switch animateTimeChangesSwitch;
     private final Switch portraitStackedSwitch;
     private final Switch boldTextSwitch;
-    private final Spinner fontFamilySpinner;
     private final Switch showSecondsSwitch;
     private final Switch smallSecondsSwitch;
     private final Switch showLunarSwitch;
@@ -150,15 +144,11 @@ public class SettingsDialog extends Dialog {
     private int selectedRegionIndex;
     private int dimStartMinutes;
     private int dimEndMinutes;
-    private int timeColor;
-    private int dateColor;
 
     public SettingsDialog(Context context, BackgroundRepository repository, Listener listener) {
         super(context);
         this.repository = repository;
         this.listener = listener;
-        this.timeColor = repository.getTimeColor();
-        this.dateColor = repository.getDateColor();
         this.dimStartMinutes = repository.getDimStartMinutes();
         this.dimEndMinutes = repository.getDimEndMinutes();
         this.selectedWeatherLocationId = repository.getWeatherLocationId();
@@ -310,11 +300,7 @@ public class SettingsDialog extends Dialog {
         styleContent.addView(createSectionLabel(context, R.string.font_settings_group),
                 topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(18)));
 
-        styleContent.addView(createSubLabel(context, R.string.font_family),
-            topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(8)));
-        fontFamilySpinner = createFontFamilySpinner(context, repository.getFontFamily());
-        styleContent.addView(fontFamilySpinner, topMargin(matchWrap(dp(48)), dp(4)));
-        // Bold applies to both time and date, so it sits with the shared font family, not under time.
+        // Bold applies to both time and date, so it sits with the font section header.
         boldTextSwitch = createStyleSwitch(context, R.string.bold_text, repository.isBoldText());
         styleContent.addView(boldTextSwitch, topMargin(matchWrap(dp(48)), dp(8)));
 
@@ -325,16 +311,6 @@ public class SettingsDialog extends Dialog {
         styleContent.addView(createSizeRow(context, R.string.font_size, timeSizeBar, timeSizeValue),
                 topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(4)));
         configureSizeBar(timeSizeBar, timeSizeValue, repository.getTimeFontScale());
-        styleContent.addView(createSubLabel(context, R.string.font_color),
-                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(10)));
-        timeColorPicker = new ColorPickerView(context);
-        timeColorPicker.setColor(timeColor);
-        timeColorPicker.setOnColorChangedListener(color -> timeColor = color);
-        styleContent.addView(createColorSwatches(context, TEXT_COLORS, color -> {
-            timeColor = color;
-            timeColorPicker.setColor(color);
-        }), topMargin(matchWrap(dp(50)), dp(4)));
-        addAdvancedPicker(context, styleContent, timeColorPicker);
 
         blinkColonSwitch = createStyleSwitch(context, R.string.blink_colon, repository.isBlinkColon());
         styleContent.addView(blinkColonSwitch, topMargin(matchWrap(dp(48)), dp(10)));
@@ -360,16 +336,6 @@ public class SettingsDialog extends Dialog {
         styleContent.addView(createSizeRow(context, R.string.font_size, dateSizeBar, dateSizeValue),
                 topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(4)));
         configureSizeBar(dateSizeBar, dateSizeValue, repository.getDateFontScale());
-        styleContent.addView(createSubLabel(context, R.string.font_color),
-                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(10)));
-        dateColorPicker = new ColorPickerView(context);
-        dateColorPicker.setColor(dateColor);
-        dateColorPicker.setOnColorChangedListener(color -> dateColor = color);
-        styleContent.addView(createColorSwatches(context, TEXT_COLORS, color -> {
-            dateColor = color;
-            dateColorPicker.setColor(color);
-        }), topMargin(matchWrap(dp(50)), dp(4)));
-        addAdvancedPicker(context, styleContent, dateColorPicker);
         // The lunar date is part of the date line, so its toggle sits with the date settings.
         showLunarSwitch = createStyleSwitch(context, R.string.show_lunar, repository.isShowLunar());
         styleContent.addView(showLunarSwitch, topMargin(matchWrap(dp(48)), dp(8)));
@@ -1004,17 +970,11 @@ public class SettingsDialog extends Dialog {
 
     private void restoreDefaults() {
         int defaultBackground = ClockPreferences.DEFAULT_BACKGROUND_COLOR;
-        int defaultTextColor = ClockPreferences.DEFAULT_TEXT_COLOR;
 
         colorMode.setChecked(true);
         imageMode.setChecked(false);
         backgroundPicker.setColor(defaultBackground);
         setSwatchColor(backgroundPreview, defaultBackground);
-
-        timeColor = defaultTextColor;
-        dateColor = defaultTextColor;
-        timeColorPicker.setColor(defaultTextColor);
-        dateColorPicker.setColor(defaultTextColor);
 
         timeSizeBar.setProgress(scaleToProgress(ClockPreferences.DEFAULT_TIME_FONT_SCALE));
         updateSizeLabel(timeSizeValue, timeSizeBar.getProgress());
@@ -1029,7 +989,6 @@ public class SettingsDialog extends Dialog {
         animateTimeChangesSwitch.setChecked(ClockPreferences.DEFAULT_ANIMATE_TIME_CHANGES);
         portraitStackedSwitch.setChecked(ClockPreferences.DEFAULT_PORTRAIT_STACKED);
         boldTextSwitch.setChecked(ClockPreferences.DEFAULT_BOLD_TEXT);
-        fontFamilySpinner.setSelection(0);
         showSecondsSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_SECONDS);
         smallSecondsSwitch.setChecked(ClockPreferences.DEFAULT_SMALL_SECONDS);
         showLunarSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_LUNAR);
@@ -1068,15 +1027,12 @@ public class SettingsDialog extends Dialog {
         }
         repository.setTimeFontScale(progressToScale(timeSizeBar.getProgress()));
         repository.setDateFontScale(progressToScale(dateSizeBar.getProgress()));
-        repository.setTimeColor(timeColor);
-        repository.setDateColor(dateColor);
         repository.setShowStatusIcons(statusIconsSwitch.isChecked());
         repository.setStatusIconScale(statusIconProgressToScale(statusIconSizeBar.getProgress()));
         repository.setBlinkColon(blinkColonSwitch.isChecked());
         repository.setAnimateTimeChanges(animateTimeChangesSwitch.isChecked());
         repository.setPortraitStacked(portraitStackedSwitch.isChecked());
         repository.setBoldText(boldTextSwitch.isChecked());
-        repository.setFontFamily(fontFamilyForIndex(fontFamilySpinner.getSelectedItemPosition()));
         repository.setShowSeconds(showSecondsSwitch.isChecked());
         repository.setSmallSeconds(showSecondsSwitch.isChecked() && smallSecondsSwitch.isChecked());
         repository.setShowLunar(showLunarSwitch.isChecked());
@@ -1230,18 +1186,6 @@ public class SettingsDialog extends Dialog {
     private static float statusIconProgressToScale(int progress) {
         int clampedProgress = Math.max(0, Math.min(STATUS_ICON_PERCENT_RANGE, progress));
         return (clampedProgress + MIN_STATUS_ICON_PERCENT) / 100f;
-    }
-
-    private Spinner createFontFamilySpinner(Context context, String family) {
-        Spinner spinner = new Spinner(context);
-        spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item,
-                com.clockmods.background.FontCatalog.displayNames(context)));
-        spinner.setSelection(com.clockmods.background.FontCatalog.indexOf(family));
-        return spinner;
-    }
-
-    private static String fontFamilyForIndex(int index) {
-        return com.clockmods.background.FontCatalog.idForIndex(index);
     }
 
     private LinearLayout.LayoutParams matchWrap(int height) {

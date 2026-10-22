@@ -11,18 +11,6 @@ import java.util.Calendar;
 public class ClockPreferences {
     public static final String MODE_COLOR = "color";
     public static final String MODE_IMAGE = "image";
-    public static final String FONT_SYSTEM = "system";
-    public static final String FONT_ROBOTO = "roboto";
-    public static final String FONT_GOOGLE_SANS_DISPLAY = "google_sans_display";
-    // Pro-only font families (bundled in the pro flavor assets).
-    public static final String FONT_GOOGLE_SANS_TEXT = "google_sans_text";
-    public static final String FONT_SF_PRO_DISPLAY = "sf_pro_display";
-    public static final String FONT_SF_PRO_ROUNDED = "sf_pro_rounded";
-    public static final String FONT_INTER = "inter";
-    public static final String FONT_LATO = "lato";
-    public static final String FONT_LORA = "lora";
-    public static final String FONT_NOTO_SANS = "noto_sans";
-    public static final String FONT_BITCOUNT = "bitcount_grid_double";
     public static final String TRANSITION_FADE = "fade";
     public static final String TRANSITION_SLIDE_UP = "slide_up";
     public static final String TRANSITION_SLIDE_DOWN = "slide_down";
@@ -38,8 +26,6 @@ public class ClockPreferences {
     private static final String KEY_DIM_END_MINUTES = "dim_end_minutes";
     private static final String KEY_TIME_FONT_SCALE = "time_font_scale";
     private static final String KEY_DATE_FONT_SCALE = "date_font_scale";
-    private static final String KEY_TIME_COLOR = "time_color";
-    private static final String KEY_DATE_COLOR = "date_color";
     private static final String KEY_SHOW_STATUS_ICONS = "show_status_icons";
     private static final String KEY_STATUS_ICON_SCALE = "status_icon_scale";
     private static final String KEY_BLINK_COLON = "blink_colon";
@@ -51,8 +37,6 @@ public class ClockPreferences {
     private static final String KEY_HOURLY_CHIME_QUIET_START = "hourly_chime_quiet_start";
     private static final String KEY_HOURLY_CHIME_QUIET_END = "hourly_chime_quiet_end";
     private static final String KEY_BOLD_TEXT = "bold_text";
-    private static final String KEY_FONT_FAMILY = "font_family";
-    private static final String LEGACY_FONT_GOOGLE_SANS = "google_sans";
     private static final String KEY_SHOW_SECONDS = "show_seconds";
     private static final String KEY_SHOW_LUNAR = "show_lunar";
     private static final String KEY_AUTO_START = "auto_start";
@@ -103,26 +87,26 @@ public class ClockPreferences {
     public static final float DEFAULT_TIME_FONT_SCALE = 0.88f;
     /** Fraction of the screen width occupied by the date text by default. */
     public static final float DEFAULT_DATE_FONT_SCALE = 0.55f;
-    public static final int DEFAULT_TEXT_COLOR = 0xFFFFFFFF;
+    /** Fixed colour of every text element; the app no longer offers a colour setting. */
+    public static final int TEXT_COLOR = 0xFFFFFFFF;
     public static final boolean DEFAULT_DIM_BACKGROUND = false;
     public static final boolean DEFAULT_SCHEDULE_DIM_BACKGROUND = false;
     public static final int DEFAULT_DIM_START_MINUTES = 22 * 60;
     public static final int DEFAULT_DIM_END_MINUTES = 6 * 60;
-    /** Status icons (network + battery) are hidden by default. */
-    public static final boolean DEFAULT_SHOW_STATUS_ICONS = false;
+    /** The network/battery status text is shown by default. */
+    public static final boolean DEFAULT_SHOW_STATUS_ICONS = true;
     public static final float DEFAULT_STATUS_ICON_SCALE = 1.0f;
     public static final float MIN_STATUS_ICON_SCALE = 0.60f;
-    public static final float MAX_STATUS_ICON_SCALE = 1.25f;
+    public static final float MAX_STATUS_ICON_SCALE = 2.00f;
     public static final boolean DEFAULT_BLINK_COLON = false;
-    public static final boolean DEFAULT_ANIMATE_TIME_CHANGES = true;
+    public static final boolean DEFAULT_ANIMATE_TIME_CHANGES = false;
     public static final String DEFAULT_TIME_TRANSITION = TRANSITION_FADE;
     public static final boolean DEFAULT_HOURLY_CHIME = true;
     public static final boolean DEFAULT_HALF_HOUR_CHIME = false;
     public static final boolean DEFAULT_HOURLY_CHIME_QUIET = true;
     public static final int DEFAULT_HOURLY_CHIME_QUIET_START = 22 * 60;
     public static final int DEFAULT_HOURLY_CHIME_QUIET_END = 7 * 60;
-    public static final boolean DEFAULT_BOLD_TEXT = false;
-    public static final String DEFAULT_FONT_FAMILY = FONT_SYSTEM;
+    public static final boolean DEFAULT_BOLD_TEXT = true;
     public static final boolean DEFAULT_SHOW_SECONDS = true;
     public static final boolean DEFAULT_SHOW_LUNAR = true;
     public static final boolean DEFAULT_AUTO_START = false;
@@ -133,7 +117,7 @@ public class ClockPreferences {
     public static final boolean DEFAULT_SMALL_SECONDS = false;
     public static final boolean DEFAULT_PORTRAIT_STACKED = false;
     /** Landscape only: whether the date and lunar lines stack on two rows (portrait always stacks). */
-    public static final boolean DEFAULT_DATE_LUNAR_DUAL_LINE = false;
+    public static final boolean DEFAULT_DATE_LUNAR_DUAL_LINE = true;
     public static final boolean DEFAULT_USE_24_HOUR = true;
     public static final boolean DEFAULT_CLOCK_USE_ENGLISH = false;
     /** Interface-language values stored by {@link #getClockLanguage()}. */
@@ -171,7 +155,8 @@ public class ClockPreferences {
 
     /** Allowed range for the width-based font scale (fraction of screen width). */
     public static final float MIN_FONT_SCALE = 0.20f;
-    public static final float MAX_FONT_SCALE = 1.50f;
+    /** TEMP (compat verification build): upper limit raised to 200% of screen width. */
+    public static final float MAX_FONT_SCALE = 2.00f;
 
     /** Default background color: solid black. */
     public static final int DEFAULT_BACKGROUND_COLOR = 0xFF000000;
@@ -244,22 +229,6 @@ public class ClockPreferences {
 
     public void setDateFontScale(float scale) {
         preferences.edit().putFloat(KEY_DATE_FONT_SCALE, clampScale(scale)).apply();
-    }
-
-    public int getTimeColor() {
-        return preferences.getInt(KEY_TIME_COLOR, DEFAULT_TEXT_COLOR);
-    }
-
-    public void setTimeColor(int color) {
-        preferences.edit().putInt(KEY_TIME_COLOR, color).apply();
-    }
-
-    public int getDateColor() {
-        return preferences.getInt(KEY_DATE_COLOR, DEFAULT_TEXT_COLOR);
-    }
-
-    public void setDateColor(int color) {
-        preferences.edit().putInt(KEY_DATE_COLOR, color).apply();
     }
 
     public boolean isShowStatusIcons() {
@@ -367,24 +336,6 @@ public class ClockPreferences {
 
     public void setBoldText(boolean boldText) {
         preferences.edit().putBoolean(KEY_BOLD_TEXT, boldText).apply();
-    }
-
-    public String getFontFamily() {
-        return normalizeFontFamily(preferences.getString(KEY_FONT_FAMILY, DEFAULT_FONT_FAMILY));
-    }
-
-    public void setFontFamily(String fontFamily) {
-        preferences.edit().putString(KEY_FONT_FAMILY, normalizeFontFamily(fontFamily)).apply();
-    }
-
-    public static String normalizeFontFamily(String fontFamily) {
-        if (LEGACY_FONT_GOOGLE_SANS.equals(fontFamily)) {
-            return FONT_GOOGLE_SANS_DISPLAY;
-        }
-        if (fontFamily != null && FontCatalog.isAvailable(fontFamily)) {
-            return fontFamily;
-        }
-        return FONT_SYSTEM;
     }
 
     public boolean isShowSeconds() {
@@ -770,8 +721,6 @@ public class ClockPreferences {
                 .putInt(KEY_DIM_END_MINUTES, DEFAULT_DIM_END_MINUTES)
                 .putFloat(KEY_TIME_FONT_SCALE, DEFAULT_TIME_FONT_SCALE)
                 .putFloat(KEY_DATE_FONT_SCALE, DEFAULT_DATE_FONT_SCALE)
-                .putInt(KEY_TIME_COLOR, DEFAULT_TEXT_COLOR)
-                .putInt(KEY_DATE_COLOR, DEFAULT_TEXT_COLOR)
                 .putBoolean(KEY_SHOW_STATUS_ICONS, DEFAULT_SHOW_STATUS_ICONS)
                 .putFloat(KEY_STATUS_ICON_SCALE, DEFAULT_STATUS_ICON_SCALE)
                 .putBoolean(KEY_BLINK_COLON, DEFAULT_BLINK_COLON)
@@ -783,7 +732,6 @@ public class ClockPreferences {
                 .putInt(KEY_HOURLY_CHIME_QUIET_START, DEFAULT_HOURLY_CHIME_QUIET_START)
                 .putInt(KEY_HOURLY_CHIME_QUIET_END, DEFAULT_HOURLY_CHIME_QUIET_END)
                 .putBoolean(KEY_BOLD_TEXT, DEFAULT_BOLD_TEXT)
-                .putString(KEY_FONT_FAMILY, DEFAULT_FONT_FAMILY)
                 .putBoolean(KEY_SHOW_SECONDS, DEFAULT_SHOW_SECONDS)
                 .putBoolean(KEY_SHOW_LUNAR, DEFAULT_SHOW_LUNAR)
                 .putBoolean(KEY_AUTO_START, DEFAULT_AUTO_START)

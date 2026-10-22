@@ -41,7 +41,6 @@ android {
             resValue "string", "app_name", "ClockMods Lite"
             manifestPlaceholders = [launcherActivity: ".MainActivity"]
             buildConfigField 'boolean', 'WEATHER_DETAIL_USES_TIME_TRANSITION', 'false'
-            buildConfigField 'boolean', 'PRO_FONTS', 'false'
         }
         modern {
             dimension "experience"
@@ -51,7 +50,6 @@ android {
             resValue "string", "app_name", "ClockMods"
             manifestPlaceholders = [launcherActivity: ".MainActivity"]
             buildConfigField 'boolean', 'WEATHER_DETAIL_USES_TIME_TRANSITION', 'false'
-            buildConfigField 'boolean', 'PRO_FONTS', 'false'
         }
         pro {
             dimension "experience"
@@ -61,7 +59,6 @@ android {
             resValue "string", "app_name", "ClockMods Pro"
             manifestPlaceholders = [launcherActivity: ".pro.ProMainActivity"]
             buildConfigField 'boolean', 'WEATHER_DETAIL_USES_TIME_TRANSITION', 'true'
-            buildConfigField 'boolean', 'PRO_FONTS', 'true'
         }
     }
 

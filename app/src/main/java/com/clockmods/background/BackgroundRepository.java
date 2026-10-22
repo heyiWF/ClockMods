@@ -90,22 +90,6 @@ public class BackgroundRepository {
         preferences.setDateFontScale(scale);
     }
 
-    public int getTimeColor() {
-        return preferences.getTimeColor();
-    }
-
-    public void setTimeColor(int color) {
-        preferences.setTimeColor(color);
-    }
-
-    public int getDateColor() {
-        return preferences.getDateColor();
-    }
-
-    public void setDateColor(int color) {
-        preferences.setDateColor(color);
-    }
-
     public boolean isShowStatusIcons() {
         return preferences.isShowStatusIcons();
     }
@@ -157,14 +141,6 @@ public class BackgroundRepository {
 
     public void setBoldText(boolean boldText) {
         preferences.setBoldText(boldText);
-    }
-
-    public String getFontFamily() {
-        return preferences.getFontFamily();
-    }
-
-    public void setFontFamily(String fontFamily) {
-        preferences.setFontFamily(fontFamily);
     }
 
     public boolean isShowSeconds() {

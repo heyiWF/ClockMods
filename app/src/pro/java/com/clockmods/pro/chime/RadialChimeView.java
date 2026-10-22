@@ -60,7 +60,7 @@ public final class RadialChimeView extends View {
                 repository.isSmallSeconds(), use24Hour, useEnglish);
         timeFontScale = repository.getTimeFontScale();
         textPaint.setTypeface(ClockTypefaceResolver.resolveTime(getContext(),
-                repository.getFontFamily(), repository.isBoldText()));
+                repository.isBoldText()));
         baseTextSize = 0f;
         setVisibility(VISIBLE);
         invalidate();

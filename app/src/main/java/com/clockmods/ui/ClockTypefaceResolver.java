@@ -3,45 +3,34 @@ package com.clockmods.ui;
 import android.content.Context;
 import android.graphics.Typeface;
 
-import com.clockmods.background.ClockPreferences;
-import com.clockmods.background.FontCatalog;
-
-import java.util.HashMap;
-import java.util.Map;
-
 public final class ClockTypefaceResolver {
-    /** Cache keyed by "<fontId>#<bold>" so each asset is only decoded once. */
-    private static final Map<String, Typeface> CACHE = new HashMap<>();
+    /** The app ships a single family: Roboto, bundled as an asset (no system-font fallback). */
+    private static final String ROBOTO_REGULAR = "fonts/Roboto-Regular.ttf";
+    private static final String ROBOTO_BOLD = "fonts/Roboto-Bold.ttf";
+
+    private static Typeface regular;
+    private static Typeface bold;
 
     private ClockTypefaceResolver() {
     }
 
-    public static Typeface resolveTime(Context context, String family, boolean bold) {
-        String normalized = ClockPreferences.normalizeFontFamily(family);
-        FontCatalog.FontOption option = FontCatalog.optionFor(normalized);
-        if (option.isSystem()) {
-            return bold ? Typeface.create("sans-serif-black", Typeface.NORMAL) : Typeface.DEFAULT;
-        }
-        return loadOption(context, option, bold);
-    }
-
-    static Typeface resolveSupporting(Context context, String family, boolean bold, boolean containsChinese) {
-        if (containsChinese) {
-            return bold ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT;
-        }
-        return resolveTime(context, family, bold);
+    public static Typeface resolveTime(Context context, boolean boldWeight) {
+        return boldWeight ? bold(context) : regular(context);
     }
 
     /**
-     * Resolves the typeface for a single code point of supporting text. Chinese
-     * (CJK) characters keep the system typeface so glyphs always render, while
-     * every other character (digits, latin letters, punctuation) uses the
-     * user selected font so switching the font also affects the non-Chinese
-     * parts of the date and weather lines.
+     * Roboto has no CJK glyphs, so Chinese supporting text keeps the system typeface
+     * (digits, latin letters and punctuation use Roboto).
      */
-    static Typeface resolveSupportingForCodePoint(Context context, String family, boolean bold,
-            int codePoint) {
-        return resolveSupporting(context, family, bold, isChinese(codePoint));
+    static Typeface resolveSupporting(Context context, boolean boldWeight, boolean containsChinese) {
+        if (containsChinese) {
+            return boldWeight ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT;
+        }
+        return resolveTime(context, boldWeight);
+    }
+
+    static Typeface resolveSupportingForCodePoint(Context context, boolean boldWeight, int codePoint) {
+        return resolveSupporting(context, boldWeight, isChinese(codePoint));
     }
 
     static boolean isChinese(int codePoint) {
@@ -52,22 +41,18 @@ public final class ClockTypefaceResolver {
                 || block == Character.UnicodeBlock.CJK_SYMBOLS_AND_PUNCTUATION;
     }
 
-    private static Typeface loadOption(Context context, FontCatalog.FontOption option, boolean bold) {
-        String cacheKey = option.id + '#' + bold;
-        Typeface cached = CACHE.get(cacheKey);
-        if (cached != null) {
-            return cached;
+    private static Typeface regular(Context context) {
+        if (regular == null) {
+            regular = load(context, ROBOTO_REGULAR, Typeface.DEFAULT);
         }
-        String assetPath = bold && option.boldAsset != null ? option.boldAsset : option.regularAsset;
-        Typeface fallback = bold ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT;
-        Typeface loaded = load(context, assetPath, fallback);
-        // When a family ships no dedicated bold asset, synthesize bold from the
-        // regular face so the "bold text" option still visibly thickens glyphs.
-        if (bold && option.boldAsset == null && loaded != null) {
-            loaded = Typeface.create(loaded, Typeface.BOLD);
+        return regular;
+    }
+
+    private static Typeface bold(Context context) {
+        if (bold == null) {
+            bold = load(context, ROBOTO_BOLD, Typeface.DEFAULT_BOLD);
         }
-        CACHE.put(cacheKey, loaded);
-        return loaded;
+        return bold;
     }
 
     private static Typeface load(Context context, String path, Typeface fallback) {

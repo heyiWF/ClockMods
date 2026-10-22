@@ -311,10 +311,8 @@ public class ClockView extends View {
         secondsPaint.setTextSize(timeSize * 0.6f);
         periodPaint.setTextSize(timeSize * 0.3f);
         datePaint.setTextSize(1f);
-        if (dateFontScale <= 1f) {
-            dateSize = ClockLayoutCalculator.capSupportingSize(dateSize, height,
-                    timePaint.descent() - timePaint.ascent(), datePaint.descent() - datePaint.ascent());
-        }
+        // TEMP (compat verification build): layout protection is disabled, so the date line
+        // is never capped against the time block — oversized text may overlap or leave the screen.
         datePaint.setTextSize(dateSize);
 
         float centerX = width / 2f;
@@ -325,8 +323,8 @@ public class ClockView extends View {
         Paint.FontMetrics dateMetrics = datePaint.getFontMetrics();
         float timeBaseline = centerY - (timeMetrics.ascent + timeMetrics.descent) / 2f;
         boolean portrait = height >= width;
-        float gapFactor = portrait ? 0.9f : 0.35f;
-        float gap = Math.min(height * .025f, dateSize * gapFactor);
+        float gapFactor = portrait ? 0.40f : 0.10f;
+        float gap = Math.min(height * .014f, dateSize * gapFactor);
         float dateBaseline = timeBaseline + timeMetrics.ascent - gap - dateMetrics.descent;
         // Portrait stacks date/lunar and weather/detail as two rows each, so give those
         // rows more breathing room than a plain line (landscape keeps the tight default).
@@ -427,13 +425,8 @@ public class ClockView extends View {
                 : (weatherTwoLines ? 0.20f : 0.28f);
         float lineSize = ClockLayoutCalculator.calculateWidthBasedTextSize(
                 width, height, digitPairWidth, timeFontScale, heightFraction, 0.66f);
-        // blockHeight ≈ blockFactor * lineSize; cap lineSize so the whole column fits.
-        float blockFactor = (lines - 1) * 1.06f + 0.72f;
-        float weatherReserve = weatherShown ? (weatherBlockHeight + minGap) : 0f;
-        float maxBlockHeight = avail - dateBlockHeight - minGap - weatherReserve;
-        if (timeFontScale <= 1f) {
-            lineSize = Math.min(lineSize, maxBlockHeight / blockFactor);
-        }
+        // TEMP compat verification build: the digit column is no longer capped against the
+        // surrounding date/weather rows, so oversized digits may cover them or leave the screen.
         timePaint.setTextSize(lineSize);
         Rect digitBounds = new Rect();
         timePaint.getTextBounds("0", 0, 1, digitBounds);
@@ -1106,7 +1099,7 @@ public class ClockView extends View {
 
     private Typeface supportingTypefaceFor(int codePoint) {
         return ClockTypefaceResolver.resolveSupportingForCodePoint(
-            getContext(), backgroundRepository.getFontFamily(), boldText, codePoint);
+            getContext(), boldText, codePoint);
     }
 
     private void applyTextStyles() {
@@ -1115,21 +1108,20 @@ public class ClockView extends View {
         }
         timeFontScale = backgroundRepository.getTimeFontScale();
         dateFontScale = backgroundRepository.getDateFontScale();
-        timePaint.setColor(backgroundRepository.getTimeColor());
-        secondsPaint.setColor(backgroundRepository.getTimeColor());
-        periodPaint.setColor(backgroundRepository.getTimeColor());
-        datePaint.setColor(backgroundRepository.getDateColor());
+        timePaint.setColor(ClockPreferences.TEXT_COLOR);
+        secondsPaint.setColor(ClockPreferences.TEXT_COLOR);
+        periodPaint.setColor(ClockPreferences.TEXT_COLOR);
+        datePaint.setColor(ClockPreferences.TEXT_COLOR);
         blinkColon = backgroundRepository.isBlinkColon();
         animateTimeChanges = backgroundRepository.isAnimateTimeChanges();
         timeTransition = backgroundRepository.getTimeTransition();
         boldText = backgroundRepository.isBoldText();
-        String fontFamily = backgroundRepository.getFontFamily();
-        Typeface timeTypeface = ClockTypefaceResolver.resolveTime(getContext(), fontFamily, boldText);
+        Typeface timeTypeface = ClockTypefaceResolver.resolveTime(getContext(), boldText);
         timePaint.setTypeface(timeTypeface);
         secondsPaint.setTypeface(timeTypeface);
         periodPaint.setTypeface(timeTypeface);
         datePaint.setTypeface(ClockTypefaceResolver.resolveSupporting(
-            getContext(), fontFamily, boldText, true));
+            getContext(), boldText, true));
         showSeconds = backgroundRepository.isShowSeconds();
         showLunar = backgroundRepository.isShowLunar();
         smallSeconds = backgroundRepository.isSmallSeconds();
@@ -1138,14 +1130,14 @@ public class ClockView extends View {
         dateLang = LocaleManager.dateLang(backgroundRepository.getClockLanguage());
         customMessage = backgroundRepository.getCustomMessage();
         // Weather-icon style/colour are Pro-only options; other flavours keep the solid fill
-        // style and follow the date text colour (their historical behaviour).
+        // style and follow the fixed text colour (their historical behaviour).
         boolean proIcons = "pro".equals(com.clockmods.BuildConfig.FLAVOR);
         weatherIconFill = !proIcons || backgroundRepository.isWeatherIconFill();
         weatherIconColor = proIcons
                 ? (backgroundRepository.isWeatherIconDynamicColor()
                         ? ExperienceBridge.resolveAccentColor(getContext(), 0xFFFFFFFF)
                         : 0xFFFFFFFF)
-                : backgroundRepository.getDateColor();
+                : ClockPreferences.TEXT_COLOR;
         datePatternCn = backgroundRepository.getDatePatternCn();
         datePatternEn = backgroundRepository.getDatePatternEn();
         portraitStacked = backgroundRepository.isPortraitStacked();
@@ -1159,7 +1151,7 @@ public class ClockView extends View {
 
     private void applySupportingTypeface(String text) {
         datePaint.setTypeface(ClockTypefaceResolver.resolveSupporting(
-                getContext(), backgroundRepository.getFontFamily(), boldText, containsChinese(text)));
+                getContext(), boldText, containsChinese(text)));
     }
 
     static boolean containsChinese(String text) {

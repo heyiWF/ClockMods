@@ -45,7 +45,6 @@ public final class ProClockFragment extends Fragment {
         weatherAttribution = root.findViewById(R.id.weather_attribution);
         BackgroundRepository repository = new BackgroundRepository(requireContext());
         clockView.setBackgroundRepository(repository);
-        statusBarView.setBackgroundRepository(repository);
         statusBarView.setVisibility(repository.isShowStatusIcons() ? View.VISIBLE : View.GONE);
         ProFontApplier.apply(root);
 
@@ -115,8 +114,8 @@ public final class ProClockFragment extends Fragment {
         clockView.setBackgroundRepository(repository);
         clockView.requestBackgroundReload();
         clockView.invalidate();
-        statusBarView.setBackgroundRepository(repository);
         statusBarView.setVisibility(repository.isShowStatusIcons() ? View.VISIBLE : View.GONE);
+        statusBarView.requestLayout();
         statusBarView.invalidate();
         applyWeatherEnabled(repository);
         startWeatherIfEnabled();

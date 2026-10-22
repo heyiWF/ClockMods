@@ -28,7 +28,6 @@ import androidx.fragment.app.Fragment;
 import androidx.core.widget.TextViewCompat;
 
 import com.clockmods.R;
-import com.clockmods.background.BackgroundRepository;
 import com.clockmods.background.ClockPreferences;
 import com.clockmods.platform.ExperienceBridge;
 import com.clockmods.calendar.CalendarMonth;
@@ -225,13 +224,12 @@ public final class ProCalendarFragment extends Fragment {
 
     private void refreshSettings(View root) {
         preferences = new ClockPreferences(requireContext());
-        BackgroundRepository background = new BackgroundRepository(requireContext());
-        statusBar.setBackgroundRepository(background);
         statusBar.setContentAlignedStart(true);
         statusBar.setVisibility(preferences.isShowStatusIcons() ? View.VISIBLE : View.GONE);
+        statusBar.requestLayout();
         Typeface typeface = ClockTypefaceResolver.resolveTime(requireContext(),
-                preferences.getFontFamily(), preferences.isBoldText());
-        timeView.setTextColor(preferences.getTimeColor());
+                preferences.isBoldText());
+        timeView.setTextColor(ClockPreferences.TEXT_COLOR);
         currentWeatherIcon.setIconColor(preferences.isWeatherIconDynamicColor()
                 ? ExperienceBridge.resolveAccentColor(requireContext(), Color.WHITE) : Color.WHITE);
         boolean weatherEnabled = preferences.isWeatherEnabled();
@@ -638,8 +636,7 @@ public final class ProCalendarFragment extends Fragment {
         view.setSingleLine(true);
         view.setEllipsize(android.text.TextUtils.TruncateAt.END);
         view.setTextColor(accent ? getColor(R.color.calendar_dashboard_blue) : Color.WHITE);
-        view.setTypeface(ClockTypefaceResolver.resolveTime(requireContext(),
-            preferences.getFontFamily(), false));
+        view.setTypeface(ClockTypefaceResolver.resolveTime(requireContext(), false));
         int maximumTextSize = getResources().getDimensionPixelSize(sizeRes);
         int minimumTextSize = getResources().getDimensionPixelSize(
                 R.dimen.calendar_forecast_min_text_size);
@@ -669,8 +666,7 @@ public final class ProCalendarFragment extends Fragment {
                     getResources().getDimension(R.dimen.calendar_weekday_text_size));
             label.setTextColor(getColor(highlightWeekends && isWeekend(dayOfWeek)
                     ? R.color.calendar_dashboard_weekend : R.color.calendar_dashboard_text));
-            label.setTypeface(ClockTypefaceResolver.resolveTime(requireContext(),
-                    preferences.getFontFamily(), false));
+            label.setTypeface(ClockTypefaceResolver.resolveTime(requireContext(), false));
             weekdayGrid.addView(label, cellParams());
         }
         applyMonthSizing();
@@ -849,8 +845,7 @@ public final class ProCalendarFragment extends Fragment {
         LunarAlmanac almanac = LunarAlmanac.of(day.year, day.month, day.dayOfMonth);
         HolidayRepository.HolidayStatus status = holidayRepository.statusOn(dateKey);
         CalendarDayNumberView solar = new CalendarDayNumberView(requireContext());
-        Typeface calendarTypeface = ClockTypefaceResolver.resolveTime(requireContext(),
-            preferences.getFontFamily(), false);
+        Typeface calendarTypeface = ClockTypefaceResolver.resolveTime(requireContext(), false);
         solar.setTypefaces(calendarTypeface, calendarTypeface);
         int dayColor = Color.WHITE;
         if (preferences.isCalendarHighlightWeekends() && isWeekend(day.dayOfWeek)) {
@@ -968,8 +963,7 @@ public final class ProCalendarFragment extends Fragment {
                 com.clockmods.LocaleManager.dateLang(preferences.getClockLanguage()));
         String dateLine = getString(R.string.calendar_selected_date,
                 formattedDate, almanac.naturalLabel());
-        footer.setTypeface(ClockTypefaceResolver.resolveTime(requireContext(),
-                preferences.getFontFamily(), false));
+        footer.setTypeface(ClockTypefaceResolver.resolveTime(requireContext(), false));
         footer.setTextSizePx(footer.getHeight() > 0
                 ? CalendarDashboardSizing.monthFooterSize(footer.getHeight(),
                         getResources().getDisplayMetrics().density)

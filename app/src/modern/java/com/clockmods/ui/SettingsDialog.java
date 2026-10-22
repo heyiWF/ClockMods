@@ -83,8 +83,6 @@ public class SettingsDialog extends BottomSheetDialog {
     private final MaterialButton dimStartButton;
     private final MaterialButton dimEndButton;
 
-    private final ColorPickerView timeColorPicker;
-    private final ColorPickerView dateColorPicker;
     private final Slider timeSizeBar;
     private final Slider dateSizeBar;
     private final TextView timeSizeValue;
@@ -101,7 +99,6 @@ public class SettingsDialog extends BottomSheetDialog {
     private int proQuietStartMinutes;
     private int proQuietEndMinutes;
     private final MaterialSwitch boldTextSwitch;
-    private final Spinner fontFamilySpinner;
     private final MaterialSwitch showSecondsSwitch;
     private final MaterialSwitch smallSecondsSwitch;
     private final MaterialSwitch showLunarSwitch;
@@ -162,8 +159,6 @@ public class SettingsDialog extends BottomSheetDialog {
     private String selectedWeatherDistrict;
     private double selectedWeatherLatitude = Double.NaN;
     private double selectedWeatherLongitude = Double.NaN;
-    private int timeColor;
-    private int dateColor;
     private int selectedRegionIndex;
     private int dimStartMinutes;
     private int dimEndMinutes;
@@ -188,8 +183,6 @@ public class SettingsDialog extends BottomSheetDialog {
         super(context);
         this.repository = repository;
         this.listener = listener;
-        this.timeColor = repository.getTimeColor();
-        this.dateColor = repository.getDateColor();
         this.dimStartMinutes = repository.getDimStartMinutes();
         this.dimEndMinutes = repository.getDimEndMinutes();
         this.selectedWeatherLocationId = repository.getWeatherLocationId();
@@ -201,7 +194,6 @@ public class SettingsDialog extends BottomSheetDialog {
         this.proQuietStartMinutes = repository.getHourlyChimeQuietStart();
         this.proQuietEndMinutes = repository.getHourlyChimeQuietEnd();
         int[] backgroundColors = createBackgroundColors(context);
-        int[] textColors = createTextColors(context);
         BottomSheetBehavior<?> behavior = getBehavior();
         behavior.setDraggable(false);
         behavior.setHideable(false);
@@ -345,10 +337,7 @@ public class SettingsDialog extends BottomSheetDialog {
         styleContent.addView(createSectionLabel(context, R.string.font_settings_group),
                 topMargin(sectionLabelParams(), dp(20)));
 
-        styleContent.addView(createSubLabel(context, R.string.font_family), subLabelParams());
-        fontFamilySpinner = createFontFamilySpinner(context, repository.getFontFamily());
-        styleContent.addView(fontFamilySpinner, topMargin(matchWrap(dp(48)), dp(4)));
-        // Bold applies to both time and date, so it sits with the shared font family, not under time.
+        // Bold applies to both time and date, so it sits with the font section header.
         boldTextSwitch = createStyleSwitch(context, R.string.bold_text, repository.isBoldText());
         styleContent.addView(boldTextSwitch, topMargin(matchWrap(dp(48)), dp(8)));
 
@@ -358,16 +347,6 @@ public class SettingsDialog extends BottomSheetDialog {
         timeSizeBar = new Slider(context);
         styleContent.addView(createSizeRow(context, R.string.font_size, timeSizeBar, timeSizeValue), sizeRowParams());
         configureSizeBar(timeSizeBar, timeSizeValue, repository.getTimeFontScale());
-        styleContent.addView(createSubLabel(context, R.string.font_color), subLabelParams());
-        timeColorPicker = new ColorPickerView(context);
-        timeColorPicker.setAccessibilityLabel(context.getString(R.string.time_color_picker));
-        timeColorPicker.setColor(timeColor);
-        timeColorPicker.setOnColorChangedListener(color -> timeColor = color);
-        styleContent.addView(createColorSwatches(context, textColors, color -> {
-            timeColor = color;
-            timeColorPicker.setColor(color);
-        }), topMargin(matchWrap(dp(52)), dp(4)));
-        addAdvancedPicker(context, styleContent, timeColorPicker);
 
         blinkColonSwitch = createStyleSwitch(context, R.string.blink_colon, repository.isBlinkColon());
         styleContent.addView(blinkColonSwitch, topMargin(matchWrap(dp(48)), dp(12)));
@@ -427,16 +406,6 @@ public class SettingsDialog extends BottomSheetDialog {
         dateSizeBar = new Slider(context);
         styleContent.addView(createSizeRow(context, R.string.font_size, dateSizeBar, dateSizeValue), sizeRowParams());
         configureSizeBar(dateSizeBar, dateSizeValue, repository.getDateFontScale());
-        styleContent.addView(createSubLabel(context, R.string.font_color), subLabelParams());
-        dateColorPicker = new ColorPickerView(context);
-        dateColorPicker.setAccessibilityLabel(context.getString(R.string.date_color_picker));
-        dateColorPicker.setColor(dateColor);
-        dateColorPicker.setOnColorChangedListener(color -> dateColor = color);
-        styleContent.addView(createColorSwatches(context, textColors, color -> {
-            dateColor = color;
-            dateColorPicker.setColor(color);
-        }), topMargin(matchWrap(dp(52)), dp(4)));
-        addAdvancedPicker(context, styleContent, dateColorPicker);
         // The lunar date is part of the date line, so its toggle sits with the date settings.
         showLunarSwitch = createStyleSwitch(context, R.string.show_lunar, repository.isShowLunar());
         styleContent.addView(showLunarSwitch, topMargin(matchWrap(dp(48)), dp(8)));
@@ -1085,15 +1054,6 @@ public class SettingsDialog extends BottomSheetDialog {
         };
     }
 
-    private static int[] createTextColors(Context context) {
-        return new int[] {
-                themeColor(context, androidx.appcompat.R.attr.colorPrimary, 0xFF38BDF8),
-                themeColor(context, com.google.android.material.R.attr.colorSecondary, 0xFF34D399),
-                themeColor(context, com.google.android.material.R.attr.colorTertiary, 0xFFF472B6),
-                0xFFFFFFFF, 0xFFF8FAFC, 0xFFFACC15, 0xFFF87171, 0xFF111827
-        };
-    }
-
     private static int themeColor(Context context, int attribute, int fallback) {
         return MaterialColors.getColor(context, attribute, fallback);
     }
@@ -1197,16 +1157,10 @@ public class SettingsDialog extends BottomSheetDialog {
 
     private void restoreDefaults() {
         int defaultBackground = ClockPreferences.DEFAULT_BACKGROUND_COLOR;
-        int defaultTextColor = ClockPreferences.DEFAULT_TEXT_COLOR;
 
         modeGroup.check(COLOR_MODE_ID);
         backgroundPicker.setColor(defaultBackground);
         setSwatchColor(backgroundPreview, defaultBackground);
-
-        timeColor = defaultTextColor;
-        dateColor = defaultTextColor;
-        timeColorPicker.setColor(defaultTextColor);
-        dateColorPicker.setColor(defaultTextColor);
 
         timeSizeBar.setValue(scaleToProgress(ClockPreferences.DEFAULT_TIME_FONT_SCALE));
         updateSizeLabel(timeSizeBar, timeSizeValue, timeSizeBar.getValue());
@@ -1230,7 +1184,6 @@ public class SettingsDialog extends BottomSheetDialog {
             updateProQuietLabels();
         }
         boldTextSwitch.setChecked(ClockPreferences.DEFAULT_BOLD_TEXT);
-        fontFamilySpinner.setSelection(0);
         showSecondsSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_SECONDS);
         smallSecondsSwitch.setChecked(ClockPreferences.DEFAULT_SMALL_SECONDS);
         showLunarSwitch.setChecked(ClockPreferences.DEFAULT_SHOW_LUNAR);
@@ -1288,8 +1241,6 @@ public class SettingsDialog extends BottomSheetDialog {
         }
         repository.setTimeFontScale(progressToScale(timeSizeBar.getValue()));
         repository.setDateFontScale(progressToScale(dateSizeBar.getValue()));
-        repository.setTimeColor(timeColor);
-        repository.setDateColor(dateColor);
         repository.setShowStatusIcons(statusIconsSwitch.isChecked());
         repository.setStatusIconScale(progressToScale(statusIconSizeBar.getValue()));
         repository.setBlinkColon(blinkColonSwitch.isChecked());
@@ -1307,7 +1258,6 @@ public class SettingsDialog extends BottomSheetDialog {
             repository.setHourlyChimeQuietEnd(proQuietEndMinutes);
         }
         repository.setBoldText(boldTextSwitch.isChecked());
-        repository.setFontFamily(fontFamilyForIndex(fontFamilySpinner.getSelectedItemPosition()));
         repository.setShowSeconds(showSecondsSwitch.isChecked());
         repository.setSmallSeconds(showSecondsSwitch.isChecked() && smallSecondsSwitch.isChecked());
         repository.setShowLunar(showLunarSwitch.isChecked());
@@ -1758,18 +1708,6 @@ public class SettingsDialog extends BottomSheetDialog {
         } else {
             pendingDatePatternCn = pattern;
         }
-    }
-
-    private Spinner createFontFamilySpinner(Context context, String family) {
-        Spinner spinner = new Spinner(context);
-        spinner.setAdapter(new ArrayAdapter<>(context, android.R.layout.simple_spinner_dropdown_item,
-                com.clockmods.background.FontCatalog.displayNames(context)));
-        spinner.setSelection(com.clockmods.background.FontCatalog.indexOf(family));
-        return spinner;
-    }
-
-    private static String fontFamilyForIndex(int index) {
-        return com.clockmods.background.FontCatalog.idForIndex(index);
     }
 
     private Spinner createStringSpinner(Context context, int arrayRes, int selection) {
