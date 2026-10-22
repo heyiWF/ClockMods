@@ -2,12 +2,13 @@ package com.clockmods.ui;
 
 import android.app.AlertDialog;
 import android.app.Dialog;
-import android.app.TimePickerDialog;
 import android.content.Context;
 import android.content.DialogInterface;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
+import android.graphics.drawable.GradientDrawable;
+import android.util.DisplayMetrics;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -64,6 +65,7 @@ public class SettingsDialog extends Dialog {
     private static final int COLOR_PRIMARY_TEXT = 0xFFE5E7EB;
     private static final int COLOR_SECONDARY_TEXT = 0xFF9CA3AF;
     private static final int COLOR_ACCENT = 0xFF60A5FA;
+    private static final int COLOR_CARD = 0xFF23262D;
 
     private final BackgroundRepository repository;
     private final Listener listener;
@@ -71,10 +73,6 @@ public class SettingsDialog extends Dialog {
     private final RadioButton imageMode;
     private final View imageControls;
     private final Switch dimBackgroundSwitch;
-    private final Switch scheduleDimBackgroundSwitch;
-    private final View dimScheduleControls;
-    private final Button dimStartButton;
-    private final Button dimEndButton;
 
     private final SeekBar timeSizeBar;
     private final SeekBar dateSizeBar;
@@ -115,15 +113,11 @@ public class SettingsDialog extends Dialog {
     private double selectedWeatherLatitude = Double.NaN;
     private double selectedWeatherLongitude = Double.NaN;
     private int selectedRegionIndex;
-    private int dimStartMinutes;
-    private int dimEndMinutes;
 
     public SettingsDialog(Context context, BackgroundRepository repository, Listener listener) {
         super(context);
         this.repository = repository;
         this.listener = listener;
-        this.dimStartMinutes = repository.getDimStartMinutes();
-        this.dimEndMinutes = repository.getDimEndMinutes();
         this.selectedWeatherLocationId = repository.getWeatherLocationId();
         this.selectedWeatherProvince = repository.getWeatherProvince();
         this.selectedWeatherCity = repository.getWeatherCity();
@@ -161,29 +155,12 @@ public class SettingsDialog extends Dialog {
         header.addView(apply, new LinearLayout.LayoutParams(dp(76), dp(44)));
         dialogRoot.addView(header, matchWrap(dp(56)));
 
-        LinearLayout content = new LinearLayout(context);
+        // ---- Single page of section cards; landscape splits it into two columns ----
+        final LinearLayout content = new LinearLayout(context);
         content.setOrientation(LinearLayout.VERTICAL);
-        content.setPadding(padding, 0, padding, dp(18));
-        content.setBackgroundColor(COLOR_SURFACE);
+        content.setPadding(padding, 0, padding, dp(14));
 
-        // ---- Segmented tab header (样式 / 功能) ----
-        final SegmentedSelector boardSelector = new SegmentedSelector(context,
-            new CharSequence[] {
-                context.getString(R.string.tab_style),
-                context.getString(R.string.tab_function)
-            }, COLOR_ACCENT, 0xFF252830, Color.WHITE, COLOR_SECONDARY_TEXT);
-        LinearLayout fixedTabs = new LinearLayout(context);
-        fixedTabs.setPadding(padding, 0, padding, 0);
-        fixedTabs.addView(boardSelector, topMargin(matchWrap(dp(46)), dp(12)));
-        dialogRoot.addView(fixedTabs, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        // ---- Style board ----
-        final LinearLayout styleContent = new LinearLayout(context);
-        styleContent.setOrientation(LinearLayout.VERTICAL);
-
-        styleContent.addView(createSectionLabel(context, R.string.background_settings_group),
-                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(6)));
-
+        LinearLayout backgroundSection = createSection(context, R.string.background_settings_group);
         RadioGroup modeGroup = new RadioGroup(context);
         modeGroup.setOrientation(RadioGroup.HORIZONTAL);
         colorMode = new RadioButton(context);
@@ -196,14 +173,15 @@ public class SettingsDialog extends Dialog {
         imageMode.setTextColor(COLOR_PRIMARY_TEXT);
         imageMode.setId(MODE_IMAGE_ID);
         tintCompoundButton(imageMode);
-        modeGroup.addView(colorMode, new RadioGroup.LayoutParams(0, dp(46), 1f));
-        modeGroup.addView(imageMode, new RadioGroup.LayoutParams(0, dp(46), 1f));
-        styleContent.addView(modeGroup, topMargin(matchWrap(dp(48)), dp(2)));
+        modeGroup.addView(colorMode, new RadioGroup.LayoutParams(0, dp(40), 1f));
+        modeGroup.addView(imageMode, new RadioGroup.LayoutParams(0, dp(40), 1f));
+        backgroundSection.addView(modeGroup, matchWrap(dp(40)));
 
         LinearLayout imageControlsLayout = new LinearLayout(context);
         imageControlsLayout.setOrientation(LinearLayout.VERTICAL);
         imageControls = imageControlsLayout;
-        imageControlsLayout.addView(createImagePreview(context), topMargin(matchWrap(dp(180)), dp(10)));
+        imageControlsLayout.addView(createImagePreview(context),
+                topMargin(matchWrap(dp(140)), dp(8)));
 
         Button chooseImage = new Button(context);
         chooseImage.setText(R.string.choose_image);
@@ -212,126 +190,79 @@ public class SettingsDialog extends Dialog {
             dismiss();
             listener.onChooseImage();
         });
-        imageControlsLayout.addView(chooseImage, topMargin(matchWrap(dp(46)), dp(10)));
+        imageControlsLayout.addView(chooseImage, topMargin(matchWrap(dp(42)), dp(8)));
 
         dimBackgroundSwitch = createStyleSwitch(context, R.string.dim_background,
             repository.isDimBackground());
-        imageControlsLayout.addView(dimBackgroundSwitch, topMargin(matchWrap(dp(48)), dp(8)));
-        scheduleDimBackgroundSwitch = createStyleSwitch(context, R.string.schedule_dim_background,
-            repository.isScheduleDimBackground());
-        imageControlsLayout.addView(scheduleDimBackgroundSwitch, matchWrap(dp(48)));
-
-        TextView dimNote = createSubLabel(context, R.string.dim_schedule_note);
-        dimNote.setTextColor(COLOR_SECONDARY_TEXT);
-        imageControlsLayout.addView(dimNote,
-            topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(2)));
-
-        LinearLayout dimTimeRow = new LinearLayout(context);
-        dimScheduleControls = dimTimeRow;
-        dimStartButton = new Button(context);
-        dimEndButton = new Button(context);
-        tintButton(dimStartButton);
-        tintButton(dimEndButton);
-        updateDimTimeLabels();
-        dimStartButton.setOnClickListener(view -> showDimTimePicker(true));
-        dimEndButton.setOnClickListener(view -> showDimTimePicker(false));
-        dimTimeRow.addView(dimStartButton, new LinearLayout.LayoutParams(0, dp(48), 1f));
-        LinearLayout.LayoutParams endTimeParams = new LinearLayout.LayoutParams(0, dp(48), 1f);
-        endTimeParams.leftMargin = dp(8);
-        dimTimeRow.addView(dimEndButton, endTimeParams);
-        imageControlsLayout.addView(dimTimeRow, topMargin(matchWrap(dp(50)), dp(8)));
-        scheduleDimBackgroundSwitch.setOnCheckedChangeListener(
-            (button, checked) -> updateDimScheduleState(checked));
-        updateDimScheduleState(scheduleDimBackgroundSwitch.isChecked());
-        styleContent.addView(imageControlsLayout, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
-
+        addSwitchRow(imageControlsLayout, dimBackgroundSwitch, dp(2));
+        backgroundSection.addView(imageControlsLayout, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
         modeGroup.setOnCheckedChangeListener((group, checkedId) ->
                 updateBackgroundControls(imageMode.isChecked()));
 
-        // Font section
-        styleContent.addView(createSectionLabel(context, R.string.font_settings_group),
-                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(18)));
-
-        // Bold applies to both time and date, so it sits with the font section header.
+        LinearLayout fontSection = createSection(context, R.string.font_settings_group);
         boldTextSwitch = createStyleSwitch(context, R.string.bold_text, repository.isBoldText());
-        styleContent.addView(boldTextSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        addSwitchRow(fontSection, boldTextSwitch, 0);
 
-        styleContent.addView(createSubLabel(context, R.string.time_font_settings),
+        fontSection.addView(createSubLabel(context, R.string.time_font_settings),
                 topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(8)));
         timeSizeValue = new TextView(context);
         timeSizeBar = new SeekBar(context);
-        styleContent.addView(createSizeRow(context, R.string.font_size, timeSizeBar, timeSizeValue),
-                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(4)));
+        fontSection.addView(createSizeRow(context, R.string.font_size, timeSizeBar, timeSizeValue),
+                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(2)));
         configureSizeBar(timeSizeBar, timeSizeValue, repository.getTimeFontScale());
 
         blinkColonSwitch = createStyleSwitch(context, R.string.blink_colon, repository.isBlinkColon());
-        styleContent.addView(blinkColonSwitch, topMargin(matchWrap(dp(48)), dp(10)));
+        addSwitchRow(fontSection, blinkColonSwitch, dp(4));
         animateTimeChangesSwitch = createStyleSwitch(context, R.string.animate_time_changes,
             repository.isAnimateTimeChanges());
-        styleContent.addView(animateTimeChangesSwitch, matchWrap(dp(48)));
-        // 竖屏专用：开启后竖屏时钟改为竖排大字（时/分/秒分行），横屏保持不变。
+        addSwitchRow(fontSection, animateTimeChangesSwitch, 0);
         portraitStackedSwitch = createStyleSwitch(context, R.string.portrait_stacked_clock,
             repository.isPortraitStacked());
-        styleContent.addView(portraitStackedSwitch, matchWrap(dp(48)));
+        addSwitchRow(fontSection, portraitStackedSwitch, 0);
         showSecondsSwitch = createStyleSwitch(context, R.string.show_seconds, repository.isShowSeconds());
-        styleContent.addView(showSecondsSwitch, matchWrap(dp(48)));
+        addSwitchRow(fontSection, showSecondsSwitch, 0);
         smallSecondsSwitch = createStyleSwitch(context, R.string.small_seconds, repository.isSmallSeconds());
-        styleContent.addView(smallSecondsSwitch, matchWrap(dp(48)));
+        addSwitchRow(fontSection, smallSecondsSwitch, 0);
         showSecondsSwitch.setOnCheckedChangeListener(
             (button, checked) -> updateSmallSecondsState(checked));
         updateSmallSecondsState(showSecondsSwitch.isChecked());
 
-        styleContent.addView(createSubLabel(context, R.string.date_font_settings),
-                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(16)));
+        fontSection.addView(createSubLabel(context, R.string.date_font_settings),
+                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(8)));
         dateSizeValue = new TextView(context);
         dateSizeBar = new SeekBar(context);
-        styleContent.addView(createSizeRow(context, R.string.font_size, dateSizeBar, dateSizeValue),
-                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(4)));
+        fontSection.addView(createSizeRow(context, R.string.font_size, dateSizeBar, dateSizeValue),
+                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(2)));
         configureSizeBar(dateSizeBar, dateSizeValue, repository.getDateFontScale());
-        // The lunar date is part of the date line, so its toggle sits with the date settings.
         showLunarSwitch = createStyleSwitch(context, R.string.show_lunar, repository.isShowLunar());
-        styleContent.addView(showLunarSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        addSwitchRow(fontSection, showLunarSwitch, dp(4));
         dateLunarDualLineSwitch = createStyleSwitch(context, R.string.date_lunar_dual_line,
                 repository.isDateLunarDualLine());
-        addSwitchWithSummary(styleContent, dateLunarDualLineSwitch,
-                R.string.date_lunar_dual_line_desc, dp(8));
+        addSwitchWithSummary(fontSection, dateLunarDualLineSwitch,
+                R.string.date_lunar_dual_line_desc, dp(4));
 
-        // Status bar section
-        styleContent.addView(createSectionLabel(context, R.string.status_settings_group),
-                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(18)));
+        LinearLayout statusSection = createSection(context, R.string.status_settings_group);
         statusIconsSwitch = new Switch(context);
         statusIconsSwitch.setText(R.string.show_status_icons);
         statusIconsSwitch.setTextColor(COLOR_PRIMARY_TEXT);
         tintCompoundButton(statusIconsSwitch);
         statusIconsSwitch.setChecked(repository.isShowStatusIcons());
-        styleContent.addView(statusIconsSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        addSwitchRow(statusSection, statusIconsSwitch, 0);
 
         statusIconSizeValue = new TextView(context);
         statusIconSizeBar = new SeekBar(context);
         statusIconSizeControls = createStatusIconSizeRow(
                 context, statusIconSizeBar, statusIconSizeValue);
-        styleContent.addView(statusIconSizeControls,
+        statusSection.addView(statusIconSizeControls,
                 topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(2)));
         configureStatusIconSizeBar(repository.getStatusIconScale());
         statusIconsSwitch.setOnCheckedChangeListener(
                 (button, checked) -> updateStatusIconSizeState(checked));
         updateStatusIconSizeState(statusIconsSwitch.isChecked());
 
-        // Reset applies to both boards and is placed after their shared content below.
-        Button reset = new Button(context);
-        reset.setText(R.string.reset_default);
-        tintButton(reset);
-        reset.setOnClickListener(view -> restoreDefaults());
-
-        // ---- Function board ----
-        final LinearLayout functionContent = new LinearLayout(context);
-        functionContent.setOrientation(LinearLayout.VERTICAL);
-        functionContent.setVisibility(View.GONE);
-
-        functionContent.addView(createSectionLabel(context, R.string.display_settings_group),
-                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(6)));
-        functionContent.addView(createSubLabel(context, R.string.screen_orientation),
-            topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(8)));
+        LinearLayout displaySection = createSection(context, R.string.display_settings_group);
+        displaySection.addView(createSubLabel(context, R.string.screen_orientation),
+            topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(4)));
         orientationSelector = new SegmentedSelector(context,
             new CharSequence[] {
                 context.getString(R.string.orientation_follow_system),
@@ -339,68 +270,65 @@ public class SettingsDialog extends Dialog {
                 context.getString(R.string.orientation_landscape)
             }, COLOR_ACCENT, 0xFF252830, Color.WHITE, COLOR_SECONDARY_TEXT);
         orientationSelector.setSelectedIndex(repository.getScreenOrientation());
-        functionContent.addView(orientationSelector, topMargin(matchWrap(dp(46)), dp(6)));
+        displaySection.addView(orientationSelector, topMargin(matchWrap(dp(40)), dp(4)));
         autoStartSwitch = createStyleSwitch(context, R.string.auto_start, repository.isAutoStart());
-        addSwitchWithSummary(functionContent, autoStartSwitch, R.string.auto_start_desc, dp(8));
+        addSwitchWithSummary(displaySection, autoStartSwitch, R.string.auto_start_desc, dp(6));
 
-        functionContent.addView(createSectionLabel(context, R.string.time_settings_group),
-                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(18)));
+        LinearLayout timeSection = createSection(context, R.string.time_settings_group);
         use24HourSwitch = new Switch(context);
         use24HourSwitch.setText(R.string.use_24_hour);
         use24HourSwitch.setTextColor(COLOR_PRIMARY_TEXT);
         tintCompoundButton(use24HourSwitch);
         use24HourSwitch.setChecked(repository.isUse24Hour());
-        functionContent.addView(use24HourSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        addSwitchRow(timeSection, use24HourSwitch, 0);
 
         networkTimeSwitch = new Switch(context);
         networkTimeSwitch.setText(R.string.use_network_time);
         networkTimeSwitch.setTextColor(COLOR_PRIMARY_TEXT);
         tintCompoundButton(networkTimeSwitch);
         networkTimeSwitch.setChecked(repository.isUseNetworkTime());
-        addSwitchWithSummary(functionContent, networkTimeSwitch,
-                R.string.use_network_time_desc, dp(8));
+        addSwitchWithSummary(timeSection, networkTimeSwitch,
+                R.string.use_network_time_desc, dp(6));
 
         LinearLayout locked = new LinearLayout(context);
         locked.setOrientation(LinearLayout.VERTICAL);
         functionLockedControls = locked;
-
         locked.addView(createSubLabel(context, R.string.sync_interval),
-                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(10)));
+                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(8)));
         syncIntervalGroup = new RadioGroup(context);
         syncIntervalGroup.setOrientation(RadioGroup.VERTICAL);
         sync30Min = createSyncOption(context, R.string.sync_interval_30min);
         sync1Hour = createSyncOption(context, R.string.sync_interval_1hour);
         sync6Hour = createSyncOption(context, R.string.sync_interval_6hour);
         sync1Day = createSyncOption(context, R.string.sync_interval_1day);
-        syncIntervalGroup.addView(sync30Min, matchWrap(dp(42)));
-        syncIntervalGroup.addView(sync1Hour, matchWrap(dp(42)));
-        syncIntervalGroup.addView(sync6Hour, matchWrap(dp(42)));
-        syncIntervalGroup.addView(sync1Day, matchWrap(dp(42)));
+        syncIntervalGroup.addView(sync30Min, matchWrap(dp(34)));
+        syncIntervalGroup.addView(sync1Hour, matchWrap(dp(34)));
+        syncIntervalGroup.addView(sync6Hour, matchWrap(dp(34)));
+        syncIntervalGroup.addView(sync1Day, matchWrap(dp(34)));
         checkSyncOption(repository.getSyncIntervalMinutes());
-        locked.addView(syncIntervalGroup, topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(2)));
+        locked.addView(syncIntervalGroup,
+                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(0)));
+        timeSection.addView(locked, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        functionContent.addView(locked, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        functionContent.addView(createSectionLabel(context, R.string.region_settings_group),
-                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(18)));
+        LinearLayout regionSection = createSection(context, R.string.region_settings_group);
         selectedRegionIndex = RegionTimeZones.indexOfZoneId(repository.getTimeZoneId());
         regionButton = new Button(context);
         regionButton.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         tintButton(regionButton);
         regionButton.setText(regionSummary());
         regionButton.setOnClickListener(view -> showRegionChooser());
-        functionContent.addView(regionButton, topMargin(matchWrap(dp(48)), dp(8)));
+        regionSection.addView(regionButton, matchWrap(dp(44)));
 
-        functionContent.addView(createSectionLabel(context, R.string.weather_settings_group),
-            topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(18)));
+        LinearLayout weatherSection = createSection(context, R.string.weather_settings_group);
         weatherSwitch = new Switch(context);
         weatherSwitch.setText(R.string.show_weather);
         weatherSwitch.setTextColor(COLOR_PRIMARY_TEXT);
         tintCompoundButton(weatherSwitch);
         weatherSwitch.setChecked(repository.isWeatherEnabled());
-        functionContent.addView(weatherSwitch, topMargin(matchWrap(dp(48)), dp(8)));
-        functionContent.addView(createSubLabel(context, R.string.weather_location),
-            topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(4)));
+        addSwitchRow(weatherSection, weatherSwitch, 0);
+
+        weatherSection.addView(createSubLabel(context, R.string.weather_location),
+            topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(6)));
         weatherLocationModeSpinner = new Spinner(context);
         weatherLocationModeSpinner.setAdapter(new ArrayAdapter<>(context,
             android.R.layout.simple_spinner_dropdown_item, new String[] {
@@ -409,7 +337,7 @@ public class SettingsDialog extends Dialog {
             }));
         weatherLocationModeSpinner.setSelection(ClockPreferences.WEATHER_LOCATION_MANUAL.equals(
             repository.getWeatherLocationMode()) ? 1 : 0);
-        functionContent.addView(weatherLocationModeSpinner, topMargin(matchWrap(dp(48)), dp(4)));
+        weatherSection.addView(weatherLocationModeSpinner, topMargin(matchWrap(dp(42)), dp(2)));
         weatherLocationButton = new Button(context);
         weatherLocationButton.setTextColor(COLOR_PRIMARY_TEXT);
         weatherLocationButton.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
@@ -428,9 +356,9 @@ public class SettingsDialog extends Dialog {
                     updateWeatherLocationSummary();
                 }
             }));
-        functionContent.addView(weatherLocationButton, topMargin(matchWrap(dp(52)), dp(4)));
-        functionContent.addView(createSubLabel(context, R.string.weather_update_interval),
-            topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(8)));
+        weatherSection.addView(weatherLocationButton, topMargin(matchWrap(dp(46)), dp(2)));
+        weatherSection.addView(createSubLabel(context, R.string.weather_update_interval),
+            topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(6)));
         weatherIntervalSpinner = new Spinner(context);
         weatherIntervalSpinner.setAdapter(new ArrayAdapter<>(context,
             android.R.layout.simple_spinner_dropdown_item, new String[] {
@@ -442,13 +370,13 @@ public class SettingsDialog extends Dialog {
                 context.getString(R.string.weather_interval_12hour)
             }));
         weatherIntervalSpinner.setSelection(weatherIntervalIndex(repository.getWeatherIntervalMinutes()));
-        functionContent.addView(weatherIntervalSpinner, topMargin(matchWrap(dp(48)), dp(4)));
+        weatherSection.addView(weatherIntervalSpinner, topMargin(matchWrap(dp(42)), dp(2)));
         weatherDetailedSwitch = new Switch(context);
         weatherDetailedSwitch.setText(R.string.show_detailed_weather);
         weatherDetailedSwitch.setTextColor(COLOR_PRIMARY_TEXT);
         tintCompoundButton(weatherDetailedSwitch);
         weatherDetailedSwitch.setChecked(repository.isWeatherDetailed());
-        functionContent.addView(weatherDetailedSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        addSwitchRow(weatherSection, weatherDetailedSwitch, dp(6));
         weatherSwitch.setOnCheckedChangeListener((button, checked) -> updateWeatherState(checked));
         weatherLocationModeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -461,16 +389,35 @@ public class SettingsDialog extends Dialog {
         networkTimeSwitch.setOnCheckedChangeListener((button, checked) -> updateFunctionLockedState(checked));
         updateFunctionLockedState(networkTimeSwitch.isChecked());
 
-        // ---- Boards container ----
-        content.addView(styleContent, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
-        content.addView(functionContent, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
-        content.addView(reset, topMargin(matchWrap(dp(48)), dp(18)));
+        Button reset = new Button(context);
+        reset.setText(R.string.reset_default);
+        tintButton(reset);
+        reset.setOnClickListener(view -> restoreDefaults());
 
-        boardSelector.setOnSelectionChangedListener(index -> {
-            boolean style = index == 0;
-            styleContent.setVisibility(style ? View.VISIBLE : View.GONE);
-            functionContent.setVisibility(style ? View.GONE : View.VISIBLE);
-        });
+        boolean twoColumn = context.getResources().getDisplayMetrics().widthPixels
+                > context.getResources().getDisplayMetrics().heightPixels;
+        if (twoColumn) {
+            LinearLayout columns = new LinearLayout(context);
+            columns.setOrientation(LinearLayout.HORIZONTAL);
+            LinearLayout leftColumn = new LinearLayout(context);
+            leftColumn.setOrientation(LinearLayout.VERTICAL);
+            LinearLayout rightColumn = new LinearLayout(context);
+            rightColumn.setOrientation(LinearLayout.VERTICAL);
+            addSections(leftColumn, backgroundSection, fontSection, statusSection, regionSection);
+            addSections(rightColumn, displaySection, timeSection, weatherSection);
+            LinearLayout.LayoutParams leftParams = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            LinearLayout.LayoutParams rightParams = new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            rightParams.leftMargin = dp(12);
+            columns.addView(leftColumn, leftParams);
+            columns.addView(rightColumn, rightParams);
+            content.addView(columns, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
+        } else {
+            addSections(content, backgroundSection, fontSection, statusSection, displaySection,
+                timeSection, regionSection, weatherSection);
+        }
+        content.addView(reset, topMargin(matchWrap(dp(44)), dp(12)));
 
         ScrollView scrollView = new ScrollView(context);
         scrollView.setFillViewport(true);
@@ -479,7 +426,7 @@ public class SettingsDialog extends Dialog {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         LinearLayout.LayoutParams scrollParams = new LinearLayout.LayoutParams(
             ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f);
-        scrollParams.topMargin = dp(12);
+        scrollParams.topMargin = dp(6);
         dialogRoot.addView(scrollView, scrollParams);
         setContentView(dialogRoot);
         ButtonTextSizer.applyToTree(dialogRoot);
@@ -500,9 +447,45 @@ public class SettingsDialog extends Dialog {
             window.setGravity(Gravity.BOTTOM);
             WindowManager.LayoutParams params = window.getAttributes();
             params.width = WindowManager.LayoutParams.MATCH_PARENT;
-            params.height = Math.min(getContext().getResources().getDisplayMetrics().heightPixels, dp(760));
+            DisplayMetrics metrics = getContext().getResources().getDisplayMetrics();
+            boolean landscape = metrics.widthPixels > metrics.heightPixels;
+            params.height = landscape ? metrics.heightPixels
+                    : Math.round(metrics.heightPixels * 0.92f);
             window.setAttributes(params);
         }
+    }
+
+    private LinearLayout createSection(Context context, int titleRes) {
+        LinearLayout section = new LinearLayout(context);
+        section.setOrientation(LinearLayout.VERTICAL);
+        GradientDrawable card = new GradientDrawable();
+        card.setColor(COLOR_CARD);
+        card.setCornerRadius(dp(10));
+        section.setBackgroundDrawable(card);
+        section.setPadding(dp(12), dp(8), dp(12), dp(8));
+        TextView title = createSectionLabel(context, titleRes);
+        title.setPadding(0, 0, 0, dp(2));
+        section.addView(title);
+        return section;
+    }
+
+    private void addSections(LinearLayout parent, LinearLayout... sections) {
+        for (LinearLayout section : sections) {
+            parent.addView(section,
+                    topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(8)));
+        }
+    }
+
+    private LinearLayout.LayoutParams switchParams(int topMarginPx) {
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, dp(38));
+        params.topMargin = topMarginPx;
+        return params;
+    }
+
+    /** Switch rows stay compact so each label sits right next to its own switch. */
+    private void addSwitchRow(LinearLayout container, Switch control, int topMarginPx) {
+        container.addView(control, switchParams(topMarginPx));
     }
 
     private TextView createSectionLabel(Context context, int textRes) {
@@ -536,7 +519,7 @@ public class SettingsDialog extends Dialog {
      */
     private void addSwitchWithSummary(LinearLayout container, Switch control, int summaryRes,
             int topMarginPx) {
-        container.addView(control, topMargin(matchWrap(dp(48)), topMarginPx));
+        container.addView(control, switchParams(topMarginPx));
         TextView summary = new TextView(getContext());
         summary.setText(summaryRes);
         summary.setTextColor(COLOR_SECONDARY_TEXT);
@@ -600,7 +583,7 @@ public class SettingsDialog extends Dialog {
         valueLabel.setGravity(Gravity.END);
         // Keep the "占屏幕宽度 xxx%" readout on a single line even for 3-digit percentages.
         valueLabel.setSingleLine(true);
-        row.addView(valueLabel, new LinearLayout.LayoutParams(dp(120), ViewGroup.LayoutParams.WRAP_CONTENT));
+        row.addView(valueLabel, new LinearLayout.LayoutParams(dp(56), ViewGroup.LayoutParams.WRAP_CONTENT));
         LinearLayout control = new LinearLayout(context);
         control.setOrientation(LinearLayout.VERTICAL);
         control.addView(row);
@@ -712,34 +695,6 @@ public class SettingsDialog extends Dialog {
 
     private void updateBackgroundControls(boolean usingImage) {
         imageControls.setVisibility(usingImage ? View.VISIBLE : View.GONE);
-    }
-
-    private void showDimTimePicker(final boolean start) {
-        int minutes = start ? dimStartMinutes : dimEndMinutes;
-        new TimePickerDialog(getContext(), (view, hourOfDay, minute) -> {
-            if (start) {
-                dimStartMinutes = hourOfDay * 60 + minute;
-            } else {
-                dimEndMinutes = hourOfDay * 60 + minute;
-            }
-            updateDimTimeLabels();
-        }, minutes / 60, minutes % 60, true).show();
-    }
-
-    private void updateDimTimeLabels() {
-        dimStartButton.setText(getContext().getString(R.string.dim_start_time)
-                + " " + formatMinutes(dimStartMinutes));
-        dimEndButton.setText(getContext().getString(R.string.dim_end_time)
-                + " " + formatMinutes(dimEndMinutes));
-    }
-
-    private void updateDimScheduleState(boolean enabled) {
-        dimScheduleControls.setAlpha(enabled ? 1f : 0.4f);
-        setViewTreeEnabled(dimScheduleControls, enabled);
-    }
-
-    private static String formatMinutes(int minutes) {
-        return String.format(java.util.Locale.CHINA, "%02d:%02d", minutes / 60, minutes % 60);
     }
 
     private void tintButton(Button button) {
@@ -873,10 +828,6 @@ public class SettingsDialog extends Dialog {
         weatherIntervalSpinner.setSelection(weatherIntervalIndex(
             ClockPreferences.DEFAULT_WEATHER_INTERVAL_MINUTES));
         dimBackgroundSwitch.setChecked(ClockPreferences.DEFAULT_DIM_BACKGROUND);
-        scheduleDimBackgroundSwitch.setChecked(ClockPreferences.DEFAULT_SCHEDULE_DIM_BACKGROUND);
-        dimStartMinutes = ClockPreferences.DEFAULT_DIM_START_MINUTES;
-        dimEndMinutes = ClockPreferences.DEFAULT_DIM_END_MINUTES;
-        updateDimTimeLabels();
 
         Toast.makeText(getContext(), R.string.reset_default, Toast.LENGTH_SHORT).show();
     }
@@ -909,9 +860,6 @@ public class SettingsDialog extends Dialog {
             AutoStartManager.requestHomeRole(getContext());
         }
         repository.setDimBackground(dimBackgroundSwitch.isChecked());
-        repository.setScheduleDimBackground(scheduleDimBackgroundSwitch.isChecked());
-        repository.setDimStartMinutes(dimStartMinutes);
-        repository.setDimEndMinutes(dimEndMinutes);
         repository.setUseNetworkTime(networkTimeSwitch.isChecked());
         repository.setSyncIntervalMinutes(selectedSyncMinutes());
         repository.setTimeZoneId(RegionTimeZones.ZONE_IDS[selectedRegionIndex]);

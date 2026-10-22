@@ -13,9 +13,7 @@ import android.os.SystemClock;
 import android.util.AttributeSet;
 import android.view.View;
 
-import com.clockmods.LocaleManager;
 import com.clockmods.background.BackgroundRepository;
-import com.clockmods.background.BackgroundDimSchedule;
 import com.clockmods.background.ClockPreferences;
 import com.clockmods.calendar.LunarCalendar;
 import com.clockmods.time.NetworkTimeProvider;
@@ -86,7 +84,6 @@ public class ClockView extends View {
     private boolean showLunar = ClockPreferences.DEFAULT_SHOW_LUNAR;
     private boolean smallSeconds = ClockPreferences.DEFAULT_SMALL_SECONDS;
     private boolean use24Hour = ClockPreferences.DEFAULT_USE_24_HOUR;
-    private DateFormatter.Lang dateLang = DateFormatter.Lang.CHINESE;
     private boolean portraitStacked = ClockPreferences.DEFAULT_PORTRAIT_STACKED;
     private boolean dateLunarDualLine = ClockPreferences.DEFAULT_DATE_LUNAR_DUAL_LINE;
     // Per-line animation state for the portrait stacked layout: index 0 = hours,
@@ -241,7 +238,7 @@ public class ClockView extends View {
         NetworkTimeProvider timeProvider = networkTimeProvider;
         now.setTimeInMillis(timeProvider == null
             ? System.currentTimeMillis() : timeProvider.currentTimeMillis());
-        if (shouldDimBackground(now)) {
+        if (shouldDimBackground()) {
             canvas.drawColor(DIM_BACKGROUND_OVERLAY_COLOR);
         }
 
@@ -250,7 +247,7 @@ public class ClockView extends View {
         ClockTimeFormatter.DisplayTime displayTime = ClockTimeFormatter.format(
             now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE), now.get(Calendar.SECOND),
             showSeconds, blinkColon, smallSeconds, use24Hour);
-        String dateText = DateFormatter.format(now, dateLang);
+        String dateText = DateFormatter.format(now);
         String lunarText = showLunar ? LunarCalendar.format(now) : "";
 
         // Portrait stacked layout is a fully separate path; landscape is untouched.
@@ -946,7 +943,6 @@ public class ClockView extends View {
         showLunar = backgroundRepository.isShowLunar();
         smallSeconds = backgroundRepository.isSmallSeconds();
         use24Hour = backgroundRepository.isUse24Hour();
-        dateLang = LocaleManager.dateLang(backgroundRepository.getClockLanguage());
         weatherIconColor = ClockPreferences.TEXT_COLOR;
         portraitStacked = backgroundRepository.isPortraitStacked();
         dateLunarDualLine = backgroundRepository.isDateLunarDualLine();
@@ -990,21 +986,10 @@ public class ClockView extends View {
         return java.util.TimeZone.getTimeZone(zoneId);
     }
 
-    private boolean shouldDimBackground(Calendar now) {
-        if (backgroundRepository == null
-                || !ClockPreferences.MODE_IMAGE.equals(backgroundRepository.getBackgroundMode())) {
-            return false;
-        }
-        if (backgroundRepository.isDimBackground()) {
-            return true;
-        }
-        if (!backgroundRepository.isScheduleDimBackground()) {
-            return false;
-        }
-        int currentMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE);
-        return BackgroundDimSchedule.isActive(currentMinutes,
-                backgroundRepository.getDimStartMinutes(),
-                backgroundRepository.getDimEndMinutes());
+    private boolean shouldDimBackground() {
+        return backgroundRepository != null
+                && ClockPreferences.MODE_IMAGE.equals(backgroundRepository.getBackgroundMode())
+                && backgroundRepository.isDimBackground();
     }
 
     private static String longerOf(String a, String b) {

@@ -10,7 +10,6 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 
-import com.clockmods.LocaleManager;
 import com.clockmods.R;
 import com.clockmods.background.ClockPreferences;
 
@@ -270,10 +269,10 @@ public final class WeatherController {
     }
 
     private String msg(int resId) {
-        return LocaleManager.wrap(context).getString(resId);
+        return context.getString(resId);
     }
 
     private String msg(int resId, Object... args) {
-        return LocaleManager.wrap(context).getString(resId, args);
+        return context.getString(resId, args);
     }
 }

@@ -3,7 +3,6 @@ package com.clockmods.weather;
 import android.content.Context;
 import android.content.SharedPreferences;
 
-import com.clockmods.background.ClockPreferences;
 
 import org.json.JSONArray;
 import org.json.JSONObject;
@@ -36,8 +35,6 @@ public final class DailyForecastRepository {
             JSONObject json = new JSONObject(value);
             if (!source.equals(json.optString("source"))) return null;
             if ("manual".equals(source) && !locationId.equals(json.optString("locationId"))) return null;
-            // Drop forecast text cached in a different language after a language switch.
-            if (!currentLanguage().equals(json.optString("lang"))) return null;
             DailyForecastData data = read(json);
             return isReusable(data, now, timeZone) ? data : null;
         } catch (Exception ignored) { return null; }
@@ -48,7 +45,7 @@ public final class DailyForecastRepository {
             JSONObject json = new JSONObject();
             json.put("source", source).put("locationId", data.locationId)
                     .put("city", data.city).put("district", data.district)
-                    .put("updatedAt", data.updatedAt).put("lang", currentLanguage());
+                    .put("updatedAt", data.updatedAt);
             JSONArray entries = new JSONArray();
             for (DailyForecast entry : data.entries) {
                 entries.put(new JSONObject().put("fxDate", entry.fxDate)
@@ -60,10 +57,6 @@ public final class DailyForecastRepository {
             json.put("entries", entries);
             preferences.edit().putString("data", json.toString()).apply();
         } catch (Exception ignored) { }
-    }
-
-    private String currentLanguage() {
-        return new ClockPreferences(appContext).getClockLanguage();
     }
 
     static boolean isReusable(DailyForecastData data, long now, TimeZone timeZone) {

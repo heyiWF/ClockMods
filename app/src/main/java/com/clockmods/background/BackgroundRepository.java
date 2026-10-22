@@ -44,30 +44,6 @@ public class BackgroundRepository {
         preferences.setDimBackground(dimBackground);
     }
 
-    public boolean isScheduleDimBackground() {
-        return preferences.isScheduleDimBackground();
-    }
-
-    public void setScheduleDimBackground(boolean schedule) {
-        preferences.setScheduleDimBackground(schedule);
-    }
-
-    public int getDimStartMinutes() {
-        return preferences.getDimStartMinutes();
-    }
-
-    public void setDimStartMinutes(int minutes) {
-        preferences.setDimStartMinutes(minutes);
-    }
-
-    public int getDimEndMinutes() {
-        return preferences.getDimEndMinutes();
-    }
-
-    public void setDimEndMinutes(int minutes) {
-        preferences.setDimEndMinutes(minutes);
-    }
-
     public float getTimeFontScale() {
         return preferences.getTimeFontScale();
     }
@@ -214,14 +190,6 @@ public class BackgroundRepository {
 
     public void setUse24Hour(boolean use24Hour) {
         preferences.setUse24Hour(use24Hour);
-    }
-
-    public String getClockLanguage() {
-        return preferences.getClockLanguage();
-    }
-
-    public void setClockLanguage(String language) {
-        preferences.setClockLanguage(language);
     }
 
     public int getScreenOrientation() {

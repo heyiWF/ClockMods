@@ -17,39 +17,35 @@ public class DateFormatterTest {
 
     @Test
     public void rendersTheDefaultChineseDateLine() {
-        Assert.assertEquals("2026 年 8 月 7 日 星期五",
-                DateFormatter.format(example(), DateFormatter.Lang.CHINESE));
-        Assert.assertEquals("2026 年 8 月 7 日 星期五",
-                DateFormatter.format(example(), DateFormatter.Lang.TRADITIONAL));
+        Assert.assertEquals("2026 年 8 月 7 日 星期五", DateFormatter.format(example()));
     }
 
     @Test
     public void rendersArabicTokensWithHalfWidthSpacing() {
         Assert.assertEquals("2026 年 8 月 7 日",
-                DateFormatter.format("yyyy年M月d日", example(), DateFormatter.Lang.CHINESE));
+                DateFormatter.format("yyyy年M月d日", example()));
         Assert.assertEquals("2026 年 08 月 07 日",
-                DateFormatter.format("yyyy年MM月dd日", example(), DateFormatter.Lang.CHINESE));
-        Assert.assertEquals("26", DateFormatter.format("yy", example(), DateFormatter.Lang.CHINESE));
+                DateFormatter.format("yyyy年MM月dd日", example()));
+        Assert.assertEquals("26", DateFormatter.format("yy", example()));
     }
 
     @Test
     public void rendersChineseNumeralTokens() {
         Assert.assertEquals("二〇二六年八月七日",
-                DateFormatter.format("YYY年MMM月DD日", example(), DateFormatter.Lang.CHINESE));
+                DateFormatter.format("YYY年MMM月DD日", example()));
         Assert.assertEquals("二零二六年八月七日",
-                DateFormatter.format("YYYY年MMM月DD日", example(), DateFormatter.Lang.CHINESE));
+                DateFormatter.format("YYYY年MMM月DD日", example()));
     }
 
     @Test
     public void keepsUnknownCharactersLiteral() {
-        Assert.assertEquals("abc 2026",
-                DateFormatter.format("abc yyyy", example(), DateFormatter.Lang.CHINESE));
-        Assert.assertEquals("2026 年", DateFormatter.format("yyyy年", example(), DateFormatter.Lang.CHINESE));
+        Assert.assertEquals("abc 2026", DateFormatter.format("abc yyyy", example()));
+        Assert.assertEquals("2026 年", DateFormatter.format("yyyy年", example()));
     }
 
     @Test
     public void fallsBackToEmptyOrLiteralInput() {
-        Assert.assertEquals("", DateFormatter.format(null, example(), DateFormatter.Lang.CHINESE));
-        Assert.assertEquals("年月日", DateFormatter.format("年月日", example(), DateFormatter.Lang.CHINESE));
+        Assert.assertEquals("", DateFormatter.format(null, example()));
+        Assert.assertEquals("年月日", DateFormatter.format("年月日", example()));
     }
 }

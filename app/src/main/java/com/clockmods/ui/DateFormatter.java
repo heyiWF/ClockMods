@@ -13,12 +13,6 @@ import java.util.Locale;
  * through {@link TextSpacing#pangu} so half-width spacing applies uniformly.
  */
 public final class DateFormatter {
-    /**
-     * Rendering language. {@code CHINESE} and {@code TRADITIONAL} share numerals, month and
-     * full-weekday forms; they differ only in the short weekday glyph (周五 vs 週五).
-     */
-    public enum Lang { CHINESE, TRADITIONAL }
-
     /** The single date pattern used by the clock and the calendar header. */
     public static final String PATTERN = "yyyy年M月d日 EEEE";
 
@@ -27,26 +21,25 @@ public final class DateFormatter {
     private static final String[] CN_WEEK_FULL = {
             "星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六"};
     private static final String[] CN_WEEK_SHORT = {"周日", "周一", "周二", "周三", "周四", "周五", "周六"};
-    private static final String[] CN_WEEK_SHORT_TW = {"週日", "週一", "週二", "週三", "週四", "週五", "週六"};
 
     private DateFormatter() {
     }
 
-    public static String format(Calendar cal, Lang lang) {
-        return format(PATTERN, cal, lang);
+    public static String format(Calendar cal) {
+        return format(PATTERN, cal);
     }
 
     /** Renders {@code pattern} for {@code cal}; unrecognized characters degrade to literal text. */
-    public static String format(String pattern, Calendar cal, Lang lang) {
+    public static String format(String pattern, Calendar cal) {
         if (pattern == null) {
             return "";
         }
         StringBuilder out = new StringBuilder(pattern.length() + 16);
-        appendFormatted(out, pattern, cal, lang);
+        appendFormatted(out, pattern, cal);
         return TextSpacing.pangu(out.toString());
     }
 
-    private static void appendFormatted(StringBuilder out, String pattern, Calendar cal, Lang lang) {
+    private static void appendFormatted(StringBuilder out, String pattern, Calendar cal) {
         int year = cal.get(Calendar.YEAR);
         int month = cal.get(Calendar.MONTH) + 1;
         int day = cal.get(Calendar.DAY_OF_MONTH);
@@ -63,7 +56,7 @@ public final class DateFormatter {
                 while (i + run < length && pattern.charAt(i + run) == c) {
                     run++;
                 }
-                appendToken(out, c, run, year, month, day, dayOfWeek, lang);
+                appendToken(out, c, run, year, month, day, dayOfWeek);
                 i += run;
                 continue;
             }
@@ -78,7 +71,7 @@ public final class DateFormatter {
     }
 
     private static void appendToken(StringBuilder out, char letter, int run,
-            int year, int month, int day, int dayOfWeek, Lang lang) {
+            int year, int month, int day, int dayOfWeek) {
         switch (letter) {
             case 'y':
                 out.append(run == 2
@@ -106,8 +99,7 @@ public final class DateFormatter {
                 out.append(chineseCardinal(day));
                 break;
             case 'E':
-                String[] week = lang == Lang.TRADITIONAL ? CN_WEEK_SHORT_TW : CN_WEEK_SHORT;
-                out.append(run >= 4 ? CN_WEEK_FULL[dayOfWeek] : week[dayOfWeek]);
+                out.append(run >= 4 ? CN_WEEK_FULL[dayOfWeek] : CN_WEEK_SHORT[dayOfWeek]);
                 break;
             default:
                 break;

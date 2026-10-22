@@ -19,9 +19,6 @@ public class ClockPreferences {
     private static final String PREFS_NAME = "clock_prefs";
     private static final String KEY_BACKGROUND_MODE = "background_mode";
     private static final String KEY_DIM_BACKGROUND = "dim_background";
-    private static final String KEY_SCHEDULE_DIM_BACKGROUND = "schedule_dim_background";
-    private static final String KEY_DIM_START_MINUTES = "dim_start_minutes";
-    private static final String KEY_DIM_END_MINUTES = "dim_end_minutes";
     private static final String KEY_TIME_FONT_SCALE = "time_font_scale";
     private static final String KEY_DATE_FONT_SCALE = "date_font_scale";
     private static final String KEY_SHOW_STATUS_ICONS = "show_status_icons";
@@ -44,8 +41,6 @@ public class ClockPreferences {
     private static final String KEY_PORTRAIT_STACKED = "portrait_stacked";
     private static final String KEY_DATE_LUNAR_DUAL_LINE = "date_lunar_dual_line";
     private static final String KEY_USE_24_HOUR = "use_24_hour";
-    /** Interface language ("zh-Hans" or "zh-Hant"). */
-    private static final String KEY_CLOCK_LANGUAGE = "clock_language";
     private static final String KEY_FORCE_LANDSCAPE = "force_landscape";
     private static final String KEY_SCREEN_ORIENTATION = "screen_orientation";
     private static final String KEY_USE_NETWORK_TIME = "use_network_time";
@@ -72,9 +67,6 @@ public class ClockPreferences {
     /** Fixed colour of every text element; the app no longer offers a colour setting. */
     public static final int TEXT_COLOR = 0xFFFFFFFF;
     public static final boolean DEFAULT_DIM_BACKGROUND = false;
-    public static final boolean DEFAULT_SCHEDULE_DIM_BACKGROUND = false;
-    public static final int DEFAULT_DIM_START_MINUTES = 22 * 60;
-    public static final int DEFAULT_DIM_END_MINUTES = 6 * 60;
     /** The network/battery status text is shown by default. */
     public static final boolean DEFAULT_SHOW_STATUS_ICONS = true;
     public static final float DEFAULT_STATUS_ICON_SCALE = 1.0f;
@@ -101,10 +93,6 @@ public class ClockPreferences {
     /** Landscape only: whether the date and lunar lines stack on two rows (portrait always stacks). */
     public static final boolean DEFAULT_DATE_LUNAR_DUAL_LINE = true;
     public static final boolean DEFAULT_USE_24_HOUR = true;
-    /** Interface-language values stored by {@link #getClockLanguage()}. */
-    public static final String LANGUAGE_SIMPLIFIED = "zh-Hans";
-    public static final String LANGUAGE_TRADITIONAL = "zh-Hant";
-    public static final String DEFAULT_CLOCK_LANGUAGE = LANGUAGE_SIMPLIFIED;
     /** Screen orientation modes returned by {@link #getScreenOrientation()}. */
     public static final int ORIENTATION_FOLLOW_SYSTEM = 0;
     public static final int ORIENTATION_PORTRAIT = 1;
@@ -153,30 +141,6 @@ public class ClockPreferences {
 
     public void setDimBackground(boolean dimBackground) {
         preferences.edit().putBoolean(KEY_DIM_BACKGROUND, dimBackground).apply();
-    }
-
-    public boolean isScheduleDimBackground() {
-        return preferences.getBoolean(KEY_SCHEDULE_DIM_BACKGROUND, DEFAULT_SCHEDULE_DIM_BACKGROUND);
-    }
-
-    public void setScheduleDimBackground(boolean schedule) {
-        preferences.edit().putBoolean(KEY_SCHEDULE_DIM_BACKGROUND, schedule).apply();
-    }
-
-    public int getDimStartMinutes() {
-        return preferences.getInt(KEY_DIM_START_MINUTES, DEFAULT_DIM_START_MINUTES);
-    }
-
-    public void setDimStartMinutes(int minutes) {
-        preferences.edit().putInt(KEY_DIM_START_MINUTES, minutes).apply();
-    }
-
-    public int getDimEndMinutes() {
-        return preferences.getInt(KEY_DIM_END_MINUTES, DEFAULT_DIM_END_MINUTES);
-    }
-
-    public void setDimEndMinutes(int minutes) {
-        preferences.edit().putInt(KEY_DIM_END_MINUTES, minutes).apply();
     }
 
     public float getTimeFontScale() {
@@ -404,22 +368,6 @@ public class ClockPreferences {
         preferences.edit().putBoolean(KEY_USE_24_HOUR, use24Hour).apply();
     }
 
-    /**
-     * @return the interface language: {@link #LANGUAGE_SIMPLIFIED} or {@link #LANGUAGE_TRADITIONAL}.
-     */
-    public String getClockLanguage() {
-        return normalizeClockLanguage(
-                preferences.getString(KEY_CLOCK_LANGUAGE, DEFAULT_CLOCK_LANGUAGE));
-    }
-
-    public void setClockLanguage(String language) {
-        preferences.edit().putString(KEY_CLOCK_LANGUAGE, normalizeClockLanguage(language)).apply();
-    }
-
-    private static String normalizeClockLanguage(String language) {
-        return LANGUAGE_TRADITIONAL.equals(language) ? LANGUAGE_TRADITIONAL : LANGUAGE_SIMPLIFIED;
-    }
-
     public int getScreenOrientation() {
         if (preferences.contains(KEY_SCREEN_ORIENTATION)) {
             return preferences.getInt(KEY_SCREEN_ORIENTATION, DEFAULT_SCREEN_ORIENTATION);
@@ -555,9 +503,6 @@ public class ClockPreferences {
         editor
                 .putString(KEY_BACKGROUND_MODE, MODE_COLOR)
                 .putBoolean(KEY_DIM_BACKGROUND, DEFAULT_DIM_BACKGROUND)
-                .putBoolean(KEY_SCHEDULE_DIM_BACKGROUND, DEFAULT_SCHEDULE_DIM_BACKGROUND)
-                .putInt(KEY_DIM_START_MINUTES, DEFAULT_DIM_START_MINUTES)
-                .putInt(KEY_DIM_END_MINUTES, DEFAULT_DIM_END_MINUTES)
                 .putFloat(KEY_TIME_FONT_SCALE, DEFAULT_TIME_FONT_SCALE)
                 .putFloat(KEY_DATE_FONT_SCALE, DEFAULT_DATE_FONT_SCALE)
                 .putBoolean(KEY_SHOW_STATUS_ICONS, DEFAULT_SHOW_STATUS_ICONS)
@@ -581,7 +526,6 @@ public class ClockPreferences {
                 .putBoolean(KEY_PORTRAIT_STACKED, DEFAULT_PORTRAIT_STACKED)
                 .putBoolean(KEY_DATE_LUNAR_DUAL_LINE, DEFAULT_DATE_LUNAR_DUAL_LINE)
                 .putBoolean(KEY_USE_24_HOUR, DEFAULT_USE_24_HOUR)
-                .putString(KEY_CLOCK_LANGUAGE, DEFAULT_CLOCK_LANGUAGE)
                 .putInt(KEY_SCREEN_ORIENTATION, DEFAULT_SCREEN_ORIENTATION)
                 .remove(KEY_FORCE_LANDSCAPE)
                 .putBoolean(KEY_WEATHER_ENABLED, DEFAULT_WEATHER_ENABLED)

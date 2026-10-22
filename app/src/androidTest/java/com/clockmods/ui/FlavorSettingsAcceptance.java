@@ -52,13 +52,12 @@ public final class FlavorSettingsAcceptance extends Instrumentation {
                 setter.invoke(settings,saved);
             }
             String component="com.clockmods.MainActivity";
-            for(String locale:new String[]{"zh-Hans","zh-Hant"}) for(int orientation:new int[]{1,2}) {
+            for(int orientation:new int[]{1,2}) {
                 this.orientation=orientation;
-                preferences.edit().putString("clock_language",locale).putInt("screen_orientation",orientation)
+                preferences.edit().putInt("screen_orientation",orientation)
                         .putBoolean("weather_enabled",false).putBoolean("use_network_time",false)
-                        .putBoolean("hourly_visual_chime",false).putBoolean("show_status_icons",true)
+                        .putBoolean("show_status_icons",true)
                         .putFloat("status_icon_scale",1.5f).putFloat("date_font_scale",1.5f)
-                        .putString("custom_message","Long settings verification message: every character must remain readable through the final word.")
                         .commit();
                 ActivityMonitor monitor=addMonitor(component,null,false);
                 context.startActivity(new Intent().setClassName(context.getPackageName(),component).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TASK));
@@ -86,19 +85,19 @@ public final class FlavorSettingsAcceptance extends Instrumentation {
                     if(visible) break; SystemClock.sleep(250);
                 }
                 check(visible,"installed clock content visible");
-                save(new File(directory,locale+"-"+orientation+"-clock.png"));
+                save(new File(directory,orientation+"-clock.png"));
                 if(monitor.getLastActivity()!=null) activity=monitor.getLastActivity();
                 removeMonitor(monitor);
                 final Activity current=activity; final Throwable[] failure={null};
                 runOnMainSync(()-> {try {checkFontSizeWarnings(current); Method method=current.getClass().getDeclaredMethod("showSettings"); method.setAccessible(true); method.invoke(current);} catch(Throwable e){failure[0]=e;}});
                 if(failure[0]!=null) throw new AssertionError("settings dialog opens",failure[0]);
-                SystemClock.sleep(300); save(new File(directory,locale+"-"+orientation+"-settings.png"));
+                SystemClock.sleep(300); save(new File(directory,orientation+"-settings.png"));
                 check(getUiAutomation().getRootInActiveWindow()!=null,"settings accessibility tree");
                 runOnMainSync(current::finish); activity=null;
             }
             report.putString("stream","PASS: "+checks+" persisted settings and "
                     +(fontScaleOnly ? "font slider" : "installed UI")
-                    +" checks across 3 locales and 2 orientations.\n");
+                    +" checks across 2 orientations.\n");
             report.putString("evidence",directory.toString());
         } catch(Throwable error){code=Activity.RESULT_CANCELED;report.putString("stream",android.util.Log.getStackTraceString(error));}
         finally {
