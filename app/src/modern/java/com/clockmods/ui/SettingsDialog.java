@@ -8,13 +8,11 @@ import android.graphics.Color;
 import android.app.TimePickerDialog;
 import android.os.Build;
 import android.text.Editable;
-import android.text.TextWatcher;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.HorizontalScrollView;
 import android.widget.AdapterView;
-import android.widget.EditText;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.ScrollView;
@@ -108,8 +106,6 @@ public class SettingsDialog extends BottomSheetDialog {
     private final TextView statusIconSizeValue;
     private final View statusIconSizeControls;
     private final MaterialSwitch use24HourSwitch;
-    // Non-Pro flavors show a binary English switch; Pro shows a three-way language toggle instead.
-    private MaterialSwitch clockUseEnglishSwitch;
     private MaterialButtonToggleGroup clockLanguageGroup;
     private final MaterialButtonToggleGroup orientationGroup;
     private final MaterialSwitch autoStartSwitch;
@@ -127,32 +123,9 @@ public class SettingsDialog extends BottomSheetDialog {
     private MaterialSwitch weatherIconDynamicColorSwitch;
     private final MaterialButtonToggleGroup calendarWeekStartGroup;
     private final MaterialSwitch calendarHighlightWeekendsSwitch;
-    // ---- Date-format section (rebuilt when the interface language toggles) ----
-    private LinearLayout dateFormatContainer;
-    private boolean dateSectionEnglish;
     private final String originalClockLanguage;
     // The language currently chosen in the UI, and the Chinese variant used for date previews.
     private String selectedLanguage;
-    private DateFormatter.Lang chineseVariant = DateFormatter.Lang.CHINESE;
-    private String pendingDatePatternCn;
-    private String pendingDatePatternEn;
-    // Pro per-language UI restoration state (coreIndex == cores length means "custom").
-    private int proCoreIndexCn;
-    private int proCoreIndexEn;
-    private int proComboIndexCn;
-    private int proComboIndexEn;
-    private String proCustomTextCn = "";
-    private String proCustomTextEn = "";
-    // Widgets for the currently shown language (null in the flavor that does not use them).
-    private Spinner dateCoreSpinner;
-    private Spinner dateComboSpinner;
-    private View dateComboRow;
-    private EditText dateCustomInput;
-    private View dateCustomRow;
-    private TextView dateCustomError;
-    private Spinner dateFixedSpinner;
-    private TextView datePreviewLabel;
-    private final EditText customMessageInput;
     private String selectedWeatherLocationId;
     private String selectedWeatherProvince;
     private String selectedWeatherCity;
@@ -177,7 +150,6 @@ public class SettingsDialog extends BottomSheetDialog {
 
     private static final int LANGUAGE_SIMPLIFIED_ID = 60001;
     private static final int LANGUAGE_TRADITIONAL_ID = 60002;
-    private static final int LANGUAGE_ENGLISH_ID = 60003;
 
     public SettingsDialog(Context context, BackgroundRepository repository, Listener listener) {
         super(context);
@@ -519,10 +491,8 @@ public class SettingsDialog extends BottomSheetDialog {
             topMargin(sectionLabelParams(), dp(20)));
         originalClockLanguage = repository.getClockLanguage();
         selectedLanguage = originalClockLanguage;
-        chineseVariant = ClockPreferences.LANGUAGE_TRADITIONAL.equals(selectedLanguage)
-                ? DateFormatter.Lang.TRADITIONAL : DateFormatter.Lang.CHINESE;
         if (isPro()) {
-            // Pro exposes Simplified / Traditional / English; the other flavors keep a binary switch.
+            // Pro exposes Simplified / Traditional; the other flavors stay Simplified.
             clockLanguageGroup = new MaterialButtonToggleGroup(context);
             clockLanguageGroup.setSingleSelection(true);
             clockLanguageGroup.setSelectionRequired(true);
@@ -530,45 +500,14 @@ public class SettingsDialog extends BottomSheetDialog {
                     R.string.clock_language_simplified), weightedButtonParams());
             clockLanguageGroup.addView(createModeButton(context, LANGUAGE_TRADITIONAL_ID,
                     R.string.clock_language_traditional), weightedButtonParams());
-            clockLanguageGroup.addView(createModeButton(context, LANGUAGE_ENGLISH_ID,
-                    R.string.clock_language_english), weightedButtonParams());
             clockLanguageGroup.check(idForLanguage(selectedLanguage));
             functionContent.addView(clockLanguageGroup, topMargin(matchWrap(dp(48)), dp(8)));
-        } else {
-            clockUseEnglishSwitch = new MaterialSwitch(context);
-            clockUseEnglishSwitch.setText(R.string.clock_use_english);
-            clockUseEnglishSwitch.setTextAppearance(
-                com.google.android.material.R.style.TextAppearance_Material3_BodyLarge);
-            clockUseEnglishSwitch.setChecked(repository.isClockUseEnglish());
-            functionContent.addView(clockUseEnglishSwitch, topMargin(matchWrap(dp(48)), dp(8)));
-        }
-
-        functionContent.addView(createSectionLabel(context, R.string.date_format_settings_group),
-            topMargin(sectionLabelParams(), dp(20)));
-        dateFormatContainer = new LinearLayout(context);
-        dateFormatContainer.setOrientation(LinearLayout.VERTICAL);
-        functionContent.addView(dateFormatContainer,
-            topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(4)));
-        initDateFormatState();
-        dateSectionEnglish = ClockPreferences.LANGUAGE_ENGLISH.equals(selectedLanguage);
-        rebuildDateFormatSection(context, dateSectionEnglish);
-        if (clockLanguageGroup != null) {
             clockLanguageGroup.addOnButtonCheckedListener((group, checkedId, isChecked) -> {
-                if (isChecked) onLanguageSelectionChanged(context, languageForId(checkedId));
+                if (isChecked) selectedLanguage = languageForId(checkedId);
             });
         } else {
-            clockUseEnglishSwitch.setOnCheckedChangeListener((button, checked) ->
-                    onLanguageSelectionChanged(context, checked
-                            ? ClockPreferences.LANGUAGE_ENGLISH : ClockPreferences.LANGUAGE_SIMPLIFIED));
+            clockLanguageGroup = null;
         }
-
-        functionContent.addView(createSectionLabel(context, R.string.custom_message_settings_group),
-            topMargin(sectionLabelParams(), dp(20)));
-        customMessageInput = new EditText(context);
-        customMessageInput.setSingleLine(true);
-        customMessageInput.setHint(R.string.custom_message_hint);
-        customMessageInput.setText(repository.getCustomMessage());
-        functionContent.addView(customMessageInput, topMargin(matchWrap(dp(48)), dp(4)));
 
         functionContent.addView(createSectionLabel(context, R.string.weather_settings_group),
             topMargin(sectionLabelParams(), dp(20)));
@@ -1196,15 +1135,9 @@ public class SettingsDialog extends BottomSheetDialog {
         }
         use24HourSwitch.setChecked(ClockPreferences.DEFAULT_USE_24_HOUR);
         selectedLanguage = ClockPreferences.DEFAULT_CLOCK_LANGUAGE;
-        chineseVariant = DateFormatter.Lang.CHINESE;
-        dateSectionEnglish = false;
         if (clockLanguageGroup != null) {
             clockLanguageGroup.check(idForLanguage(selectedLanguage));
-        } else {
-            clockUseEnglishSwitch.setChecked(false);
         }
-        resetDateFormatToDefaults();
-        customMessageInput.setText(ClockPreferences.DEFAULT_CUSTOM_MESSAGE);
         orientationGroup.check(idForOrientation(ClockPreferences.DEFAULT_SCREEN_ORIENTATION));
         autoStartSwitch.setChecked(ClockPreferences.DEFAULT_AUTO_START);
         weatherSwitch.setChecked(ClockPreferences.DEFAULT_WEATHER_ENABLED);
@@ -1264,15 +1197,6 @@ public class SettingsDialog extends BottomSheetDialog {
         repository.setDateLunarDualLine(dateLunarDualLineSwitch.isChecked());
         repository.setUse24Hour(use24HourSwitch.isChecked());
         repository.setClockLanguage(selectedLanguage);
-        captureDateSectionInto(dateSectionEnglish);
-        if (isPro()) {
-            persistProDateState(false);
-            persistProDateState(true);
-        } else {
-            repository.setDatePatternCn(pendingDatePatternCn);
-            repository.setDatePatternEn(pendingDatePatternEn);
-        }
-        repository.setCustomMessage(customMessageInput.getText().toString());
         repository.setScreenOrientation(orientationForId(orientationGroup.getCheckedButtonId()));
         boolean autoStartOn = autoStartSwitch.isChecked();
         boolean autoStartWasOn = repository.isAutoStart();
@@ -1340,374 +1264,14 @@ public class SettingsDialog extends BottomSheetDialog {
         return "pro".equals(BuildConfig.FLAVOR);
     }
 
-    private DateFormatter.Lang langOf(boolean english) {
-        return english ? DateFormatter.Lang.ENGLISH : chineseVariant;
-    }
-
-    private void onLanguageSelectionChanged(Context context, String language) {
-        selectedLanguage = language;
-        chineseVariant = ClockPreferences.LANGUAGE_TRADITIONAL.equals(language)
-                ? DateFormatter.Lang.TRADITIONAL : DateFormatter.Lang.CHINESE;
-        boolean english = ClockPreferences.LANGUAGE_ENGLISH.equals(language);
-        captureDateSectionInto(dateSectionEnglish);
-        dateSectionEnglish = english;
-        rebuildDateFormatSection(context, english);
-    }
-
     private static int idForLanguage(String language) {
-        if (ClockPreferences.LANGUAGE_ENGLISH.equals(language)) return LANGUAGE_ENGLISH_ID;
-        if (ClockPreferences.LANGUAGE_TRADITIONAL.equals(language)) return LANGUAGE_TRADITIONAL_ID;
-        return LANGUAGE_SIMPLIFIED_ID;
+        return ClockPreferences.LANGUAGE_TRADITIONAL.equals(language)
+                ? LANGUAGE_TRADITIONAL_ID : LANGUAGE_SIMPLIFIED_ID;
     }
 
     private static String languageForId(int id) {
-        if (id == LANGUAGE_ENGLISH_ID) return ClockPreferences.LANGUAGE_ENGLISH;
-        if (id == LANGUAGE_TRADITIONAL_ID) return ClockPreferences.LANGUAGE_TRADITIONAL;
-        return ClockPreferences.LANGUAGE_SIMPLIFIED;
-    }
-
-    private void initDateFormatState() {
-        pendingDatePatternCn = repository.getDatePatternCn();
-        pendingDatePatternEn = repository.getDatePatternEn();
-        proCoreIndexCn = resolveCoreIndex(false);
-        proCoreIndexEn = resolveCoreIndex(true);
-        proComboIndexCn = resolveComboIndex(false);
-        proComboIndexEn = resolveComboIndex(true);
-        proCustomTextCn = repository.getDateCustomText(false);
-        proCustomTextEn = repository.getDateCustomText(true);
-    }
-
-    private void resetDateFormatToDefaults() {
-        pendingDatePatternCn = ClockPreferences.DEFAULT_DATE_PATTERN_CN;
-        pendingDatePatternEn = ClockPreferences.DEFAULT_DATE_PATTERN_EN;
-        proCustomTextCn = "";
-        proCustomTextEn = "";
-        proCoreIndexCn = defaultCoreIndex(false);
-        proCoreIndexEn = defaultCoreIndex(true);
-        proComboIndexCn = defaultComboIndex(false);
-        proComboIndexEn = defaultComboIndex(true);
-        rebuildDateFormatSection(getContext(), dateSectionEnglish);
-    }
-
-    private int resolveCoreIndex(boolean english) {
-        String[] cores = DateFormatter.dateCores(langOf(english));
-        if (repository.isDateCustomEnabled(english)) {
-            return cores.length; // the "custom…" entry
-        }
-        int stored = indexOf(cores, repository.getDateCore(english));
-        return stored >= 0 ? stored : defaultCoreIndex(english);
-    }
-
-    private int resolveComboIndex(boolean english) {
-        String[] combos = DateFormatter.weekdayCombos(langOf(english));
-        int stored = indexOf(combos, repository.getDateCombo(english));
-        return stored >= 0 ? stored : defaultComboIndex(english);
-    }
-
-    private int defaultCoreIndex(boolean english) {
-        String[] cores = DateFormatter.dateCores(langOf(english));
-        int index = indexOf(cores, english ? "yyyy/M/d" : "yyyy年M月d日");
-        return index >= 0 ? index : 0;
-    }
-
-    private int defaultComboIndex(boolean english) {
-        int index = indexOf(DateFormatter.weekdayCombos(langOf(english)), "DATE EEEE");
-        return index >= 0 ? index : 0;
-    }
-
-    private static int indexOf(String[] values, String target) {
-        if (target == null || target.length() == 0) {
-            return -1;
-        }
-        for (int i = 0; i < values.length; i++) {
-            if (target.equals(values[i])) {
-                return i;
-            }
-        }
-        return -1;
-    }
-
-    private void rebuildDateFormatSection(Context context, boolean english) {
-        dateFormatContainer.removeAllViews();
-        dateCoreSpinner = null;
-        dateComboSpinner = null;
-        dateComboRow = null;
-        dateCustomInput = null;
-        dateCustomRow = null;
-        dateCustomError = null;
-        dateFixedSpinner = null;
-        if (isPro()) {
-            buildProDateControls(context, english);
-        } else {
-            buildFixedDateControls(context, english);
-        }
-        datePreviewLabel = new TextView(context);
-        datePreviewLabel.setTextAppearance(
-                com.google.android.material.R.style.TextAppearance_Material3_BodyMedium);
-        dateFormatContainer.addView(datePreviewLabel,
-                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(8)));
-        updateDatePreview(english);
-        ButtonTextSizer.applyToTree(dateFormatContainer);
-    }
-
-    private void buildProDateControls(Context context, boolean english) {
-        DateFormatter.Lang lang = langOf(english);
-        String[] cores = DateFormatter.dateCores(lang);
-        String[] coreLabels = new String[cores.length + 1];
-        for (int i = 0; i < cores.length; i++) {
-            coreLabels[i] = DateFormatter.preview(cores[i], lang);
-        }
-        coreLabels[cores.length] = context.getString(R.string.date_format_custom);
-        dateFormatContainer.addView(createSubLabel(context, R.string.date_format_date_label),
-                subLabelParams());
-        dateCoreSpinner = buildStringSpinner(context, coreLabels, proCoreIndex(english));
-        dateFormatContainer.addView(dateCoreSpinner, dateSpinnerParams());
-
-        String[] combos = DateFormatter.weekdayCombos(lang);
-        String[] comboLabels = new String[combos.length];
-        for (int i = 0; i < combos.length; i++) {
-            comboLabels[i] = DateFormatter.comboLabel(combos[i], lang);
-        }
-        LinearLayout comboRow = new LinearLayout(context);
-        comboRow.setOrientation(LinearLayout.VERTICAL);
-        comboRow.addView(createSubLabel(context, R.string.date_format_weekday_label), subLabelParams());
-        dateComboSpinner = buildStringSpinner(context, comboLabels, proComboIndex(english));
-        comboRow.addView(dateComboSpinner, dateSpinnerParams());
-        dateComboRow = comboRow;
-        dateFormatContainer.addView(comboRow, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        LinearLayout customRow = new LinearLayout(context);
-        customRow.setOrientation(LinearLayout.VERTICAL);
-        MaterialButton customHelpButton = new MaterialButton(context, null,
-                com.google.android.material.R.attr.materialButtonOutlinedStyle);
-        customHelpButton.setText(R.string.date_format_help_button);
-        customHelpButton.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
-        customHelpButton.setOnClickListener(v -> showDateFormatHelp(english));
-        customRow.addView(customHelpButton, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
-        dateCustomInput = new EditText(context);
-        dateCustomInput.setSingleLine(true);
-        dateCustomInput.setHint(R.string.date_format_custom_hint);
-        dateCustomInput.setText(proCustomText(english));
-        customRow.addView(dateCustomInput, dateSpinnerParams());
-        dateCustomError = new TextView(context);
-        dateCustomError.setText(R.string.date_format_custom_invalid);
-        dateCustomError.setTextColor(themeColor(context,
-                androidx.appcompat.R.attr.colorError, 0xFFB3261E));
-        dateCustomError.setVisibility(View.GONE);
-        customRow.addView(dateCustomError,
-                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(2)));
-        dateCustomRow = customRow;
-        dateFormatContainer.addView(customRow, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
-
-        boolean custom = proCoreIndex(english) == cores.length;
-        dateComboRow.setVisibility(custom ? View.GONE : View.VISIBLE);
-        dateCustomRow.setVisibility(custom ? View.VISIBLE : View.GONE);
-
-        dateCoreSpinner.setOnItemSelectedListener(onItemSelected(() -> {
-            boolean isCustom = dateCoreSpinner.getSelectedItemPosition() == cores.length;
-            dateComboRow.setVisibility(isCustom ? View.GONE : View.VISIBLE);
-            dateCustomRow.setVisibility(isCustom ? View.VISIBLE : View.GONE);
-            updateDatePreview(english);
-        }));
-        dateComboSpinner.setOnItemSelectedListener(onItemSelected(() -> updateDatePreview(english)));
-        dateCustomInput.addTextChangedListener(onTextChanged(() -> updateDatePreview(english)));
-    }
-
-    /** Explains the custom date-format tokens for the language currently being edited (Pro only). */
-    private void showDateFormatHelp(boolean english) {
-        int body = english ? R.string.date_format_help_body_en : R.string.date_format_help_body_cn;
-        new MaterialAlertDialogBuilder(getContext())
-                .setTitle(R.string.date_format_help_title)
-                .setMessage(body)
-                .setPositiveButton(android.R.string.ok, null)
-                .show();
-    }
-
-    private void buildFixedDateControls(Context context, boolean english) {
-        DateFormatter.Lang lang = langOf(english);
-        String[] fixed = DateFormatter.fixedFormats(lang);
-        String[] labels = new String[fixed.length];
-        for (int i = 0; i < fixed.length; i++) {
-            labels[i] = DateFormatter.preview(fixed[i], lang);
-        }
-        int selection = indexOf(fixed, pendingPattern(english));
-        if (selection < 0) {
-            selection = 0;
-        }
-        setPendingPattern(english, fixed[selection]);
-        dateFixedSpinner = buildStringSpinner(context, labels, selection);
-        dateFormatContainer.addView(dateFixedSpinner, dateSpinnerParams());
-        dateFixedSpinner.setOnItemSelectedListener(onItemSelected(() -> {
-            setPendingPattern(english,
-                    fixed[clampIndex(dateFixedSpinner.getSelectedItemPosition(), fixed.length)]);
-            updateDatePreview(english);
-        }));
-    }
-
-    private void updateDatePreview(boolean english) {
-        if (datePreviewLabel == null) {
-            return;
-        }
-        DateFormatter.Lang lang = langOf(english);
-        String pattern = currentPatternFromWidgets(english);
-        boolean valid = DateFormatter.isValidPattern(pattern);
-        if (dateCustomError != null) {
-            boolean customVisible = dateCustomRow != null
-                    && dateCustomRow.getVisibility() == View.VISIBLE;
-            dateCustomError.setVisibility(customVisible && !valid ? View.VISIBLE : View.GONE);
-        }
-        if (valid) {
-            setPendingPattern(english, pattern);
-        }
-        String rendered = DateFormatter.preview(pendingPattern(english), lang);
-        datePreviewLabel.setText(context().getString(R.string.date_format_preview, rendered));
-    }
-
-    private String currentPatternFromWidgets(boolean english) {
-        DateFormatter.Lang lang = langOf(english);
-        if (isPro()) {
-            if (dateCoreSpinner == null) {
-                return pendingPattern(english);
-            }
-            String[] cores = DateFormatter.dateCores(lang);
-            int coreSel = dateCoreSpinner.getSelectedItemPosition();
-            if (coreSel == cores.length) {
-                return dateCustomInput == null ? "" : dateCustomInput.getText().toString();
-            }
-            String[] combos = DateFormatter.weekdayCombos(lang);
-            String core = cores[clampIndex(coreSel, cores.length)];
-            String combo = combos[clampIndex(
-                    dateComboSpinner == null ? 0 : dateComboSpinner.getSelectedItemPosition(),
-                    combos.length)];
-            return DateFormatter.composeCombo(combo, core);
-        }
-        if (dateFixedSpinner == null) {
-            return pendingPattern(english);
-        }
-        String[] fixed = DateFormatter.fixedFormats(lang);
-        return fixed[clampIndex(dateFixedSpinner.getSelectedItemPosition(), fixed.length)];
-    }
-
-    private void captureDateSectionInto(boolean english) {
-        if (isPro()) {
-            if (dateCoreSpinner == null) {
-                return;
-            }
-            setProCoreIndex(english, dateCoreSpinner.getSelectedItemPosition());
-            if (dateComboSpinner != null) {
-                setProComboIndex(english, dateComboSpinner.getSelectedItemPosition());
-            }
-            if (dateCustomInput != null) {
-                setProCustomText(english, dateCustomInput.getText().toString());
-            }
-        }
-        String pattern = currentPatternFromWidgets(english);
-        if (DateFormatter.isValidPattern(pattern)) {
-            setPendingPattern(english, pattern);
-        }
-    }
-
-    private void persistProDateState(boolean english) {
-        String[] cores = DateFormatter.dateCores(langOf(english));
-        String[] combos = DateFormatter.weekdayCombos(langOf(english));
-        int coreIndex = proCoreIndex(english);
-        boolean custom = coreIndex == cores.length;
-        String core = (!custom && coreIndex >= 0 && coreIndex < cores.length) ? cores[coreIndex] : "";
-        int comboIndex = proComboIndex(english);
-        String combo = (comboIndex >= 0 && comboIndex < combos.length) ? combos[comboIndex] : "";
-        if (custom && !DateFormatter.isValidPattern(proCustomText(english).trim())) return;
-        if (english) repository.setDatePatternEn(pendingDatePatternEn);
-        else repository.setDatePatternCn(pendingDatePatternCn);
-        repository.setDateFormatState(english, core, combo, custom, proCustomText(english));
-    }
-
-    private Spinner buildStringSpinner(Context context, String[] labels, int selection) {
-        Spinner spinner = new Spinner(context);
-        ArrayAdapter<String> adapter = new ArrayAdapter<>(context,
-                android.R.layout.simple_spinner_item, labels);
-        adapter.setDropDownViewResource(android.R.layout.simple_spinner_dropdown_item);
-        spinner.setAdapter(adapter);
-        if (selection >= 0 && selection < labels.length) {
-            spinner.setSelection(selection);
-        }
-        return spinner;
-    }
-
-    private LinearLayout.LayoutParams dateSpinnerParams() {
-        return topMargin(matchWrap(dp(48)), dp(4));
-    }
-
-    private static int clampIndex(int index, int length) {
-        return (index < 0 || index >= length) ? 0 : index;
-    }
-
-    private Context context() {
-        return getContext();
-    }
-
-    private AdapterView.OnItemSelectedListener onItemSelected(Runnable action) {
-        return new AdapterView.OnItemSelectedListener() {
-            @Override public void onItemSelected(AdapterView<?> parent, View view, int pos, long id) {
-                action.run();
-            }
-            @Override public void onNothingSelected(AdapterView<?> parent) { }
-        };
-    }
-
-    private TextWatcher onTextChanged(Runnable action) {
-        return new TextWatcher() {
-            @Override public void beforeTextChanged(CharSequence s, int a, int b, int c) { }
-            @Override public void onTextChanged(CharSequence s, int a, int b, int c) { action.run(); }
-            @Override public void afterTextChanged(Editable s) { }
-        };
-    }
-
-    private int proCoreIndex(boolean english) {
-        return english ? proCoreIndexEn : proCoreIndexCn;
-    }
-
-    private void setProCoreIndex(boolean english, int value) {
-        if (english) {
-            proCoreIndexEn = value;
-        } else {
-            proCoreIndexCn = value;
-        }
-    }
-
-    private int proComboIndex(boolean english) {
-        return english ? proComboIndexEn : proComboIndexCn;
-    }
-
-    private void setProComboIndex(boolean english, int value) {
-        if (english) {
-            proComboIndexEn = value;
-        } else {
-            proComboIndexCn = value;
-        }
-    }
-
-    private String proCustomText(boolean english) {
-        return english ? proCustomTextEn : proCustomTextCn;
-    }
-
-    private void setProCustomText(boolean english, String value) {
-        if (english) {
-            proCustomTextEn = value;
-        } else {
-            proCustomTextCn = value;
-        }
-    }
-
-    private String pendingPattern(boolean english) {
-        return english ? pendingDatePatternEn : pendingDatePatternCn;
-    }
-
-    private void setPendingPattern(boolean english, String pattern) {
-        if (english) {
-            pendingDatePatternEn = pattern;
-        } else {
-            pendingDatePatternCn = pattern;
-        }
+        return id == LANGUAGE_TRADITIONAL_ID
+                ? ClockPreferences.LANGUAGE_TRADITIONAL : ClockPreferences.LANGUAGE_SIMPLIFIED;
     }
 
     private Spinner createStringSpinner(Context context, int arrayRes, int selection) {

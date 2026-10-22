@@ -181,7 +181,6 @@ public final class WeatherController {
         final String city = preferences.getWeatherCity();
         final String district = preferences.getWeatherDistrict();
         final boolean detailed = isDetailedRequired();
-        final boolean english = preferences.isClockUseEnglish();
         final double latitude = preferences.getWeatherLatitude();
         final double longitude = preferences.getWeatherLongitude();
         executor.execute(new Runnable() {
@@ -189,24 +188,15 @@ public final class WeatherController {
                 try {
                     double lat = latitude;
                     double lon = longitude;
-                    String displayCity = city;
-                    String displayDistrict = district;
                     boolean needCoordinates = detailed && (Double.isNaN(lat) || Double.isNaN(lon));
-                    // Load the catalog when coordinates are missing, or to localize the stored
-                    // (Chinese) city/district names to English for display.
-                    if (english || needCoordinates) {
+                    // Load the catalog only when the stored entry lacks coordinates.
+                    if (needCoordinates) {
                         WeatherLocationCatalog.LocationEntry entry =
                                 WeatherLocationCatalog.load(context).findById(locationId);
-                        if (entry != null) {
-                            if (needCoordinates) { lat = entry.latitude; lon = entry.longitude; }
-                            if (english) {
-                                displayCity = entry.displayCity(true);
-                                displayDistrict = entry.displayDistrict(true);
-                            }
-                        }
+                        if (entry != null) { lat = entry.latitude; lon = entry.longitude; }
                     }
                     final WeatherDisplayData data = new QWeatherClient(context, QWeatherConfig.apiHost())
-                            .fetchLocation(locationId, displayCity, displayDistrict, lat, lon, detailed);
+                            .fetchLocation(locationId, city, district, lat, lon, detailed);
                     repository.save(data, ClockPreferences.WEATHER_LOCATION_MANUAL);
                     handler.post(new Runnable() {
                         @Override public void run() {

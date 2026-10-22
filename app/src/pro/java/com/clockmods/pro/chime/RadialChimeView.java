@@ -51,13 +51,12 @@ public final class RadialChimeView extends View {
         int hour = now.get(Calendar.HOUR_OF_DAY);
         int minute = now.get(Calendar.MINUTE);
         boolean use24Hour = repository.isUse24Hour();
-        boolean useEnglish = repository.isClockUseEnglish();
-        displayedTime = ClockTimeFormatter.formatHourlyChime(hour, minute, use24Hour, useEnglish);
+        displayedTime = ClockTimeFormatter.formatHourlyChime(hour, minute, use24Hour);
         // Reproduce the clock's time string for this instant so the burst can be sized
         // to the exact font size the clock is currently displaying.
         clockTime = ClockTimeFormatter.format(hour, minute, now.get(Calendar.SECOND),
                 repository.isShowSeconds(), repository.isBlinkColon(),
-                repository.isSmallSeconds(), use24Hour, useEnglish);
+                repository.isSmallSeconds(), use24Hour);
         timeFontScale = repository.getTimeFontScale();
         textPaint.setTypeface(ClockTypefaceResolver.resolveTime(getContext(),
                 repository.isBoldText()));

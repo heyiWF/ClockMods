@@ -8,14 +8,14 @@ public final class ClockTimeFormatter {
 
     public static DisplayTime format(int hour, int minute, int second,
             boolean showSeconds, boolean blinkColon, boolean smallSeconds,
-            boolean use24Hour, boolean useEnglish) {
+            boolean use24Hour) {
         boolean showColon = !blinkColon || second % 2 == 0;
         String separator = ":";
         int displayHour = use24Hour ? hour : hour % 12;
         if (!use24Hour && displayHour == 0) {
             displayHour = 12;
         }
-        String periodText = use24Hour ? "" : periodText(hour, useEnglish);
+        String periodText = use24Hour ? "" : periodText(hour);
         String hoursAndMinutes = twoDigits(displayHour) + separator + twoDigits(minute);
         if (!showSeconds) {
             return new DisplayTime(hoursAndMinutes, "", periodText, showColon);
@@ -26,8 +26,7 @@ public final class ClockTimeFormatter {
         return new DisplayTime(hoursAndMinutes + separator + twoDigits(second), "", periodText, showColon);
     }
 
-    public static String formatHourlyChime(int hour, int minute,
-            boolean use24Hour, boolean useEnglish) {
+    public static String formatHourlyChime(int hour, int minute, boolean use24Hour) {
         if (use24Hour) {
             return twoDigits(hour) + ":" + twoDigits(minute);
         }
@@ -36,14 +35,10 @@ public final class ClockTimeFormatter {
             displayHour = 12;
         }
         String time = displayHour + ":" + twoDigits(minute);
-        String period = periodText(hour, useEnglish);
-        return useEnglish ? time + " " + period : period + time;
+        return periodText(hour) + time;
     }
 
-    public static String periodText(int hour, boolean useEnglish) {
-        if (useEnglish) {
-            return hour < 12 ? "AM" : "PM";
-        }
+    public static String periodText(int hour) {
         return hour < 12 ? "上午" : "下午";
     }
 

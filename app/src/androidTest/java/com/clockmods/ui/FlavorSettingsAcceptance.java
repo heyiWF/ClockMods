@@ -42,9 +42,6 @@ public final class FlavorSettingsAcceptance extends Instrumentation {
             provider.currentTimeMillis(); provider.shutdown();
             // Verify persisted booleans through the real getters/setters on Android.
             ClockPreferences settings=new ClockPreferences(context);
-            settings.setDatePatternCn("yyyy/MM/dd");settings.setDatePatternEn("dd MMM yyyy");
-            settings.setDatePatternCn("yyyy 'unfinished");settings.setDatePatternEn("'literal'");
-            check("yyyy/MM/dd".equals(settings.getDatePatternCn()) && "dd MMM yyyy".equals(settings.getDatePatternEn()), "invalid date preserves previous patterns");
             for(Method setter:ClockPreferences.class.getMethods()) {
                 if(!setter.getName().startsWith("set") || setter.getParameterTypes().length!=1 || setter.getParameterTypes()[0]!=boolean.class) continue;
                 String suffix=setter.getName().substring(3); Method getter=null;
@@ -55,7 +52,7 @@ public final class FlavorSettingsAcceptance extends Instrumentation {
                 setter.invoke(settings,saved);
             }
             String component=context.getPackageName().endsWith(".pro")?"com.clockmods.pro.ProMainActivity":"com.clockmods.MainActivity";
-            for(String locale:new String[]{"zh-Hans","zh-Hant","en"}) for(int orientation:new int[]{1,2}) {
+            for(String locale:new String[]{"zh-Hans","zh-Hant"}) for(int orientation:new int[]{1,2}) {
                 this.orientation=orientation;
                 preferences.edit().putString("clock_language",locale).putInt("screen_orientation",orientation)
                         .putBoolean("weather_enabled",false).putBoolean("use_network_time",false)
@@ -144,20 +141,6 @@ public final class FlavorSettingsAcceptance extends Instrumentation {
                 android.view.ViewGroup container = (android.view.ViewGroup) warning.getParent();
                 check(container.indexOfChild(warning) == 1, "warning follows slider row");
             }
-        }
-        if (activity.getPackageName().endsWith(".pro")) {
-            ClockPreferences settings = new ClockPreferences(activity);
-            settings.setDatePatternCn("yyyy/MM/dd");
-            settings.setDateFormatState(false,"yyyy/MM/dd","",false,"");
-            for (String name : new String[]{"proCoreIndexCn","proCustomTextCn","pendingDatePatternCn"}) {
-                java.lang.reflect.Field field = SettingsDialog.class.getDeclaredField(name);
-                field.setAccessible(true);
-                if (name.equals("proCoreIndexCn")) field.setInt(dialog, DateFormatter.dateCores(DateFormatter.Lang.CHINESE).length);
-                else field.set(dialog,name.equals("proCustomTextCn") ? "yyyy 'unfinished" : "dd-MM-yyyy");
-            }
-            Method persist = SettingsDialog.class.getDeclaredMethod("persistProDateState",boolean.class);
-            persist.setAccessible(true);persist.invoke(dialog,false);
-            check("yyyy/MM/dd".equals(settings.getDatePatternCn()) && !settings.isDateCustomEnabled(false), "invalid final draft preserves previous format and mode");
         }
         dialog.dismiss();
     }

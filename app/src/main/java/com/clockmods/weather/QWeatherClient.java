@@ -40,9 +40,7 @@ public final class QWeatherClient {
 
     /** Maps the stored interface language to the QWeather {@code lang} query value. */
     static String apiLang(String clockLanguage) {
-        if (ClockPreferences.LANGUAGE_ENGLISH.equals(clockLanguage)) return "en";
-        if (ClockPreferences.LANGUAGE_TRADITIONAL.equals(clockLanguage)) return "zh-hant";
-        return "zh";
+        return ClockPreferences.LANGUAGE_TRADITIONAL.equals(clockLanguage) ? "zh-hant" : "zh";
     }
 
     public WeatherDisplayData fetch(double latitude, double longitude) throws Exception {

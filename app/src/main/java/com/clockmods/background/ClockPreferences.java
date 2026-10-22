@@ -4,7 +4,6 @@ import android.content.Context;
 import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 
-import com.clockmods.ui.DateFormatter;
 
 import java.util.Calendar;
 
@@ -46,22 +45,8 @@ public class ClockPreferences {
     private static final String KEY_PORTRAIT_STACKED = "portrait_stacked";
     private static final String KEY_DATE_LUNAR_DUAL_LINE = "date_lunar_dual_line";
     private static final String KEY_USE_24_HOUR = "use_24_hour";
-    private static final String KEY_CLOCK_USE_ENGLISH = "clock_use_english";
-    // Tri-state interface language ("zh-Hans"/"zh-Hant"/"en"); supersedes the legacy boolean above.
+    /** Interface language ("zh-Hans" or "zh-Hant"). */
     private static final String KEY_CLOCK_LANGUAGE = "clock_language";
-    private static final String KEY_CUSTOM_MESSAGE = "custom_message";
-    // Full patterns actually used for rendering the main clock / calendar date lines.
-    private static final String KEY_DATE_PATTERN_CN = "date_pattern_cn";
-    private static final String KEY_DATE_PATTERN_EN = "date_pattern_en";
-    // Pro settings UI restoration state (which dropdown / combo / custom entry was chosen).
-    private static final String KEY_DATE_CORE_CN = "date_core_cn";
-    private static final String KEY_DATE_CORE_EN = "date_core_en";
-    private static final String KEY_DATE_COMBO_CN = "date_combo_cn";
-    private static final String KEY_DATE_COMBO_EN = "date_combo_en";
-    private static final String KEY_DATE_CUSTOM_ENABLED_CN = "date_custom_enabled_cn";
-    private static final String KEY_DATE_CUSTOM_ENABLED_EN = "date_custom_enabled_en";
-    private static final String KEY_DATE_CUSTOM_TEXT_CN = "date_custom_text_cn";
-    private static final String KEY_DATE_CUSTOM_TEXT_EN = "date_custom_text_en";
     private static final String KEY_FORCE_LANDSCAPE = "force_landscape";
     private static final String KEY_SCREEN_ORIENTATION = "screen_orientation";
     private static final String KEY_USE_NETWORK_TIME = "use_network_time";
@@ -119,18 +104,10 @@ public class ClockPreferences {
     /** Landscape only: whether the date and lunar lines stack on two rows (portrait always stacks). */
     public static final boolean DEFAULT_DATE_LUNAR_DUAL_LINE = true;
     public static final boolean DEFAULT_USE_24_HOUR = true;
-    public static final boolean DEFAULT_CLOCK_USE_ENGLISH = false;
     /** Interface-language values stored by {@link #getClockLanguage()}. */
     public static final String LANGUAGE_SIMPLIFIED = "zh-Hans";
     public static final String LANGUAGE_TRADITIONAL = "zh-Hant";
-    public static final String LANGUAGE_ENGLISH = "en";
     public static final String DEFAULT_CLOCK_LANGUAGE = LANGUAGE_SIMPLIFIED;
-    /** Optional free-text message shown on the weather line; empty means "no message". */
-    public static final String DEFAULT_CUSTOM_MESSAGE = "";
-    /** Upper bound on the custom message length, guarding layout and storage. */
-    public static final int MAX_CUSTOM_MESSAGE_LENGTH = 200;
-    public static final String DEFAULT_DATE_PATTERN_CN = DateFormatter.DEFAULT_PATTERN_CN;
-    public static final String DEFAULT_DATE_PATTERN_EN = DateFormatter.DEFAULT_PATTERN_EN;
     /** Screen orientation modes returned by {@link #getScreenOrientation()}. */
     public static final int ORIENTATION_FOLLOW_SYSTEM = 0;
     public static final int ORIENTATION_PORTRAIT = 1;
@@ -441,127 +418,19 @@ public class ClockPreferences {
     }
 
     /**
-     * @return the interface language: {@link #LANGUAGE_SIMPLIFIED}, {@link #LANGUAGE_TRADITIONAL}
-     *         or {@link #LANGUAGE_ENGLISH}. Falls back to the legacy boolean on first read so an
-     *         existing English preference is preserved after upgrade.
+     * @return the interface language: {@link #LANGUAGE_SIMPLIFIED} or {@link #LANGUAGE_TRADITIONAL}.
      */
     public String getClockLanguage() {
-        String stored = preferences.getString(KEY_CLOCK_LANGUAGE, null);
-        if (stored != null) {
-            return normalizeClockLanguage(stored);
-        }
-        return preferences.getBoolean(KEY_CLOCK_USE_ENGLISH, DEFAULT_CLOCK_USE_ENGLISH)
-                ? LANGUAGE_ENGLISH : LANGUAGE_SIMPLIFIED;
+        return normalizeClockLanguage(
+                preferences.getString(KEY_CLOCK_LANGUAGE, DEFAULT_CLOCK_LANGUAGE));
     }
 
     public void setClockLanguage(String language) {
-        String normalized = normalizeClockLanguage(language);
-        preferences.edit()
-                .putString(KEY_CLOCK_LANGUAGE, normalized)
-                // Keep the legacy boolean in sync for any code path still reading it.
-                .putBoolean(KEY_CLOCK_USE_ENGLISH, LANGUAGE_ENGLISH.equals(normalized))
-                .apply();
+        preferences.edit().putString(KEY_CLOCK_LANGUAGE, normalizeClockLanguage(language)).apply();
     }
 
     private static String normalizeClockLanguage(String language) {
-        if (LANGUAGE_ENGLISH.equals(language)) {
-            return LANGUAGE_ENGLISH;
-        }
-        if (LANGUAGE_TRADITIONAL.equals(language)) {
-            return LANGUAGE_TRADITIONAL;
-        }
-        return LANGUAGE_SIMPLIFIED;
-    }
-
-    public boolean isClockUseEnglish() {
-        return LANGUAGE_ENGLISH.equals(getClockLanguage());
-    }
-
-    public void setClockUseEnglish(boolean useEnglish) {
-        setClockLanguage(useEnglish ? LANGUAGE_ENGLISH : LANGUAGE_SIMPLIFIED);
-    }
-
-    /** @return the trimmed custom message, or "" when none is set. */
-    public String getCustomMessage() {
-        return normalizeCustomMessage(preferences.getString(KEY_CUSTOM_MESSAGE, DEFAULT_CUSTOM_MESSAGE));
-    }
-
-    public void setCustomMessage(String message) {
-        preferences.edit().putString(KEY_CUSTOM_MESSAGE, normalizeCustomMessage(message)).apply();
-    }
-
-    /** Trims whitespace and caps the length so a pasted blob cannot break the layout. */
-    public static String normalizeCustomMessage(String message) {
-        if (message == null) {
-            return DEFAULT_CUSTOM_MESSAGE;
-        }
-        String trimmed = message.trim();
-        if (trimmed.length() > MAX_CUSTOM_MESSAGE_LENGTH) {
-            trimmed = trimmed.substring(0, MAX_CUSTOM_MESSAGE_LENGTH);
-        }
-        return trimmed;
-    }
-
-    /** @return the full date pattern applied when the interface is Chinese. */
-    public String getDatePatternCn() {
-        return normalizeDatePattern(
-                preferences.getString(KEY_DATE_PATTERN_CN, DEFAULT_DATE_PATTERN_CN),
-                DEFAULT_DATE_PATTERN_CN);
-    }
-
-    public void setDatePatternCn(String pattern) {
-        preferences.edit().putString(KEY_DATE_PATTERN_CN,
-                normalizeDatePattern(pattern, getDatePatternCn())).apply();
-    }
-
-    /** @return the full date pattern applied when the interface is English. */
-    public String getDatePatternEn() {
-        return normalizeDatePattern(
-                preferences.getString(KEY_DATE_PATTERN_EN, DEFAULT_DATE_PATTERN_EN),
-                DEFAULT_DATE_PATTERN_EN);
-    }
-
-    public void setDatePatternEn(String pattern) {
-        preferences.edit().putString(KEY_DATE_PATTERN_EN,
-                normalizeDatePattern(pattern, getDatePatternEn())).apply();
-    }
-
-    /** Falls back to {@code fallback} when {@code pattern} fails validation, guarding stored data. */
-    public static String normalizeDatePattern(String pattern, String fallback) {
-        return DateFormatter.isValidPattern(pattern) ? pattern : fallback;
-    }
-
-    // ---- Pro settings-UI restoration state (does not affect rendering directly) ----
-
-    public String getDateCore(boolean english) {
-        return preferences.getString(english ? KEY_DATE_CORE_EN : KEY_DATE_CORE_CN, "");
-    }
-
-    public String getDateCombo(boolean english) {
-        return preferences.getString(english ? KEY_DATE_COMBO_EN : KEY_DATE_COMBO_CN, "");
-    }
-
-    public boolean isDateCustomEnabled(boolean english) {
-        return preferences.getBoolean(
-                english ? KEY_DATE_CUSTOM_ENABLED_EN : KEY_DATE_CUSTOM_ENABLED_CN, false);
-    }
-
-    public String getDateCustomText(boolean english) {
-        return preferences.getString(english ? KEY_DATE_CUSTOM_TEXT_EN : KEY_DATE_CUSTOM_TEXT_CN, "");
-    }
-
-    /** Persists the Pro date-format UI state for one language in a single edit. */
-    public void setDateFormatState(boolean english, String core, String combo,
-            boolean customEnabled, String customText) {
-        if (customEnabled && !DateFormatter.isValidPattern(customText == null ? null : customText.trim())) return;
-        preferences.edit()
-                .putString(english ? KEY_DATE_CORE_EN : KEY_DATE_CORE_CN, core == null ? "" : core)
-                .putString(english ? KEY_DATE_COMBO_EN : KEY_DATE_COMBO_CN, combo == null ? "" : combo)
-                .putBoolean(english ? KEY_DATE_CUSTOM_ENABLED_EN : KEY_DATE_CUSTOM_ENABLED_CN,
-                        customEnabled)
-                .putString(english ? KEY_DATE_CUSTOM_TEXT_EN : KEY_DATE_CUSTOM_TEXT_CN,
-                        customText == null ? "" : customText)
-                .apply();
+        return LANGUAGE_TRADITIONAL.equals(language) ? LANGUAGE_TRADITIONAL : LANGUAGE_SIMPLIFIED;
     }
 
     public int getScreenOrientation() {
@@ -742,19 +611,7 @@ public class ClockPreferences {
                 .putBoolean(KEY_PORTRAIT_STACKED, DEFAULT_PORTRAIT_STACKED)
                 .putBoolean(KEY_DATE_LUNAR_DUAL_LINE, DEFAULT_DATE_LUNAR_DUAL_LINE)
                 .putBoolean(KEY_USE_24_HOUR, DEFAULT_USE_24_HOUR)
-                .putBoolean(KEY_CLOCK_USE_ENGLISH, DEFAULT_CLOCK_USE_ENGLISH)
                 .putString(KEY_CLOCK_LANGUAGE, DEFAULT_CLOCK_LANGUAGE)
-                .remove(KEY_CUSTOM_MESSAGE)
-                .putString(KEY_DATE_PATTERN_CN, DEFAULT_DATE_PATTERN_CN)
-                .putString(KEY_DATE_PATTERN_EN, DEFAULT_DATE_PATTERN_EN)
-                .remove(KEY_DATE_CORE_CN)
-                .remove(KEY_DATE_CORE_EN)
-                .remove(KEY_DATE_COMBO_CN)
-                .remove(KEY_DATE_COMBO_EN)
-                .remove(KEY_DATE_CUSTOM_ENABLED_CN)
-                .remove(KEY_DATE_CUSTOM_ENABLED_EN)
-                .remove(KEY_DATE_CUSTOM_TEXT_CN)
-                .remove(KEY_DATE_CUSTOM_TEXT_EN)
                 .putInt(KEY_SCREEN_ORIENTATION, DEFAULT_SCREEN_ORIENTATION)
                 .remove(KEY_FORCE_LANDSCAPE)
                 .putBoolean(KEY_WEATHER_ENABLED, DEFAULT_WEATHER_ENABLED)

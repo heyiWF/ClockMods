@@ -26,9 +26,6 @@ public final class LocaleManager {
     /** @return the locale that matches the stored interface-language preference. */
     public static Locale resolveLocale(Context context) {
         String language = new ClockPreferences(context).getClockLanguage();
-        if (ClockPreferences.LANGUAGE_ENGLISH.equals(language)) {
-            return Locale.ENGLISH;
-        }
         if (ClockPreferences.LANGUAGE_TRADITIONAL.equals(language)) {
             return Locale.TRADITIONAL_CHINESE; // zh-TW -> res/values-zh-rTW
         }
@@ -37,9 +34,6 @@ public final class LocaleManager {
 
     /** Maps a stored interface-language code to the matching {@link DateFormatter.Lang}. */
     public static DateFormatter.Lang dateLang(String clockLanguage) {
-        if (ClockPreferences.LANGUAGE_ENGLISH.equals(clockLanguage)) {
-            return DateFormatter.Lang.ENGLISH;
-        }
         if (ClockPreferences.LANGUAGE_TRADITIONAL.equals(clockLanguage)) {
             return DateFormatter.Lang.TRADITIONAL;
         }

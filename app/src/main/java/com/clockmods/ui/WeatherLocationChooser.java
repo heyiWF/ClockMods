@@ -10,7 +10,6 @@ import android.widget.Spinner;
 import android.widget.Toast;
 
 import com.clockmods.R;
-import com.clockmods.background.ClockPreferences;
 import com.clockmods.weather.WeatherLocationCatalog;
 
 import java.util.ArrayList;
@@ -32,10 +31,6 @@ public final class WeatherLocationChooser {
             Toast.makeText(context, R.string.weather_location_list_error, Toast.LENGTH_SHORT).show();
             return;
         }
-        // Spinners display names in the interface language, but province/city are always filtered by
-        // the canonical Chinese key derived from the selected position, so filtering stays correct.
-        final boolean english = new ClockPreferences(context).isClockUseEnglish();
-
         int padding = Math.round(20f * context.getResources().getDisplayMetrics().density);
         LinearLayout content = new LinearLayout(context);
         content.setOrientation(LinearLayout.VERTICAL);
@@ -48,15 +43,15 @@ public final class WeatherLocationChooser {
         content.addView(districtSpinner, spinnerParams());
 
         final List<String> provinces = catalog.provinces();
-        setItems(context, provinceSpinner, catalog.provinceLabels(english));
+        setItems(context, provinceSpinner, provinces);
         int provinceIndex = indexOfKey(provinces, initialProvince);
         String provinceKey = provinces.get(provinceIndex);
         List<String> cities = catalog.cities(provinceKey);
-        setItems(context, citySpinner, catalog.cityLabels(provinceKey, english));
+        setItems(context, citySpinner, cities);
         int cityIndex = indexOfKey(cities, initialCity);
         List<WeatherLocationCatalog.LocationEntry> districts =
                 catalog.districts(provinceKey, cities.get(cityIndex));
-        setDistricts(context, districtSpinner, districts, english);
+        setDistricts(context, districtSpinner, districts);
         provinceSpinner.setSelection(provinceIndex);
         citySpinner.setSelection(cityIndex);
         districtSpinner.setSelection(indexOfDistrict(districts, initialDistrict));
@@ -65,16 +60,16 @@ public final class WeatherLocationChooser {
             @Override public void onItemSelected(AdapterView<?> parent, android.view.View view,
                     int position, long id) {
                 String key = provinces.get(clampIndex(position, provinces.size()));
-                setItems(context, citySpinner, catalog.cityLabels(key, english));
+                setItems(context, citySpinner, catalog.cities(key));
                 updateDistricts(context, catalog, provinces, provinceSpinner, citySpinner,
-                        districtSpinner, english);
+                        districtSpinner);
             }
         });
         citySpinner.setOnItemSelectedListener(new SimpleSelectionListener() {
             @Override public void onItemSelected(AdapterView<?> parent, android.view.View view,
                     int position, long id) {
                 updateDistricts(context, catalog, provinces, provinceSpinner, citySpinner,
-                        districtSpinner, english);
+                        districtSpinner);
             }
         });
 
@@ -92,8 +87,8 @@ public final class WeatherLocationChooser {
     }
 
     private static void updateDistricts(Context context, WeatherLocationCatalog catalog,
-            List<String> provinces, Spinner province, Spinner city, Spinner district, boolean english) {
-        setDistricts(context, district, currentDistricts(catalog, provinces, province, city), english);
+            List<String> provinces, Spinner province, Spinner city, Spinner district) {
+        setDistricts(context, district, currentDistricts(catalog, provinces, province, city));
     }
 
     /** Resolves the districts for the current province/city selection via canonical Chinese keys. */
@@ -115,9 +110,9 @@ public final class WeatherLocationChooser {
     }
 
     private static void setDistricts(Context context, Spinner spinner,
-            List<WeatherLocationCatalog.LocationEntry> values, boolean english) {
+            List<WeatherLocationCatalog.LocationEntry> values) {
         List<String> names = new ArrayList<>();
-        for (WeatherLocationCatalog.LocationEntry value : values) names.add(value.displayDistrict(english));
+        for (WeatherLocationCatalog.LocationEntry value : values) names.add(value.district);
         setItems(context, spinner, names);
     }
 

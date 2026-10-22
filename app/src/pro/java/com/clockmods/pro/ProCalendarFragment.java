@@ -501,7 +501,7 @@ public final class ProCalendarFragment extends Fragment {
             periodView.setVisibility(use24Hour ? View.GONE : View.VISIBLE);
             if (!use24Hour) {
                 periodView.setText(ClockTimeFormatter.periodText(
-                        now.get(Calendar.HOUR_OF_DAY), preferences.isClockUseEnglish()));
+                        now.get(Calendar.HOUR_OF_DAY)));
             }
         }
     }
@@ -824,9 +824,8 @@ public final class ProCalendarFragment extends Fragment {
         TimeZone zone = appTimeZone();
         visibleMonth.setTimeZone(zone); selectedDate.setTimeZone(zone);
         int year = visibleMonth.get(Calendar.YEAR), month = visibleMonth.get(Calendar.MONTH);
-        boolean english = preferences.isClockUseEnglish();
-        title.setText(DateFormatter.format(english ? "MMMM yyyy" : "yyyy年M月", visibleMonth,
-                english ? DateFormatter.Lang.ENGLISH : DateFormatter.Lang.CHINESE));
+        title.setText(DateFormatter.format("yyyy年M月", visibleMonth,
+                com.clockmods.LocaleManager.dateLang(preferences.getClockLanguage())));
         CalendarMonth calendarMonth = CalendarMonth.create(year, month, zone,
                 System.currentTimeMillis(), preferences.getCalendarWeekStart());
         visibleCalendar = calendarMonth;
@@ -891,7 +890,7 @@ public final class ProCalendarFragment extends Fragment {
                         : R.string.calendar_day_accessibility,
                 day.dayOfMonth, almanac.shortLabel());
         if (!labels.isEmpty()) {
-            String sep = preferences.isClockUseEnglish() ? ", " : "，";
+            String sep = "，";
             description += sep + android.text.TextUtils.join(sep, labels);
         }
         if (status != null) {
@@ -955,11 +954,9 @@ public final class ProCalendarFragment extends Fragment {
 
     private void updateFooter() {
         footer.setMarqueeSpec(preferences.getCalendarMarquee("calendar.pro"));
-        boolean english = preferences.isClockUseEnglish();
         LunarAlmanac almanac = LunarAlmanac.of(selectedDate.get(Calendar.YEAR),
                 selectedDate.get(Calendar.MONTH), selectedDate.get(Calendar.DAY_OF_MONTH));
-        String datePattern = english ? preferences.getDatePatternEn() : preferences.getDatePatternCn();
-        String formattedDate = DateFormatter.format(datePattern, selectedDate,
+        String formattedDate = DateFormatter.format(selectedDate,
                 com.clockmods.LocaleManager.dateLang(preferences.getClockLanguage()));
         String dateLine = getString(R.string.calendar_selected_date,
                 formattedDate, almanac.naturalLabel());

@@ -222,28 +222,12 @@ public class BackgroundRepository {
         preferences.setUse24Hour(use24Hour);
     }
 
-    public boolean isClockUseEnglish() {
-        return preferences.isClockUseEnglish();
-    }
-
-    public void setClockUseEnglish(boolean useEnglish) {
-        preferences.setClockUseEnglish(useEnglish);
-    }
-
     public String getClockLanguage() {
         return preferences.getClockLanguage();
     }
 
     public void setClockLanguage(String language) {
         preferences.setClockLanguage(language);
-    }
-
-    public String getCustomMessage() {
-        return preferences.getCustomMessage();
-    }
-
-    public void setCustomMessage(String message) {
-        preferences.setCustomMessage(message);
     }
 
     public boolean isWeatherIconFill() {
@@ -260,43 +244,6 @@ public class BackgroundRepository {
 
     public void setWeatherIconDynamicColor(boolean dynamicColor) {
         preferences.setWeatherIconDynamicColor(dynamicColor);
-    }
-
-    public String getDatePatternCn() {
-        return preferences.getDatePatternCn();
-    }
-
-    public void setDatePatternCn(String pattern) {
-        preferences.setDatePatternCn(pattern);
-    }
-
-    public String getDatePatternEn() {
-        return preferences.getDatePatternEn();
-    }
-
-    public void setDatePatternEn(String pattern) {
-        preferences.setDatePatternEn(pattern);
-    }
-
-    public String getDateCore(boolean english) {
-        return preferences.getDateCore(english);
-    }
-
-    public String getDateCombo(boolean english) {
-        return preferences.getDateCombo(english);
-    }
-
-    public boolean isDateCustomEnabled(boolean english) {
-        return preferences.isDateCustomEnabled(english);
-    }
-
-    public String getDateCustomText(boolean english) {
-        return preferences.getDateCustomText(english);
-    }
-
-    public void setDateFormatState(boolean english, String core, String combo,
-            boolean customEnabled, String customText) {
-        preferences.setDateFormatState(english, core, combo, customEnabled, customText);
     }
 
     public int getScreenOrientation() {
