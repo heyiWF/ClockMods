@@ -7,8 +7,6 @@ import android.graphics.Matrix;
 
 import androidx.exifinterface.media.ExifInterface;
 
-import com.clockmods.R;
-
 import java.io.File;
 import java.io.FileInputStream;
 import java.io.FileOutputStream;
@@ -29,17 +27,13 @@ public class BackgroundRepository {
         preferences = new ClockPreferences(appContext);
     }
 
-    public int getCurrentColor() {
-        return preferences.getBackgroundColor(appContext.getResources().getColor(R.color.clock_default_background));
-    }
-
     public String getBackgroundMode() {
         return preferences.getBackgroundMode();
     }
 
-    public void setCurrentColor(int color) {
+    /** Solid mode is fixed to black, so switching back only needs the mode flag. */
+    public void useColorMode() {
         preferences.setBackgroundMode(ClockPreferences.MODE_COLOR);
-        preferences.setBackgroundColor(color);
     }
 
     public boolean isDimBackground() {

@@ -18,7 +18,6 @@ public class ClockPreferences {
 
     private static final String PREFS_NAME = "clock_prefs";
     private static final String KEY_BACKGROUND_MODE = "background_mode";
-    private static final String KEY_BACKGROUND_COLOR = "background_color";
     private static final String KEY_DIM_BACKGROUND = "dim_background";
     private static final String KEY_SCHEDULE_DIM_BACKGROUND = "schedule_dim_background";
     private static final String KEY_DIM_START_MINUTES = "dim_start_minutes";
@@ -131,8 +130,8 @@ public class ClockPreferences {
     /** TEMP (compat verification build): upper limit raised to 200% of screen width. */
     public static final float MAX_FONT_SCALE = 2.00f;
 
-    /** Default background color: solid black. */
-    public static final int DEFAULT_BACKGROUND_COLOR = 0xFF000000;
+    /** Background colour for the solid mode: always black. */
+    public static final int BACKGROUND_COLOR = 0xFF000000;
 
     private final SharedPreferences preferences;
 
@@ -146,14 +145,6 @@ public class ClockPreferences {
 
     public void setBackgroundMode(String mode) {
         preferences.edit().putString(KEY_BACKGROUND_MODE, mode).apply();
-    }
-
-    public int getBackgroundColor(int defaultColor) {
-        return preferences.getInt(KEY_BACKGROUND_COLOR, defaultColor);
-    }
-
-    public void setBackgroundColor(int color) {
-        preferences.edit().putInt(KEY_BACKGROUND_COLOR, color).apply();
     }
 
     public boolean isDimBackground() {
@@ -563,7 +554,6 @@ public class ClockPreferences {
         }
         editor
                 .putString(KEY_BACKGROUND_MODE, MODE_COLOR)
-                .putInt(KEY_BACKGROUND_COLOR, DEFAULT_BACKGROUND_COLOR)
                 .putBoolean(KEY_DIM_BACKGROUND, DEFAULT_DIM_BACKGROUND)
                 .putBoolean(KEY_SCHEDULE_DIM_BACKGROUND, DEFAULT_SCHEDULE_DIM_BACKGROUND)
                 .putInt(KEY_DIM_START_MINUTES, DEFAULT_DIM_START_MINUTES)

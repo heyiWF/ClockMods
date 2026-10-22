@@ -13,24 +13,17 @@ gradle-app.setting
 # Local Android SDK configuration
 local.properties
 
+# Local agent notes
+.workbuddy/
+
 # Android Studio / IntelliJ IDEA
-.idea/caches/
-.idea/libraries/
-.idea/modules.xml
-.idea/workspace.xml
-.idea/usage.statistics.xml
-.idea/dictionaries/
-.idea/shelf/
+.idea/
 *.iml
 *.ipr
 *.iws
 
 # VS Code local settings
-.vscode/*
-!.vscode/extensions.json
-!.vscode/settings.json
-!.vscode/tasks.json
-!.vscode/launch.json
+.vscode/
 
 # Kotlin / Java / Android generated files
 *.class

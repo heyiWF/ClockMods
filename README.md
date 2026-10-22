@@ -10,11 +10,11 @@
 
 </div>
 
-ClockMods 是一款可定制的 Android 全屏时钟。把手机放在书桌、床头或客厅，时间、公历和农历便能清楚地呈现在眼前。旧设备也能找到合适的版本，继续陪伴日常生活。
+ClockMods 是一款可定制的 Android 全屏时钟。把手机放在书桌、床头或客厅，时间、公历和农历便能清楚地呈现在眼前。旧设备也能流畅运行，继续陪伴日常生活。
 
 > **关于本分支（`mylite`）**
 > 这是作者给自己用的「时钟姬」分支，只求一块干净、顺眼的床头时钟，不是面向发布的版本。
-> 相比 `main`，这里砍掉了英文界面、日期格式自定义和天气行自定义留言，字体固定为内置 Roboto，状态栏改成「网络 + 电量」两行文字，并顺手压缩了安装包体积。
+> 相比 `main`，这里砍掉了英文界面、日期格式自定义和天气行自定义留言，字体固定为内置 Roboto，背景纯色固定为纯黑（只保留图片背景），状态栏改成「网络 + 电量」两行文字，并顺手压缩了安装包体积。
 > `main` 才是正式的公开分支，功能与发布流程都以它为准。
 
 ## 只有一个版本：兼容版
@@ -29,7 +29,7 @@ ClockMods 是一款可定制的 Android 全屏时钟。把手机放在书桌、�
 
 ## 从白天到夜晚，调成喜欢的样子
 
-选一张本机照片作为背景，或者用简单的纯色衬托时间。立即压暗和定时压暗让显示亮度随作息变化，跨过午夜也能按设定运行。
+选一张本机照片作为背景，或者用固定的纯黑衬托时间。立即压暗和定时压暗让显示亮度随作息变化，跨过午夜也能按设定运行。
 
 ## 日期与天气
 
@@ -58,12 +58,11 @@ ClockMods 是一款可定制的 Android 全屏时钟。把手机放在书桌、�
 
 设置与选取的背景图片保存在设备上，打开应用即可使用和调整。
 
-仅自动定位天气需要位置权限，也可以手动选城市。天气和校时会连接对应服务；闹钟提醒的呈现方式受 Android 权限与后台策略影响。
+仅自动定位天气需要位置权限，也可以手动选城市。天气和校时会连接对应服务。
+
 ## 更多
 
-- [反馈问题与建议](https://github.com/heyiWF/ClockMods/issues)
 - [开发与配置参考](docs/product-development-guide.md)
-- 其他版本：[Android 经典系列](https://github.com/heyiWF/ClockMods/tree/main) · [Ultimate](https://github.com/heyiWF/ClockMods/tree/ultimate) · [Ultimate Compose](https://github.com/heyiWF/ClockMods/tree/ultimate-compose) · [Web](https://github.com/heyiWF/ClockMods/tree/web) · [Web Legacy](https://github.com/heyiWF/ClockMods/tree/web-legacy)
 
 ## 许可与致谢
 

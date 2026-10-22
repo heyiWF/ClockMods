@@ -158,8 +158,8 @@ public class MainActivity extends Activity {
         showSystemBars();
         SettingsDialog dialog = new SettingsDialog(this, backgroundRepository, new SettingsDialog.Listener() {
             @Override
-            public void onColorApplied(int color) {
-                backgroundRepository.setCurrentColor(color);
+            public void onColorApplied() {
+                backgroundRepository.useColorMode();
                 clockView.requestBackgroundReload();
             }
 
@@ -188,11 +188,6 @@ public class MainActivity extends Activity {
             @Override
             public void onDismissed() {
                 hideSystemBars();
-            }
-
-            @Override
-            public void onLanguageChanged() {
-                recreate();
             }
         });
         dialog.show();

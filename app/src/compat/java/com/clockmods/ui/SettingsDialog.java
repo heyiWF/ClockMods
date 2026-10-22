@@ -8,14 +8,12 @@ import android.content.DialogInterface;
 import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
-import android.graphics.drawable.GradientDrawable;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
 import android.view.Window;
 import android.view.WindowManager;
 import android.widget.Button;
-import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
 import android.widget.RadioButton;
@@ -38,17 +36,11 @@ import com.clockmods.weather.WeatherLocationCatalog;
 
 public class SettingsDialog extends Dialog {
     public interface Listener {
-        void onColorApplied(int color);
+        void onColorApplied();
         void onImageModeApplied();
         void onChooseImage();
         void onFontSettingsApplied();
         void onDismissed();
-        /** Called when the interface language changed and the host should recreate itself. */
-        void onLanguageChanged();
-    }
-
-    private interface SwatchListener {
-        void onPicked(int color);
     }
 
     private static final int MIN_FONT_PERCENT = 20;
@@ -72,20 +64,11 @@ public class SettingsDialog extends Dialog {
     private static final int COLOR_PRIMARY_TEXT = 0xFFE5E7EB;
     private static final int COLOR_SECONDARY_TEXT = 0xFF9CA3AF;
     private static final int COLOR_ACCENT = 0xFF60A5FA;
-    private static final int COLOR_SWATCH_STROKE = 0x33FFFFFF;
-
-    private static final int[] BACKGROUND_COLORS = {
-            0xFF101418, 0xFF1F2933, 0xFF173F5F, 0xFF20639B,
-            0xFF2A6F4E, 0xFF7A3E48, 0xFF8C5B2D, 0xFFF4F1EA
-    };
 
     private final BackgroundRepository repository;
     private final Listener listener;
-    private final ColorPickerView backgroundPicker;
-    private final View backgroundPreview;
     private final RadioButton colorMode;
     private final RadioButton imageMode;
-    private final View colorControls;
     private final View imageControls;
     private final Switch dimBackgroundSwitch;
     private final Switch scheduleDimBackgroundSwitch;
@@ -125,7 +108,6 @@ public class SettingsDialog extends Dialog {
     private final Button weatherLocationButton;
     private final Spinner weatherIntervalSpinner;
     private final Switch weatherDetailedSwitch;
-    // ---- Date-format section (rebuilt when the interface language toggles) ----
     private String selectedWeatherLocationId;
     private String selectedWeatherProvince;
     private String selectedWeatherCity;
@@ -217,27 +199,6 @@ public class SettingsDialog extends Dialog {
         modeGroup.addView(colorMode, new RadioGroup.LayoutParams(0, dp(46), 1f));
         modeGroup.addView(imageMode, new RadioGroup.LayoutParams(0, dp(46), 1f));
         styleContent.addView(modeGroup, topMargin(matchWrap(dp(48)), dp(2)));
-
-        LinearLayout colorControlsLayout = new LinearLayout(context);
-        colorControlsLayout.setOrientation(LinearLayout.VERTICAL);
-        colorControls = colorControlsLayout;
-
-        backgroundPreview = createSwatchPreview(context, repository.getCurrentColor());
-        colorControlsLayout.addView(backgroundPreview, topMargin(matchWrap(dp(34)), dp(10)));
-
-        backgroundPicker = new ColorPickerView(context);
-        backgroundPicker.setColor(repository.getCurrentColor());
-        backgroundPicker.setOnColorChangedListener(color -> {
-            setSwatchColor(backgroundPreview, color);
-            colorMode.setChecked(true);
-        });
-        colorControlsLayout.addView(createColorSwatches(context, BACKGROUND_COLORS, color -> {
-            backgroundPicker.setColor(color);
-            setSwatchColor(backgroundPreview, color);
-            colorMode.setChecked(true);
-        }), topMargin(matchWrap(dp(50)), dp(12)));
-        addAdvancedPicker(context, colorControlsLayout, backgroundPicker);
-        styleContent.addView(colorControlsLayout, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
 
         LinearLayout imageControlsLayout = new LinearLayout(context);
         imageControlsLayout.setOrientation(LinearLayout.VERTICAL);
@@ -734,16 +695,10 @@ public class SettingsDialog extends Dialog {
         statusIconSizeControls.setAlpha(enabled ? 1f : 0.45f);
     }
 
-    private View createSwatchPreview(Context context, int color) {
-        View preview = new View(context);
-        preview.setBackgroundDrawable(createRoundedDrawable(color));
-        return preview;
-    }
-
     private View createImagePreview(Context context) {
         ImageView preview = new ImageView(context);
         preview.setScaleType(ImageView.ScaleType.CENTER_CROP);
-        preview.setBackgroundColor(0xFF101418);
+        preview.setBackgroundColor(ClockPreferences.BACKGROUND_COLOR);
         try {
             Bitmap bitmap = repository.loadImage(dp(600), dp(180));
             if (bitmap != null) {
@@ -756,7 +711,6 @@ public class SettingsDialog extends Dialog {
     }
 
     private void updateBackgroundControls(boolean usingImage) {
-        colorControls.setVisibility(usingImage ? View.GONE : View.VISIBLE);
         imageControls.setVisibility(usingImage ? View.VISIBLE : View.GONE);
     }
 
@@ -788,18 +742,6 @@ public class SettingsDialog extends Dialog {
         return String.format(java.util.Locale.CHINA, "%02d:%02d", minutes / 60, minutes % 60);
     }
 
-    private void setSwatchColor(View preview, int color) {
-        preview.setBackgroundDrawable(createRoundedDrawable(color));
-    }
-
-    private GradientDrawable createRoundedDrawable(int color) {
-        GradientDrawable drawable = new GradientDrawable();
-        drawable.setColor(color);
-        drawable.setCornerRadius(dp(6));
-        drawable.setStroke(dp(1), COLOR_SWATCH_STROKE);
-        return drawable;
-    }
-
     private void tintButton(Button button) {
         button.setTextColor(COLOR_TITLE);
         button.getBackground().setColorFilter(COLOR_ACCENT, android.graphics.PorterDuff.Mode.MULTIPLY);
@@ -818,32 +760,6 @@ public class SettingsDialog extends Dialog {
             bar.setProgressTintList(accent);
             bar.setThumbTintList(accent);
         }
-    }
-
-    private View createColorSwatches(Context context, int[] colors, SwatchListener swatchListener) {
-        LinearLayout row = new LinearLayout(context);
-        row.setGravity(Gravity.CENTER_VERTICAL);
-        for (final int color : colors) {
-            View swatch = new View(context);
-            swatch.setBackgroundDrawable(createRoundedDrawable(color));
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(40), dp(40));
-            params.rightMargin = dp(10);
-            row.addView(swatch, params);
-            swatch.setOnClickListener(view -> swatchListener.onPicked(color));
-        }
-        HorizontalScrollView scroll = new HorizontalScrollView(context);
-        scroll.setHorizontalScrollBarEnabled(false);
-        scroll.addView(row);
-        return scroll;
-    }
-
-    private void addAdvancedPicker(Context context, LinearLayout parent, ColorPickerView picker) {
-        Switch advancedSwitch = createStyleSwitch(context, R.string.advanced, false);
-        picker.setVisibility(View.GONE);
-        advancedSwitch.setOnCheckedChangeListener((button, checked) ->
-                picker.setVisibility(checked ? View.VISIBLE : View.GONE));
-        parent.addView(advancedSwitch, topMargin(matchWrap(dp(48)), dp(4)));
-        parent.addView(picker, matchWrap(dp(128)));
     }
 
     private RadioButton createSyncOption(Context context, int textRes) {
@@ -924,12 +840,8 @@ public class SettingsDialog extends Dialog {
     }
 
     private void restoreDefaults() {
-        int defaultBackground = ClockPreferences.DEFAULT_BACKGROUND_COLOR;
-
         colorMode.setChecked(true);
         imageMode.setChecked(false);
-        backgroundPicker.setColor(defaultBackground);
-        setSwatchColor(backgroundPreview, defaultBackground);
 
         timeSizeBar.setProgress(scaleToProgress(ClockPreferences.DEFAULT_TIME_FONT_SCALE));
         updateSizeLabel(timeSizeValue, timeSizeBar.getProgress());
@@ -1020,7 +932,7 @@ public class SettingsDialog extends Dialog {
             }
             listener.onImageModeApplied();
         } else {
-            listener.onColorApplied(backgroundPicker.getColor());
+            listener.onColorApplied();
         }
         dismiss();
     }

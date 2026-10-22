@@ -233,8 +233,7 @@ public class ClockView extends View {
         super.onDraw(canvas);
         int width = getWidth();
         int height = getHeight();
-        int backgroundColor = backgroundRepository == null ? 0xFF101418 : backgroundRepository.getCurrentColor();
-        canvas.drawColor(backgroundColor);
+        canvas.drawColor(ClockPreferences.BACKGROUND_COLOR);
         drawBackgroundImage(canvas, width, height);
 
         java.util.TimeZone timeZone = resolveTimeZone();

@@ -1,7 +1,7 @@
 <resources>
     <string name="background_settings">設定</string>
     <string name="open_settings_accessibility">開啟設定</string>
-    <string name="solid_color">純色</string>
+    <string name="solid_color">純黑</string>
     <string name="background_image">圖片</string>
     <string name="choose_image">選擇相簿圖片</string>
     <string name="dim_background">背景壓暗</string>
@@ -14,7 +14,6 @@
     <string name="image_saved">背景圖片已更新</string>
     <string name="image_error">無法讀取所選圖片</string>
     <string name="select_image_first">請先選擇一張圖片</string>
-    <string name="advanced">進階</string>
     <string name="background_settings_group">背景</string>
     <string name="font_settings_group">字型</string>
     <string name="time_font_settings">時間字型</string>
