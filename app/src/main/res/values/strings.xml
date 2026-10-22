@@ -4,7 +4,7 @@
     <string name="solid_color">纯黑</string>
     <string name="background_image">图片</string>
     <string name="choose_image">选择相册图片</string>
-    <string name="dim_background">立即压暗</string>
+    <string name="dim_background">背景压暗</string>
     <string name="cancel">取消</string>
     <string name="apply">应用</string>
     <string name="image_saved">背景图片已更新</string>
