@@ -13,6 +13,15 @@ object DateFormatter {
     const val DEFAULT_PATTERN_CN = "yyyy年M月d日 EEEE"
     const val DEFAULT_PATTERN_EN = "yyyy/M/d EEEE"
 
+    const val DEFAULT_PATTERN_JA = "yyyy年M月d日（E）"
+    const val DEFAULT_PATTERN_KO = "yyyy년 M월 d일 EEEE"
+    @JvmStatic fun defaultPattern(lang: Lang): String = when (lang) {
+        Lang.JAPANESE -> DEFAULT_PATTERN_JA
+        Lang.KOREAN -> DEFAULT_PATTERN_KO
+        Lang.ENGLISH -> DEFAULT_PATTERN_EN
+        else -> DEFAULT_PATTERN_CN
+    }
+
     private val cnDigits = arrayOf("零", "一", "二", "三", "四", "五", "六", "七", "八", "九")
     private val cnUnits = arrayOf("", "一", "二", "三", "四", "五", "六", "七", "八", "九")
     private val cnWeekFull = arrayOf("星期日", "星期一", "星期二", "星期三", "星期四", "星期五", "星期六")
@@ -110,8 +119,8 @@ object DateFormatter {
     fun format(pattern: String?, cal: Calendar, lang: Lang): String {
         if (pattern == null) return ""
         val output = StringBuilder(pattern.length + 16)
-        appendFormatted(output, if (lang == Lang.KOREAN && pattern == DEFAULT_PATTERN_CN) "yyyy년 M월 d일 EEEE" else pattern, cal, lang)
-        return TextSpacing.pangu(output.toString())!!
+        appendFormatted(output, pattern, cal, lang)
+        return if (lang == Lang.JAPANESE) output.toString() else TextSpacing.pangu(output.toString())!!
     }
 
     @JvmStatic
@@ -148,18 +157,26 @@ object DateFormatter {
     @JvmStatic
     fun dateCores(lang: Lang): Array<String> =
         when (lang) {
-            Lang.JAPANESE -> arrayOf("yyyy年M月d日", "yyyy/MM/dd", "M月d日", "yyyy-MM-dd")
-            Lang.KOREAN -> arrayOf("yyyy년 M월 d일", "yyyy/MM/dd", "M월 d일", "yyyy-MM-dd")
+            Lang.KOREAN -> arrayOf("yyyy년 M월 d일", "yyyy년 MM월 dd일", "yyyy. M. d.", "yyyy. MM. dd.", "yy. M. d.", "M월 d일", "M. d.", "MM.dd", "yyyy-MM-dd", "yyyy/MM/dd", "M/d")
+            Lang.JAPANESE -> arrayOf("yyyy年M月d日", "yyyy年MM月dd日", "yyyy/MM/dd", "yyyy/M/d", "yy/MM/dd", "M月d日", "MM月dd日", "M/d", "MM/dd", "yyyy-MM-dd", "yyyy.MM.dd")
             else -> (if (lang == Lang.ENGLISH) enDateCores else cnDateCores).clone()
         }
 
     @JvmStatic
     fun weekdayCombos(lang: Lang): Array<String> =
-        (if (lang == Lang.ENGLISH) enWeekdayCombos else cnWeekdayCombos).clone()
+        when (lang) {
+            Lang.KOREAN -> arrayOf("DATE", "DATE EEEE", "DATE (E)", "DATE (EEEE)", "EEEE, DATE", "E, DATE", "DATE · E", "DATE | EEEE")
+            Lang.JAPANESE -> arrayOf("DATE", "DATE（E）", "DATE（EEEE）", "DATE EEEE", "DATE E", "E DATE", "EEEE DATE", "DATE · E", "DATE | EEEE")
+            else -> (if (lang == Lang.ENGLISH) enWeekdayCombos else cnWeekdayCombos).clone()
+        }
 
     @JvmStatic
     fun fixedFormats(lang: Lang): Array<String> =
-        (if (lang == Lang.ENGLISH) enFixedFormats else cnFixedFormats).clone()
+        when (lang) {
+            Lang.KOREAN -> arrayOf(DEFAULT_PATTERN_KO, "yyyy. M. d. (E)", "yyyy-MM-dd EEEE", "M월 d일 EEEE", "M. d. (E)")
+            Lang.JAPANESE -> arrayOf(DEFAULT_PATTERN_JA, "yyyy/MM/dd（E）", "yyyy年M月d日 EEEE", "M月d日（E）", "M/d（E）")
+            else -> (if (lang == Lang.ENGLISH) enFixedFormats else cnFixedFormats).clone()
+        }
 
     @JvmStatic
     fun composeCombo(comboTemplate: String?, core: String?): String {
@@ -225,7 +242,7 @@ object DateFormatter {
     ) {
         when (letter) {
             'y' -> output.append(if (run == 2) String.format(Locale.US, "%02d", Math.floorMod(year, 100)) else year.toString())
-            'Y' -> output.append(if (lang == Lang.ENGLISH) year.toString() else chineseYear(year, if (run == 3) '〇' else '零'))
+            'Y' -> output.append(if (lang == Lang.ENGLISH || lang == Lang.KOREAN) year.toString() else chineseYear(year, if (run == 3) '〇' else '零'))
             'M' -> if ((lang == Lang.JAPANESE || lang == Lang.KOREAN) && run >= 3) {
                 output.append(java.text.DateFormatSymbols(if (lang == Lang.JAPANESE) Locale.JAPANESE else Locale.KOREAN).months[month - 1])
             } else if (lang == Lang.ENGLISH) {
@@ -247,7 +264,7 @@ object DateFormatter {
                 )
             }
             'd' -> output.append(if (run == 1) day.toString() else String.format(Locale.US, "%02d", day))
-            'D' -> output.append(if (lang == Lang.ENGLISH) day.toString() else chineseCardinal(day))
+            'D' -> output.append(if (lang == Lang.ENGLISH || lang == Lang.KOREAN) day.toString() else chineseCardinal(day))
             'E' -> output.append(
                 when (lang) {
                     Lang.JAPANESE, Lang.KOREAN -> java.text.DateFormatSymbols(if (lang == Lang.JAPANESE) Locale.JAPANESE else Locale.KOREAN).let { if (run >= 4) it.weekdays[dayOfWeek + 1] else it.shortWeekdays[dayOfWeek + 1] }

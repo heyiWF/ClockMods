@@ -13,7 +13,7 @@ internal fun rememberPreviewFontRevision(context: Context): Int {
         val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
             if (key == null || key.startsWith("font_") || key.startsWith("script_font__") ||
                 key == "bold_text" || key == "clock_language" || key == "show_chinese_calendar" ||
-                key == "show_lunar") revision++
+                key == "show_lunar" || key.startsWith("date_pattern_")) revision++
         }
         preferences.registerOnSharedPreferenceChangeListener(listener)
         onDispose { preferences.unregisterOnSharedPreferenceChangeListener(listener) }

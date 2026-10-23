@@ -259,8 +259,7 @@ internal fun renderClockPreview(
     val now = calendar.timeInMillis
     val showSeconds = repository.isShowSeconds()
     val motion = ClockMotionResolver.resolve(style, showSeconds, ClockState.SecondHandMotion.TICK)
-    val datePattern = if (repository.isClockUseEnglish()) repository.getDatePatternEn()
-        else repository.getDatePatternCn()
+    val datePattern = repository.getDatePattern()
     val solarDate = DateFormatter.format(
         datePattern, calendar, LocaleManager.dateLang(repository.getClockLanguage()),
     )
@@ -364,11 +363,7 @@ internal fun ClockScreen(
     val calendar = remember(tick, zone, locale) {
         Calendar.getInstance(zone, locale).apply { timeInMillis = tick }
     }
-    val datePattern = if (repository.isClockUseEnglish()) {
-        repository.getDatePatternEn()
-    } else {
-        repository.getDatePatternCn()
-    }
+    val datePattern = repository.getDatePattern()
     val solarDate = DateFormatter.format(
         datePattern,
         calendar,

@@ -257,8 +257,6 @@ private fun OriginalDayCell(cell: CalendarCellInfo, selected: Boolean, theme: Co
         if (cell.day.today) R.string.calendar_day_today_number_accessibility else R.string.calendar_day_number_accessibility,
         cell.day.dayOfMonth)
     BoxWithConstraints(modifier.alpha(if (cell.day.currentMonth) 1f else if (theme.flatGrid) .18f else .38f)
-        .then(if (selected && !theme.flatGrid) Modifier.background(Color(theme.selectionFill), shape)
-            .border(1.dp, Color(theme.selectionStroke), shape) else Modifier)
         .clickable(onClick = onSelect).semantics { contentDescription = description; this.selected = selected }
         .testTag("day:${cell.day.year}-${cell.day.month + 1}-${cell.day.dayOfMonth}")
         .padding(horizontal = if (theme.flatGrid) 0.dp else 1.dp, vertical = if (theme.flatGrid) 0.dp else 2.dp), contentAlignment = Alignment.Center) {
@@ -271,13 +269,19 @@ private fun OriginalDayCell(cell: CalendarCellInfo, selected: Boolean, theme: Co
         // The day number owns most of the cell; supporting zoom consumes only its own line box.
         val lunarSize = if (typography.supportingScale > 1f) lunar * typography.supportingScale else minOf(lunar * typography.supportingScale, number * dateFactor * .72f,
             h * .34f / (fontScale * 1.2f)).coerceAtLeast(.1f)
-        val labelHeight = if (theme.flatGrid) Sizing.posterMarkHeight(number, 1f)
+        val hasLabels = cell.lunar.isNotBlank() || cell.festivals.any { it.isNotBlank() }
+        val labelHeight = if (!hasLabels && !theme.flatGrid) 0f else if (theme.flatGrid) Sizing.posterMarkHeight(number, 1f)
             else maxOf(Sizing.monthLabelHeight(h + 4, lunar), lunarSize * fontScale * 1.2f)
                 .coerceAtMost(h * .35f)
-        val numberHeight = (h - labelHeight).coerceAtLeast(1f)
+        val contentHeight = if (!hasLabels && !theme.flatGrid)
+            minOf(h, number * dateFactor * fontScale * 1.5f + 8f) else h
+        val numberHeight = (contentHeight - labelHeight).coerceAtLeast(1f)
         val weekend = cell.day.dayOfWeek in listOf(Calendar.SATURDAY, Calendar.SUNDAY)
         val color = when { cell.day.today -> theme.today; weekend && highlightWeekends -> theme.weekend; else -> theme.day }
-        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+        Column(Modifier.fillMaxWidth().height(contentHeight.dp)
+            .then(if (selected && !theme.flatGrid) Modifier.background(Color(theme.selectionFill), shape)
+                .border(1.dp, Color(theme.selectionStroke), shape) else Modifier),
+            horizontalAlignment = Alignment.CenterHorizontally) {
             CalendarNumber(cell, color, theme, typography, number,
                 Modifier.fillMaxWidth().height(numberHeight.dp))
             if (theme.flatGrid) {
@@ -287,7 +291,7 @@ private fun OriginalDayCell(cell: CalendarCellInfo, selected: Boolean, theme: Co
                         androidx.compose.ui.geometry.Offset(size.width * .78f, size.height / 2), maxOf(1.5.dp.toPx(), size.height * .3f))
                     else if (cell.day.today) drawCircle(Color(theme.today), maxOf(1.dp.toPx(), min(size.width, size.height) * .22f))
                 }
-            } else Box(Modifier.fillMaxWidth().height(labelHeight.dp), contentAlignment = Alignment.Center) {
+            } else if (hasLabels) Box(Modifier.fillMaxWidth().height(labelHeight.dp), contentAlignment = Alignment.Center) {
                 LunarCarouselText(listOf(cell.lunar) + cell.festivals,
                     Color(if (cell.festivals.isEmpty()) theme.secondary else theme.text),
                     typography.supportingStyle(TextStyle(fontSize = (lunarSize / typography.supportingScale).sp), cell.lunar))
@@ -353,7 +357,7 @@ private fun calendarDateLine(cell: CalendarCellInfo): String {
     val date = Calendar.getInstance().apply { clear(); set(cell.day.year, cell.day.month, cell.day.dayOfMonth) }
     val prefs = ClockPreferences(LocalContext.current)
     val solar = com.clockmods.ui.DateFormatter.format(
-        if (prefs.isClockUseEnglish()) prefs.getDatePatternEn() else prefs.getDatePatternCn(), date,
+        prefs.getDatePattern(), date,
         com.clockmods.LocaleManager.dateLang(prefs.getClockLanguage()))
     return if (cell.showChineseCalendar) stringResource(R.string.calendar_selected_date, solar,
         LunarAlmanac.of(cell.day.year, cell.day.month, cell.day.dayOfMonth).naturalLabel()) else solar
@@ -706,7 +710,7 @@ private fun AgendaStripCell(cell: CalendarCellInfo, selected: Boolean, theme: Co
         val label = Sizing.agendaStripLunarSize(maxWidth.value, maxHeight.value, 1f)
         val dayColor = when { cell.day.today -> theme.today; weekends && cell.day.dayOfWeek in listOf(1, 7) -> theme.weekend; else -> theme.day }
         val weekdayColor = if (weekends && cell.day.dayOfWeek in listOf(1, 7)) theme.weekend else theme.weekday
-        val lunarItems = cell.festivals.ifEmpty { listOf(cell.lunar) }
+        val lunarItems = cell.festivals.ifEmpty { listOf(cell.lunar) }.filter { it.isNotBlank() }
         val lunarColor = if (cell.festivals.isEmpty()) theme.secondary else theme.accent
         val markerColor = if (cell.day.today) Color(theme.today) else Color.Transparent
         if (rail) Row(Modifier.fillMaxSize().padding(3.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -714,12 +718,12 @@ private fun AgendaStripCell(cell: CalendarCellInfo, selected: Boolean, theme: Co
             Spacer(Modifier.width(6.dp))
             CalendarText(labels[cell.day.dayOfWeek - 1], label, weekdayColor, typography, Modifier.weight(1.1f))
             CalendarNumber(cell, dayColor, theme, typography, number, Modifier.weight(2.6f).fillMaxHeight(), true)
-            Box(Modifier.weight(1.1f), contentAlignment = Alignment.CenterEnd) { CalendarText(lunarItems.first(), label, lunarColor, typography) }
+            if (lunarItems.isNotEmpty()) Box(Modifier.weight(1.1f), contentAlignment = Alignment.CenterEnd) { CalendarText(lunarItems.first(), label, lunarColor, typography) }
             Spacer(Modifier.width(6.dp))
         } else Column(Modifier.fillMaxSize().padding(3.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             CalendarText(labels[cell.day.dayOfWeek - 1], label, weekdayColor, typography)
             CalendarNumber(cell, dayColor, theme, typography, number, Modifier.fillMaxWidth().weight(1f), true)
-            LunarCarouselText(lunarItems, Color(lunarColor), typography.supportingStyle(TextStyle(fontSize = label.sp), cell.lunar))
+            if (lunarItems.isNotEmpty()) LunarCarouselText(lunarItems, Color(lunarColor), typography.supportingStyle(TextStyle(fontSize = label.sp), cell.lunar))
             Spacer(Modifier.height(4.dp))
             Box(Modifier.fillMaxWidth().padding(horizontal = 6.dp).height(2.5.dp).background(markerColor))
         }

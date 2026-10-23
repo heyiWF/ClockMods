@@ -117,6 +117,8 @@ open class BackgroundRepository(context: Context) {
     fun setCustomMessage(value: String?) = preferences.setCustomMessage(value)
     fun getWeatherTemperatureUnit() = preferences.getWeatherTemperatureUnit()
     fun setWeatherTemperatureUnit(value: String?) = preferences.setWeatherTemperatureUnit(value)
+    fun getDatePattern() = preferences.getDatePattern()
+    fun saveDatePattern(language: String, pattern: String?) = preferences.saveDatePattern(language, pattern)
     fun getDatePatternCn() = preferences.getDatePatternCn()
     fun setDatePatternCn(value: String?) = preferences.setDatePatternCn(value)
     fun getDatePatternEn() = preferences.getDatePatternEn()

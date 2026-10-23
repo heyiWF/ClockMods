@@ -188,8 +188,7 @@ internal class GlassAtelierRenderer : UltimateClockStyles.RendererBase() {
         val bold = displayTypeface(theme, Typeface.BOLD)
         val infoLeft = context.getLeft() + w * if (landscape) .075f else .10f
         val infoRight = context.getLeft() + w * if (landscape) .405f else .90f
-        val titleY = context.getTop() + h * if (landscape) .15f else .075f
-        var dateY = context.getTop() + h * if (landscape) .29f else .65f
+        var dateY = context.getTop() + h * if (landscape) .25f else .60f
         var timeY = context.getTop() + h * if (landscape) .47f else .76f
         var contextY = context.getTop() + h * if (landscape) .60f else .84f
         var zoneY = context.getTop() + h * if (landscape) .69f else .895f
@@ -200,15 +199,19 @@ internal class GlassAtelierRenderer : UltimateClockStyles.RendererBase() {
         contextY += metadataShift
         zoneY += metadataShift
 
-        fittedText(canvas, "ATELIER / 01", infoLeft, titleY, infoRight - infoLeft, small,
-            theme.getAccentColor(), Paint.Align.LEFT, bold)
-        canvas.drawLine(
-            infoLeft, titleY + unit * .035f,
-            infoLeft + min(infoRight - infoLeft, unit * .16f), titleY + unit * .035f,
-            stroke(alpha(theme.getAccentColor(), 190), lineWidth(context, theme, 1.2f)),
-        )
-        readableDate(canvas, context, state, infoLeft, dateY, infoRight - infoLeft,
-            unit * .034f, theme.getSecondaryTextColor(), Paint.Align.LEFT, sans, !landscape)
+        val dateSize = readableDateSize(context, unit * .034f * state.getDateScale(), 12f)
+        val dateBottom = ClockDateRows.draw(canvas, context, UltimateClockStyles.splitDateAndLunar(state.getDateText()),
+            infoLeft, dateY, infoRight - infoLeft, dateSize,
+            adaptiveDateColor(context, infoLeft, dateY, infoRight - infoLeft, dateSize * 3f,
+                theme.getSecondaryTextColor(), Paint.Align.LEFT), sans, fill(Color.WHITE), false, dateOverflowAllowed())
+        val timeMeasure = fill(theme.getPrimaryTextColor()).apply {
+            typeface = bold
+            textSize = fitTime(timeText(state.newCalendar(), state, false), infoRight - infoLeft,
+                unit * (if (landscape) .145f else .12f) * state.getTimeScale(), bold)
+        }
+        timeY = max(timeY, dateBottom + max(context.getDensity() * 16f, unit * .04f) - timeMeasure.fontMetrics.ascent)
+        contextY = max(contextY, timeY + timeMeasure.fontMetrics.descent +
+            readableSupportingSize(context, unit * .034f * state.getSupportingScale(), 12f) * 1.6f)
         fittedTime(canvas, timeText(state.newCalendar(), state, false), infoLeft, timeY,
             infoRight - infoLeft, unit * (if (landscape) .145f else .12f) * state.getTimeScale(),
             theme.getPrimaryTextColor(), Paint.Align.LEFT, bold)
@@ -328,7 +331,6 @@ internal class NoirInstrumentRenderer : UltimateClockStyles.RendererBase() {
 
         val infoLeft = context.getLeft() + w * if (landscape) .62f else .10f
         val infoRight = context.getRight() - w * if (landscape) .075f else .10f
-        val titleY = context.getTop() + h * if (landscape) .17f else .62f
         var timeY = context.getTop() + h * if (landscape) .38f else .71f
         var dateY = context.getTop() + h * if (landscape) .49f else .78f
         var contextY = context.getTop() + h * if (landscape) .62f else .85f
@@ -336,8 +338,6 @@ internal class NoirInstrumentRenderer : UltimateClockStyles.RendererBase() {
         val small = readableSize(context, unit * .020f, 10f)
         val metadataShift = bottomOverlayShift(context, zoneY)
         timeY += metadataShift; dateY += metadataShift; contextY += metadataShift; zoneY += metadataShift
-        fittedText(canvas, "INSTRUMENT / 24", infoLeft, titleY, infoRight - infoLeft, small,
-            theme.getAccentColor(), Paint.Align.LEFT, mono)
         fittedTime(canvas, timeText(c, state, false), infoLeft, timeY, infoRight - infoLeft,
             unit * (if (landscape) .14f else .12f) * state.getTimeScale(),
             theme.getPrimaryTextColor(), Paint.Align.LEFT, condensed)
@@ -427,22 +427,21 @@ internal class PaperStationRenderer : UltimateClockStyles.RendererBase() {
 
         val infoLeft = context.getLeft() + w * if (landscape) .59f else .13f
         val infoRight = context.getRight() - w * if (landscape) .09f else .13f
-        val titleY = context.getTop() + h * if (landscape) .17f else .61f
         var dateY = context.getTop() + h * if (landscape) .29f else .68f
         var dividerY = context.getTop() + h * if (landscape) .35f else .72f
         var timeY = context.getTop() + h * if (landscape) .52f else .80f
         var contextY = context.getTop() + h * if (landscape) .64f else .86f
         var zoneY = context.getTop() + h * if (landscape) .72f else .905f
-        val index = String.format(Locale.US, "PAPER / %02d.%02d",
-            calendar.get(Calendar.MONTH) + 1, calendar.get(Calendar.DAY_OF_MONTH))
         val small = readableSize(context, unit * .020f, 10f)
         val metadataShift = bottomOverlayShift(context, zoneY)
         dateY += metadataShift; dividerY += metadataShift; timeY += metadataShift
         contextY += metadataShift; zoneY += metadataShift
-        fittedText(canvas, index, infoLeft, titleY, infoRight - infoLeft, small,
-            theme.getAccentColor(), Paint.Align.LEFT, sansBold)
-        readableDate(canvas, context, state, infoLeft, dateY, infoRight - infoLeft,
-            unit * .032f, theme.getSecondaryTextColor(), Paint.Align.LEFT, serif, !landscape)
+        val dateSize = readableDateSize(context, unit * .032f * state.getDateScale(), 12f)
+        val dateBottom = dividerY - max(context.getDensity() * 12f, dateSize * .7f)
+        ClockDateRows.draw(canvas, context, UltimateClockStyles.splitDateAndLunar(state.getDateText()),
+            infoLeft, dateBottom, infoRight - infoLeft, dateSize,
+            adaptiveDateColor(context, infoLeft, dateBottom, infoRight - infoLeft, dateSize * 3f,
+                theme.getSecondaryTextColor(), Paint.Align.LEFT), serif, fill(Color.WHITE), true, dateOverflowAllowed())
         canvas.drawLine(infoLeft, dividerY, infoRight, dividerY,
             stroke(theme.getAccentColor(), lineWidth(context, theme, 1f)))
         fittedTime(canvas, timeText(calendar, state, false), infoLeft, timeY, infoRight - infoLeft,
@@ -509,18 +508,21 @@ internal class OrbitNeonRenderer : UltimateClockStyles.RendererBase() {
 
         val infoLeft = context.getLeft() + w * if (landscape) .65f else .10f
         val infoRight = context.getRight() - w * if (landscape) .08f else .10f
-        val titleY = context.getTop() + h * if (landscape) .17f else .075f
-        var dateY = context.getTop() + h * if (landscape) .30f else .67f
+        var dateY = context.getTop() + h * if (landscape) .27f else .64f
         var contextY = context.getTop() + h * if (landscape) .40f else .745f
         var zoneY = context.getTop() + h * if (landscape) .48f else .80f
         val small = readableSize(context, unit * .020f, 10f)
         val valuesBottomY = context.getTop() + h * if (landscape) .81f else .89f
         val metadataShift = bottomOverlayShift(context, valuesBottomY)
         dateY += metadataShift; contextY += metadataShift; zoneY += metadataShift
-        fittedText(canvas, "ORBIT / LIVE", infoLeft, titleY, infoRight - infoLeft, small,
-            theme.getAccentColor(), Paint.Align.LEFT, mono)
-        readableDate(canvas, context, state, infoLeft, dateY, infoRight - infoLeft, unit * .031f,
-            theme.getPrimaryTextColor(), Paint.Align.LEFT, display, !landscape)
+        val dateSize = readableDateSize(context, unit * .031f * state.getDateScale(), 12f)
+        val dateBottom = ClockDateRows.draw(canvas, context,
+            ClockDateRows.orbit(UltimateClockStyles.splitDateAndLunar(state.getDateText()), c, state.getLocale()),
+            infoLeft, dateY, infoRight - infoLeft, dateSize,
+            adaptiveDateColor(context, infoLeft, dateY, infoRight - infoLeft, dateSize * 4f,
+                theme.getPrimaryTextColor(), Paint.Align.LEFT), display, fill(Color.WHITE), false, dateOverflowAllowed())
+        contextY = max(contextY, dateBottom +
+            readableSupportingSize(context, unit * .031f * state.getSupportingScale(), 12f) * 1.6f)
         readableText(canvas, context, contextText(state), infoLeft, contextY, infoRight - infoLeft,
             unit * .031f * state.getSupportingScale(), 12f, theme.getSecondaryTextColor(), Paint.Align.LEFT, mono)
         var hourValue = c.get(Calendar.HOUR)
@@ -584,8 +586,6 @@ internal class DigitalGridRenderer : UltimateClockStyles.RendererBase() {
             y += grid
         }
         val mono = displayTypeface(theme, Typeface.NORMAL)
-        text(canvas, "DIGITAL GRID", context.getLeft() + w * .07f, context.getTop() + h * .10f,
-            readableSize(context, unit * .028f, 10f), theme.getAccentColor(), Paint.Align.LEFT, mono)
         val c = state.newCalendar()
         var hour = c.get(Calendar.HOUR_OF_DAY)
         if (!state.isUse24Hour()) { hour %= 12; if (hour == 0) hour = 12 }
@@ -762,9 +762,6 @@ internal class TypographicRenderer : UltimateClockStyles.RendererBase() {
             drawTime(canvas, minutes, context.getCenterX(), centeredBaseline(minuteCenterY, minuteSize, display), minuteSize,
                 theme.getPrimaryTextColor(), Paint.Align.CENTER, display)
         }
-        val titleX = context.getLeft() + w * .07f
-        val titleY = context.getTop() + h * .105f
-        text(canvas, "TYPE / 06", titleX, titleY, small, faceInk, Paint.Align.LEFT, bold)
         val seconds = if (state.isShowSeconds() && state.getSecondHandMotion() != ClockState.SecondHandMotion.OFF) {
             String.format(Locale.US, "%02d", c.get(Calendar.SECOND))
         } else "--"
@@ -775,11 +772,6 @@ internal class TypographicRenderer : UltimateClockStyles.RendererBase() {
         text(canvas, "SEC", secondsX, secondsLabelY, small,
             if (landscape) theme.getSecondaryTextColor() else faceInk, Paint.Align.RIGHT, regular)
 
-        val dotX = if (landscape) divider else context.getRight() - w * .13f
-        val dotCenterY = if (landscape) context.getTop() + h * .47f else divider
-        val dotRadius = unit * .013f
-        canvas.drawCircle(dotX, dotCenterY - unit * .050f, dotRadius, fill(theme.getAccentColor()))
-        canvas.drawCircle(dotX, dotCenterY + unit * .050f, dotRadius, fill(theme.getAccentColor()))
         val barLeft = context.getLeft() + w * if (landscape) .43f else .10f
         val barRight = context.getRight() - w * .075f
         val barY = context.getTop() + h * if (landscape) .64f else .755f

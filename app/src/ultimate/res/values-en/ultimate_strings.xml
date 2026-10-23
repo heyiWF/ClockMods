@@ -242,8 +242,8 @@
     <string name="ultimate_orientation_portrait">Portrait</string>
     <string name="ultimate_orientation_landscape">Landscape</string>
     <string name="ultimate_language_section">Clock language</string>
-    <string name="ultimate_language_simplified">Simplified Chinese</string>
-    <string name="ultimate_language_traditional">Traditional Chinese</string>
+    <string name="ultimate_language_simplified">简体中文</string>
+    <string name="ultimate_language_traditional">繁體中文</string>
     <string name="ultimate_language_english">English</string>
     <string name="ultimate_auto_start">Launch at startup</string>
     <string name="ultimate_auto_start_summary">Automatically show ClockMods after the device starts</string>

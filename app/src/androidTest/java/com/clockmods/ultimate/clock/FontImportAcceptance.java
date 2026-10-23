@@ -47,6 +47,7 @@ public final class FontImportAcceptance extends Instrumentation {
         Activity activity = null; int code = Activity.RESULT_OK;
         try {
             ClockPreferences settings = new ClockPreferences(context);
+            checkLocalizedDates(context);
             settings.setClockLanguage("en");
             checkDocumentImport(context, output);
             settings.setClockLanguage("zh-Hans");
@@ -132,6 +133,8 @@ public final class FontImportAcceptance extends Instrumentation {
                             "manager-"+lang+"-"+orientation, orientation, false, null);
                     capture(context, UltimateSettingsActivity.createSubpageIntent(context,"system"), output,
                             "settings-"+lang+"-"+orientation, orientation, false, localized.getString(R.string.font_import_title));
+                    capture(context, UltimateSettingsActivity.createSubpageIntent(context,"time_date"), output,
+                            "date-editor-"+lang+"-"+orientation, orientation, false, localized.getString(R.string.ultimate_date_format));
                     context.getSharedPreferences("clockmods_onboarding",0).edit().putBoolean("completed",true).commit();
                     context.getSharedPreferences("clockmods_ultimate_style",0).edit().putString("style_id","typographic.poster").commit();
                     prefs.edit().putBoolean("weather_enabled",false).putBoolean("use_network_time",false)
@@ -148,6 +151,8 @@ public final class FontImportAcceptance extends Instrumentation {
                 }
             }
             checkChineseCalendar(context, output);
+            checks += ClockLayoutRefinementProbe.run(context, output);
+            checks += ClockLayoutRefinementProbe.fonts(context, output, western, script);
             for (UserFontStore.ImportedFile file : new ArrayList<>(UserFontStore.files())) if (file.faces.get(0).identity.equals(regular.faces.get(0).identity) && !prior.contains(file.id)) UserFontStore.delete(file.id);
             check(settings.getFontFamily("font.audit.a").equals(ClockPreferences.FONT_SYSTEM), "deleted family falls back to system");
             result.putString("result", "PASS " + checks + " checks");
@@ -221,6 +226,117 @@ public final class FontImportAcceptance extends Instrumentation {
         check(!settings.isShowLunarInApp(),"master switch preserves separately disabled lunar text");
     }
 
+    private void checkLocalizedDates(Context context) {
+        ClockPreferences settings=new ClockPreferences(context);
+        SharedPreferences prefs=context.getSharedPreferences("clock_prefs",0);
+        prefs.edit().remove("date_pattern_ja").remove("date_pattern_ko").commit();
+        for(String language:new String[]{"ja","ko"}) {
+            settings.setClockLanguage(language);
+            check(settings.getDatePattern().equals(DateFormatter.defaultPattern(LocaleManager.dateLang(language))),"localized default "+language);
+        }
+        String[] languages={"zh-Hans","en","ja","ko"};
+        String[] patterns={"yyyy年M月d日","MMMM d, yyyy","yyyy/MM/dd（E）","yyyy. M. d. (E)"};
+        for(int i=0;i<languages.length;i++)check(settings.saveDatePattern(languages[i],patterns[i]),"save language pattern "+languages[i]);
+        for(int i=0;i<languages.length;i++) {
+            settings.setClockLanguage(languages[i]);
+            check(settings.getDatePattern().equals(patterns[i]),"independent language pattern "+languages[i]);
+            check(!settings.saveDatePattern(languages[i],"'unfinished") && settings.getDatePattern().equals(patterns[i]),"invalid draft preserves pattern "+languages[i]);
+        }
+        for(String language:new String[]{"zh-Hans","zh-Hant","en","ja","ko"}) {
+            settings.setClockLanguage(language);Context localized=LocaleManager.wrap(context);
+            check(localized.getString(R.string.ultimate_language_simplified).equals("简体中文")
+                    && localized.getString(R.string.ultimate_language_traditional).equals("繁體中文")
+                    && localized.getString(R.string.ultimate_language_english).equals("English")
+                    && localized.getString(R.string.ultimate_language_japanese).equals("日本語")
+                    && localized.getString(R.string.ultimate_language_korean).equals("한국어"),"language autonyms "+language);
+        }
+    }
+    private android.view.accessibility.AccessibilityNodeInfo actionFor(String label) {
+        android.view.accessibility.AccessibilityNodeInfo root=freshRoot();
+        android.view.accessibility.AccessibilityNodeInfo exact=actionFor(root,label,true);
+        return exact!=null?exact:actionFor(root,label,false);
+    }
+    private android.view.accessibility.AccessibilityNodeInfo freshRoot() {
+        // Reused virtual-node IDs can leave UiAutomation's cache behind Compose recomposition.
+        if (android.os.Build.VERSION.SDK_INT >= 34) getUiAutomation().clearCache();
+        return getUiAutomation().getRootInActiveWindow();
+    }
+    private android.view.accessibility.AccessibilityNodeInfo actionFor(
+            android.view.accessibility.AccessibilityNodeInfo root,String label,boolean exact) {
+        if(root==null)return null;
+        // Compose exposes virtual nodes; its provider need not implement find-by-text.
+        if(matchesLabel(root.getText(),label,exact) || matchesLabel(root.getContentDescription(),label,exact)) {
+            android.view.accessibility.AccessibilityNodeInfo found=root;
+            android.view.accessibility.AccessibilityNodeInfo node=found;
+            for(int depth=0;node!=null && depth<5;depth++,node=node.getParent())
+                if(node.isClickable() && node.isEnabled())return node;
+        }
+        for(int i=0;i<root.getChildCount();i++) {
+            android.view.accessibility.AccessibilityNodeInfo action=actionFor(root.getChild(i),label,exact);
+            if(action!=null)return action;
+        }
+        return null;
+    }
+    private static boolean matchesLabel(CharSequence text,String label,boolean exact) {
+        if(text==null)return false;
+        String value=text.toString().trim();
+        return exact?value.equals(label):value.startsWith(label+" ");
+    }
+    private boolean clickLabel(String label) {
+        long until=SystemClock.uptimeMillis()+8000;
+        while(SystemClock.uptimeMillis()<until) {
+            android.view.accessibility.AccessibilityNodeInfo node=actionFor(label);
+            if(node!=null && node.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK))return true;
+            android.view.accessibility.AccessibilityNodeInfo root=freshRoot();
+            if(root!=null)scroll(root);SystemClock.sleep(200);
+        }
+        Bundle diagnostic=new Bundle();
+        android.view.accessibility.AccessibilityNodeInfo root=freshRoot();
+        diagnostic.putString("missingAction",label+" in "+(root==null?"null":spokenText(root)));
+        sendStatus(0,diagnostic);
+        return false;
+    }
+    private android.view.accessibility.AccessibilityNodeInfo editable(android.view.accessibility.AccessibilityNodeInfo node) {
+        if(node==null)return null;if(node.isEditable())return node;
+        for(int i=0;i<node.getChildCount();i++) {
+            android.view.accessibility.AccessibilityNodeInfo result=editable(node.getChild(i));if(result!=null)return result;
+        }
+        return null;
+    }
+    private void editPattern(String pattern) {
+        Bundle value=new Bundle();value.putCharSequence(android.view.accessibility.AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE,pattern);
+        boolean changed=false;
+        long until=SystemClock.uptimeMillis()+5000;
+        while(!changed && SystemClock.uptimeMillis()<until) {
+            android.view.accessibility.AccessibilityNodeInfo root=freshRoot();
+            android.view.accessibility.AccessibilityNodeInfo field=editable(root);
+            changed=field!=null && field.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_SET_TEXT,value);
+            if(!changed){if(root!=null)scroll(root);SystemClock.sleep(200);}
+        }
+        if(!changed)try {
+            save(getUiAutomation().takeScreenshot(),new File(getTargetContext().getExternalFilesDir(null),"font-import-acceptance/missing-date-field.png"));
+            Bundle diagnostic=new Bundle();diagnostic.putString("dateField",spokenText(freshRoot()));sendStatus(0,diagnostic);
+        } catch(Exception ignored) {}
+        check(changed,"date pattern field accepts input");
+        SystemClock.sleep(350);
+    }
+    private void inspectDateEditor(Context context,File output,String name) throws Exception {
+        ClockPreferences settings=new ClockPreferences(context);Context localized=LocaleManager.wrap(context);
+        String previous=settings.getDatePattern();
+        check(clickLabel(localized.getString(R.string.ultimate_date_format)),"date editor opens "+name);
+        SystemClock.sleep(500);
+        editPattern("'unfinished");
+        check(actionFor(localized.getString(R.string.ultimate_apply))==null,"invalid date disables Apply "+name);
+        check(previous.equals(settings.getDatePattern()),"invalid editor preserves saved date "+name);
+        String pattern=settings.getClockLanguage().equals("ja")?"yyyy年M月d日（E）":"yyyy. M. d. (E)";
+        editPattern(pattern);
+        check(actionFor(localized.getString(R.string.ultimate_apply))!=null,"valid date enables Apply "+name);
+        save(getUiAutomation().takeScreenshot(),new File(output,name+".png"));
+        check(clickLabel(localized.getString(R.string.ultimate_apply)),"date Apply clicked "+name);
+        SystemClock.sleep(400);
+        check(pattern.equals(settings.getDatePattern()),"date editor saves current language "+name);
+    }
+
     private void checkDocumentImport(Context context, File output) throws Exception {
         android.accessibilityservice.AccessibilityServiceInfo service=getUiAutomation().getServiceInfo();
         service.flags |= android.accessibilityservice.AccessibilityServiceInfo.FLAG_REPORT_VIEW_IDS;
@@ -244,26 +360,34 @@ public final class FontImportAcceptance extends Instrumentation {
             picker=addMonitor(filter,
                     new ActivityResult(Activity.RESULT_OK,new Intent().setData(uri)),true);
             Activity active=manager;
-            runOnMainSync(()->check(clickButton(active.getWindow().getDecorView(),active.getString(R.string.font_import_add)),"import button clicked"));
+            boolean clickedImport=clickLabel(active.getString(R.string.font_import_add));
+            if(!clickedImport)save(getUiAutomation().takeScreenshot(),new File(output,"missing-import-button.png"));
+            check(clickedImport,"import button clicked");
+            SystemClock.sleep(300);
             check(picker.getHits()==1,"document picker launched");
             long end=SystemClock.uptimeMillis()+10000;
             while(UserFontStore.files().size()==before.size() && SystemClock.uptimeMillis()<end)SystemClock.sleep(100);
             check(UserFontStore.files().size()==before.size()+1,"document callback imports font");
             SystemClock.sleep(300);
             save(getUiAutomation().takeScreenshot(),new File(output,"document-import.png"));
-            runOnMainSync(()->clickButton(active.getWindow().getDecorView(),active.getString(R.string.font_import_add)));
+            clickLabel(active.getString(R.string.font_import_add));
             end=SystemClock.uptimeMillis()+10000;
             boolean duplicate=false;
             while(SystemClock.uptimeMillis()<end) {
-                boolean[] found={false};runOnMainSync(()->found[0]=containsText(active.getWindow().getDecorView(),active.getString(R.string.font_import_duplicate)));
+                android.view.accessibility.AccessibilityNodeInfo current=freshRoot();
+                boolean[] found={current!=null && spokenText(current).contains(active.getString(R.string.font_import_duplicate))};
                 if(found[0]){duplicate=true;break;}SystemClock.sleep(100);
             }
+            if(!duplicate) {
+                save(getUiAutomation().takeScreenshot(),new File(output,"missing-duplicate-feedback.png"));
+                Bundle diagnostic=new Bundle();
+                diagnostic.putString("duplicateFeedback", "pickerHits="+picker.getHits()+" tree="+spokenText(freshRoot()));
+                sendStatus(0,diagnostic);
+            }
             check(duplicate && UserFontStore.files().size()==before.size()+1,"repeat picker upload shows duplicate feedback");
-            runOnMainSync(()->clickButton(active.getWindow().getDecorView(),active.getString(R.string.font_import_delete)));
+            check(clickLabel(active.getString(R.string.font_import_delete)),"delete action clicked");
             SystemClock.sleep(300);
-            java.util.List<android.view.accessibility.AccessibilityNodeInfo> confirm=getUiAutomation().getRootInActiveWindow()
-                    .findAccessibilityNodeInfosByViewId("android:id/button1");
-            check(!confirm.isEmpty() && confirm.get(0).performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK),"file deletion confirmed");
+            check(clickLabel(active.getString(R.string.font_import_delete)),"file deletion confirmed");
             end=SystemClock.uptimeMillis()+10000;
             while(UserFontStore.files().size()!=before.size() && SystemClock.uptimeMillis()<end)SystemClock.sleep(100);
             check(UserFontStore.files().size()==before.size(),"manager deletes individual file");
@@ -317,14 +441,15 @@ public final class FontImportAcceptance extends Instrumentation {
                 SystemClock.sleep(800);
             }
             if(scrollTarget!=null)for(int attempt=0;attempt<8;attempt++) {
-                android.view.accessibility.AccessibilityNodeInfo root=getUiAutomation().getRootInActiveWindow();
+                android.view.accessibility.AccessibilityNodeInfo root=freshRoot();
                 if(root==null)break;
                 java.util.List<android.view.accessibility.AccessibilityNodeInfo> targets=root.findAccessibilityNodeInfosByText(scrollTarget);
                 if(!targets.isEmpty()) {targets.get(0).performAction(android.view.accessibility.AccessibilityNodeInfo.AccessibilityAction.ACTION_SHOW_ON_SCREEN.getId());SystemClock.sleep(250);break;}
                 if(!scroll(root))break;SystemClock.sleep(250);
             }
+            if(name.startsWith("date-editor-"))inspectDateEditor(context,output,name);
             if(name.contains("-hidden-")) {
-                android.view.accessibility.AccessibilityNodeInfo root=getUiAutomation().getRootInActiveWindow();
+                android.view.accessibility.AccessibilityNodeInfo root=freshRoot();
                 check(root!=null && context.getPackageName().contentEquals(root.getPackageName()),"hidden-content screen visible "+name);
                 String spoken=spokenText(root);
                 check(!spoken.contains("宜") && !spoken.contains("忌") && !spoken.contains("农历") && !spoken.contains("農曆"),"almanac absent from accessibility "+name);
@@ -332,7 +457,7 @@ public final class FontImportAcceptance extends Instrumentation {
             }
             Bitmap screen=getUiAutomation().takeScreenshot();
             check(screen!=null && ((screen.getWidth()<screen.getHeight())==(orientation==1)),"screen orientation "+name);
-            save(screen,new File(output,name+".png"));
+            save(screen,new File(output,name+(name.startsWith("date-editor-")?"-saved":"")+".png"));
         } finally {
             if(monitor.getLastActivity()!=null)shown=monitor.getLastActivity();
             if(shown!=null){Activity close=shown;runOnMainSync(close::finish);}

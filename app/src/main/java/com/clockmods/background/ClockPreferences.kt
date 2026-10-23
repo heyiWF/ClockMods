@@ -150,6 +150,8 @@ open class ClockPreferences(context: Context) {
     fun setClockUseEnglish(value: Boolean) { setClockLanguage(if (value) LANGUAGE_ENGLISH else LANGUAGE_SIMPLIFIED) }
     fun getCustomMessage(): String = normalizeCustomMessage(preferences.getString(KEY_CUSTOM_MESSAGE, DEFAULT_CUSTOM_MESSAGE))
     fun setCustomMessage(value: String?) { preferences.edit().putString(KEY_CUSTOM_MESSAGE, normalizeCustomMessage(value)).apply() }
+    fun getDatePattern(): String = DatePatternPreferences.get(preferences, getClockLanguage())
+    fun saveDatePattern(language: String, pattern: String?): Boolean = DatePatternPreferences.save(preferences, language, pattern)
     fun getDatePatternCn(): String = normalizeDatePattern(preferences.getString(KEY_DATE_PATTERN_CN, DEFAULT_DATE_PATTERN_CN), DEFAULT_DATE_PATTERN_CN)
     fun setDatePatternCn(value: String?) { preferences.edit().putString(KEY_DATE_PATTERN_CN, normalizeDatePattern(value, getDatePatternCn())).apply() }
     fun getDatePatternEn(): String = normalizeDatePattern(preferences.getString(KEY_DATE_PATTERN_EN, DEFAULT_DATE_PATTERN_EN), DEFAULT_DATE_PATTERN_EN)
@@ -210,6 +212,7 @@ open class ClockPreferences(context: Context) {
     fun restoreDefaults() {
         val editor = preferences.edit()
         clearPerThemeTypography(editor)
+        DatePatternPreferences.clearAdditionalLanguages(editor)
         preferences.all.keys.filter { it.startsWith("calendar_marquee__") }.forEach(editor::remove)
         StatusIconStyle.reset(editor)
         editor.putString(KEY_BACKGROUND_MODE, MODE_COLOR).putInt(KEY_BACKGROUND_COLOR, DEFAULT_BACKGROUND_COLOR)

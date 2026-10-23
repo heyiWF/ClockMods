@@ -626,11 +626,7 @@ internal fun TimeDateSettingsPage(modifier: Modifier, generation: Int) {
     var showLunar by remember(generation) { mutableStateOf(repository.isShowLunar()) }
     var datePattern by remember(generation) {
         mutableStateOf(
-            if (repository.getClockLanguage() == ClockPreferences.LANGUAGE_ENGLISH) {
-                repository.getDatePatternEn()
-            } else {
-                repository.getDatePatternCn()
-            },
+            repository.getDatePattern(),
         )
     }
     var dialog by rememberSaveable { mutableStateOf<TimeDateDialog?>(null) }
@@ -748,12 +744,8 @@ private fun DatePatternDialog(
 ) {
     val language = repository.getClockLanguage()
     val english = language == ClockPreferences.LANGUAGE_ENGLISH
-    val fallback = if (english) {
-        ClockPreferences.DEFAULT_DATE_PATTERN_EN
-    } else {
-        ClockPreferences.DEFAULT_DATE_PATTERN_CN
-    }
-    val current = if (english) repository.getDatePatternEn() else repository.getDatePatternCn()
+    val fallback = DateFormatter.defaultPattern(LocaleManager.dateLang(language))
+    val current = repository.getDatePattern()
     var draft by rememberSaveable(current) { mutableStateOf(current) }
     var showHelp by rememberSaveable { mutableStateOf(false) }
     val valid = DateFormatter.isValidPattern(draft.trim())
@@ -769,7 +761,7 @@ private fun DatePatternDialog(
         onDismissRequest = onDismiss,
         title = { Text(stringResource(R.string.ultimate_date_format)) },
         text = {
-            Column(verticalArrangement = Arrangement.spacedBy(10.dp)) {
+            Column(Modifier.verticalScroll(rememberScrollState()), verticalArrangement = Arrangement.spacedBy(10.dp)) {
                 Text(
                     stringResource(R.string.ultimate_date_format_help),
                     style = MaterialTheme.typography.bodyMedium,
@@ -799,9 +791,7 @@ private fun DatePatternDialog(
                 enabled = valid,
                 onClick = {
                     val value = draft.trim()
-                    if (english) repository.setDatePatternEn(value)
-                    else repository.setDatePatternCn(value)
-                    repository.setDateFormatState(english, "", "", true, value)
+                    repository.saveDatePattern(language, value)
                     onSave(value)
                 },
             ) { Text(stringResource(R.string.ultimate_apply)) }

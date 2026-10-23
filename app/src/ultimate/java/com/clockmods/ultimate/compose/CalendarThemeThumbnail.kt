@@ -38,9 +38,7 @@ internal fun CalendarThemeThumbnail(theme: ComposeCalendarTheme, modifier: Modif
         "en" -> "MMM yyyy"; "ko" -> "yyyy년 M월"; else -> "yyyy年M月"
     }, anchor, dateLang)
     val monthName = DateFormatter.format("MMMM", anchor, dateLang)
-    val selectedDate = DateFormatter.format(when (language) {
-        "en" -> "MMM d EEE"; "ko" -> "M월 d일 EEEE"; else -> "M月d日 EEEE"
-    }, anchor, dateLang)
+    val selectedDate = DateFormatter.format(preferences.getDatePattern(), anchor, dateLang)
     val weekdays = stringArrayResource(R.array.calendar_weekday_names)
     val forecast = stringArrayResource(R.array.forecast_day_labels).take(3).joinToString("    ")
     val paint = remember { Paint(Paint.ANTI_ALIAS_FLAG) }

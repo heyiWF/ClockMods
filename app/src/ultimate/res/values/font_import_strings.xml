@@ -22,4 +22,6 @@
     <string name="font_script_korean">韩文字体</string>
     <string name="ultimate_language_japanese">日本語</string>
     <string name="ultimate_language_korean">한국어</string>
+    <string name="font_library_title">字体库</string>
+    <string name="font_library_empty_hint">导入字体后，即可在各主题中搭配文字与数字字体。</string>
 </resources>

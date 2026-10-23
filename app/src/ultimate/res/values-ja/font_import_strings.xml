@@ -22,4 +22,6 @@
     <string name="font_script_korean">韓国語のフォント</string>
     <string name="ultimate_language_japanese">日本語</string>
     <string name="ultimate_language_korean">한국어</string>
+    <string name="font_library_title">フォントライブラリ</string>
+    <string name="font_library_empty_hint">読み込んだフォントを各テーマの文字や数字に個別に設定できます。</string>
 </resources>
