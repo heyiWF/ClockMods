@@ -917,8 +917,11 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
         List<String> carouselItems = new ArrayList<>();
         carouselItems.add(day.lunarShort);
         carouselItems.addAll(labels);
+        boolean hasLabels = false;
+        for (String item : carouselItems) if (item != null && !item.trim().isEmpty()) hasLabels = true;
         CalendarLabelCarouselView lunar = new CalendarLabelCarouselView(context);
         lunar.setItems(carouselItems);
+        lunar.setVisibility(hasLabels ? View.VISIBLE : View.GONE);
         lunar.setTextSizePx(FontScalePolicy.cap(lunarSize * preferences.getSupportingFontScale(
                 ClockPreferences.calendarScope(theme.id))
                 / ClockPreferences.DEFAULT_SUPPORTING_FONT_SCALE, labelHeight * .72f, preferences.getSupportingFontScale(ClockPreferences.calendarScope(theme.id))));
@@ -930,6 +933,9 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
                 ViewGroup.LayoutParams.MATCH_PARENT, labelHeight));
         cell.setTag(day.contentDescription);
         applyCellSelection(cell, selected);
+        cell.addOnLayoutChangeListener((view, l, t, r, b, oldL, oldT, oldR, oldB) -> {
+            if (r - l != oldR - oldL || b - t != oldB - oldT) applyCellSelection(view, view.isSelected());
+        });
         cell.setClickable(interactive);
         cell.setFocusable(interactive);
         if (interactive) cell.setOnClickListener(view -> host.onDaySelected(day));
@@ -945,8 +951,19 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
         int top = cell.getPaddingTop();
         int right = cell.getPaddingRight();
         int bottom = cell.getPaddingBottom();
-        cell.setBackground(selected ? theme.newSelectionBackground(
-                context.getResources().getDisplayMetrics().density) : null);
+        cell.setSelected(selected);
+        android.graphics.drawable.Drawable highlight = selected ? theme.newSelectionBackground(
+                context.getResources().getDisplayMetrics().density) : null;
+        if (highlight != null && cell instanceof LinearLayout) {
+            LinearLayout content = (LinearLayout) cell;
+            if (content.getChildCount() == 2 && content.getChildAt(1).getVisibility() == View.GONE) {
+                View number = content.getChildAt(0);
+                int numberHeight = number.getHeight() > 0 ? number.getHeight() : number.getLayoutParams().height;
+                int inset = Math.max(0, (cell.getHeight() - numberHeight - top - bottom) / 2);
+                highlight = new android.graphics.drawable.InsetDrawable(highlight, 0, inset, 0, inset);
+            }
+        }
+        cell.setBackground(highlight);
         cell.setPadding(left, top, right, bottom);
         Object base = cell.getTag();
         if (base instanceof String) {

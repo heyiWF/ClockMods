@@ -158,6 +158,8 @@ public final class FontImportAcceptance extends Instrumentation {
                 }
             }
             checkChineseCalendar(context, output);
+            checks += ClockLayoutRefinementProbe.run(context, output);
+            checks += ClockLayoutRefinementProbe.fonts(context, output, western, script);
             for (UserFontStore.ImportedFile file : new ArrayList<>(UserFontStore.files())) if (file.faces.get(0).identity.equals(regular.faces.get(0).identity) && !prior.contains(file.id)) UserFontStore.delete(file.id);
             check(settings.getFontFamily("font.audit.a").equals(ClockPreferences.FONT_SYSTEM), "deleted family falls back to system");
             result.putString("result", "PASS " + checks + " checks");

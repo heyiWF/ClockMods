@@ -7,6 +7,7 @@ import android.view.Gravity;
 import android.view.View;
 import android.view.WindowInsets;
 import android.widget.LinearLayout;
+import android.widget.FrameLayout;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import androidx.activity.result.ActivityResultLauncher;
@@ -24,6 +25,7 @@ import com.google.android.material.color.DynamicColors;
 import com.google.android.material.color.MaterialColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
+import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
 
 /** Material 3 font library with family cards and file-level actions. */
 public final class FontManagerActivity extends AppCompatActivity {
@@ -63,13 +65,16 @@ public final class FontManagerActivity extends AppCompatActivity {
         content = new LinearLayout(this); content.setOrientation(LinearLayout.VERTICAL);
         content.setPadding(dp(24), dp(8), dp(24), dp(24));
         center.addView(content, new LinearLayout.LayoutParams(dp(Math.min(getResources().getConfiguration().screenWidthDp, 840)), -2));
-        scroll.addView(center); root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1));
-        LinearLayout actions = new LinearLayout(this); actions.setGravity(Gravity.END);
-        actions.setPadding(dp(24), dp(8), dp(24), dp(16));
-        add = new MaterialButton(this); add.setText(R.string.font_import_add);
+        scroll.addView(center); scroll.setPadding(0, 0, 0, dp(104));
+        FrameLayout library = new FrameLayout(this);
+        library.addView(scroll, new FrameLayout.LayoutParams(-1, -1));
+        root.addView(library, new LinearLayout.LayoutParams(-1, 0, 1));
+        add = new ExtendedFloatingActionButton(this); add.setText(R.string.font_import_add);
         add.setIconResource(R.drawable.import_ic_add); add.setMinHeight(dp(56));
         add.setOnClickListener(view -> picker.launch(new String[]{"*/*"}));
-        actions.addView(add); root.addView(actions); setContentView(root);
+        FrameLayout.LayoutParams action = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.END);
+        action.setMargins(dp(16), dp(16), dp(16), dp(16));
+        library.addView(add, action); setContentView(root);
         model.state.observe(this, ignored -> render());
     }
     private void render() {

@@ -1032,6 +1032,9 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
          */
         private void bindLunarSlot() {
             List<String> items = lunarItems();
+            boolean hasLabels = false;
+            for (String item : items) if (item != null && !item.trim().isEmpty()) hasLabels = true;
+            lunarSlot.setVisibility(hasLabels ? View.VISIBLE : View.GONE);
             if (lunarSlot instanceof CalendarLabelCarouselView) {
                 ((CalendarLabelCarouselView) lunarSlot).setItems(items);
                 lastLunarText = items.isEmpty() ? "" : items.get(0);
