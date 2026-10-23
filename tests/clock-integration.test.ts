@@ -271,3 +271,24 @@ describe('isolated style drafts', () => {
     expect(JSON.stringify(localStorage)).toBe(before);preview.dispose();page.stop();
   });
 });
+
+for (const id of ['glass.atelier', 'noir.instrument', 'paper.station']) {
+  it(`applies the selected family and weight to ${id} dial numerals`, async () => {
+    prefs.setClockTheme(id);
+    const {root, page} = mount();
+    for (const [family, weight] of [['lora', 500], ['inter', 800]] as const) {
+      prefs.setFontFamily(family); prefs.setFontWeight(weight);
+      await page.refreshSettings();
+      const face = root.querySelector<HTMLElement>('.ultimate-face')!;
+      const digits = face.querySelector<HTMLElement>('.face-number')!;
+      expect(face.style.fontFamily).toBe(digits.style.fontFamily);
+      const numerals = [...face.querySelectorAll('svg text')];
+      expect(numerals).toHaveLength(4);
+      for (const numeral of numerals) {
+        expect(numeral.hasAttribute('font-family')).toBe(false);
+        expect(numeral.getAttribute('font-weight')).toBe(String(weight));
+      }
+    }
+    page.stop();
+  });
+}

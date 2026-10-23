@@ -41,6 +41,14 @@ for(const [w,h] of [[320,568],[360,800],[800,360],[768,1024],[1024,768],[1920,10
     if(text.width>rect.width+2||text.height>rect.height+2)failures.push({id,w,h,lang,font,node:el.id||el.dataset.part,problem:'text overflow',box:[rect.width,rect.height],text:[text.width,text.height]});
    }
   }
+  if(!isCal) {
+   const face=root.querySelector('.ultimate-face');
+   if(face) for(const text of face.querySelectorAll('svg text,.face-label,.face-number')) {
+    const actual=doc.defaultView.getComputedStyle(text),expected=doc.defaultView.getComputedStyle(face);
+    if(actual.fontFamily!==expected.fontFamily || (text.tagName==='text' && actual.fontWeight!=='400'))
+     failures.push({id,w,h,lang,font,node:text.tagName,problem:'font not applied',family:actual.fontFamily,weight:actual.fontWeight});
+   }
+  }
   cases++;result.textContent=JSON.stringify({cases,failures:failures.slice(0,30),failureCount:failures.length},null,2);
  }
  }

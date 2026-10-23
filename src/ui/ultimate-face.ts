@@ -54,6 +54,7 @@ export class UltimateFace {
     this.landscape = width >= height; this.state = state; this.used.clear();
     this.element.dataset.face = id;
     this.family = fontStack(this.settings.getFontFamily());
+    this.element.style.fontFamily = this.family;
     const palette = this.settings.getThemePalette();
     const glassRoot = this.host.closest<HTMLElement>('.has-glass');
     const glassInk = glassRoot?.style.getPropertyValue('--glass-ink');
@@ -265,7 +266,7 @@ export class UltimateFace {
     }
     if (!blend) for (const n of [12, 3, 6, 9]) {
       const a = n * Math.PI / 6 - Math.PI / 2;
-      art += `<text x="${100 + Math.cos(a) * 60}" y="${100 + Math.sin(a) * 60}" dominant-baseline="central" text-anchor="middle" font-family="${paper ? 'serif' : 'sans-serif'}" font-size="11" font-weight="600" fill="${color}">${n}</text>`;
+      art += `<text x="${100 + Math.cos(a) * 60}" y="${100 + Math.sin(a) * 60}" dominant-baseline="central" text-anchor="middle" font-size="11" font-weight="${this.weight(600)}" fill="${color}">${n}</text>`;
     }
     const hands = [
       [(this.state.hour % 12 + this.state.minute / 60) * 30, 45, blend ? 5 : paper ? 2.8 : 4, color],
