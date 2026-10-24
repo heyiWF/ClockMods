@@ -1,8 +1,12 @@
 package com.clockmods.ultimate.settings
 
-import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.animateColorAsState
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.SeekableTransitionState
+import androidx.compose.animation.core.rememberTransition
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
 import androidx.compose.animation.slideInHorizontally
@@ -22,11 +26,13 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.selection.selectableGroup
 import androidx.compose.foundation.selection.toggleable
+import androidx.compose.foundation.shape.RoundedCornerShape
+import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.automirrored.filled.KeyboardArrowRight
 import androidx.compose.material.icons.filled.CalendarMonth
 import androidx.compose.material.icons.filled.Cloud
 import androidx.compose.material.icons.filled.Language
@@ -36,7 +42,6 @@ import androidx.compose.material.icons.filled.Restore
 import androidx.compose.material.icons.filled.Schedule
 import androidx.compose.material.icons.filled.Wallpaper
 import androidx.compose.material3.AlertDialog
-import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -49,31 +54,40 @@ import androidx.compose.material3.OutlinedButton
 import androidx.compose.material3.Scaffold
 import androidx.compose.material3.Slider
 import androidx.compose.material3.Switch
+import androidx.compose.material3.Surface
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
 import androidx.compose.ui.graphics.vector.ImageVector
+import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
+import androidx.compose.ui.semantics.role
+import androidx.compose.ui.semantics.semantics
 import androidx.compose.ui.unit.dp
+import androidx.compose.ui.unit.Density
 import com.clockmods.R
 import com.clockmods.background.AutoStartManager
 import com.clockmods.background.ClockPreferences
 import com.clockmods.ultimate.AntiBurnPreferences
 import com.clockmods.ultimate.clock.UltimateClockPreferences
 import com.clockmods.ultimate.clock.WorldClockRepository
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 
 internal enum class SettingsPage(
     @StringRes val title: Int,
@@ -146,8 +160,23 @@ internal fun SettingsScreen(
         LocalConfiguration.current.screenWidthDp,
     )
     val closeOnBack = UltimateSettingsActivity.shouldCloseSettingsOnBack(expanded, page != null)
-    BackHandler {
-        if (closeOnBack) onDone() else page = null
+    val navigationState = remember { SeekableTransitionState(page) }
+    val navigation = rememberTransition(navigationState, label = "settingsNavigation")
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(page) {
+        navigationState.animateTo(page)
+    }
+    // Only intercept the in-Compose detail -> home step. At the root (and in two-pane
+    // mode), leave Back to the Activity so Android can preview the previous window.
+    PredictiveBackHandler(enabled = !closeOnBack) { events ->
+        try {
+            events.collect { event -> navigationState.seekTo(event.progress, null) }
+            page = null
+        } catch (_: CancellationException) {
+            // Cancellation also cancels this callback's coroutine; use the composition scope
+            // to smoothly return to the current page without losing its controls or scroll.
+            scope.launch { navigationState.animateTo(page) }
+        }
     }
 
     Scaffold(
@@ -171,7 +200,10 @@ internal fun SettingsScreen(
                     ) {
                         Icon(
                             Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(R.string.ultimate_back_to_settings),
+                            contentDescription = stringResource(
+                                if (closeOnBack) R.string.ultimate_close_settings
+                                else R.string.ultimate_back_to_settings,
+                            ),
                         )
                     }
                 },
@@ -185,7 +217,6 @@ internal fun SettingsScreen(
                         selected = page ?: SettingsPage.STYLE,
                         onSelect = { page = it },
                         onRestore = { confirmRestore = true },
-                        onDone = onDone,
                         modifier = Modifier.width(340.dp),
                     )
                     VerticalDivider(Modifier.fillMaxHeight().width(1.dp))
@@ -197,8 +228,7 @@ internal fun SettingsScreen(
                     )
                 }
             } else {
-                AnimatedContent(
-                    targetState = page,
+                navigation.AnimatedContent(
                     modifier = Modifier.fillMaxSize(),
                     transitionSpec = {
                         if (targetState != null) {
@@ -211,14 +241,12 @@ internal fun SettingsScreen(
                                     fadeOut(tween(180)))
                         }
                     },
-                    label = "settingsNavigation",
                 ) { targetPage ->
                     if (targetPage == null) {
                         SettingsHome(
                             selected = null,
                             onSelect = { page = it },
                             onRestore = { confirmRestore = true },
-                            onDone = onDone,
                             modifier = Modifier.fillMaxSize(),
                         )
                     } else {
@@ -264,36 +292,26 @@ private fun SettingsHome(
     selected: SettingsPage?,
     onSelect: (SettingsPage) -> Unit,
     onRestore: () -> Unit,
-    onDone: () -> Unit,
     modifier: Modifier,
 ) {
     Column(
         modifier.verticalScroll(rememberScrollState()).padding(16.dp),
         verticalArrangement = Arrangement.spacedBy(10.dp),
     ) {
-        SettingsPage.entries.forEach { item ->
-            Card(onClick = { onSelect(item) }, Modifier.fillMaxWidth()) {
-                Row(
-                    Modifier.fillMaxWidth().padding(16.dp),
-                    verticalAlignment = Alignment.CenterVertically,
-                    horizontalArrangement = Arrangement.spacedBy(14.dp),
-                ) {
-                    Icon(
-                        item.icon,
-                        contentDescription = null,
-                        tint = if (selected == item) {
-                            MaterialTheme.colorScheme.primary
-                        } else MaterialTheme.colorScheme.onSurfaceVariant,
-                    )
-                    Column(Modifier.weight(1f)) {
-                        Text(stringResource(item.title), style = MaterialTheme.typography.titleMedium)
-                        Text(
-                            stringResource(item.summary),
-                            color = MaterialTheme.colorScheme.onSurfaceVariant,
-                            style = MaterialTheme.typography.bodySmall,
-                        )
+        // Like AOSP's RoundCornerPreferenceAdapter, normal rows keep their group's
+        // first/middle/last corners. Selection only overrides the selected row.
+        val groups = listOf(
+            listOf(SettingsPage.STYLE, SettingsPage.CALENDAR, SettingsPage.BACKGROUND),
+            listOf(SettingsPage.TIME_DATE, SettingsPage.WEATHER, SettingsPage.CHIME, SettingsPage.SYSTEM),
+        )
+        Column(Modifier.selectableGroup(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            groups.forEach { group ->
+                Column(verticalArrangement = Arrangement.spacedBy(2.dp)) {
+                    group.forEachIndexed { index, item ->
+                        SettingsNavigationItem(item, selected == item, index, group.size) {
+                            onSelect(item)
+                        }
                     }
-                    Icon(Icons.AutoMirrored.Filled.KeyboardArrowRight, contentDescription = null)
                 }
             }
         }
@@ -303,9 +321,87 @@ private fun SettingsHome(
             Spacer(Modifier.width(8.dp))
             Text(stringResource(R.string.ultimate_restore_default))
         }
-        Button(onClick = onDone, Modifier.fillMaxWidth()) {
-            Text(stringResource(R.string.ultimate_close_settings))
+    }
+}
+
+@Composable
+private fun SettingsNavigationItem(
+    item: SettingsPage,
+    selected: Boolean,
+    index: Int,
+    groupSize: Int,
+    onClick: () -> Unit,
+) {
+    val colors = MaterialTheme.colorScheme
+    val progress by animateFloatAsState(
+        targetValue = if (selected) 1f else 0f,
+        animationSpec = tween(250),
+        label = "settingsSelectionShape",
+    )
+    val normalShape = RoundedCornerShape(
+        topStart = if (index == 0) 24.dp else 4.dp,
+        topEnd = if (index == 0) 24.dp else 4.dp,
+        bottomStart = if (index == groupSize - 1) 24.dp else 4.dp,
+        bottomEnd = if (index == groupSize - 1) 24.dp else 4.dp,
+    )
+    val selectedShape = RoundedCornerShape(50)
+    val shape = RoundedCornerShape(
+        topStart = SelectionCorner(normalShape.topStart, selectedShape.topStart, progress),
+        topEnd = SelectionCorner(normalShape.topEnd, selectedShape.topEnd, progress),
+        bottomStart = SelectionCorner(normalShape.bottomStart, selectedShape.bottomStart, progress),
+        bottomEnd = SelectionCorner(normalShape.bottomEnd, selectedShape.bottomEnd, progress),
+    )
+    val background by animateColorAsState(
+        if (selected) colors.secondaryContainer else colors.surfaceContainer,
+        tween(250), label = "settingsSelectionBackground",
+    )
+    val foreground by animateColorAsState(
+        if (selected) colors.onSecondaryContainer else colors.onSurface,
+        tween(250), label = "settingsSelectionForeground",
+    )
+    val supporting by animateColorAsState(
+        if (selected) colors.onSecondaryContainer else colors.onSurfaceVariant,
+        tween(250), label = "settingsSelectionSupporting",
+    )
+    Surface(
+        selected = selected,
+        onClick = onClick,
+        modifier = Modifier.fillMaxWidth().semantics { role = Role.Tab },
+        shape = shape,
+        color = background,
+        contentColor = foreground,
+    ) {
+        Row(
+            Modifier.fillMaxWidth().padding(horizontal = 24.dp, vertical = 16.dp),
+            verticalAlignment = Alignment.CenterVertically,
+            horizontalArrangement = Arrangement.spacedBy(14.dp),
+        ) {
+            Icon(
+                item.icon,
+                contentDescription = null,
+                tint = supporting,
+            )
+            Column(Modifier.weight(1f)) {
+                Text(stringResource(item.title), style = MaterialTheme.typography.titleMedium)
+                Text(
+                    stringResource(item.summary),
+                    color = supporting,
+                    style = MaterialTheme.typography.bodySmall,
+                )
+            }
         }
+    }
+}
+
+/** Resolve percentage corners against the actual row size, including wrapped/large text. */
+private data class SelectionCorner(
+    val normal: CornerSize,
+    val selected: CornerSize,
+    val progress: Float,
+) : CornerSize {
+    override fun toPx(shapeSize: Size, density: Density): Float {
+        val start = normal.toPx(shapeSize, density)
+        return start + (selected.toPx(shapeSize, density) - start) * progress
     }
 }
 
