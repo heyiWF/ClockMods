@@ -118,6 +118,12 @@ public final class ProCalendarFragment extends Fragment implements CalendarLayou
         return root;
     }
 
+    @Override public void onViewCreated(@NonNull View view, @Nullable Bundle state) {
+        super.onViewCreated(view, state);
+        com.clockmods.calendar.imports.UserCalendarStore.get(requireContext()).changes
+                .observe(getViewLifecycleOwner(), ignored -> renderMonth());
+    }
+
     private void restoreState(Bundle state) {
         long now = System.currentTimeMillis();
         visibleMonth.setTimeInMillis(state == null ? now : state.getLong(STATE_MONTH, now));
@@ -405,11 +411,17 @@ public final class ProCalendarFragment extends Fragment implements CalendarLayou
             description += getString(status.offDay
                     ? R.string.calendar_day_rest : R.string.calendar_day_makeup);
         }
+        java.util.List<com.clockmods.pro.schedule.ScheduleItem> imported =
+                com.clockmods.calendar.imports.ImportedSchedules.on(requireContext(),
+                        com.clockmods.calendar.imports.UserCalendarStore.get(requireContext()),
+                        day.year, day.month, day.dayOfMonth, appTimeZone());
+        for (com.clockmods.pro.schedule.ScheduleItem item : imported) description += ", " + item.title;
         CalendarPageState.DayInfo.Builder builder = new CalendarPageState.DayInfo.Builder(
                 day.year, day.month, day.dayOfMonth, day.dayOfWeek, day.currentMonth, day.today,
                 isWeekend(day.dayOfWeek), String.valueOf(day.dayOfMonth))
                 .lunar(lunarShort)
                 .festivals(festivals)
+                .importedSchedules(imported)
                 .contentDescription(description);
         if (status != null) {
             builder.holiday(status.name, getString(status.offDay

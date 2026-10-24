@@ -47,6 +47,7 @@ public final class AgendaScheduleView extends LinearLayout {
 
     private float titleSize = 13f;
     private float bodySize = 13f;
+    private Typeface regularTypeface;
 
     public AgendaScheduleView(Context context) {
         this(context, null);
@@ -135,6 +136,7 @@ public final class AgendaScheduleView extends LinearLayout {
     }
 
     public void setTypefaces(Typeface display, Typeface regular) {
+        regularTypeface = regular;
         heading.setTypeface(regular);
         addButton.setTypeface(regular);
         emptyView.setTypeface(regular);
@@ -167,6 +169,7 @@ public final class AgendaScheduleView extends LinearLayout {
         scroll.setVisibility(View.VISIBLE);
         for (ScheduleItem item : items) {
             Row row = new Row(getContext(), item);
+            row.setTypefaces(regularTypeface);
             row.applyTheme();
             row.applySizing(bodySize);
             rows.addView(row);
@@ -205,7 +208,7 @@ public final class AgendaScheduleView extends LinearLayout {
             super(context);
             this.item = item;
             float density = getResources().getDisplayMetrics().density;
-            setOrientation(HORIZONTAL);
+            setOrientation(item.importSource.isEmpty() ? HORIZONTAL : VERTICAL);
             setBaselineAligned(false);
             setGravity(Gravity.CENTER_VERTICAL);
             setBackground(selectableBackground(context));
@@ -216,7 +219,8 @@ public final class AgendaScheduleView extends LinearLayout {
 
             time = new TextView(context);
             time.setIncludeFontPadding(false);
-            time.setSingleLine(true);
+            time.setSingleLine(item.importSource.isEmpty());
+            time.setMaxLines(2);
             time.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
             time.setText(item.hasTime() ? ClockTimeText.align(item.timeLabel())
                     : context.getString(R.string.ultimate_schedule_all_day));
@@ -228,10 +232,13 @@ public final class AgendaScheduleView extends LinearLayout {
 
             title = new TextView(context);
             title.setIncludeFontPadding(false);
-            title.setSingleLine(true);
+            title.setSingleLine(item.importSource.isEmpty());
+            title.setMaxLines(2);
             title.setEllipsize(android.text.TextUtils.TruncateAt.END);
             title.setText(item.title);
-            addView(title, new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f));
+            addView(title, item.importSource.isEmpty()
+                    ? new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
+                    : new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
 
             setOnClickListener(view -> {
                 if (listener != null) listener.onItemSelected(item);

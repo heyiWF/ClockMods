@@ -2229,6 +2229,8 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     repository.setClockLanguage(selected);
                     markChanged(CHANGE_SOURCE_CLOCK_LANGUAGE);
                 });
+        addActionRow(body, R.string.calendar_import_title, R.string.calendar_import_summary,
+                R.drawable.ultimate_ic_language, () -> startActivity(new Intent(this, CalendarManagerActivity.class)));
         addActionRow(body, R.string.font_import_title, R.string.font_import_summary,
                 R.drawable.ultimate_ic_language, () -> startActivity(new Intent(this, FontManagerActivity.class)));
         if (repository.canToggleChineseCalendar()) {

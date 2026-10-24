@@ -83,6 +83,7 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
     private final List<DayCell> cells = new ArrayList<>();
 
     private Context context;
+    private boolean active;
     private View root;
     private CalendarLayoutHost host;
 
@@ -190,6 +191,7 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
 
     @Override
     public void onDestroyView() {
+        active = false;
         if (monthPanel != null) monthPanel.removeCallbacks(responsiveSizingRunnable);
         responsiveSizingPosted = false;
         cells.clear();
@@ -200,6 +202,7 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
 
     @Override
     public void setActive(boolean active) {
+        this.active = active;
         if (statusBar == null) return;
         if (active) statusBar.start(); else statusBar.stop();
         // The 宜/忌 marquee runs only while the page is the one the user is looking at.
@@ -500,7 +503,8 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
             return;
         }
         scheduleView.setVisibility(View.VISIBLE);
-        scheduleView.setItems(scheduleStore.itemsFor(day.year, day.month, day.dayOfMonth));
+        scheduleView.setItems(com.clockmods.calendar.imports.ImportedSchedules.merge(
+                scheduleStore.itemsFor(day.year, day.month, day.dayOfMonth), day.importedSchedules));
     }
 
     @Nullable
@@ -540,6 +544,11 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
      * keypad affordance instead of this app reinventing one.
      */
     private void showScheduleEditor(@Nullable ScheduleItem existing) {
+        if (existing != null && !existing.importSource.isEmpty()) {
+            new MaterialAlertDialogBuilder(context).setTitle(existing.title).setMessage(existing.details)
+                    .setPositiveButton(android.R.string.ok, null).show();
+            return;
+        }
         CalendarPageState.DayInfo day = selectedDay();
         if (day == null) return;
         float density = context.getResources().getDisplayMetrics().density;
@@ -916,16 +925,7 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
         private final boolean interactive;
         private final TextView weekdayLabel;
         private final CalendarDayNumberView number;
-        /**
-         * Lunar / festival label for the strip cell.
-         *
-         * <p>In the rail (landscape) this stays a plain {@link TextView} — the rail cell is a
-         * horizontal row and a {@link CalendarLabelCarouselView} in that narrow weight column
-         * would not gain anything over the single-item static path. In the portrait strip each
-         * cell is a column and multiple festivals deserve a carousel, so the view is a
-         * {@link CalendarLabelCarouselView} there instead.  To keep one binding path the field
-         * is typed as {@link View} and helpers cast it.</p>
-         */
+        /** Lunar, festival and imported-event carousel in both strip orientations. */
         private final View lunarSlot;
         /** Today's accent: an underline in the strip, a leading bar in the rail. */
         private final View accentMark;
@@ -961,12 +961,8 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
             accentMark.setImportantForAccessibility(IMPORTANT_FOR_ACCESSIBILITY_NO);
 
             if (rail) {
-                // In the rail a TextView is enough: one label per cell, no carousel needed.
-                TextView tv = new TextView(getContext());
-                tv.setGravity(Gravity.END | Gravity.CENTER_VERTICAL);
-                tv.setIncludeFontPadding(false);
-                tv.setSingleLine(true);
-                lunarSlot = tv;
+                // Imported events also rotate in the landscape rail.
+                lunarSlot = new CalendarLabelCarouselView(getContext());
                 // Weighted slots, not wrapped ones. A lunar label is two glyphs on most days and
                 // three when it carries a solar term or a festival (处暑, 七夕节) — and a wrapped
                 // label hands that extra width back by squeezing the number's box, which slides
@@ -978,7 +974,7 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
                 weekdayParams.setMarginStart(Math.round(density * 6f));
                 addView(weekdayLabel, weekdayParams);
                 addView(number, new LayoutParams(0, LayoutParams.MATCH_PARENT, 2.6f));
-                LayoutParams lunarParams = new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1.1f);
+                LayoutParams lunarParams = new LayoutParams(0, LayoutParams.MATCH_PARENT, 1.1f);
                 lunarParams.setMarginEnd(Math.round(density * 6f));
                 addView(lunarSlot, lunarParams);
             } else {
@@ -1008,6 +1004,7 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
             weekdayLabel.setText(index < state.weekdayNames.length ? state.weekdayNames[index] : "");
             number.setDay(day.dayNumber, dayColor());
             bindLunarSlot();
+            setCarouselActive(interactive && active);
             baseDescription = day.contentDescription;
             applyTheme();
             applySelection(selected);
@@ -1050,10 +1047,11 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
          * Falls back to a singleton list containing the lunar-date short label.
          */
         private List<String> lunarItems() {
-            if (!day.festivals.isEmpty()) return day.festivals;
-            List<String> fallback = new ArrayList<>(1);
-            fallback.add(day.lunarShort);
-            return fallback;
+            List<String> items = new ArrayList<>();
+            if (!day.festivals.isEmpty()) items.addAll(day.festivals);
+            else if (!day.lunarShort.isEmpty()) items.add(day.lunarShort);
+            items.addAll(day.eventLabels);
+            return items;
         }
 
         private int dayColor() {

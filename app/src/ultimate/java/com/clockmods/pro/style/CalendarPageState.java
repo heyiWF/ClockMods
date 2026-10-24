@@ -7,7 +7,7 @@ import java.util.List;
 /**
  * Everything a {@link CalendarLayout} needs to draw one page, already formatted.
  *
- * <p>Follows the discipline {@code ClockState} set on the clock side: <strong>strings only</strong>.
+ * <p>Follows the discipline {@code ClockState} set on the clock side: presentation data only.
  * No {@code SolarDay}, {@code LunarDay}, {@code Taboo}, {@code HolidayStatus}, {@code Context} or
  * colour ever reaches a layout through here — the host resolves all of that, so a layout cannot
  * accidentally do date maths or resource IO while it is being measured.</p>
@@ -102,6 +102,8 @@ public final class CalendarPageState {
         public final String lunarShort;
         /** Solar terms and festivals, in display order. Requires {@link DayDetail#FESTIVALS}. */
         public final List<String> festivals;
+        public final List<String> eventLabels;
+        public final List<com.clockmods.pro.schedule.ScheduleItem> importedSchedules;
         /** Statutory holiday name, e.g. 中秋节. Requires {@link DayDetail#HOLIDAY}. */
         public final String holidayName;
         /** 休 or 班, or empty when the day carries no statutory arrangement. */
@@ -122,6 +124,8 @@ public final class CalendarPageState {
             dayNumber = builder.dayNumber;
             lunarShort = builder.lunarShort;
             festivals = Collections.unmodifiableList(builder.festivals);
+            importedSchedules = Collections.unmodifiableList(builder.importedSchedules);
+            eventLabels = com.clockmods.calendar.imports.ImportedSchedules.labels(importedSchedules);
             holidayName = builder.holidayName;
             holidayBadge = builder.holidayBadge;
             holidayOffDay = builder.holidayOffDay;
@@ -134,6 +138,11 @@ public final class CalendarPageState {
             private final String dayNumber;
             private String lunarShort = "";
             private List<String> festivals = Collections.emptyList();
+            private List<com.clockmods.pro.schedule.ScheduleItem> importedSchedules = Collections.emptyList();
+
+            public Builder importedSchedules(List<com.clockmods.pro.schedule.ScheduleItem> value) {
+                importedSchedules = new ArrayList<>(value); return this;
+            }
             private String holidayName = "";
             private String holidayBadge = "";
             private boolean holidayOffDay;

@@ -915,8 +915,9 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
                 : new LinearLayout.LayoutParams(ViewGroup.LayoutParams.MATCH_PARENT, 0, 1f));
         List<String> labels = day.festivals;
         List<String> carouselItems = new ArrayList<>();
-        carouselItems.add(day.lunarShort);
+        if (!day.lunarShort.isEmpty()) carouselItems.add(day.lunarShort);
         carouselItems.addAll(labels);
+        carouselItems.addAll(day.eventLabels);
         boolean hasLabels = false;
         for (String item : carouselItems) if (item != null && !item.trim().isEmpty()) hasLabels = true;
         CalendarLabelCarouselView lunar = new CalendarLabelCarouselView(context);
