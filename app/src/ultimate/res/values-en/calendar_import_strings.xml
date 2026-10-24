@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="calendar_import_title">Calendar files</string>
+    <string name="calendar_import_summary">Import ICS files to show events in date labels and Agenda.</string>
+    <string name="calendar_import_add">Import calendar</string>
+    <string name="calendar_import_empty">No calendars yet</string>
+    <string name="calendar_import_empty_hint">Choose an .ics file to begin. Files are stored in the app and do not update online automatically.</string>
+    <string name="calendar_import_busy">Processing calendar…</string>
+    <string name="calendar_import_success">Imported %1$s</string>
+    <string name="calendar_import_duplicate">This calendar file is already imported.</string>
+    <string name="calendar_import_invalid">Cannot read this calendar. Choose a valid UTF-8 ICS file.</string>
+    <string name="calendar_import_no_events">This file contains no usable events.</string>
+    <string name="calendar_import_limit">File or event limit reached (8 MiB per file, 32 files, 32 MiB total).</string>
+    <string name="calendar_import_unsupported">This calendar uses unsupported recurrence rules. Export hourly or longer repeats and split “this and future” changes into separate events.</string>
+    <string name="calendar_import_timezone">This calendar has an unrecognized time zone. Export it again with a valid time zone.</string>
+    <string name="calendar_import_delete">Delete file</string>
+    <string name="calendar_import_delete_confirm">Delete “%1$s” and all its imported events? Manually added events will be kept.</string>
+    <string name="calendar_import_deleted">Calendar file and its events deleted.</string>
+    <string name="calendar_import_delete_failed">Could not delete the file. Try again.</string>
+    <string name="calendar_import_count">%1$d events · %2$s</string>
+    <string name="calendar_import_source">Source: %1$s</string>
+    <string name="calendar_import_untitled">Untitled event</string>
+    <string name="calendar_import_query_error">Some dates could not be expanded. Check recurrence rules or import the file again.</string>
+    <string name="calendar_import_readonly">Imported from a calendar file. Remove its source in System &amp; Language → Calendar files.</string>
+</resources>

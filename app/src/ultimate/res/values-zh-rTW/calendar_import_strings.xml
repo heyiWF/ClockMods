@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="calendar_import_title">日曆檔案</string>
+    <string name="calendar_import_summary">匯入 ICS 日曆檔案，在日期輪播和週程中查看行程。</string>
+    <string name="calendar_import_add">匯入日曆</string>
+    <string name="calendar_import_empty">尚未匯入日曆</string>
+    <string name="calendar_import_empty_hint">選擇 .ics 檔案開始。檔案儲存在應用程式內，不會自動連網更新。</string>
+    <string name="calendar_import_busy">正在處理日曆…</string>
+    <string name="calendar_import_success">已匯入 %1$s</string>
+    <string name="calendar_import_duplicate">這個日曆檔案已經匯入。</string>
+    <string name="calendar_import_invalid">無法讀取日曆，請選擇有效的 UTF-8 ICS 檔案。</string>
+    <string name="calendar_import_no_events">檔案中沒有可用的行程。</string>
+    <string name="calendar_import_limit">檔案或行程數量超過限制（單檔 8 MiB，最多 32 個檔案，共 32 MiB）。</string>
+    <string name="calendar_import_unsupported">日曆包含暫不支援的重複規則，請匯出每小時或更長週期重複的行程，並將「此項及以後」修改拆成獨立行程。</string>
+    <string name="calendar_import_timezone">日曆包含無法辨識的時區，請重新匯出含有效時區的檔案。</string>
+    <string name="calendar_import_delete">刪除檔案</string>
+    <string name="calendar_import_delete_confirm">刪除「%1$s」及其所有匯入行程？手動新增的行程會保留。</string>
+    <string name="calendar_import_deleted">已刪除日曆檔案及其行程。</string>
+    <string name="calendar_import_delete_failed">刪除失敗，請重試。</string>
+    <string name="calendar_import_count">%1$d 個行程 · %2$s</string>
+    <string name="calendar_import_source">來源：%1$s</string>
+    <string name="calendar_import_untitled">未命名行程</string>
+    <string name="calendar_import_query_error">部分日期的行程無法展開。請檢查重複規則或重新匯入。</string>
+    <string name="calendar_import_readonly">來自匯入的日曆檔案，可在「系統與語言 → 日曆檔案」中刪除來源檔案。</string>
+</resources>

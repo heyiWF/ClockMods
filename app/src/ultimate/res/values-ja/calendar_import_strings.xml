@@ -1,0 +1,25 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="calendar_import_title">カレンダーファイル</string>
+    <string name="calendar_import_summary">ICS ファイルを読み込み、日付の表示欄や週間予定に予定を表示します。</string>
+    <string name="calendar_import_add">カレンダーを読み込む</string>
+    <string name="calendar_import_empty">カレンダーはありません</string>
+    <string name="calendar_import_empty_hint">.ics ファイルを選択してください。ファイルはアプリ内に保存され、自動でオンライン更新されません。</string>
+    <string name="calendar_import_busy">カレンダーを処理中…</string>
+    <string name="calendar_import_success">%1$s を読み込みました</string>
+    <string name="calendar_import_duplicate">このカレンダーファイルは読み込み済みです。</string>
+    <string name="calendar_import_invalid">読み込めません。有効な UTF-8 の ICS ファイルを選択してください。</string>
+    <string name="calendar_import_no_events">ファイルに利用可能な予定がありません。</string>
+    <string name="calendar_import_limit">ファイルまたは予定数の上限です（1 ファイル 8 MiB、最大 32 ファイル、合計 32 MiB）。</string>
+    <string name="calendar_import_unsupported">未対応の繰り返しルールがあります。1 時間以上の間隔で書き出し、「これ以降」の変更は別の予定に分けてください。</string>
+    <string name="calendar_import_timezone">認識できないタイムゾーンがあります。有効なタイムゾーンを含めて書き出してください。</string>
+    <string name="calendar_import_delete">ファイルを削除</string>
+    <string name="calendar_import_delete_confirm">「%1$s」と読み込んだすべての予定を削除しますか？手動で追加した予定は残ります。</string>
+    <string name="calendar_import_deleted">ファイルと予定を削除しました。</string>
+    <string name="calendar_import_delete_failed">削除できませんでした。もう一度お試しください。</string>
+    <string name="calendar_import_count">%1$d 件の予定 · %2$s</string>
+    <string name="calendar_import_source">読み込み元：%1$s</string>
+    <string name="calendar_import_untitled">無題の予定</string>
+    <string name="calendar_import_query_error">一部の日付の予定を展開できません。繰り返しルールを確認するか、再度読み込んでください。</string>
+    <string name="calendar_import_readonly">カレンダーファイルから読み込んだ予定です。「システムと言語 → カレンダーファイル」で元のファイルを削除できます。</string>
+</resources>

@@ -4,6 +4,8 @@ import androidx.compose.animation.core.LinearEasing
 import androidx.compose.animation.core.Animatable
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.gestures.detectTapGestures
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -27,6 +29,7 @@ import androidx.compose.material3.TimePicker
 import androidx.compose.material3.rememberTimePickerState
 import androidx.compose.runtime.withFrameNanos
 import androidx.compose.runtime.Composable
+import androidx.compose.runtime.DisposableEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.setValue
 import androidx.compose.runtime.LaunchedEffect
@@ -82,6 +85,8 @@ internal data class CalendarCellInfo(
     val avoid: List<String>,
     val hasSchedule: Boolean,
     val showChineseCalendar: Boolean = true,
+    val eventLabels: List<String> = emptyList(),
+    val importedSchedules: List<ScheduleItem> = emptyList(),
 )
 
 internal data class CalendarTypography(
@@ -130,6 +135,13 @@ internal fun CalendarScreen(
     val context = LocalContext.current
     val preferences = remember(context, refreshGeneration) { ClockPreferences(context) }
     val scheduleStore = remember(context) { ScheduleStore(context) }
+    val calendarStore = remember(context) { com.clockmods.calendar.imports.UserCalendarStore.get(context) }
+    var importRevision by remember { mutableLongStateOf(0L) }
+    DisposableEffect(calendarStore) {
+        val observer = androidx.lifecycle.Observer<Long> { importRevision = it }
+        calendarStore.changes.observeForever(observer)
+        onDispose { calendarStore.changes.removeObserver(observer) }
+    }
     val holidayRepository = remember(context) { HolidayRepository(context) }
     val timeZone = remember(refreshGeneration) {
         preferences.getTimeZoneId().takeIf(String::isNotBlank)?.let(TimeZone::getTimeZone)
@@ -221,7 +233,7 @@ internal fun CalendarScreen(
         }
     }
     val showChineseCalendar = preferences.isChineseCalendarEnabled()
-    val cellCache = remember(holidayRepository, scheduleStore, refreshGeneration, scheduleRevision, showChineseCalendar) {
+    val cellCache = remember(holidayRepository, scheduleStore, refreshGeneration, scheduleRevision, showChineseCalendar, importRevision, timeZone) {
         CalendarCellCache { day ->
             val almanac = if (showChineseCalendar) LunarAlmanac.of(day.year, day.month, day.dayOfMonth) else null
             val date = String.format(
@@ -231,6 +243,8 @@ internal fun CalendarScreen(
                 day.month + 1,
                 day.dayOfMonth,
             )
+            val imported = com.clockmods.calendar.imports.ImportedSchedules.on(context, calendarStore,
+                day.year, day.month, day.dayOfMonth, timeZone)
             CalendarCellInfo(
                 day = day,
                 lunar = almanac?.shortLabel().orEmpty(),
@@ -238,7 +252,9 @@ internal fun CalendarScreen(
                 holiday = if (showChineseCalendar) holidayRepository.statusOn(date) else null,
                 suitable = almanac?.suitable().orEmpty(),
                 avoid = almanac?.avoid().orEmpty(),
-                hasSchedule = scheduleStore.itemsFor(day.year, day.month, day.dayOfMonth).isNotEmpty(),
+                hasSchedule = imported.isNotEmpty() || scheduleStore.itemsFor(day.year, day.month, day.dayOfMonth).isNotEmpty(),
+                eventLabels = com.clockmods.calendar.imports.ImportedSchedules.labels(imported),
+                importedSchedules = imported,
                 showChineseCalendar = showChineseCalendar,
             )
         }
@@ -286,13 +302,13 @@ internal fun CalendarScreen(
     var editingItem by remember { mutableStateOf<ScheduleItem?>(null) }
     var editorVisible by rememberSaveable { mutableStateOf(false) }
     fun reloadSelectedSchedule() {
-        selectedSchedule = scheduleStore.itemsFor(
+        selectedSchedule = com.clockmods.calendar.imports.ImportedSchedules.merge(scheduleStore.itemsFor(
             selected.day.year,
             selected.day.month,
             selected.day.dayOfMonth,
-        ).toList()
+        ).toList(), selected.importedSchedules)
     }
-    LaunchedEffect(selected.day.year, selected.day.month, selected.day.dayOfMonth, refreshGeneration) {
+    LaunchedEffect(selected.day.year, selected.day.month, selected.day.dayOfMonth, refreshGeneration, importRevision) {
         reloadSelectedSchedule()
     }
     val locale = LocaleManager.resolveLocale(context)
@@ -368,7 +384,12 @@ internal fun CalendarScreen(
             monthPickerVisible = false
         }
     }
-    if (editorVisible) {
+    if (editorVisible && editingItem?.importSource?.isNotEmpty() == true) {
+        AlertDialog(onDismissRequest = { editorVisible = false },
+            title = { Text(editingItem!!.title) },
+            text = { Text(editingItem!!.details, Modifier.verticalScroll(rememberScrollState())) },
+            confirmButton = { TextButton(onClick = { editorVisible = false }) { Text(stringResource(android.R.string.ok)) } })
+    } else if (editorVisible) {
         ScheduleEditorDialog(
             existing = editingItem,
             use24Hour = preferences.isUse24Hour(),

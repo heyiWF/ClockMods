@@ -257,7 +257,10 @@ private fun OriginalDayCell(cell: CalendarCellInfo, selected: Boolean, theme: Co
         if (cell.day.today) R.string.calendar_day_today_number_accessibility else R.string.calendar_day_number_accessibility,
         cell.day.dayOfMonth)
     BoxWithConstraints(modifier.alpha(if (cell.day.currentMonth) 1f else if (theme.flatGrid) .18f else .38f)
-        .clickable(onClick = onSelect).semantics { contentDescription = description; this.selected = selected }
+        .clickable(onClick = onSelect).semantics {
+            contentDescription = (listOf(description) + cell.eventLabels).joinToString(", ")
+            this.selected = selected
+        }
         .testTag("day:${cell.day.year}-${cell.day.month + 1}-${cell.day.dayOfMonth}")
         .padding(horizontal = if (theme.flatGrid) 0.dp else 1.dp, vertical = if (theme.flatGrid) 0.dp else 2.dp), contentAlignment = Alignment.Center) {
         val w = maxWidth.value
@@ -269,7 +272,7 @@ private fun OriginalDayCell(cell: CalendarCellInfo, selected: Boolean, theme: Co
         // The day number owns most of the cell; supporting zoom consumes only its own line box.
         val lunarSize = if (typography.supportingScale > 1f) lunar * typography.supportingScale else minOf(lunar * typography.supportingScale, number * dateFactor * .72f,
             h * .34f / (fontScale * 1.2f)).coerceAtLeast(.1f)
-        val hasLabels = cell.lunar.isNotBlank() || cell.festivals.any { it.isNotBlank() }
+        val hasLabels = cell.lunar.isNotBlank() || cell.festivals.any { it.isNotBlank() } || cell.eventLabels.isNotEmpty()
         val labelHeight = if (!hasLabels && !theme.flatGrid) 0f else if (theme.flatGrid) Sizing.posterMarkHeight(number, 1f)
             else maxOf(Sizing.monthLabelHeight(h + 4, lunar), lunarSize * fontScale * 1.2f)
                 .coerceAtMost(h * .35f)
@@ -292,7 +295,7 @@ private fun OriginalDayCell(cell: CalendarCellInfo, selected: Boolean, theme: Co
                     else if (cell.day.today) drawCircle(Color(theme.today), maxOf(1.dp.toPx(), min(size.width, size.height) * .22f))
                 }
             } else if (hasLabels) Box(Modifier.fillMaxWidth().height(labelHeight.dp), contentAlignment = Alignment.Center) {
-                LunarCarouselText(listOf(cell.lunar) + cell.festivals,
+                LunarCarouselText(listOf(cell.lunar) + cell.festivals + cell.eventLabels,
                     Color(if (cell.festivals.isEmpty()) theme.secondary else theme.text),
                     typography.supportingStyle(TextStyle(fontSize = (lunarSize / typography.supportingScale).sp), cell.lunar))
             }
@@ -710,7 +713,7 @@ private fun AgendaStripCell(cell: CalendarCellInfo, selected: Boolean, theme: Co
         val label = Sizing.agendaStripLunarSize(maxWidth.value, maxHeight.value, 1f)
         val dayColor = when { cell.day.today -> theme.today; weekends && cell.day.dayOfWeek in listOf(1, 7) -> theme.weekend; else -> theme.day }
         val weekdayColor = if (weekends && cell.day.dayOfWeek in listOf(1, 7)) theme.weekend else theme.weekday
-        val lunarItems = cell.festivals.ifEmpty { listOf(cell.lunar) }.filter { it.isNotBlank() }
+        val lunarItems = (cell.festivals.ifEmpty { listOf(cell.lunar) } + cell.eventLabels).filter { it.isNotBlank() }
         val lunarColor = if (cell.festivals.isEmpty()) theme.secondary else theme.accent
         val markerColor = if (cell.day.today) Color(theme.today) else Color.Transparent
         if (rail) Row(Modifier.fillMaxSize().padding(3.dp), verticalAlignment = Alignment.CenterVertically) {
@@ -718,7 +721,7 @@ private fun AgendaStripCell(cell: CalendarCellInfo, selected: Boolean, theme: Co
             Spacer(Modifier.width(6.dp))
             CalendarText(labels[cell.day.dayOfWeek - 1], label, weekdayColor, typography, Modifier.weight(1.1f))
             CalendarNumber(cell, dayColor, theme, typography, number, Modifier.weight(2.6f).fillMaxHeight(), true)
-            if (lunarItems.isNotEmpty()) Box(Modifier.weight(1.1f), contentAlignment = Alignment.CenterEnd) { CalendarText(lunarItems.first(), label, lunarColor, typography) }
+            if (lunarItems.isNotEmpty()) Box(Modifier.weight(1.1f), contentAlignment = Alignment.CenterEnd) { LunarCarouselText(lunarItems, Color(lunarColor), typography.supportingStyle(TextStyle(fontSize = label.sp), cell.lunar)) }
             Spacer(Modifier.width(6.dp))
         } else Column(Modifier.fillMaxSize().padding(3.dp), horizontalAlignment = Alignment.CenterHorizontally, verticalArrangement = Arrangement.Center) {
             CalendarText(labels[cell.day.dayOfWeek - 1], label, weekdayColor, typography)
@@ -772,7 +775,7 @@ private fun AgendaCard(cell: CalendarCellInfo, theme: ComposeCalendarTheme, typo
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 if (schedule.isEmpty()) CalendarText(stringResource(R.string.ultimate_schedule_empty), body * 1.08f, theme.secondary, typography)
                 else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
-                    schedule.forEach { item -> CalendarText("${item.timeLabel()}  ${item.title}", body * 1.08f, theme.text, typography,
+                    schedule.forEach { item -> CalendarText("${if (item.hasTime()) item.timeLabel() else stringResource(R.string.ultimate_schedule_all_day)}  ${item.title}", body * 1.08f, theme.text, typography,
                         Modifier.fillMaxWidth().clickable { edit(item) }.padding(vertical = 8.dp), maxLines = 2) }
                 }
             }

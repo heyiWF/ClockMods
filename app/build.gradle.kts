@@ -95,6 +95,9 @@ kotlin {
 }
 
 dependencies {
+    implementation("net.sf.biweekly:biweekly:0.6.8") {
+        exclude(group = "com.fasterxml.jackson.core", module = "jackson-core")
+    }
     val composeBom = platform("androidx.compose:compose-bom:2026.09.00")
 
     implementation(composeBom)

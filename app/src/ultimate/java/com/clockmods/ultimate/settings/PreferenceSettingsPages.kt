@@ -1590,6 +1590,9 @@ internal fun SystemSettingsPage(
                 preferences.setClockLanguage(it)
                 onLanguageChanged()
             }
+            SettingAction(stringResource(R.string.calendar_import_title), stringResource(R.string.calendar_import_summary)) {
+                context.startActivity(android.content.Intent(context, CalendarManagerActivity::class.java))
+            }
             SettingAction(stringResource(R.string.font_import_title), stringResource(R.string.font_import_summary)) {
                 context.startActivity(android.content.Intent(context, FontManagerActivity::class.java))
             }

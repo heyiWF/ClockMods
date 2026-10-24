@@ -47,6 +47,8 @@ ClockMods Ultimate · Compose 是一款面向 Android 12 及以上设备的全�
 
 浏览月份或周、点选日期、回到今天，农历、节气、节日与传统宜忌都能离线查看。周起始日和周末高亮也能按习惯调整；休 / 班标记覆盖已收录的年份。
 
+在“系统与语言 → 日历文件”中导入与管理 ICS 文件。日程会加入日期下方的文字轮播，并在“靛蓝周程”中按全天或时间段显示；关闭中国历法后仍可查看。删除导入文件会移除其日程，手动添加的日程不受影响。导入文件保存在应用内，不会自动联网更新。支持的重复规则、时区和文件限制见 [日历导入说明](docs/imported-calendars.md)。
+
 ## 把远方的时间，也放在眼前
 
 “双块”“轨道”“气泡”“混合”“丝带”支持世界时钟，最多添加六个城市。按城市、国家或时区查找，再调整显示顺序，就能把家人、朋友或工作伙伴所在的时间放在同一屏幕上。
@@ -93,4 +95,4 @@ ClockMods Ultimate · Compose 是一款面向 Android 12 及以上设备的全�
 
 ## 许可与致谢
 
-项目采用 [MIT 许可证](LICENSE)。天气数据来自 [QWeather](https://www.qweather.com)，[QWeather Icons](https://icons.qweather.com) 图标采用 CC BY 4.0；农历引擎 [tyme4j](https://github.com/6tail/tyme4j) 与节假日数据 [holiday-cn](https://github.com/NateScarlet/holiday-cn) 采用 MIT。字体及其他资源以各自随附许可为准。
+项目采用 [MIT 许可证](LICENSE)。天气数据来自 [QWeather](https://www.qweather.com)，[QWeather Icons](https://icons.qweather.com) 图标采用 CC BY 4.0；农历引擎 [tyme4j](https://github.com/6tail/tyme4j) 与节假日数据 [holiday-cn](https://github.com/NateScarlet/holiday-cn) 采用 MIT。日历文件解析使用 [biweekly](https://github.com/mangstadt/biweekly)（BSD 2-Clause）和 [vinnie](https://github.com/mangstadt/vinnie)（MIT），随附依赖许可位于应用的 assets/licenses。字体及其他资源以各自随附许可为准。
