@@ -79,6 +79,7 @@ public final class ProMainActivity extends AppCompatActivity {
     protected void onCreate(Bundle savedInstanceState) {
         ExperienceBridge.applyThemeFeatures(this);
         super.onCreate(savedInstanceState);
+        com.clockmods.ui.LaunchSplash.install(this);
         getWindow().setBackgroundDrawable(new ColorDrawable(surfaceColor()));
         applyScreenOrientation();
         enableEdgeToEdge();

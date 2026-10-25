@@ -1,0 +1,15 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    android:width="288dp" android:height="288dp" android:viewportWidth="288" android:viewportHeight="288">
+    <path android:fillColor="#172B38" android:pathData="M144,58a86,86 0,1 0,0 172a86,86 0,1 0,0 -172"/>
+    <group android:name="dial" android:pivotX="144" android:pivotY="144" android:rotation="-90">
+        <path android:name="orbit" android:fillColor="@android:color/transparent" android:strokeColor="#9FE5D5" android:strokeWidth="3" android:strokeLineCap="round" android:trimPathEnd="1" android:pathData="M216,144a72,72 0,1 1,-144 0a72,72 0,1 1,144 0"/>
+    </group>
+    <path android:fillColor="@android:color/transparent" android:strokeColor="#65817F" android:strokeWidth="3" android:strokeLineCap="round" android:pathData="M144,84v8 M204,144h-8 M144,204v-8 M84,144h8"/>
+    <group android:name="hour" android:pivotX="144" android:pivotY="144">
+        <path android:fillColor="@android:color/transparent" android:strokeColor="#F3EDE0" android:strokeWidth="8" android:strokeLineCap="round" android:pathData="M144,144L120,120"/>
+    </group>
+    <group android:name="minute" android:pivotX="144" android:pivotY="144">
+        <path android:fillColor="@android:color/transparent" android:strokeColor="#F3EDE0" android:strokeWidth="6" android:strokeLineCap="round" android:pathData="M144,144L174,114"/>
+    </group>
+    <path android:fillColor="#9FE5D5" android:pathData="M144,138a6,6 0,1 0,0 12a6,6 0,1 0,0 -12"/>
+</vector>

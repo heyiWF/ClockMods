@@ -1,0 +1,8 @@
+<resources>
+    <style name="Theme.ClockMods.Launch" parent="Theme.ClockMods">
+        <item name="android:windowSplashScreenBackground">#101D29</item>
+        <item name="android:windowSplashScreenAnimatedIcon">@drawable/launch_clock_animated</item>
+        <item name="android:windowSplashScreenAnimationDuration">760</item>
+        <item name="android:windowSplashScreenIconBackgroundColor">@android:color/transparent</item>
+    </style>
+</resources>

@@ -39,7 +39,7 @@ android {
             versionNameSuffix "-compat"
             minSdk = 14
             resValue "string", "app_name", "ClockMods Lite"
-            manifestPlaceholders = [launcherActivity: ".MainActivity"]
+            manifestPlaceholders = [launcherActivity: ".MainActivity", launcherTheme: "@style/Theme.ClockMods"]
             buildConfigField 'boolean', 'WEATHER_DETAIL_USES_TIME_TRANSITION', 'false'
             buildConfigField 'boolean', 'PRO_FONTS', 'false'
         }
@@ -49,7 +49,7 @@ android {
             versionNameSuffix "-modern"
             minSdk = 23
             resValue "string", "app_name", "ClockMods"
-            manifestPlaceholders = [launcherActivity: ".MainActivity"]
+            manifestPlaceholders = [launcherActivity: ".MainActivity", launcherTheme: "@style/Theme.ClockMods"]
             buildConfigField 'boolean', 'WEATHER_DETAIL_USES_TIME_TRANSITION', 'false'
             buildConfigField 'boolean', 'PRO_FONTS', 'false'
         }
@@ -59,7 +59,7 @@ android {
             versionNameSuffix "-pro"
             minSdk = 31
             resValue "string", "app_name", "ClockMods Pro"
-            manifestPlaceholders = [launcherActivity: ".pro.ProMainActivity"]
+            manifestPlaceholders = [launcherActivity: ".pro.ProMainActivity", launcherTheme: "@style/Theme.ClockMods.Launch"]
             buildConfigField 'boolean', 'WEATHER_DETAIL_USES_TIME_TRANSITION', 'true'
             buildConfigField 'boolean', 'PRO_FONTS', 'true'
         }
