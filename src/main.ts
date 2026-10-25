@@ -140,4 +140,10 @@ function registerServiceWorker(): void {
   });
 }
 
-void boot();
+void boot().then(() => {
+  document.documentElement.dataset.clockmodsReady = 'true';
+  window.dispatchEvent(new Event('clockmods:ready'));
+}).catch(error => {
+  console.error(error);
+  window.dispatchEvent(new Event('clockmods:boot-error'));
+});
