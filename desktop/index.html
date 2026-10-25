@@ -16,8 +16,27 @@
     <meta name="apple-mobile-web-app-title" content="ClockMods" />
     <link rel="icon" type="image/png" href="./icons/icon-192.png" />
     <link rel="apple-touch-icon" href="./icons/apple-touch-icon.png" />
+    <link rel="stylesheet" href="/launch.css" />
   </head>
   <body>
+    <div id="launch-screen" role="status" aria-live="polite" aria-label="ClockMods">
+      <div class="launch-brand">
+        <svg class="launch-dial" viewBox="0 0 288 288" aria-hidden="true">
+          <circle cx="144" cy="144" r="86" fill="#172b38"/>
+          <circle class="launch-orbit" cx="144" cy="144" r="72" fill="none" stroke="#9fe5d5" stroke-width="3" stroke-linecap="round"/>
+          <path d="M144 84v8m60 52h-8m-52 60v-8m-60-52h8" fill="none" stroke="#65817f" stroke-width="3" stroke-linecap="round"/>
+          <path class="launch-hour" d="M144 144l-24-24" fill="none" stroke="#f3ede0" stroke-width="8" stroke-linecap="round"/>
+          <path class="launch-minute" d="M144 144l30-30" fill="none" stroke="#f3ede0" stroke-width="6" stroke-linecap="round"/>
+          <circle cx="144" cy="144" r="6" fill="#9fe5d5"/>
+        </svg>
+        <p class="launch-name">ClockMods</p>
+        <p id="launch-status"></p>
+        <button id="launch-retry" type="button" hidden></button>
+        <noscript>请启用 JavaScript · Enable JavaScript to open ClockMods.</noscript>
+      </div>
+    </div>
+    <script src="./launch-guard.js" defer></script>
+
     <div id="app">
       <main id="pages">
         <!-- Page order matches the ProPage enum: clock, calendar, pomodoro, alarm, countdown, stopwatch -->

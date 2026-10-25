@@ -1,0 +1,19 @@
+/* Critical launch surface: available before application modules or fonts load. */
+#launch-screen{position:fixed;inset:0;z-index:10000;display:grid;place-items:center;background:#101d29;color:#f3ede0;font-family:system-ui,sans-serif;transition:opacity .32s cubic-bezier(.2,0,0,1),visibility .32s;isolation:isolate}
+#launch-screen::before{content:"";position:absolute;inset:0;background:radial-gradient(ellipse at 50% 44%,#264a502e,transparent 58%);pointer-events:none}
+.launch-brand{display:flex;flex-direction:column;align-items:center;gap:26px;text-align:center;padding:24px;transition:transform .32s cubic-bezier(.2,0,0,1)}
+.launch-dial{width:clamp(112px,20vmin,176px);height:auto;overflow:visible;filter:drop-shadow(0 14px 30px #0003)}
+.launch-orbit{stroke-dasharray:453;stroke-dashoffset:0;transform:rotate(-90deg);transform-origin:144px 144px;animation:launch-orbit .76s cubic-bezier(.4,0,.2,1) both}
+.launch-hour,.launch-minute{transform-origin:144px 144px;animation:launch-hands .76s cubic-bezier(.4,0,.2,1) both}
+.launch-hour{--turn:-60deg;animation-duration:.62s}.launch-minute{--turn:-180deg}
+.launch-name{font-size:22px;font-weight:550;letter-spacing:.14em;margin:0;padding-left:.14em;animation:launch-name .6s ease-out both}
+#launch-status{font-size:14px;line-height:1.6;color:#afc4c9;max-width:30em;margin:0}
+#launch-retry{border:0;border-radius:999px;padding:12px 28px;background:#9fe5d5;color:#102b29;font:600 14px system-ui;cursor:pointer;min-height:48px}
+#launch-retry:focus-visible{outline:3px solid #f3ede0;outline-offset:4px}
+#launch-retry[hidden]{display:none}
+#launch-screen.is-leaving{opacity:0;visibility:hidden;pointer-events:none}
+#launch-screen.is-leaving .launch-brand{transform:translateY(-12px) scale(1.06)}
+@keyframes launch-orbit{from{stroke-dashoffset:453}to{stroke-dashoffset:0}}
+@keyframes launch-hands{from{transform:rotate(var(--turn))}to{transform:rotate(0)}}
+@keyframes launch-name{from{opacity:0;transform:translateY(8px)}to{opacity:1;transform:translateY(0)}}
+@media(prefers-reduced-motion:reduce){#launch-screen,#launch-screen *{animation:none!important;transition:none!important}}

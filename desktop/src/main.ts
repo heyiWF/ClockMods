@@ -127,4 +127,10 @@ function page(name: string): HTMLElement {
 }
 
 
-void boot().catch(error => { console.error(error); document.body.textContent = 'ClockMods: ' + String(error); });
+void boot().then(() => {
+  document.documentElement.dataset.clockmodsReady = 'true';
+  window.dispatchEvent(new Event('clockmods:ready'));
+}).catch(error => {
+  console.error(error);
+  window.dispatchEvent(new Event('clockmods:boot-error'));
+});
