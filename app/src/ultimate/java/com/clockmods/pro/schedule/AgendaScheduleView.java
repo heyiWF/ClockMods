@@ -189,15 +189,9 @@ public final class AgendaScheduleView extends LinearLayout {
     }
 
     /**
-     * One row, at Material's one-line list-item metrics: a 48dp touch target with the time as a
-     * fixed-width leading column, the way Google Calendar's own schedule view sets one out. The
-     * column holds the all-day label when an item has no time rather than collapsing, so every
-     * title in the list starts on the same edge - a list of rows that each began somewhere else
-     * was most of what made this pane look uneven.
-     *
-     * <p>There is no per-row delete. The row used to carry a delete label that was permanently
-     * {@code INVISIBLE} - unreachable, yet still reserving its own width on every single row.
-     * Deleting belongs to the editor dialog, which is where a tap on the row leads.</p>
+     * Every source uses the same two-part row: time/all-day above the event title. Keeping the
+     * layout independent of importSource avoids mixing inline manual rows with stacked imports,
+     * and gives long time ranges their own width in portrait. Taps retain the editor/details action.
      */
     private final class Row extends LinearLayout {
         private final ScheduleItem item;
@@ -208,37 +202,34 @@ public final class AgendaScheduleView extends LinearLayout {
             super(context);
             this.item = item;
             float density = getResources().getDisplayMetrics().density;
-            setOrientation(item.importSource.isEmpty() ? HORIZONTAL : VERTICAL);
+            setOrientation(VERTICAL);
             setBaselineAligned(false);
             setGravity(Gravity.CENTER_VERTICAL);
             setBackground(selectableBackground(context));
-            // Material's one-line list item. The padding only opens the row further when the text
-            // is large enough to exceed the minimum, so short and tall rows share one rhythm.
-            setMinimumHeight(Math.round(density * 48f));
-            setPadding(0, Math.round(density * 6f), 0, Math.round(density * 6f));
+            // A consistent touch target and spacing for all-day, timed and imported events.
+            setMinimumHeight(Math.round(density * 64f));
+            setPadding(0, Math.round(density * 8f), 0, Math.round(density * 8f));
 
             time = new TextView(context);
             time.setIncludeFontPadding(false);
-            time.setSingleLine(item.importSource.isEmpty());
+            time.setSingleLine(false);
             time.setMaxLines(2);
+            time.setEllipsize(android.text.TextUtils.TruncateAt.END);
             time.setGravity(Gravity.CENTER_VERTICAL | Gravity.START);
             time.setText(item.hasTime() ? ClockTimeText.align(item.timeLabel())
                     : context.getString(R.string.ultimate_schedule_all_day));
-            time.setMinWidth(Math.round(density * 46f));
-            LayoutParams timeParams = new LayoutParams(LayoutParams.WRAP_CONTENT,
+            LayoutParams timeParams = new LayoutParams(LayoutParams.MATCH_PARENT,
                     LayoutParams.WRAP_CONTENT);
-            timeParams.setMarginEnd(Math.round(density * 12f));
+            timeParams.bottomMargin = Math.round(density * 4f);
             addView(time, timeParams);
 
             title = new TextView(context);
             title.setIncludeFontPadding(false);
-            title.setSingleLine(item.importSource.isEmpty());
+            title.setSingleLine(false);
             title.setMaxLines(2);
             title.setEllipsize(android.text.TextUtils.TruncateAt.END);
             title.setText(item.title);
-            addView(title, item.importSource.isEmpty()
-                    ? new LayoutParams(0, LayoutParams.WRAP_CONTENT, 1f)
-                    : new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
+            addView(title, new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT));
 
             setOnClickListener(view -> {
                 if (listener != null) listener.onItemSelected(item);

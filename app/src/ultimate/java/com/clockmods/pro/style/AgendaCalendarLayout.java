@@ -4,8 +4,6 @@ import com.clockmods.sdk.style.FontScalePolicy;
 
 import android.content.Context;
 import android.graphics.Color;
-import android.graphics.Paint;
-import android.graphics.Rect;
 import android.graphics.Typeface;
 import android.graphics.drawable.GradientDrawable;
 import android.text.InputType;
@@ -920,7 +918,6 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
      * same today accent; only the axis differs, so there is one binding path for both.</p>
      */
     private final class DayCell extends LinearLayout {
-        private final Rect labelInk = new Rect();
         private final boolean rail;
         private final boolean interactive;
         private final TextView weekdayLabel;
@@ -932,7 +929,6 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
 
         private CalendarPageState.DayInfo day;
         private CalendarPageState state;
-        private String lastLunarText = "";
         private String baseDescription = "";
 
         DayCell(boolean interactive) {
@@ -1031,14 +1027,12 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
             List<String> items = lunarItems();
             boolean hasLabels = false;
             for (String item : items) if (item != null && !item.trim().isEmpty()) hasLabels = true;
-            lunarSlot.setVisibility(hasLabels ? View.VISIBLE : View.GONE);
+            lunarSlot.setVisibility(hasLabels ? View.VISIBLE : state.hasDayLabels ? View.INVISIBLE : View.GONE);
             if (lunarSlot instanceof CalendarLabelCarouselView) {
                 ((CalendarLabelCarouselView) lunarSlot).setItems(items);
-                lastLunarText = items.isEmpty() ? "" : items.get(0);
             } else if (lunarSlot instanceof TextView) {
                 String text = items.isEmpty() ? "" : items.get(0);
                 ((TextView) lunarSlot).setText(text);
-                lastLunarText = text;
             }
         }
 
@@ -1112,72 +1106,9 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
             }
         }
 
-        /**
-         * Equalises the two gaps a reader actually sees in the stacked cell — weekday ink to
-         * number ink, and number ink to lunar ink.
-         *
-         * <p>It measures the laid-out views rather than the paint. {@code Paint.getFontMetrics()}
-         * reports the <em>primary</em> typeface, but every glyph here is CJK and comes from a
-         * fallback font with taller metrics, and it is the fallback that sizes the line box — so
-         * arithmetic on paint metrics describes a box that is not on screen. {@code getBaseline()}
-         * is fallback-aware, which makes it the only honest reference point.</p>
-         *
-         * <p>The lunar slot is a {@link CalendarLabelCarouselView} in the portrait strip — it
-         * draws on a Canvas and has no baseline API. As a proxy we use {@code weekdayLabel}'s
-         * paint (both labels share the same typeface and size) to measure the lunar text string
-         * and estimate its ink top from the view's vertical centre.</p>
-         *
-         * <p>The correction is applied as a bottom margin on the weekday label, which pushes the
-         * number's box down by the full margin and its ink centre by half — so it lands half in
-         * each gap. It accumulates against the current margin and stops once the two are within a
-         * pixel, which is what keeps it from oscillating across layout passes.</p>
-         */
-        private void balanceStackedGaps() {
-            CharSequence weekdayText = weekdayLabel.getText();
-            if (weekdayText.length() == 0 || lastLunarText.length() == 0) return;
-            if (weekdayLabel.getHeight() == 0 || lunarSlot.getHeight() == 0) return;
-            float numberInk = number.inkHeight();
-            if (numberInk <= 0f) return;
+        // All cells share the same measured slots. Per-label ink corrections would shift
+        // dates differently for an event title, a lunar label, and an empty date.
 
-            // Use weekdayLabel's paint for both measurements — same face and size as the lunar slot.
-            Paint paint = weekdayLabel.getPaint();
-            String weekday = weekdayText.toString();
-            paint.getTextBounds(weekday, 0, weekday.length(), labelInk);
-            float weekdayInkBottom =
-                    weekdayLabel.getTop() + weekdayLabel.getBaseline() + labelInk.bottom;
-
-            // For the carousel estimate ink top from the view centre using font ascent.
-            paint.getTextBounds(lastLunarText, 0, lastLunarText.length(), labelInk);
-            float lunarInkTop;
-            if (lunarSlot instanceof TextView) {
-                lunarInkTop = lunarSlot.getTop() + ((TextView) lunarSlot).getBaseline()
-                        + labelInk.top;
-            } else {
-                // Carousel: centre of view minus half the ink height is a close enough proxy.
-                float lunarCentre = lunarSlot.getTop() + lunarSlot.getHeight() / 2f;
-                lunarInkTop = lunarCentre + labelInk.top;
-            }
-
-            float numberCenter = number.getTop() + number.getHeight() / 2f;
-            float gapAbove = numberCenter - numberInk / 2f - weekdayInkBottom;
-            float gapBelow = lunarInkTop - (numberCenter + numberInk / 2f);
-            float delta = gapBelow - gapAbove;
-            if (Math.abs(delta) < 1f) return;
-
-            LayoutParams params = (LayoutParams) weekdayLabel.getLayoutParams();
-            int margin = Math.max(0, Math.round(params.bottomMargin + delta));
-            if (params.bottomMargin == margin) return;
-            params.bottomMargin = margin;
-            weekdayLabel.setLayoutParams(params);
-        }
-
-        @Override
-        protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
-            super.onLayout(changed, left, top, right, bottom);
-            // Only a laid-out cell knows its baselines, so the balance is settled here rather
-            // than when the text or the size is set.
-            if (!rail) balanceStackedGaps();
-        }
     }
 
     // endregion

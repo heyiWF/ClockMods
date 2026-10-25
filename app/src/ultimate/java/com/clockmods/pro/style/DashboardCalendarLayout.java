@@ -922,7 +922,7 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
         for (String item : carouselItems) if (item != null && !item.trim().isEmpty()) hasLabels = true;
         CalendarLabelCarouselView lunar = new CalendarLabelCarouselView(context);
         lunar.setItems(carouselItems);
-        lunar.setVisibility(hasLabels ? View.VISIBLE : View.GONE);
+        lunar.setVisibility(hasLabels ? View.VISIBLE : state.hasDayLabels ? View.INVISIBLE : View.GONE);
         lunar.setTextSizePx(FontScalePolicy.cap(lunarSize * preferences.getSupportingFontScale(
                 ClockPreferences.calendarScope(theme.id))
                 / ClockPreferences.DEFAULT_SUPPORTING_FONT_SCALE, labelHeight * .72f, preferences.getSupportingFontScale(ClockPreferences.calendarScope(theme.id))));
@@ -957,11 +957,12 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
                 context.getResources().getDisplayMetrics().density) : null;
         if (highlight != null && cell instanceof LinearLayout) {
             LinearLayout content = (LinearLayout) cell;
-            if (content.getChildCount() == 2 && content.getChildAt(1).getVisibility() == View.GONE) {
+            if (content.getChildCount() == 2 && content.getChildAt(1).getVisibility() != View.VISIBLE) {
                 View number = content.getChildAt(0);
-                int numberHeight = number.getHeight() > 0 ? number.getHeight() : number.getLayoutParams().height;
-                int inset = Math.max(0, (cell.getHeight() - numberHeight - top - bottom) / 2);
-                highlight = new android.graphics.drawable.InsetDrawable(highlight, 0, inset, 0, inset);
+                // Match the actual number bounds: an invisible shared lane still occupies space.
+                int insetTop = Math.max(0, number.getTop() - top);
+                int insetBottom = Math.max(0, cell.getHeight() - number.getBottom() - bottom);
+                highlight = new android.graphics.drawable.InsetDrawable(highlight, 0, insetTop, 0, insetBottom);
             }
         }
         cell.setBackground(highlight);

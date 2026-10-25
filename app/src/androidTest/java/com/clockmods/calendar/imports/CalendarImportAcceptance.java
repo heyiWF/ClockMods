@@ -94,14 +94,17 @@ public final class CalendarImportAcceptance extends Instrumentation {
                 screenshot("manager-"+language);closeScreen();
             }
             settings.setClockLanguage("en");settings.setChineseCalendarEnabled(false);
-            for(int rotation:new int[]{1,2}) for(String theme:new String[]{"graphite","agenda"}) {
+            for(int rotation:new int[]{1,2}) for(String theme:new String[]{"graphite","carbon","paper","poster","agenda"}) {
                 orientation=rotation;
                 context.getSharedPreferences("clock_prefs",0).edit().putString("calendar_theme","calendar."+theme).putInt("screen_orientation",rotation).commit();
                 launch(new Intent().setClassName(context.getPackageName(),"com.clockmods.ultimate.UltimateMainActivity")
                         .putExtra("com.clockmods.ultimate.extra.DESTINATION","calendar"));
                 selectCalendarPage();
-                check(waitText("Imported all-day",true),"imported event visible without Chinese calendar "+theme+rotation);
-                checkNativeCarousels(false);
+                if (!theme.equals("poster")) {
+                    check(waitText("Imported all-day",true),"imported event visible without Chinese calendar "+theme+rotation);
+                    checkNativeCarousels(false);
+                }
+                checkDateAlignment(theme + rotation);
                 if(theme.equals("agenda")) {
                     check(waitText("Team sync",true) && waitText("Manual event",true),"Agenda includes both sources "+rotation);
                     check(waitText("09:00",true),"Agenda displays time range "+rotation);
@@ -110,7 +113,14 @@ public final class CalendarImportAcceptance extends Instrumentation {
                     check(waitText("Meeting room",true) && waitText("Audit calendar",true),"read-only detail includes location and source");
                     screenshot("event-details-"+rotation);
                     check(click(active.getString(android.R.string.ok)),"details dismissed");
-                } else screenshot("month-"+rotation);
+                } else {
+                    screenshot(theme+"-"+rotation);
+                    int emptyDay = today.getDayOfMonth()==14 || today.getDayOfMonth()==15 ? 20 : 15;
+                    check(click(active.getString(R.string.calendar_day_number_accessibility, emptyDay)),
+                            "empty date selected " + theme + rotation);
+                    checkDateAlignment(theme + rotation + " empty selection");
+                    screenshot(theme+"-empty-"+rotation);
+                }
                 closeScreen();
             }
             settings.setChineseCalendarEnabled(true);orientation=1;
@@ -187,9 +197,13 @@ public final class CalendarImportAcceptance extends Instrumentation {
     }
     private void launch(Intent intent)throws Exception {
         getUiAutomation().setRotation(orientation==1?android.app.UiAutomation.ROTATION_FREEZE_0:android.app.UiAutomation.ROTATION_FREEZE_90);
+        SystemClock.sleep(700);
         activeMonitor=addMonitor(intent.getComponent().getClassName(),null,false);
         context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TASK));
         active=activeMonitor.waitForActivityWithTimeout(12000);check(active!=null,"screen launched");SystemClock.sleep(1200);
+        android.graphics.Rect screen = new android.graphics.Rect(); root().getBoundsInScreen(screen);
+        check(orientation==1 ? screen.height()>screen.width() : screen.width()>screen.height(),
+                "actual screen orientation " + orientation);
         if(activeMonitor.getLastActivity()!=null)active=activeMonitor.getLastActivity();
     }
     private void onUi(Runnable action) {
@@ -200,6 +214,7 @@ public final class CalendarImportAcceptance extends Instrumentation {
         if (failure[0] != null) throw new AssertionError("UI probe failed", failure[0]);
     }
     private void selectCalendarPage() {
+        if(activeMonitor!=null && activeMonitor.getLastActivity()!=null)active=activeMonitor.getLastActivity();
         Activity screen=active;
         onUi(()->{
             int id=screen.getResources().getIdentifier("pro_pager","id",context.getPackageName());
@@ -253,6 +268,50 @@ public final class CalendarImportAcceptance extends Instrumentation {
                 check(imported>0,"live native carousel includes imported event");
             } catch(Exception failure){throw new AssertionError(failure);}
         });
+    }
+    private void checkDateAlignment(String label) {
+        List<float[]> centers = new ArrayList<>();
+        onUi(() -> collectNativeCenters(active.getWindow().getDecorView(), centers));
+        if (centers.isEmpty()) {
+            Map<String, android.graphics.Rect> cells = new HashMap<>(), numbers = new HashMap<>();
+            collectComposeBounds(root(), cells, numbers);
+            for (Map.Entry<String, android.graphics.Rect> entry : numbers.entrySet()) {
+                android.graphics.Rect cell = cells.get(entry.getKey()), number = entry.getValue();
+                if (cell != null && cell.width() > 0 && cell.height() > 0)
+                    centers.add(new float[]{(number.exactCenterX()-cell.left)/cell.width(),
+                            (number.exactCenterY()-cell.top)/cell.height(), cell.width(), cell.height()});
+            }
+        }
+        check(centers.size() >= 7, "date geometry available " + label);
+        float[] first = centers.get(0);
+        for (float[] center : centers) {
+            check(Math.abs(first[0]-center[0])*Math.min(first[2],center[2]) <= 2.1f
+                    && Math.abs(first[1]-center[1])*Math.min(first[3],center[3]) <= 2.1f,
+                    "event and empty date numbers align " + label);
+        }
+    }
+    private static void collectNativeCenters(android.view.View view, List<float[]> centers) {
+        if (!view.isShown()) return;
+        if (view.getClass().getName().equals("com.clockmods.pro.CalendarDayNumberView")) {
+            android.view.View parent = (android.view.View) view.getParent();
+            if (parent.getWidth()>0 && parent.getHeight()>0)
+                centers.add(new float[]{(view.getLeft()+view.getWidth()/2f)/parent.getWidth(),
+                        (view.getTop()+view.getHeight()/2f)/parent.getHeight(), parent.getWidth(), parent.getHeight()});
+        }
+        if (view instanceof android.view.ViewGroup) for (int i=0;i<((android.view.ViewGroup)view).getChildCount();i++)
+            collectNativeCenters(((android.view.ViewGroup)view).getChildAt(i), centers);
+    }
+    private static void collectComposeBounds(AccessibilityNodeInfo node,
+            Map<String, android.graphics.Rect> cells, Map<String, android.graphics.Rect> numbers) {
+        if (node == null) return;
+        String tag = node.getViewIdResourceName();
+        if (tag != null && node.isVisibleToUser()) {
+            android.graphics.Rect bounds = new android.graphics.Rect(); node.getBoundsInScreen(bounds);
+            if (tag.startsWith("day:")) cells.put(tag.substring(4), bounds);
+            if (tag.startsWith("week-day:")) cells.put(tag.substring(9), bounds);
+            if (tag.startsWith("calendar-number:")) numbers.put(tag.substring(16), bounds);
+        }
+        for (int i=0;i<node.getChildCount();i++) collectComposeBounds(node.getChild(i),cells,numbers);
     }
     private static void collectCarousels(android.view.View view,List<android.view.View> result) {
         if(!view.isShown())return;

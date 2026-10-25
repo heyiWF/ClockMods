@@ -187,6 +187,8 @@ public final class CalendarPageState {
     /** Cells per row: 7 for a month or a week page, 1 for a single day. */
     public final int columns;
     public final List<DayInfo> days;
+    /** One shared label lane keeps all date numbers on the same axis. */
+    public final boolean hasDayLabels;
     public final Selection selection;
     /** Page heading, e.g. 2026年8月, plus its month and year halves. */
     public final Title title;
@@ -200,6 +202,8 @@ public final class CalendarPageState {
             String[] weekdayNames, boolean[] weekdayWeekend, boolean highlightWeekends) {
         this.columns = columns;
         this.days = Collections.unmodifiableList(new ArrayList<>(days));
+        this.hasDayLabels = days.stream().anyMatch(day -> !day.lunarShort.isEmpty()
+                || !day.festivals.isEmpty() || !day.eventLabels.isEmpty());
         this.selection = selection == null ? Selection.NONE : selection;
         this.title = title == null ? Title.NONE : title;
         this.weekdayNames = weekdayNames == null ? new String[0] : weekdayNames.clone();
@@ -210,6 +214,7 @@ public final class CalendarPageState {
     private CalendarPageState(CalendarPageState source, Selection selection) {
         columns = source.columns;
         days = source.days;
+        hasDayLabels = source.hasDayLabels;
         this.selection = selection;
         title = source.title;
         weekdayNames = source.weekdayNames;
