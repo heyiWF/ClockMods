@@ -9,6 +9,7 @@
   if (status) status.textContent = zh ? '正在准备你的时光' : 'Preparing your time';
   if (retry) { retry.textContent = zh ? '重试' : 'Try again'; retry.onclick = () => location.reload(); }
   app?.setAttribute('inert', '');
+  const entered = performance.now();
   let finished = false;
   const fail = () => {
     if (finished) return;
@@ -22,15 +23,15 @@
     window.clearTimeout(timeout);
     window.removeEventListener('clockmods:ready', ready);
     window.removeEventListener('clockmods:boot-error', fail);
-    app?.removeAttribute('inert');
-    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { screen.remove(); return; }
-    // Paint the restored page before revealing it. Never hold startup just to finish the logo.
-    requestAnimationFrame(() => requestAnimationFrame(() => {
+    if (window.matchMedia('(prefers-reduced-motion: reduce)').matches) { app?.removeAttribute('inert'); screen.remove(); return; }
+    // Finish the sector assembly on fast starts; slow initialization adds no extra delay.
+    window.setTimeout(() => requestAnimationFrame(() => requestAnimationFrame(() => {
+      app?.removeAttribute('inert');
       screen.classList.add('is-leaving');
       screen.setAttribute('aria-hidden', 'true');
       screen.addEventListener('transitionend', () => screen.remove(), { once: true });
       window.setTimeout(() => screen.remove(), 400);
-    }));
+    })), Math.max(0, 920 - (performance.now() - entered)));
   };
   window.addEventListener('clockmods:ready', ready);
   window.addEventListener('clockmods:boot-error', fail);

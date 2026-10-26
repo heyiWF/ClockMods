@@ -18,6 +18,9 @@ it('reveals only when ready, removes the overlay and restores interaction', () =
   installLaunchScreen();
   expect(document.getElementById('app')?.hasAttribute('inert')).toBe(true);
   window.dispatchEvent(new Event('clockmods:ready'));
+  expect(document.getElementById('app')?.hasAttribute('inert')).toBe(true);
+  expect(document.getElementById('launch-screen')?.classList.contains('is-leaving')).toBe(false);
+  vi.advanceTimersByTime(920);
   expect(document.getElementById('app')?.hasAttribute('inert')).toBe(false);
   expect(document.getElementById('launch-screen')?.classList.contains('is-leaving')).toBe(true);
   vi.advanceTimersByTime(400);
