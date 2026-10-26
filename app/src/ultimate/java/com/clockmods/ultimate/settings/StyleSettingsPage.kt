@@ -113,7 +113,9 @@ internal val CLOCK_COLOR_PRESETS = listOf(
 )
 
 @Composable
-internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
+internal fun StyleSettingsPage(modifier: Modifier, settingsGeneration: Int) {
+    var libraryRevision by remember { mutableIntStateOf(0) }
+    val generation = settingsGeneration + libraryRevision
     val context = androidx.compose.ui.platform.LocalContext.current
     val preferences = remember(context, generation) { ClockPreferences(context) }
     val stylePreferences = remember(context, generation) { UltimateClockPreferences(context) }
@@ -187,83 +189,7 @@ internal fun StyleSettingsPage(modifier: Modifier, generation: Int) {
 
     SettingsColumn(modifier) {
         SettingSection(stringResource(R.string.ultimate_style_gallery)) {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(UltimateClockStyles.builtIns(), key = { it.getMetadata().getId() }) { style ->
-                    val metadata = style.getMetadata()
-                    val selected = metadata.getId() == styleId
-                    Card(
-                        onClick = {
-                            styleId = metadata.getId()
-                            stylePreferences.setStyleId(styleId)
-                            family = preferences.getFontFamily(styleId)
-                            weight = preferences.getFontWeight(styleId)
-                            timeScale = if (metadata.getId() == UltimateClockStyles.STYLE_PRO_CLASSIC) {
-                                preferences.getTimeFontScaleSetting()
-                            } else {
-                                preferences.getTimeFontScaleSetting(styleId)
-                            }
-                            dateScale = if (metadata.getId() == UltimateClockStyles.STYLE_PRO_CLASSIC) {
-                                preferences.getDateFontScaleSetting()
-                            } else {
-                                preferences.getDateFontScaleSetting(styleId)
-                            }
-                            supportingScale = preferences.getSupportingFontScaleSetting(styleId)
-                            weatherTransition = if (metadata.getId() ==
-                                UltimateClockStyles.STYLE_PRO_CLASSIC) {
-                                preferences.getWeatherTransition()
-                            } else {
-                                stylePreferences.getWeatherTransition(styleId)
-                            }
-                            palette = stylePreferences.getPalette(styleId)
-                        },
-                        // Fixed card size keeps every tile in the gallery aligned regardless of
-                        // how long the localized name or summary happens to be.
-                        modifier = Modifier.width(STYLE_CARD_WIDTH).height(STYLE_CARD_HEIGHT),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (selected) {
-                                MaterialTheme.colorScheme.primaryContainer
-                            } else MaterialTheme.colorScheme.surfaceVariant,
-                        ),
-                    ) {
-                        Column(
-                            Modifier.fillMaxSize().padding(10.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            // A live thumbnail of the face, painted by the same renderer the clock
-                            // uses, so the gallery reads at a glance instead of describing styles
-                            // in words.
-                            Box(
-                                Modifier
-                                    .fillMaxWidth()
-                                    .height(88.dp)
-                                    .clip(MaterialTheme.shapes.small),
-                            ) {
-                                ClockStyleThumbnail(
-                                    styleId = metadata.getId(),
-                                    palette = stylePreferences.getPalette(metadata.getId()),
-                                    background = galleryBackground,
-                                    repository = backgroundRepository,
-                                    modifier = Modifier.fillMaxSize(),
-                                )
-                            }
-                            Text(
-                                stringResource(UltimateClockStyles.styleNameRes(metadata.getId())),
-                                fontWeight = FontWeight.SemiBold,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                style = MaterialTheme.typography.bodyMedium,
-                            )
-                            Text(
-                                stringResource(UltimateClockStyles.styleSummaryRes(metadata.getId())),
-                                style = MaterialTheme.typography.labelSmall,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                            )
-                        }
-                    }
-                }
-            }
+            ThemeLibrarySection(calendar = false, onChanged = { libraryRevision++ })
         }
 
         if (UltimateSettingsActivity.shouldShowSecondMotionControls(activeStyle)) {

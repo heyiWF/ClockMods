@@ -33,14 +33,14 @@ class UltimateClockPreferences {
         preferences.edit().putString(KEY_BACKGROUND_MODE, migratedMode).apply()
     }
 
-    fun getStyleId(): String = normalizeStyleId(preferences.getString(KEY_STYLE_ID, DEFAULT_STYLE_ID))
+    fun getStyleId(): String = com.clockmods.background.ThemeLibrary.resolveSelection(preferences, normalizeStyleId(preferences.getString(KEY_STYLE_ID, DEFAULT_STYLE_ID)))
 
     fun setStyleId(styleId: String?) {
         preferences.edit().putString(KEY_STYLE_ID, normalizeStyleId(styleId)).apply()
     }
 
     fun getSecondHandMotion(): ClockState.SecondHandMotion {
-        val stored = preferences.getString(KEY_SECOND_HAND_MOTION, "smooth")
+        val stored = preferences.getString(KEY_SECOND_HAND_MOTION + "__" + getStyleId(), preferences.getString(KEY_SECOND_HAND_MOTION, "smooth"))
         return when (stored?.trim()?.lowercase(Locale.US)) {
             "smooth", "sweep" -> ClockState.SecondHandMotion.SWEEP
             "tick", "ticking" -> ClockState.SecondHandMotion.TICK
@@ -56,7 +56,7 @@ class UltimateClockPreferences {
             ClockState.SecondHandMotion.TICK -> "tick"
             ClockState.SecondHandMotion.OFF -> "off"
         }
-        preferences.edit().putString(KEY_SECOND_HAND_MOTION, stored).apply()
+        preferences.edit().putString(KEY_SECOND_HAND_MOTION + "__" + getStyleId(), stored).apply()
     }
 
     /** Digital transitions belong to the selected Ultimate style, not the Pro Classic keys. */
@@ -131,7 +131,7 @@ class UltimateClockPreferences {
     fun restoreDefaults() {
         val editor = preferences.edit()
         preferences.all.keys.filter {
-            it.startsWith("palette_") || it.startsWith(KEY_DIGIT_ANIMATION_PREFIX) ||
+            it.startsWith("second_motion__") || it.startsWith("palette_") || it.startsWith(KEY_DIGIT_ANIMATION_PREFIX) ||
                 it.startsWith(KEY_DIGIT_TRANSITION_PREFIX) ||
                 it.startsWith(KEY_WEATHER_TRANSITION_PREFIX)
         }.forEach(editor::remove)

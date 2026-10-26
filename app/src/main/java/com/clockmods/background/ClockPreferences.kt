@@ -127,7 +127,7 @@ open class ClockPreferences(context: Context) {
             .putLong(key + "_pause", spec.pauseMillis).putFloat(key + "_gap", spec.gapDp).apply()
     }
 
-    fun getCalendarTheme(): String = normalizeCalendarTheme(preferences.getString(KEY_CALENDAR_THEME, DEFAULT_CALENDAR_THEME))
+    fun getCalendarTheme(): String = ThemeLibrary.resolveSelection(preferences, normalizeCalendarTheme(preferences.getString(KEY_CALENDAR_THEME, DEFAULT_CALENDAR_THEME)))
     fun setCalendarTheme(value: String?) { preferences.edit().putString(KEY_CALENDAR_THEME, normalizeCalendarTheme(value)).apply() }
     fun isSmallSeconds(): Boolean = preferences.getBoolean(KEY_SMALL_SECONDS, DEFAULT_SMALL_SECONDS)
     fun setSmallSeconds(value: Boolean) { preferences.edit().putBoolean(KEY_SMALL_SECONDS, value).apply() }

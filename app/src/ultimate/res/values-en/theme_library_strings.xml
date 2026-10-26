@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="theme_store">Theme store</string>
+    <string name="theme_manage">Manage</string>
+    <string name="theme_recommended">Discover</string>
+    <string name="theme_favorites">Favorites</string>
+    <string name="theme_installed">Installed</string>
+    <string name="theme_install">Install</string>
+    <string name="theme_use">Use</string>
+    <string name="theme_in_use">In use</string>
+    <string name="theme_delete">Delete</string>
+    <string name="theme_delete_title">Delete %1$s?</string>
+    <string name="theme_delete_message">This also deletes the theme’s style settings. Reinstalling restores its defaults.</string>
+    <string name="theme_keep_one">Keep at least one theme</string>
+    <string name="theme_favorite">Favorite theme</string>
+    <string name="theme_unfavorite">Remove favorite</string>
+    <string name="theme_no_favorites">Your favorite themes will appear here</string>
+    <string name="theme_move_before">Move earlier</string>
+    <string name="theme_move_after">Move later</string>
+    <string name="theme_store_hint">Built-in themes are free to install. You can reinstall deleted themes here.</string>
+    <string name="theme_done">Done</string>
+    <string name="theme_library_hint">Touch and hold a theme to delete it</string>
+</resources>

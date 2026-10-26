@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="theme_store">테마 스토어</string>
+    <string name="theme_manage">관리</string>
+    <string name="theme_recommended">추천</string>
+    <string name="theme_favorites">즐겨찾기</string>
+    <string name="theme_installed">설치됨</string>
+    <string name="theme_install">설치</string>
+    <string name="theme_use">사용</string>
+    <string name="theme_in_use">사용 중</string>
+    <string name="theme_delete">삭제</string>
+    <string name="theme_delete_title">%1$s 테마를 삭제할까요?</string>
+    <string name="theme_delete_message">테마의 스타일 설정도 함께 삭제됩니다. 다시 설치하면 기본 설정으로 복원됩니다.</string>
+    <string name="theme_keep_one">테마를 하나 이상 유지해 주세요</string>
+    <string name="theme_favorite">즐겨찾기에 추가</string>
+    <string name="theme_unfavorite">즐겨찾기에서 삭제</string>
+    <string name="theme_no_favorites">즐겨찾는 테마가 여기에 표시됩니다</string>
+    <string name="theme_move_before">앞으로 이동</string>
+    <string name="theme_move_after">뒤로 이동</string>
+    <string name="theme_store_hint">기본 제공 테마는 무료로 설치할 수 있습니다. 삭제한 테마도 여기에서 다시 설치할 수 있습니다.</string>
+    <string name="theme_done">완료</string>
+    <string name="theme_library_hint">테마를 길게 누르면 삭제할 수 있습니다</string>
+</resources>

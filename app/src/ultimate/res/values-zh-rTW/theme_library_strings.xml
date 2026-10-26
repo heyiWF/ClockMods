@@ -1,0 +1,23 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="theme_store">主題商店</string>
+    <string name="theme_manage">管理</string>
+    <string name="theme_recommended">推薦</string>
+    <string name="theme_favorites">收藏</string>
+    <string name="theme_installed">已安裝</string>
+    <string name="theme_install">安裝</string>
+    <string name="theme_use">使用</string>
+    <string name="theme_in_use">使用中</string>
+    <string name="theme_delete">刪除</string>
+    <string name="theme_delete_title">刪除「%1$s」？</string>
+    <string name="theme_delete_message">該主題的樣式設定也會一併刪除。重新安裝後恢復預設設定。</string>
+    <string name="theme_keep_one">至少保留一個主題</string>
+    <string name="theme_favorite">收藏主題</string>
+    <string name="theme_unfavorite">取消收藏</string>
+    <string name="theme_no_favorites">收藏喜歡的主題，在這裡輕鬆找到</string>
+    <string name="theme_move_before">向前移動</string>
+    <string name="theme_move_after">向後移動</string>
+    <string name="theme_store_hint">內建主題可隨時免費安裝。刪除後可在這裡重新安裝。</string>
+    <string name="theme_done">完成</string>
+    <string name="theme_library_hint">長按主題卡片可刪除主題</string>
+</resources>

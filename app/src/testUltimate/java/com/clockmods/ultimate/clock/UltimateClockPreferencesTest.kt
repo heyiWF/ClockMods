@@ -41,11 +41,11 @@ class UltimateClockPreferencesTest {
     @Test
     fun sdkMotionValuesPersistAsSettingsStrings() {
         preferences.setSecondHandMotion(ClockState.SecondHandMotion.SWEEP)
-        assertEquals("smooth", stored.getString(UltimateClockPreferences.KEY_SECOND_MOTION, null))
+        assertEquals("smooth", stored.getString(UltimateClockPreferences.KEY_SECOND_MOTION + "__" + preferences.getStyleId(), null))
         preferences.setSecondHandMotion(ClockState.SecondHandMotion.TICK)
-        assertEquals("tick", stored.getString(UltimateClockPreferences.KEY_SECOND_MOTION, null))
+        assertEquals("tick", stored.getString(UltimateClockPreferences.KEY_SECOND_MOTION + "__" + preferences.getStyleId(), null))
         preferences.setSecondHandMotion(ClockState.SecondHandMotion.OFF)
-        assertEquals("off", stored.getString(UltimateClockPreferences.KEY_SECOND_MOTION, null))
+        assertEquals("off", stored.getString(UltimateClockPreferences.KEY_SECOND_MOTION + "__" + preferences.getStyleId(), null))
     }
 
     @Test

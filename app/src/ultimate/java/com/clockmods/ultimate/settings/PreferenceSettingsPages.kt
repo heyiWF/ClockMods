@@ -1195,7 +1195,9 @@ private fun LocationChoiceRow(label: String, selected: Boolean, onClick: () -> U
 }
 
 @Composable
-internal fun CalendarSettingsPage(modifier: Modifier, generation: Int) {
+internal fun CalendarSettingsPage(modifier: Modifier, settingsGeneration: Int) {
+    var libraryRevision by remember { mutableIntStateOf(0) }
+    val generation = settingsGeneration + libraryRevision
     val context = LocalContext.current
     val preferences = remember(context, generation) { ClockPreferences(context) }
     val styles = remember { CalendarThemeCatalog.presets() }
@@ -1226,37 +1228,7 @@ internal fun CalendarSettingsPage(modifier: Modifier, generation: Int) {
 
     SettingsColumn(modifier) {
         SettingSection(stringResource(R.string.ultimate_style_gallery)) {
-            LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-                items(styles, key = { it.id }) { style ->
-                    val selected = style.id == themeId
-                    Card(
-                        onClick = {
-                            themeId = style.id
-                            preferences.setCalendarTheme(themeId)
-                        },
-                        modifier = Modifier.width(190.dp).height(172.dp),
-                        colors = CardDefaults.cardColors(
-                            containerColor = if (selected) MaterialTheme.colorScheme.primaryContainer
-                                else MaterialTheme.colorScheme.surfaceVariant,
-                        ),
-                    ) {
-                        Column(
-                            Modifier.fillMaxSize().padding(10.dp),
-                            verticalArrangement = Arrangement.spacedBy(6.dp),
-                        ) {
-                            Box(Modifier.fillMaxWidth().height(88.dp).clip(MaterialTheme.shapes.small)) {
-                                CalendarThemeThumbnail(theme = style, modifier = Modifier.fillMaxSize())
-                            }
-                            Text(stringResource(style.nameRes), maxLines = 1,
-                                overflow = TextOverflow.Ellipsis, style = MaterialTheme.typography.bodyMedium)
-                            Text(stringResource(style.summaryRes), maxLines = 1,
-                                overflow = TextOverflow.Ellipsis,
-                                color = MaterialTheme.colorScheme.onSurfaceVariant,
-                                style = MaterialTheme.typography.labelSmall)
-                        }
-                    }
-                }
-            }
+            ThemeLibrarySection(calendar = true, onChanged = { libraryRevision++ })
         }
 
         SettingSection(stringResource(R.string.ultimate_calendar_week_section)) {
