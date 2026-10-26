@@ -17,14 +17,14 @@ public class DateFormatterTest {
 
     @Test
     public void rendersTheDefaultChineseDateLine() {
-        Assert.assertEquals("2026 年 8 月 7 日 星期五", DateFormatter.format(example()));
+        Assert.assertEquals("2026年8月7日 星期五", DateFormatter.format(example()));
     }
 
     @Test
-    public void rendersArabicTokensWithHalfWidthSpacing() {
-        Assert.assertEquals("2026 年 8 月 7 日",
+    public void rendersArabicTokensWithoutExtraSpacing() {
+        Assert.assertEquals("2026年8月7日",
                 DateFormatter.format("yyyy年M月d日", example()));
-        Assert.assertEquals("2026 年 08 月 07 日",
+        Assert.assertEquals("2026年08月07日",
                 DateFormatter.format("yyyy年MM月dd日", example()));
         Assert.assertEquals("26", DateFormatter.format("yy", example()));
     }
@@ -40,7 +40,7 @@ public class DateFormatterTest {
     @Test
     public void keepsUnknownCharactersLiteral() {
         Assert.assertEquals("abc 2026", DateFormatter.format("abc yyyy", example()));
-        Assert.assertEquals("2026 年", DateFormatter.format("yyyy年", example()));
+        Assert.assertEquals("2026年", DateFormatter.format("yyyy年", example()));
     }
 
     @Test

@@ -9,8 +9,8 @@ import java.util.Locale;
  * <p>Supported tokens: {@code yyyy}/{@code yy} (Arabic year), {@code YYY}/{@code YYYY}
  * (Chinese-numeral year), {@code M}/{@code MM} (Arabic month), {@code MMM} (Chinese month),
  * {@code d}/{@code dd} (Arabic day), {@code DD} (Chinese-numeral day) and {@code E}/{@code EEEE}
- * (short/full weekday). Any other character is copied through verbatim, and the result is passed
- * through {@link TextSpacing#pangu} so half-width spacing applies uniformly.
+ * (short/full weekday). Any other character is copied through verbatim; no extra
+ * spacing is inserted between Chinese text and numbers.
  */
 public final class DateFormatter {
     /** The single date pattern used by the clock and the calendar header. */
@@ -36,7 +36,7 @@ public final class DateFormatter {
         }
         StringBuilder out = new StringBuilder(pattern.length() + 16);
         appendFormatted(out, pattern, cal);
-        return TextSpacing.pangu(out.toString());
+        return out.toString();
     }
 
     private static void appendFormatted(StringBuilder out, String pattern, Calendar cal) {
