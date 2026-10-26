@@ -74,6 +74,8 @@ public final class ThemeLibraryAcceptance extends Instrumentation {
             if (card == null) card = findDescription(root, "选择");
             if (card == null) card = findResource(root, "theme-" + first);
             check(card != null, "first gallery theme: " + firstName + "\n" + texts(root));
+            check(findDescription(root, "删除") == null, "delete badge hidden before long press");
+            check(findText("管理") == null && findText("编辑") == null, "gallery has no edit button");
             longPress(card);
             snapshot(calendar ? "calendar-delete" : "clock-delete");
             clickContainsDescription("删除");
@@ -110,12 +112,13 @@ public final class ThemeLibraryAcceptance extends Instrumentation {
             click("收藏");
             check(library.isFavorite(first), "favorite tab has theme");
             click("已安装");
-            clickContainsDescription("向前移动");
-            check(library.installed().get(0).equals(first), "store reorders installed themes: " + library.installed());
+            check(library.installed().equals(Arrays.asList(last, first)), "reinstalled theme appends after survivor");
+            check(findDescription(root(), "向前移动") == null && findDescription(root(), "向后移动") == null, "store has no reorder controls");
             // Activity recreation must preserve the open store and installed list.
             runOnMainSync(() -> activity.recreate());
             SystemClock.sleep(1300);
             check(findText("主题商店") != null, "store survives recreation");
+            check(library.installed().equals(Arrays.asList(last, first)), "installation order survives recreation");
             snapshot(calendar ? "calendar-store" : "clock-store");
             report.putString("stream", "PASS: " + checks + " theme library UI checks; bounds=" + screen.toShortString() + "\n");
         } catch (Throwable failure) {
@@ -129,6 +132,8 @@ public final class ThemeLibraryAcceptance extends Instrumentation {
         finish(code, report);
     }
     private void snapshot(String name) throws Exception {
+        waitForIdleSync();
+        getUiAutomation().waitForIdle(800, 5000);
         android.graphics.Bitmap bitmap = getUiAutomation().takeScreenshot();
         check(bitmap != null, "screenshot available");
         java.io.File file = new java.io.File(getTargetContext().getExternalFilesDir(null), name + ".png");

@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="theme_store">主题商店</string>
-    <string name="theme_manage">管理</string>
     <string name="theme_recommended">推荐</string>
     <string name="theme_favorites">收藏</string>
     <string name="theme_installed">已安装</string>
@@ -15,9 +14,6 @@
     <string name="theme_favorite">收藏主题</string>
     <string name="theme_unfavorite">取消收藏</string>
     <string name="theme_no_favorites">收藏喜欢的主题，在这里轻松找到</string>
-    <string name="theme_move_before">向前移动</string>
-    <string name="theme_move_after">向后移动</string>
-    <string name="theme_store_hint">内置主题可随时免费安装。删除后可在这里重新安装。</string>
     <string name="theme_done">完成</string>
     <string name="theme_library_hint">长按主题卡片可删除主题</string>
 </resources>

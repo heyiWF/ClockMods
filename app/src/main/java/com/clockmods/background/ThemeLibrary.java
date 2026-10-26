@@ -111,14 +111,6 @@ public final class ThemeLibrary {
         return true;
     }
 
-    public void move(String id, int delta) {
-        List<String> ids = installed();
-        int from = ids.indexOf(id), to = from + delta;
-        if (from < 0 || to < 0 || to >= ids.size()) return;
-        Collections.swap(ids, from, to);
-        store.edit().putString(ORDER, encode(ids)).apply();
-    }
-
     /** Used by render hosts too, including after a global settings reset. */
     public static String resolveSelection(SharedPreferences preferences, String requested) {
         if (!preferences.contains(ORDER)) return requested;
