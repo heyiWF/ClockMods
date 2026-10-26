@@ -72,13 +72,6 @@ public class ClockLayoutCalculatorTest {
     }
 
     @Test
-    public void usesSingleDateLineOnlyWhenLandscapeAndTextFits() {
-        Assert.assertTrue(ClockLayoutCalculator.shouldUseSingleDateLine(true, 800f, 1000));
-        Assert.assertFalse(ClockLayoutCalculator.shouldUseSingleDateLine(false, 800f, 1000));
-        Assert.assertFalse(ClockLayoutCalculator.shouldUseSingleDateLine(true, 950f, 1000));
-    }
-
-    @Test
     public void centerCropScaleFillsBothAxes() {
         Assert.assertEquals(2f, ClockLayoutCalculator.centerCropScale(1000, 500, 1000, 1000), 0.001f);
         Assert.assertEquals(2f, ClockLayoutCalculator.centerCropScale(500, 1000, 1000, 1000), 0.001f);

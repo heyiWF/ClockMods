@@ -43,6 +43,7 @@ import java.util.concurrent.Executors;
 
 public final class ProMainActivity extends AppCompatActivity {
     private static final int REQUEST_IMAGE = 3001;
+    private SettingsDialog settingsDialog;
     private static final int REQUEST_NOTIFICATIONS = 3002;
     private static final String STATE_SELECTED_PAGE = "selected_page";
     private static final long CHROME_VISIBLE_MILLIS = 3000L;
@@ -193,22 +194,23 @@ public final class ProMainActivity extends AppCompatActivity {
     }
 
     public void showSettings() {
+        if (settingsDialog != null && settingsDialog.isShowing()) return;
         navigation.setVisibility(View.VISIBLE);
         showSystemBars();
         chromeHandler.removeCallbacks(hideChromeRunnable);
         BackgroundRepository repository = new BackgroundRepository(this);
-        SettingsDialog dialog = new SettingsDialog(this, repository, new SettingsDialog.Listener() {
+        settingsDialog = new SettingsDialog(this, repository, new SettingsDialog.Listener() {
             @Override public void onColorApplied(int color) { repository.setCurrentColor(color); }
             @Override public void onImageModeApplied() { repository.useImage(); }
             @Override public void onChooseImage() {
                 startActivityForResult(ExperienceBridge.createImagePickerIntent(), REQUEST_IMAGE);
             }
             @Override public void onFontSettingsApplied() { refreshSettingsPages(); }
-            @Override public void onDismissed() { updateChromeForPage(); }
+            @Override public void onDismissed() { settingsDialog = null; updateChromeForPage(); }
             @Override public void onLanguageChanged() { recreate(); }
         });
-        dialog.show();
-        ProFontApplier.apply(dialog.getWindow().getDecorView());
+        settingsDialog.show();
+        ProFontApplier.apply(settingsDialog.getWindow().getDecorView());
     }
 
     private void showChromeTemporarily() {
@@ -221,6 +223,7 @@ public final class ProMainActivity extends AppCompatActivity {
     }
 
     private void hideChrome() {
+        if (settingsDialog != null && settingsDialog.isShowing()) return;
         chromeHandler.removeCallbacks(hideChromeRunnable);
         if (navigation != null) {
             navigation.setVisibility(isImmersivePage() ? View.GONE : View.VISIBLE);
@@ -229,6 +232,10 @@ public final class ProMainActivity extends AppCompatActivity {
     }
 
     private void updateChromeForPage() {
+        if (settingsDialog != null && settingsDialog.isShowing()) {
+            showSystemBars();
+            return;
+        }
         chromeHandler.removeCallbacks(hideChromeRunnable);
         if (navigation == null || pager == null) return;
         boolean immersive = isImmersivePage();
@@ -319,9 +326,13 @@ public final class ProMainActivity extends AppCompatActivity {
             }
             boolean imported = success;
             runOnUiThread(() -> {
+                if (isFinishing() || isDestroyed()) return;
                 Toast.makeText(this, imported ? R.string.image_saved : R.string.image_error,
                         Toast.LENGTH_SHORT).show();
-                if (imported) refreshClockPage();
+                if (imported) {
+                    if (settingsDialog != null) settingsDialog.onImageImported();
+                    refreshClockPage();
+                }
             });
         });
     }
@@ -336,6 +347,11 @@ public final class ProMainActivity extends AppCompatActivity {
     }
 
     @Override protected void onDestroy() {
+        if (settingsDialog != null) {
+            settingsDialog.setOnDismissListener(null);
+            settingsDialog.dismiss();
+            settingsDialog = null;
+        }
         chromeHandler.removeCallbacks(hideChromeRunnable);
         imageExecutor.shutdownNow();
         super.onDestroy();

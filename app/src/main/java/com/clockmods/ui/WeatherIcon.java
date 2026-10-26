@@ -25,7 +25,7 @@ final class WeatherIcon {
     private Bitmap bitmap;
     private int bitmapSize;
     private int bitmapColor;
-    private int bitmapAlpha;
+    private final Paint bitmapPaint = new Paint(Paint.FILTER_BITMAP_FLAG);
 
     private WeatherIcon(Path path) { this.path = path; }
 
@@ -60,9 +60,9 @@ final class WeatherIcon {
 
     void draw(Canvas canvas, float left, float top, float size, Paint paint) {
         int targetSize = Math.max(1, (int) Math.ceil(size));
-        int color = paint.getColor();
+        int color = paint.getColor() | 0xFF000000;
         int alpha = paint.getAlpha();
-        if (bitmap == null || bitmapSize != targetSize || bitmapColor != color || bitmapAlpha != alpha) {
+        if (bitmap == null || bitmapSize != targetSize || bitmapColor != color) {
             bitmap = Bitmap.createBitmap(targetSize, targetSize, Bitmap.Config.ARGB_8888);
             Canvas bitmapCanvas = new Canvas(bitmap);
             matrix.reset();
@@ -70,13 +70,13 @@ final class WeatherIcon {
             scaled.reset();
             path.transform(matrix, scaled);
             iconPaint.setColor(color);
-            iconPaint.setAlpha(alpha);
+            iconPaint.setAlpha(255);
             iconPaint.setStyle(Paint.Style.FILL);
             bitmapCanvas.drawPath(scaled, iconPaint);
             bitmapSize = targetSize;
             bitmapColor = color;
-            bitmapAlpha = alpha;
         }
-        canvas.drawBitmap(bitmap, left, top, null);
+        bitmapPaint.setAlpha(alpha);
+        canvas.drawBitmap(bitmap, left, top, bitmapPaint);
     }
 }

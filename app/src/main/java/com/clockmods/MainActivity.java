@@ -39,6 +39,7 @@ public class MainActivity extends Activity {
     private static final int REQUEST_IMAGE = 1001;
     private static final int REQUEST_LOCATION = 1002;
 
+    private SettingsDialog settingsDialog;
     private ClockView clockView;
     private StatusBarView statusBarView;
     private BackgroundRepository backgroundRepository;
@@ -140,6 +141,11 @@ public class MainActivity extends Activity {
 
     @Override
     protected void onDestroy() {
+        if (settingsDialog != null) {
+            settingsDialog.setOnDismissListener(null);
+            settingsDialog.dismiss();
+            settingsDialog = null;
+        }
         imageExecutor.shutdownNow();
         weatherController.shutdown();
         super.onDestroy();
@@ -156,8 +162,9 @@ public class MainActivity extends Activity {
     }
 
     private void showSettings() {
+        if (settingsDialog != null && settingsDialog.isShowing()) return;
         showSystemBars();
-        SettingsDialog dialog = new SettingsDialog(this, backgroundRepository, new SettingsDialog.Listener() {
+        settingsDialog = new SettingsDialog(this, backgroundRepository, new SettingsDialog.Listener() {
             @Override
             public void onColorApplied(int color) {
                 backgroundRepository.setCurrentColor(color);
@@ -187,6 +194,7 @@ public class MainActivity extends Activity {
 
             @Override
             public void onDismissed() {
+                settingsDialog = null;
                 hideSystemBars();
             }
 
@@ -195,7 +203,7 @@ public class MainActivity extends Activity {
                 recreate();
             }
         });
-        dialog.show();
+        settingsDialog.show();
     }
 
     private void applyScreenOrientation() {
@@ -268,10 +276,12 @@ public class MainActivity extends Activity {
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
+                        if (isFinishing() || (Build.VERSION.SDK_INT >= 17 && isDestroyed())) return;
                         Toast.makeText(MainActivity.this,
                                 imported ? R.string.image_saved : R.string.image_error,
                                 Toast.LENGTH_SHORT).show();
                         if (imported) {
+                            if (settingsDialog != null) settingsDialog.onImageImported();
                             clockView.requestBackgroundReload();
                         }
                         hideSystemBars();
@@ -312,6 +322,10 @@ public class MainActivity extends Activity {
     }
 
     private void hideSystemBars() {
+        if (settingsDialog != null && settingsDialog.isShowing()) {
+            showSystemBars();
+            return;
+        }
         View decorView = getWindow().getDecorView();
         if (Build.VERSION.SDK_INT >= 30) {
             WindowInsetsController controller = getWindow().getInsetsController();

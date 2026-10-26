@@ -300,10 +300,7 @@ public class SettingsDialog extends BottomSheetDialog {
         chooseImage.setText(R.string.choose_image);
         chooseImage.setIconResource(R.drawable.ic_photo_library);
         chooseImage.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
-        chooseImage.setOnClickListener(view -> {
-            dismiss();
-            listener.onChooseImage();
-        });
+        chooseImage.setOnClickListener(view -> listener.onChooseImage());
         imageControlsLayout.addView(chooseImage, topMargin(matchWrap(dp(52)), dp(12)));
 
         dimBackgroundSwitch = createStyleSwitch(context, R.string.dim_background,
@@ -985,6 +982,17 @@ public class SettingsDialog extends BottomSheetDialog {
         background.setFillColor(ColorStateList.valueOf(color));
         preview.setBackground(background);
         return preview;
+    }
+
+    /** Refresh only the imported image, preserving every un-applied setting. */
+    public void onImageImported() {
+        android.view.ViewGroup controls = (android.view.ViewGroup) imageControls;
+        View previous = controls.getChildAt(0);
+        android.view.ViewGroup.LayoutParams layout = previous.getLayoutParams();
+        controls.removeViewAt(0);
+        controls.addView(createImagePreview(getContext()), 0, layout);
+        modeGroup.check(IMAGE_MODE_ID);
+        updateBackgroundControls(true);
     }
 
     private View createImagePreview(Context context) {
