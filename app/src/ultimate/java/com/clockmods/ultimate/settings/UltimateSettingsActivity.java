@@ -401,6 +401,9 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         configureEdgeToEdge();
         buildShell();
         showPage(currentPage);
+        if (savedInstanceState != null && savedInstanceState.getBoolean("theme_store_open")) {
+            showThemeStore(savedInstanceState.getBoolean("theme_store_calendar"), savedInstanceState.getInt("theme_store_tab"));
+        }
         syncExternalChanges();
         if (!settingsChanged) {
             setResult(RESULT_CANCELED);
@@ -507,6 +510,9 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         outState.putBoolean(STATE_EMBEDDING_RESOLVED, embeddingStateResolved);
         outState.putBoolean(STATE_HAS_EMBEDDING_SNAPSHOT, hasEmbeddingSnapshot);
         outState.putBoolean(STATE_LAST_KNOWN_EMBEDDED, lastKnownEmbedded);
+        outState.putBoolean("theme_store_open", themeStoreDialog != null && themeStoreDialog.isShowing());
+        outState.putBoolean("theme_store_calendar", themeStoreCalendar);
+        outState.putInt("theme_store_tab", themeStoreTab);
         super.onSaveInstanceState(outState);
     }
 
@@ -521,6 +527,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
 
     @Override
     protected void onDestroy() {
+        if (themeStoreDialog != null) themeStoreDialog.dismiss();
         unregisterEmbeddingListeners();
         if (settingsChangePreferences != null) {
             settingsChangePreferences.unregisterOnSharedPreferenceChangeListener(
@@ -898,9 +905,244 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         }
     }
 
+    private com.clockmods.background.ThemeLibrary themeLibrary(boolean calendar) {
+        List<String> ids = new ArrayList<>();
+        if (calendar) {
+            for (CalendarStyle style : UltimateCalendarStyles.sharedRegistry().getStyles())
+                ids.add(style.getMetadata().getId());
+        } else {
+            for (ClockStyle style : styleRegistry.getStyles())
+                if (style.getMetadata().supportsApi(android.os.Build.VERSION.SDK_INT))
+                    ids.add(style.getMetadata().getId());
+        }
+        return new com.clockmods.background.ThemeLibrary(this, calendar, ids);
+    }
+
+    private String themeName(boolean calendar, String id) {
+        return getString(calendar ? UltimateCalendarStyles.sharedRegistry().resolve(id).getMetadata().getNameRes()
+                : styleNameResource(id));
+    }
+
+    private View themePreview(boolean calendar, String id) {
+        return calendar ? new CalendarThemePreviewView(this, UltimateCalendarStyles.sharedRegistry().resolve(id))
+                : new UltimateThemePreviewView(this, styleRegistry.resolveForApi(id, android.os.Build.VERSION.SDK_INT));
+    }
+
+    private void themeLibraryChanged(boolean calendar) {
+        styleSpecs.clear();
+        markChanged(calendar ? "calendar_theme" : "style_id");
+        showPage(currentPage);
+    }
+
+    private void confirmThemeDelete(boolean calendar, String id, Runnable afterDelete) {
+        com.clockmods.background.ThemeLibrary library = themeLibrary(calendar);
+        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
+                .setTitle(getString(R.string.theme_delete_title, themeName(calendar, id)));
+        if (library.installed().size() <= 1) {
+            builder.setMessage(R.string.theme_keep_one).setPositiveButton(R.string.theme_done, null).show();
+        } else {
+            builder.setMessage(R.string.theme_delete_message)
+                    .setNegativeButton(R.string.ultimate_cancel, null)
+                    .setPositiveButton(R.string.theme_delete, (dialog, which) -> {
+                        if (library.remove(id)) {
+                            themeLibraryChanged(calendar);
+                            if (afterDelete != null) afterDelete.run();
+                        }
+                    }).show();
+        }
+    }
+
+    private void attachThemeDelete(MaterialCardView card, boolean calendar, String id) {
+        FrameLayout target = new FrameLayout(this);
+        target.setContentDescription(getString(R.string.theme_delete_title, themeName(calendar, id)));
+        target.setFocusable(true);
+        target.setClickable(true);
+        TextView minus = label("−", 24, true);
+        minus.setGravity(Gravity.CENTER);
+        minus.setTextColor(Color.WHITE);
+        GradientDrawable circle = new GradientDrawable();
+        circle.setShape(GradientDrawable.OVAL);
+        circle.setColor(0xFFCF3038);
+        minus.setBackground(circle);
+        target.addView(minus, new FrameLayout.LayoutParams(dp(28), dp(28), Gravity.CENTER));
+        card.addView(target, new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.TOP | Gravity.END));
+        target.setVisibility(View.GONE);
+        target.setElevation(dp(8));
+        card.setOnLongClickListener(view -> { target.setVisibility(View.VISIBLE); return true; });
+        target.setOnClickListener(view -> confirmThemeDelete(calendar, id, null));
+    }
+
+    private View themeStoreEntry(boolean calendar, int width, int height) {
+        MaterialCardView card = new MaterialCardView(this);
+        card.setRadius(dp(8));
+        card.setCardElevation(0);
+        card.setCardBackgroundColor(surfaceContainerColor());
+        LinearLayout content = new LinearLayout(this);
+        content.setOrientation(LinearLayout.VERTICAL);
+        content.setGravity(Gravity.CENTER);
+        TextView plus = label("+", 36, false);
+        plus.setGravity(Gravity.CENTER);
+        content.addView(plus, wrapParams());
+        TextView title = label(R.string.theme_store, 15, true);
+        title.setGravity(Gravity.CENTER);
+        content.addView(title, wrapParams());
+        card.addView(content, new ViewGroup.LayoutParams(-1, -1));
+        card.setContentDescription(getString(R.string.theme_store));
+        card.setOnClickListener(view -> showThemeStore(calendar, 0));
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(width, height);
+        params.setMarginStart(dp(10));
+        card.setLayoutParams(params);
+        return card;
+    }
+
+    private android.app.Dialog themeStoreDialog;
+    private boolean themeStoreCalendar;
+    private int themeStoreTab;
+
+    private void showThemeStore(boolean calendar, int tab) {
+        themeStoreCalendar = calendar;
+        themeStoreTab = tab;
+        if (themeStoreDialog != null) themeStoreDialog.dismiss();
+        themeStoreDialog = new android.app.Dialog(this);
+        themeStoreDialog.requestWindowFeature(Window.FEATURE_NO_TITLE);
+        LinearLayout root = new LinearLayout(this);
+        root.setOrientation(LinearLayout.VERTICAL);
+        root.setBackgroundColor(surfaceColor());
+        themeStoreDialog.setContentView(root);
+        themeStoreDialog.show();
+        Window window = themeStoreDialog.getWindow();
+        if (window != null) {
+            window.setBackgroundDrawableResource(android.R.color.transparent);
+            window.setLayout(ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT);
+            androidx.core.view.ViewCompat.setOnApplyWindowInsetsListener(root, (view, insets) -> {
+                androidx.core.graphics.Insets bars = insets.getInsets(
+                        androidx.core.view.WindowInsetsCompat.Type.systemBars()
+                                | androidx.core.view.WindowInsetsCompat.Type.displayCutout());
+                view.setPadding(bars.left, bars.top, bars.right, bars.bottom);
+                return insets;
+            });
+        }
+        populateThemeStore(root, calendar, tab, 0);
+    }
+
+    private void populateThemeStore(LinearLayout root, boolean calendar, int tab, int scrollY) {
+        themeStoreTab = tab;
+        root.removeAllViews();
+        com.clockmods.background.ThemeLibrary library = themeLibrary(calendar);
+        LinearLayout header = new LinearLayout(this);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        android.widget.ImageButton back = new android.widget.ImageButton(this);
+        back.setImageResource(R.drawable.ultimate_ic_arrow_back);
+        back.setImageTintList(ColorStateList.valueOf(onSurfaceColor()));
+        back.setBackgroundColor(Color.TRANSPARENT);
+        back.setContentDescription(getString(R.string.ultimate_back_to_settings));
+        back.setOnClickListener(v -> themeStoreDialog.dismiss());
+        header.addView(back, new LinearLayout.LayoutParams(dp(56), dp(56)));
+        header.addView(label(R.string.theme_store, 22, true), wrapParams());
+        root.addView(header);
+        LinearLayout tabs = new LinearLayout(this);
+        int[] names = {R.string.theme_recommended, R.string.theme_favorites, R.string.theme_installed};
+        for (int i = 0; i < names.length; i++) {
+            final int index = i;
+            MaterialButton button = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+            button.setText(names[i]);
+            button.setTextColor(i == tab ? primaryColor() : onSurfaceVariantColor());
+            button.setSelected(i == tab);
+            button.setOnClickListener(v -> populateThemeStore(root, calendar, index, 0));
+            tabs.addView(button, new LinearLayout.LayoutParams(0, dp(52), 1f));
+        }
+        root.addView(tabs);
+        TextView hint = label(R.string.theme_store_hint, 13, false);
+        hint.setPadding(dp(16), dp(8), dp(16), dp(8));
+        root.addView(hint);
+        ScrollView scroll = new ScrollView(this);
+        root.addView(scroll, new LinearLayout.LayoutParams(-1, 0, 1f));
+        android.widget.GridLayout grid = new android.widget.GridLayout(this);
+        int columns = Math.max(1, getResources().getConfiguration().screenWidthDp / 200);
+        grid.setColumnCount(columns);
+        grid.setPadding(dp(6), dp(6), dp(6), dp(12));
+        scroll.addView(grid);
+        List<String> installed = library.installed();
+        List<String> ids = tab == 2 ? installed : library.catalog();
+        int count = 0;
+        Runnable refresh = () -> populateThemeStore(root, calendar, tab, scroll.getScrollY());
+        for (String id : ids) {
+            if (tab == 1 && !library.isFavorite(id)) continue;
+            MaterialCardView card = new MaterialCardView(this);
+            card.setRadius(dp(12));
+            card.setCardElevation(0);
+            card.setCardBackgroundColor(surfaceContainerColor());
+            LinearLayout content = new LinearLayout(this);
+            content.setOrientation(LinearLayout.VERTICAL);
+            content.setPadding(dp(10), dp(10), dp(10), dp(6));
+            content.addView(themePreview(calendar, id), new LinearLayout.LayoutParams(-1, dp(100)));
+            TextView title = label(themeName(calendar, id), 16, true);
+            title.setMaxLines(1);
+            title.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            content.addView(title, topMargin(wrapParams(), dp(8)));
+            LinearLayout actions = new LinearLayout(this);
+            android.widget.ImageButton favorite = new android.widget.ImageButton(this);
+            favorite.setImageResource(library.isFavorite(id) ? R.drawable.theme_favorite_filled : R.drawable.theme_favorite_outline);
+            favorite.setImageTintList(ColorStateList.valueOf(library.isFavorite(id) ? primaryColor() : onSurfaceVariantColor()));
+            favorite.setBackgroundColor(Color.TRANSPARENT);
+            favorite.setContentDescription(getString(library.isFavorite(id) ? R.string.theme_unfavorite : R.string.theme_favorite));
+            favorite.setOnClickListener(v -> { library.favorite(id); refresh.run(); });
+            actions.addView(favorite, new LinearLayout.LayoutParams(dp(52), dp(48)));
+            MaterialButton use = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+            boolean present = installed.contains(id);
+            use.setText(!present ? R.string.theme_install : library.selected().equals(id) ? R.string.theme_in_use : R.string.theme_use);
+            use.setEnabled(!present || !library.selected().equals(id));
+            use.setOnClickListener(v -> {
+                if (present) library.select(id); else library.install(id);
+                themeLibraryChanged(calendar);
+                refresh.run();
+            });
+            actions.addView(use, new LinearLayout.LayoutParams(0, dp(48), 1f));
+            content.addView(actions);
+            if (tab == 2) {
+                LinearLayout editing = new LinearLayout(this);
+                for (int delta : new int[]{-1, 1}) {
+                    MaterialButton move = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+                    move.setText(delta < 0 ? "←" : "→");
+                    move.setMinWidth(0);
+                    move.setMinimumWidth(0);
+                    move.setPadding(0, 0, 0, 0);
+                    move.setContentDescription(getString(delta < 0 ? R.string.theme_move_before : R.string.theme_move_after));
+                    int position = installed.indexOf(id) + delta;
+                    move.setEnabled(position >= 0 && position < installed.size());
+                    move.setOnClickListener(v -> { library.move(id, delta); themeLibraryChanged(calendar); refresh.run(); });
+                    editing.addView(move, new LinearLayout.LayoutParams(dp(48), dp(48)));
+                }
+                MaterialButton delete = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+                delete.setText(R.string.theme_delete);
+                delete.setMinWidth(0);
+                delete.setMinimumWidth(0);
+                delete.setPadding(0, 0, 0, 0);
+                delete.setEnabled(installed.size() > 1);
+                delete.setOnClickListener(v -> confirmThemeDelete(calendar, id, refresh));
+                editing.addView(delete, new LinearLayout.LayoutParams(0, dp(48), 1f));
+                content.addView(editing);
+                if (installed.size() == 1) content.addView(label(R.string.theme_keep_one, 12, false));
+            }
+            card.addView(content);
+            android.widget.GridLayout.LayoutParams params = new android.widget.GridLayout.LayoutParams(
+                    android.widget.GridLayout.spec(count / columns), android.widget.GridLayout.spec(count % columns, 1f));
+            params.width = 0;
+            params.setMargins(dp(6), dp(6), dp(6), dp(6));
+            grid.addView(card, params);
+            count++;
+        }
+        if (count == 0) grid.addView(label(R.string.theme_no_favorites, 16, false));
+        scroll.post(() -> scroll.scrollTo(0, scrollY));
+    }
+
     private View stylePage(int previousGalleryScrollX) {
         LinearLayout body = pageBody(0);
         addSectionLabel(body, R.string.ultimate_style_gallery);
+        MaterialButton manage = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        manage.setText(R.string.theme_manage);
+        manage.setOnClickListener(v -> showThemeStore(false, 2));
+        body.addView(manage, wrapParams());
         HorizontalScrollView galleryScroll = new HorizontalScrollView(this);
         currentStyleGalleryScroll = galleryScroll;
         galleryScroll.setHorizontalScrollBarEnabled(false);
@@ -966,14 +1208,17 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             if (styleIndex < styleSpecs.size() - 1) {
                 cardParams.setMarginEnd(cardSpacing);
             }
+            attachThemeDelete(card, false, spec.id);
             gallery.addView(card, cardParams);
             styleCards.add(card);
             if (spec.id.equals(selectedId)) selectedCard = card;
         }
+        gallery.addView(themeStoreEntry(false, cardWidth, cardHeight));
         galleryScroll.addView(gallery, new ViewGroup.LayoutParams(
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         body.addView(galleryScroll, topMargin(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, galleryHeight), dp(4)));
+        body.addView(label(R.string.theme_library_hint, 12, false));
         updateStyleCards(selectedId);
         View cardToReveal = selectedCard;
         galleryScroll.post(() -> {
@@ -2017,63 +2262,46 @@ public class UltimateSettingsActivity extends AppCompatActivity {
      * @return the id of the currently selected calendar theme.
      */
     private String addCalendarThemes(LinearLayout body) {
-        List<CalendarStyle> styles = UltimateCalendarStyles.sharedRegistry().getStyles();
-        String selectedId = UltimateCalendarStyles.sharedRegistry()
-                .resolve(repository.getCalendarTheme()).getMetadata().getId();
-        int previewWidth = dp(64);
-        int previewHeight = dp(78);
-        for (int index = 0; index < styles.size(); index++) {
-            CalendarStyle style = styles.get(index);
-            CalendarStyleMetadata metadata = style.getMetadata();
-            String styleId = metadata.getId();
-            String name = getString(metadata.getNameRes());
+        com.clockmods.background.ThemeLibrary library = themeLibrary(true);
+        String selectedId = library.selected();
+        MaterialButton manage = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        manage.setText(R.string.theme_manage);
+        manage.setOnClickListener(v -> showThemeStore(true, 2));
+        body.addView(manage, wrapParams());
+        HorizontalScrollView scroll = new HorizontalScrollView(this);
+        scroll.setHorizontalScrollBarEnabled(false);
+        LinearLayout gallery = new LinearLayout(this);
+        gallery.setPadding(0, dp(4), dp(20), dp(8));
+        for (String id : library.installed()) {
             MaterialCardView card = new MaterialCardView(this);
             card.setRadius(dp(8));
             card.setCardElevation(0f);
-            card.setUseCompatPadding(false);
-            // Selection is communicated by the card stroke. Disable MaterialCardView's
-            // built-in checked icon so the list does not add a redundant corner checkmark.
-            card.setCheckable(false);
-            card.setCheckedIcon(null);
-            card.setClickable(true);
-            card.setFocusable(true);
-            card.setContentDescription(getString(R.string.ultimate_style_choose, name));
-            // The id travels on the card so selection never has to trust list positions.
-            card.setTag(styleId);
-            LinearLayout row = new LinearLayout(this);
-            row.setOrientation(LinearLayout.HORIZONTAL);
-            row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setPadding(dp(10), dp(10), dp(14), dp(10));
-            CalendarThemePreviewView preview = new CalendarThemePreviewView(this, style);
-            preview.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
-            row.addView(preview, new LinearLayout.LayoutParams(previewWidth, previewHeight));
-            LinearLayout text = new LinearLayout(this);
-            text.setOrientation(LinearLayout.VERTICAL);
-            text.addView(label(name, 15, true), wrapParams());
-            TextView summary = label(getString(metadata.getSummaryRes()), 12, false);
-            summary.setTextColor(onSurfaceVariantColor());
-            text.addView(summary, topMargin(wrapParams(), dp(3)));
-            LinearLayout.LayoutParams textParams = new LinearLayout.LayoutParams(
-                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
-            textParams.setMarginStart(dp(14));
-            row.addView(text, textParams);
-            card.addView(row, new ViewGroup.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
-            card.setOnClickListener(view -> {
-                repository.setCalendarTheme(styleId);
-                updateCalendarThemeCards(styleId);
-                markChanged("calendar_theme");
-                // The typography block below these cards is bound to the selected theme's scope,
-                // so the page has to be rebuilt for it to follow the new selection -- the same
-                // reason the clock style gallery rebuilds on selection.
-                showPage(Page.CALENDAR_STYLE);
-            });
-            LinearLayout.LayoutParams cardParams = new LinearLayout.LayoutParams(
-                    ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT);
-            cardParams.topMargin = dp(index == 0 ? 4 : 8);
-            body.addView(card, cardParams);
+            card.setTag(id);
+            card.setContentDescription(getString(R.string.ultimate_style_choose, themeName(true, id)));
+            LinearLayout content = new LinearLayout(this);
+            content.setOrientation(LinearLayout.VERTICAL);
+            content.setPadding(dp(10), dp(10), dp(10), dp(10));
+            content.addView(themePreview(true, id), new LinearLayout.LayoutParams(-1, dp(88)));
+            TextView name = label(themeName(true, id), 15, true);
+            name.setMaxLines(1);
+            name.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            content.addView(name, topMargin(wrapParams(), dp(6)));
+            TextView summary = label(UltimateCalendarStyles.sharedRegistry().resolve(id).getMetadata().getSummaryRes(), 12, false);
+            summary.setMaxLines(1);
+            summary.setEllipsize(android.text.TextUtils.TruncateAt.END);
+            content.addView(summary);
+            card.addView(content);
+            card.setOnClickListener(v -> { library.select(id); themeLibraryChanged(true); });
+            attachThemeDelete(card, true, id);
+            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(dp(190), dp(172));
+            params.setMarginEnd(dp(10));
+            gallery.addView(card, params);
             calendarThemeCards.add(card);
         }
+        gallery.addView(themeStoreEntry(true, dp(190), dp(172)));
+        scroll.addView(gallery);
+        body.addView(scroll, new LinearLayout.LayoutParams(-1, dp(188)));
+        body.addView(label(R.string.theme_library_hint, 12, false));
         updateCalendarThemeCards(selectedId);
         return selectedId;
     }
@@ -3315,8 +3543,9 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     }
 
     private void buildStyleSpecs() {
-        if (!styleSpecs.isEmpty()) return;
-        for (ClockStyle style : styleRegistry.getStyles()) {
+        styleSpecs.clear();
+        for (String installedId : themeLibrary(false).installed()) {
+            ClockStyle style = styleRegistry.resolveForApi(installedId, android.os.Build.VERSION.SDK_INT);
             if (!style.getMetadata().supportsApi(android.os.Build.VERSION.SDK_INT)) continue;
             String id = style.getMetadata().getId();
             int nameRes = styleNameResource(id);

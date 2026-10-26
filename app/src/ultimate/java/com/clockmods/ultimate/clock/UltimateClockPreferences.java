@@ -56,7 +56,8 @@ public final class UltimateClockPreferences {
     }
 
     public String getStyleId() {
-        return normalizeStyleId(preferences.getString(KEY_STYLE_ID, DEFAULT_STYLE_ID));
+        return com.clockmods.background.ThemeLibrary.resolveSelection(preferences,
+                normalizeStyleId(preferences.getString(KEY_STYLE_ID, DEFAULT_STYLE_ID)));
     }
 
     public void setStyleId(String styleId) {
@@ -65,7 +66,7 @@ public final class UltimateClockPreferences {
 
     public ClockState.SecondHandMotion getSecondHandMotion() {
         String stored = preferences.getString(
-                KEY_SECOND_HAND_MOTION, "smooth");
+                KEY_SECOND_HAND_MOTION + "__" + getStyleId(), preferences.getString(KEY_SECOND_HAND_MOTION, "smooth"));
         if (stored != null) {
             String normalized = stored.trim().toLowerCase(java.util.Locale.US);
             if ("smooth".equals(normalized) || "sweep".equals(normalized)) {
@@ -84,7 +85,7 @@ public final class UltimateClockPreferences {
                 ? DEFAULT_SECOND_HAND_MOTION : motion;
         String stored = safe == ClockState.SecondHandMotion.SWEEP ? "smooth"
                 : safe == ClockState.SecondHandMotion.TICK ? "tick" : "off";
-        preferences.edit().putString(KEY_SECOND_HAND_MOTION, stored).apply();
+        preferences.edit().putString(KEY_SECOND_HAND_MOTION + "__" + getStyleId(), stored).apply();
     }
 
     /** Each Ultimate face keeps its digit motion separate from Pro Classic's preferences. */
@@ -156,7 +157,7 @@ public final class UltimateClockPreferences {
     public void restoreDefaults() {
         SharedPreferences.Editor editor = preferences.edit();
         for (String key : preferences.getAll().keySet()) {
-            if (key.startsWith("palette_") || key.startsWith(KEY_DIGIT_ANIMATION_PREFIX)
+            if (key.startsWith("second_motion__") || key.startsWith("palette_") || key.startsWith(KEY_DIGIT_ANIMATION_PREFIX)
                     || key.startsWith(KEY_DIGIT_TRANSITION_PREFIX)
                     || key.startsWith(KEY_WEATHER_TRANSITION_PREFIX)) editor.remove(key);
         }

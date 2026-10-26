@@ -699,8 +699,8 @@ public class ClockPreferences {
     }
 
     public String getCalendarTheme() {
-        return normalizeCalendarTheme(preferences.getString(
-                KEY_CALENDAR_THEME, DEFAULT_CALENDAR_THEME));
+        return ThemeLibrary.resolveSelection(preferences, normalizeCalendarTheme(preferences.getString(
+                KEY_CALENDAR_THEME, DEFAULT_CALENDAR_THEME)));
     }
 
     public void setCalendarTheme(String themeId) {

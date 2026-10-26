@@ -51,13 +51,13 @@ public class UltimateClockPreferencesTest {
     public void sdkMotionValuesPersistAsSettingsStrings() {
         preferences.setSecondHandMotion(ClockState.SecondHandMotion.SWEEP);
         Assert.assertEquals("smooth", stored.getString(
-                UltimateClockPreferences.KEY_SECOND_MOTION, null));
+                UltimateClockPreferences.KEY_SECOND_MOTION + "__" + preferences.getStyleId(), null));
         preferences.setSecondHandMotion(ClockState.SecondHandMotion.TICK);
         Assert.assertEquals("tick", stored.getString(
-                UltimateClockPreferences.KEY_SECOND_MOTION, null));
+                UltimateClockPreferences.KEY_SECOND_MOTION + "__" + preferences.getStyleId(), null));
         preferences.setSecondHandMotion(ClockState.SecondHandMotion.OFF);
         Assert.assertEquals("off", stored.getString(
-                UltimateClockPreferences.KEY_SECOND_MOTION, null));
+                UltimateClockPreferences.KEY_SECOND_MOTION + "__" + preferences.getStyleId(), null));
     }
 
     @Test
