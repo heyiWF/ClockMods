@@ -134,7 +134,7 @@ class UltimateClockRendererSmokeTest {
     }
 
     @Test
-    fun fontFittingUsesConfiguredPercentageIncludingClassicNormalization() {
+    fun fontFittingUsesTheSameDateAndSupportingPercentageInEveryTheme() {
         val paints = PaintPoolFixture.install()
         val pool = UltimateClockStyles.RendererBase.PAINT_POOL.get()!!
         val previous = pool.motionState
@@ -151,7 +151,7 @@ class UltimateClockRendererSmokeTest {
                 for (scale in floatArrayOf(.5f, 1f, 1.01f, 1.5f, 1f)) {
                     pool.motionState = ClockState.builder(0L)
                         .timeScale(scale / com.clockmods.background.ClockPreferences.DEFAULT_TIME_FONT_SCALE)
-                        .dateScale(if (classic) scale / com.clockmods.background.ClockPreferences.DEFAULT_DATE_FONT_SCALE else scale)
+                        .dateScale(scale)
                         .supportingScale(scale).build()
                     for (size in probe.sizes()) {
                         if (scale > 1f) assertEquals(100f, size, .001f)

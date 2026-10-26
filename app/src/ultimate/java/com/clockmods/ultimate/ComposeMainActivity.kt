@@ -67,6 +67,7 @@ open class ComposeMainActivity : ComponentActivity() {
 
     override fun onCreate(savedInstanceState: Bundle?) {
         super.onCreate(savedInstanceState)
+        com.clockmods.ui.LaunchSplash.install(this)
         setupWizardLaunchPending = savedInstanceState?.getBoolean(
             STATE_SETUP_WIZARD_PENDING,
             false,

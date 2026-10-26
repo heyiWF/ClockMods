@@ -16,6 +16,10 @@ import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.runtime.saveable.rememberSaveable
+import androidx.compose.foundation.text.KeyboardOptions
+import androidx.compose.ui.text.input.KeyboardType
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalContext
@@ -56,6 +60,11 @@ private fun CalendarLibrary(revision: Int, model: CalendarImportModel, onBack: (
     // Capture each model publication so Scaffold/LazyColumn slots observe operation changes.
     val busy = model.busy
     val results = model.results.toList()
+    var showLink by rememberSaveable { mutableStateOf(false) }
+    var link by rememberSaveable { mutableStateOf("") }
+    var linkError by rememberSaveable { mutableStateOf(false) }
+    val showEvents = remember(revision) { store.showInDateCarousel() }
+    val carouselLabel = stringResource(R.string.calendar_import_carousel)
     var removing by remember { mutableStateOf<UserCalendarStore.Source?>(null) }
     Scaffold(
         topBar = { TopAppBar(
@@ -82,6 +91,24 @@ private fun CalendarLibrary(revision: Int, model: CalendarImportModel, onBack: (
             ) {
                 item { Text(stringResource(R.string.calendar_import_summary),
                     style = MaterialTheme.typography.bodyLarge, color = MaterialTheme.colorScheme.onSurfaceVariant) }
+                item {
+                    Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
+                        OutlinedButton(onClick = { showLink = true }, enabled = !busy,
+                            modifier = Modifier.fillMaxWidth().heightIn(min = 48.dp)) {
+                            Icon(painterResource(R.drawable.import_ic_link), null)
+                            Spacer(Modifier.width(8.dp)); Text(stringResource(R.string.calendar_import_link))
+                        }
+                        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+                            Column(Modifier.weight(1f).padding(end = 16.dp)) {
+                                Text(stringResource(R.string.calendar_import_carousel), style = MaterialTheme.typography.titleMedium)
+                                Text(stringResource(R.string.calendar_import_carousel_hint),
+                                    style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
+                            }
+                            Switch(checked = showEvents, onCheckedChange = { store.setShowInDateCarousel(it) },
+                                modifier = Modifier.semantics { contentDescription = carouselLabel })
+                        }
+                    }
+                }
                 if (busy) item {
                     Column(verticalArrangement = Arrangement.spacedBy(8.dp)) {
                         LinearProgressIndicator(Modifier.fillMaxWidth())
@@ -128,6 +155,24 @@ private fun CalendarLibrary(revision: Int, model: CalendarImportModel, onBack: (
             }
         }
     }
+    if (showLink) AlertDialog(
+        onDismissRequest = { showLink = false },
+        title = { Text(stringResource(R.string.calendar_import_link)) },
+        text = { Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+            Text(stringResource(R.string.calendar_import_link_hint))
+            OutlinedTextField(value = link, onValueChange = { link = it; linkError = false },
+                label = { Text(stringResource(R.string.calendar_import_url)) }, singleLine = true,
+                keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), isError = linkError,
+                supportingText = { if (linkError) Text(stringResource(R.string.calendar_import_url_invalid)) })
+        } },
+        confirmButton = { TextButton(enabled = !busy && link.isNotBlank(), onClick = {
+            try {
+                com.clockmods.calendar.imports.CalendarLink.normalize(link)
+                model.importLink(link); showLink = false; link = ""
+            } catch (_: java.io.IOException) { linkError = true }
+        }) { Text(stringResource(R.string.calendar_import_add)) } },
+        dismissButton = { TextButton(onClick = { showLink = false }) { Text(stringResource(android.R.string.cancel)) } },
+    )
     removing?.let { file ->
         AlertDialog(
             onDismissRequest = { removing = null },

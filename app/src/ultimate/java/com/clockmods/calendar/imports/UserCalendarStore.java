@@ -67,6 +67,13 @@ public final class UserCalendarStore {
             }
         }catch(Exception ignored){/* A missing/corrupt catalog never overwrites the retained source files. */}
     }
+    public boolean showInDateCarousel() {
+        return context.getSharedPreferences("calendar_import_display", 0).getBoolean("date_carousel", true);
+    }
+    public synchronized void setShowInDateCarousel(boolean enabled) {
+        context.getSharedPreferences("calendar_import_display", 0).edit().putBoolean("date_carousel", enabled).apply();
+        changes.setValue(++revision);
+    }
     public synchronized List<Source> files(){return sources;}
     public synchronized String error(String id){return errors.get(id);}
     private File file(String id){return new File(directory,id+".ics");}

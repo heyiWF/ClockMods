@@ -44,6 +44,32 @@ public final class CalendarImportModel extends AndroidViewModel {
             results = next; busy = false; state.postValue(2);
         });
     }
+    public void importLink(String link) {
+        if (busy) return; busy = true; results = new ArrayList<>(); state.setValue(1);
+        worker.execute(() -> {
+            List<Result> next = new ArrayList<>();
+            try {
+                UserCalendarStore.Source file = com.clockmods.calendar.imports.CalendarLink.importFrom(
+                        UserCalendarStore.get(getApplication()), link);
+                next.add(new Result(R.string.calendar_import_success, file.name));
+            } catch (Exception failure) {
+                String reason = failure instanceof CalendarImportException ? ((CalendarImportException) failure).reason : "network";
+                int message;
+                switch (reason) {
+                    case "url": message = R.string.calendar_import_url_invalid; break;
+                    case "network": message = R.string.calendar_import_network; break;
+                    case "duplicate": message = R.string.calendar_import_duplicate; break;
+                    case "empty": message = R.string.calendar_import_no_events; break;
+                    case "limit": message = R.string.calendar_import_limit; break;
+                    case "timezone": message = R.string.calendar_import_timezone; break;
+                    case "unsupported": message = R.string.calendar_import_unsupported; break;
+                    default: message = R.string.calendar_import_invalid;
+                }
+                next.add(new Result(message, ""));
+            }
+            results = next; busy = false; state.postValue(2);
+        });
+    }
     public void delete(String id) {
         if (busy) return; busy = true; state.setValue(1);
         worker.execute(() -> {

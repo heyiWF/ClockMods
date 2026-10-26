@@ -791,14 +791,13 @@ private fun ClockCanvas(
     ) { ClockDigitTransitionTracker() }
     LaunchedEffect(transitionProgress) {
         if (animateTime) transitionProgress.animateTo(1f,
-            if (scanTransition) tween(durationMillis = duration, easing = LinearEasing)
-            else tween(durationMillis = duration))
+            tween(durationMillis = duration, easing = LinearEasing))
     }
     // Capture the outgoing line during composition. Starting the animation later in an effect
     // briefly paints the new line at full opacity before snapping back to the old one.
     val committedWeatherText = remember(styleId) { arrayOf(weatherText) }
     val previousWeatherText = remember(styleId, weatherText) { committedWeatherText[0] }
-    val weatherProgress = remember(styleId, weatherText, animateTime, weatherTransitionType) {
+    val weatherProgress = remember(styleId, weatherText, weatherTransitionType) {
         Animatable(if (previousWeatherText.isNotEmpty() &&
             previousWeatherText != weatherText) 0f else 1f)
     }
@@ -806,8 +805,7 @@ private fun ClockCanvas(
     LaunchedEffect(weatherProgress) {
         if (weatherProgress.value < 1f) {
             weatherProgress.animateTo(1f,
-                if (weatherScan) tween(durationMillis = weatherCarouselDuration, easing = LinearEasing)
-                else tween(durationMillis = weatherCarouselDuration))
+                tween(durationMillis = weatherCarouselDuration, easing = LinearEasing))
         }
     }
     // The message marquee advances on the frame clock. Only the redraw is driven here — the scroll
@@ -982,8 +980,8 @@ private fun dateFontScaleForStyle(repository: BackgroundRepository, styleId: Str
         repository.getDateFontScale(styleId)
     }
     // Classic keeps the legacy screen-fraction preference; theme renderers receive multipliers.
-    return if (styleId == UltimateClockStyles.STYLE_PRO_CLASSIC)
-        value / ClockPreferences.DEFAULT_DATE_FONT_SCALE else value
+    return if (styleId == UltimateClockStyles.STYLE_PRO_CLASSIC &&
+        repository.getDateFontScaleSetting() == 0f) 1f else value
 }
 
 private fun shouldDimBackground(

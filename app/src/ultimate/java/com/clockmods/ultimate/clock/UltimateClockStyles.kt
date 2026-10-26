@@ -480,15 +480,12 @@ object UltimateClockStyles {
                 alpha(shadow, Color.alpha(color) * 153 / 255))
         }
 
-        // ClockState uses a normalized time multiplier, and Classic normalizes its date too.
+        // Time uses a normalized multiplier; date and supporting text share raw percentages.
         protected fun timeOverflowAllowed(): Boolean = (PAINT_POOL.get().motionState?.getTimeScale() ?: 1f) >
             1f / com.clockmods.background.ClockPreferences.DEFAULT_TIME_FONT_SCALE
 
-        protected fun dateOverflowAllowed(): Boolean {
-            val pool = PAINT_POOL.get()
-            val baseline = if (pool.classicDateScale) com.clockmods.background.ClockPreferences.DEFAULT_DATE_FONT_SCALE else 1f
-            return (pool.motionState?.getDateScale() ?: 1f) > 1f / baseline
-        }
+        protected fun dateOverflowAllowed(): Boolean =
+            (PAINT_POOL.get().motionState?.getDateScale() ?: 1f) > 1f
 
         protected fun supportingOverflowAllowed(): Boolean =
             (PAINT_POOL.get().motionState?.getSupportingScale() ?: 1f) > 1f
@@ -584,7 +581,10 @@ object UltimateClockStyles {
             val previousPhotoText = pool.photoText
             if (imageBackground != null) pool.photoText = true
             try {
-                val progress = state?.getWeatherTransitionProgress() ?: 1f
+                val rawProgress = state?.getWeatherTransitionProgress() ?: 1f
+                val progress = if (state?.getWeatherTransition() == ClockState.TimeTransition.SCAN ||
+                    state?.getWeatherTransition() == ClockState.TimeTransition.SLIDE_RIGHT) rawProgress
+                    else ClockTransitionTiming.easeOutCubic(rawProgress)
                 val previous = state?.getPreviousWeatherText().orEmpty()
                 if (state != null && progress < 1f && previous.isNotEmpty() &&
                     value == contextText(state)) {
@@ -662,11 +662,11 @@ object UltimateClockStyles {
                         ClockState.TimeTransition.SLIDE_DOWN -> {
                             val direction = if (transition == ClockState.TimeTransition.SLIDE_UP) -1f else 1f
                             val oldSave = canvas.save()
-                            canvas.translate(0f, direction * distance * .3f * progress)
+                            canvas.translate(0f, direction * distance * progress)
                             drawCarouselItem(canvas, context, state, true, oldVisible, x, baseline, oldSize, oldColor, align, face, maxWidth)
                             canvas.restoreToCount(oldSave)
                             val newSave = canvas.save()
-                            canvas.translate(0f, -direction * distance * .3f * (1f - progress))
+                            canvas.translate(0f, -direction * distance * (1f - progress))
                             drawCarouselItem(canvas, context, state, false, visible, x, baseline, size, newColor, align, face, maxWidth)
                             canvas.restoreToCount(newSave)
                         }
@@ -1002,7 +1002,10 @@ object UltimateClockStyles {
             val pool = PAINT_POOL.get()
             pool.timeTextSizeObserver?.invoke(paint.textSize)
             val state = pool.motionState
-            val progress = state?.getTimeTransitionProgress() ?: 1f
+            val rawProgress = state?.getTimeTransitionProgress() ?: 1f
+            val progress = if (state?.getTimeTransition() == ClockState.TimeTransition.SCAN ||
+                state?.getTimeTransition() == ClockState.TimeTransition.SLIDE_RIGHT) rawProgress
+                else ClockTransitionTiming.easeOutCubic(rawProgress)
             val previous = pool.digitTracker?.previousFor(value, progress < 1f)
             val color = paint.color
             if (pool.photoText) {

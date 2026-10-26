@@ -253,7 +253,7 @@ internal fun CalendarScreen(
                 suitable = almanac?.suitable().orEmpty(),
                 avoid = almanac?.avoid().orEmpty(),
                 hasSchedule = imported.isNotEmpty() || scheduleStore.itemsFor(day.year, day.month, day.dayOfMonth).isNotEmpty(),
-                eventLabels = com.clockmods.calendar.imports.ImportedSchedules.labels(imported),
+                eventLabels = if (calendarStore.showInDateCarousel()) com.clockmods.calendar.imports.ImportedSchedules.labels(imported) else emptyList(),
                 importedSchedules = imported,
                 showChineseCalendar = showChineseCalendar,
             )
