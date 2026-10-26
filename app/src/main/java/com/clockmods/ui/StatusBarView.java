@@ -161,7 +161,7 @@ public class StatusBarView extends View {
 
     private void applyTextPaint() {
         textPaint.setColor(ClockPreferences.TEXT_COLOR);
-        textPaint.setTypeface(ClockTypefaceResolver.resolveTime(getContext(), false));
+        textPaint.setTypeface(ClockTypefaceResolver.resolve(getContext(), false));
         textPaint.setTextSize(calculateStatusTextSize(density, resolveStatusTextScale()));
     }
 

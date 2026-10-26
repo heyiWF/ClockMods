@@ -264,7 +264,7 @@ public class ClockView extends View {
         // always stacks, so it sizes against the longer of the two rows to fill its narrow width.
         boolean portraitStack = height >= width && lunarText.length() > 0;
         String widestDateText = portraitStack ? longerOf(dateText, lunarText) : fullDate;
-        applySupportingTypeface(widestDateText);
+        applySupportingTypeface();
 
         timePaint.setTextSize(1f);
         secondsPaint.setTextSize(0.6f);
@@ -323,7 +323,7 @@ public class ClockView extends View {
         float top = getPaddingTop() + 16f * density;
         String firstLine = singleLine && lunarText.length() > 0
                 ? dateText + " " + lunarText : dateText;
-        applySupportingTypeface(firstLine);
+        applySupportingTypeface();
         float baseline = top - datePaint.getFontMetrics().top;
         drawSupportingText(canvas, firstLine, left, baseline, Paint.Align.LEFT);
         if (!singleLine && lunarText.length() > 0) {
@@ -361,7 +361,7 @@ public class ClockView extends View {
         // first, so the digits can be capped to always leave room for them.
         datePaint.setTextSize(1f);
         String widestDate = lunarText.length() == 0 ? dateText : longerOf(dateText, lunarText);
-        applySupportingTypeface(widestDate);
+        applySupportingTypeface();
         float dateSize = ClockLayoutCalculator.calculateWidthBasedTextSize(
                 width, height, measureSupportingText(widestDate), dateFontScale, 0.08f, 0.92f);
         datePaint.setTextSize(dateSize);
@@ -508,7 +508,7 @@ public class ClockView extends View {
 
         // Fixed size (never shrinks); overflow is handled by marquee scrolling.
         datePaint.setTextSize(dateSize);
-        applySupportingTypeface(weatherItem.text);
+        applySupportingTypeface();
         Paint.FontMetrics weatherMetrics = datePaint.getFontMetrics();
         float baseline = timeBaseline + timeMetrics.descent + gap - weatherMetrics.ascent;
 
@@ -709,7 +709,7 @@ public class ClockView extends View {
             long itemElapsed) {
         if (item == null || item.text.length() == 0) return;
         int originalAlpha = datePaint.getAlpha();
-        applySupportingTypeface(item.text);
+        applySupportingTypeface();
         float clampedAlpha = Math.max(0, Math.min(255, alpha));
         if (ClockPreferences.TRANSITION_SLIDE_UP.equals(transition)
                 || ClockPreferences.TRANSITION_SLIDE_DOWN.equals(transition)) {
@@ -784,7 +784,7 @@ public class ClockView extends View {
     private float measureSupportingText(String text) {
         if (text == null || text.length() == 0) return 0f;
         Typeface originalTypeface = datePaint.getTypeface();
-        applySupportingTypeface(text);
+        applySupportingTypeface();
         float width = datePaint.measureText(text);
         datePaint.setTypeface(originalTypeface);
         return width;
@@ -860,7 +860,7 @@ public class ClockView extends View {
         if (text == null || text.length() == 0) return;
         Paint.Align originalAlign = datePaint.getTextAlign();
         Typeface originalTypeface = datePaint.getTypeface();
-        applySupportingTypeface(text);
+        applySupportingTypeface();
         datePaint.setTextAlign(align);
         canvas.drawText(text, x, baseline, datePaint);
         datePaint.setTypeface(originalTypeface);
@@ -881,12 +881,11 @@ public class ClockView extends View {
         animateTimeChanges = backgroundRepository.isAnimateTimeChanges();
         timeTransition = backgroundRepository.getTimeTransition();
         boldText = backgroundRepository.isBoldText();
-        Typeface timeTypeface = ClockTypefaceResolver.resolveTime(getContext(), boldText);
+        Typeface timeTypeface = ClockTypefaceResolver.resolve(getContext(), boldText);
         timePaint.setTypeface(timeTypeface);
         secondsPaint.setTypeface(timeTypeface);
         periodPaint.setTypeface(timeTypeface);
-        datePaint.setTypeface(ClockTypefaceResolver.resolveSupporting(
-            getContext(), boldText, true));
+        datePaint.setTypeface(ClockTypefaceResolver.resolve(getContext(), boldText));
         showSeconds = backgroundRepository.isShowSeconds();
         showLunar = backgroundRepository.isShowLunar();
         smallSeconds = backgroundRepository.isSmallSeconds();
@@ -901,26 +900,8 @@ public class ClockView extends View {
         }
     }
 
-    private void applySupportingTypeface(String text) {
-        datePaint.setTypeface(ClockTypefaceResolver.resolveSupporting(
-                getContext(), boldText, containsChinese(text)));
-    }
-
-    static boolean containsChinese(String text) {
-        if (text == null) {
-            return false;
-        }
-        for (int offset = 0; offset < text.length();) {
-            int codePoint = text.codePointAt(offset);
-            Character.UnicodeBlock block = Character.UnicodeBlock.of(codePoint);
-            if (block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS
-                    || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A
-                    || block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS) {
-                return true;
-            }
-            offset += Character.charCount(codePoint);
-        }
-        return false;
+    private void applySupportingTypeface() {
+        datePaint.setTypeface(ClockTypefaceResolver.resolve(getContext(), boldText));
     }
 
     private java.util.TimeZone resolveTimeZone() {

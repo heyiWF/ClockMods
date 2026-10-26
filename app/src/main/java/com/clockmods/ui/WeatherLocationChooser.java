@@ -73,17 +73,19 @@ public final class WeatherLocationChooser {
             }
         });
 
-        new AlertDialog.Builder(context)
+        AlertDialog dialog = new AlertDialog.Builder(context)
                 .setTitle(R.string.weather_choose_location)
                 .setView(content)
                 .setNegativeButton(R.string.cancel, null)
-                .setPositiveButton(R.string.apply, (dialog, which) -> {
+                .setPositiveButton(R.string.apply, (which, whichButton) -> {
                     List<WeatherLocationCatalog.LocationEntry> selected =
                             currentDistricts(catalog, provinces, provinceSpinner, citySpinner);
                     int position = districtSpinner.getSelectedItemPosition();
                     if (position >= 0 && position < selected.size()) listener.onLocationSelected(selected.get(position));
                 })
-                .show();
+                .create();
+        dialog.show();
+        TypefaceApplier.applyToTree(dialog.getWindow().getDecorView());
     }
 
     private static void updateDistricts(Context context, WeatherLocationCatalog catalog,

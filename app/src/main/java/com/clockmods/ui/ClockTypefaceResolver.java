@@ -3,8 +3,13 @@ package com.clockmods.ui;
 import android.content.Context;
 import android.graphics.Typeface;
 
+/**
+ * Loads the bundled Roboto faces for every text surface in the app.
+ *
+ * <p>Roboto has no CJK glyphs, so Chinese characters fall back to the platform font glyph by
+ * glyph while Latin letters, digits and punctuation stay in Roboto.
+ */
 public final class ClockTypefaceResolver {
-    /** The app ships a single family: Roboto, bundled as an asset (no system-font fallback). */
     private static final String ROBOTO_REGULAR = "fonts/Roboto-Regular.ttf";
     private static final String ROBOTO_BOLD = "fonts/Roboto-Bold.ttf";
 
@@ -14,31 +19,8 @@ public final class ClockTypefaceResolver {
     private ClockTypefaceResolver() {
     }
 
-    public static Typeface resolveTime(Context context, boolean boldWeight) {
+    public static Typeface resolve(Context context, boolean boldWeight) {
         return boldWeight ? bold(context) : regular(context);
-    }
-
-    /**
-     * Roboto has no CJK glyphs, so Chinese supporting text keeps the system typeface
-     * (digits, latin letters and punctuation use Roboto).
-     */
-    static Typeface resolveSupporting(Context context, boolean boldWeight, boolean containsChinese) {
-        if (containsChinese) {
-            return boldWeight ? Typeface.DEFAULT_BOLD : Typeface.DEFAULT;
-        }
-        return resolveTime(context, boldWeight);
-    }
-
-    static Typeface resolveSupportingForCodePoint(Context context, boolean boldWeight, int codePoint) {
-        return resolveSupporting(context, boldWeight, isChinese(codePoint));
-    }
-
-    static boolean isChinese(int codePoint) {
-        Character.UnicodeBlock block = Character.UnicodeBlock.of(codePoint);
-        return block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS
-                || block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS_EXTENSION_A
-                || block == Character.UnicodeBlock.CJK_COMPATIBILITY_IDEOGRAPHS
-                || block == Character.UnicodeBlock.CJK_SYMBOLS_AND_PUNCTUATION;
     }
 
     private static Typeface regular(Context context) {

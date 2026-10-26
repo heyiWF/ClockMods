@@ -24,6 +24,7 @@ import com.clockmods.background.BackgroundRepository;
 import com.clockmods.background.ClockPreferences;
 import com.clockmods.ui.ClockView;
 import com.clockmods.ui.SettingsDialog;
+import com.clockmods.ui.TypefaceApplier;
 import com.clockmods.ui.StatusBarView;
 import com.clockmods.weather.WeatherController;
 import com.clockmods.weather.WeatherModels.WeatherState;
@@ -60,6 +61,7 @@ public class MainActivity extends Activity {
         enableEdgeToEdgeCompat();
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_main);
+        TypefaceApplier.applyToTree(findViewById(android.R.id.content));
 
         clockView = findViewById(R.id.clock_view);
         statusBarView = findViewById(R.id.status_bar_view);

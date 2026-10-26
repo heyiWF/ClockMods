@@ -432,6 +432,7 @@ public class SettingsDialog extends Dialog {
         imageMode.setChecked(usingImage);
         colorMode.setChecked(!usingImage);
         updateBackgroundControls(usingImage);
+        TypefaceApplier.applyToTree(dialogRoot);
         setOnDismissListener(dialog -> listener.onDismissed());
     }
 
@@ -450,6 +451,8 @@ public class SettingsDialog extends Dialog {
                     : Math.round(metrics.heightPixels * 0.92f);
             window.setAttributes(params);
         }
+        TypefaceApplier.applyToTree(getWindow().getDecorView());
+        getWindow().getDecorView().post(() -> TypefaceApplier.applyToTree(getWindow().getDecorView()));
     }
 
     private LinearLayout createSection(Context context, int titleRes) {
@@ -791,16 +794,18 @@ public class SettingsDialog extends Dialog {
     }
 
     private void showRegionChooser() {
-        new AlertDialog.Builder(getContext())
+        AlertDialog dialog = new AlertDialog.Builder(getContext())
                 .setTitle(R.string.select_region)
                 .setSingleChoiceItems(regionNames(), selectedRegionIndex,
-                        (DialogInterface dialog, int which) -> {
+                        (DialogInterface chooser, int which) -> {
                             selectedRegionIndex = which;
                             regionButton.setText(regionSummary());
-                            dialog.dismiss();
+                            chooser.dismiss();
                         })
                 .setNegativeButton(R.string.cancel, null)
-                .show();
+                .create();
+        dialog.show();
+        TypefaceApplier.applyToTree(dialog.getWindow().getDecorView());
     }
 
     private void restoreDefaults() {
