@@ -13,7 +13,7 @@ The Android launch surface uses the platform SplashScreen API and an animated ve
 - Ultimate and Compose: unit suites, Lint, application and instrumentation APK builds pass.
 - Native device runner: library/dialog/setting return paths, persisted carousel preference and Agenda retention pass; live Google public ICS HTTPS download and storage pass.
 - Compose device runner: in-app Back progress, both edges, cancel/commit, library/dialog/setting returns, carousel preference, Agenda retention and live HTTPS import pass.
-- Pro and Compose cold-launch recordings verify the system launch surface; the final artwork matches the launcher sector and clock. Web and desktop frontend builds and startup/recovery tests pass; the Web page visibly exits its launch overlay into the clock.
+- Pro, native Ultimate and Compose final cold-launch recordings verify the coral sector fading in outside the clock and moving inward to complete the circle on the system launch surface. Web and desktop frontend builds and startup/recovery tests pass; the Web page visibly exits its launch overlay into the clock.
 - On emulator-5554 (API 35), SystemUI reports EdgeBackGestureHandler mIsEnabled=false and mIsAttached=false despite gesture navigation mode. System cross-Activity preview is therefore not visually certified on this emulator. The runner keeps strict preview assertions for a supporting device; dispatcher/keys results are not substitutes for this check.
 - Native desktop packaging was not run: Rust/Cargo is not installed in this environment.
 
