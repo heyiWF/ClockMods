@@ -3325,17 +3325,4 @@ public final class UltimateClockStyles {
         @Override protected int mode() { return 4; }
     }
 
-    /** Small organic silhouette used by the blend composition. */
-    private static final class PathShape {
-        private static void drawOrganic(Canvas canvas, RectF rect, Paint paint) {
-            android.graphics.Path path = new android.graphics.Path();
-            float r = rect.height() * .24f;
-            path.moveTo(rect.left + r, rect.top);
-            path.cubicTo(rect.left, rect.top, rect.left, rect.bottom, rect.left + r, rect.bottom);
-            path.lineTo(rect.right - r, rect.bottom);
-            path.cubicTo(rect.right, rect.bottom, rect.right, rect.top, rect.right - r, rect.top);
-            path.close();
-            canvas.drawPath(path, paint);
-        }
-    }
 }

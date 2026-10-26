@@ -3558,7 +3558,6 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     }
 
     private String selectedStyleId() {
-        buildStyleSpecs();
         String value = ultimatePreferences.getStyleId();
         return styleRegistry.resolveForApi(value, android.os.Build.VERSION.SDK_INT)
                 .getMetadata().getId();

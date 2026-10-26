@@ -275,10 +275,6 @@ public abstract class ProMainActivity extends AppCompatActivity {
         return page == ProPage.CLOCK.ordinal() || page == ProPage.CALENDAR.ordinal();
     }
 
-    private boolean isClockPage() {
-        return pager == null || pager.getCurrentItem() == ProPage.CLOCK.ordinal();
-    }
-
     private boolean isCalendarPage() {
         return pager != null && pager.getCurrentItem() == ProPage.CALENDAR.ordinal();
     }

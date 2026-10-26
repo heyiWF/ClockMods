@@ -244,10 +244,6 @@ public final class CalendarFooterCarouselView extends View {
         return paint.descent() - paint.ascent();
     }
 
-    private boolean overflow(Item item) {
-        return bodyWidth(item) > bodyRoom(item);
-    }
-
     /** Read the head, scroll once, and hold the tail before sliding to the next line. */
     private long holdDurationFor(Item item) {
         return marquee.holdMillis(bodyWidth(item) - bodyRoom(item), density);
