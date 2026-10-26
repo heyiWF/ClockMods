@@ -1,7 +1,6 @@
 package com.clockmods.weather;
 
 import java.util.ArrayList;
-import java.util.Collections;
 import java.util.List;
 
 public final class WeatherModels {
@@ -123,38 +122,6 @@ public final class WeatherModels {
         }
     }
 
-    public static final class DailyForecast {
-        public final String fxDate, tempMin, tempMax, iconDay, textDay;
-        public final String windDirDay, windScaleDay, humidity;
-
-        public DailyForecast(String fxDate, String tempMin, String tempMax, String iconDay,
-                String textDay, String windDirDay, String windScaleDay, String humidity) {
-            this.fxDate = fxDate; this.tempMin = tempMin; this.tempMax = tempMax;
-            this.iconDay = iconDay; this.textDay = textDay; this.windDirDay = windDirDay;
-            this.windScaleDay = windScaleDay; this.humidity = humidity;
-        }
-    }
-
-    public static final class DailyForecastData {
-        public final String locationId, city, district;
-        public final long updatedAt;
-        public final List<DailyForecast> entries;
-
-        public DailyForecastData(String locationId, String city, String district, long updatedAt,
-                List<DailyForecast> entries) {
-            this.locationId = locationId; this.city = city; this.district = district;
-            this.updatedAt = updatedAt;
-            this.entries = Collections.unmodifiableList(new ArrayList<>(entries));
-        }
-
-        public DailyForecast findByDate(String date) {
-            for (DailyForecast entry : entries) {
-                if (entry.fxDate.equals(date)) return entry;
-            }
-            return null;
-        }
-    }
-
     public enum Status { IDLE, LOADING, SUCCESS, PERMISSION_DENIED, LOCATION_UNAVAILABLE,
         NETWORK_ERROR, API_ERROR, CONFIG_ERROR }
 
@@ -167,20 +134,6 @@ public final class WeatherModels {
         }
         public static WeatherState of(Status status, String message) {
             return new WeatherState(status, null, message);
-        }
-    }
-
-    public static final class DailyForecastState {
-        public final Status status;
-        public final DailyForecastData data;
-        public final String message;
-
-        public DailyForecastState(Status status, DailyForecastData data, String message) {
-            this.status = status; this.data = data; this.message = message;
-        }
-
-        public static DailyForecastState of(Status status, String message) {
-            return new DailyForecastState(status, null, message);
         }
     }
 
@@ -206,7 +159,4 @@ public final class WeatherModels {
         return false;
     }
 
-    public static List<Integer> intervals() {
-        return Collections.unmodifiableList(java.util.Arrays.asList(10, 30, 60, 180, 360, 720));
-    }
 }

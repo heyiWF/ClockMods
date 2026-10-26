@@ -11,9 +11,7 @@ import java.util.Calendar;
  *
  * <p>The date itself is computed by the offline 6tail tyme4j engine (astronomical, accurate for
  * years 1–9999), while the Chinese rendering keeps this app's own wording (正…冬腊月, 干支[生肖]年,
- * 初/廿 day names) so the on-screen text stays byte-for-byte identical to previous releases. The
- * public {@link #formatMonth}, {@link #formatDay} and {@link #stemZodiacYear} helpers are reused by
- * the Pro calendar so the whole app renders lunar labels consistently.
+ * 初/廿 day names) so the on-screen text stays byte-for-byte identical to previous releases.
  */
 public final class LunarCalendar {
     private static final String[] TIAN_GAN = {"甲", "乙", "丙", "丁", "戊", "己", "庚", "辛", "壬", "癸"};
@@ -33,26 +31,6 @@ public final class LunarCalendar {
         }
         return stemZodiacYear(lunarDate.year, true)
                 + formatMonth(lunarDate.month, lunarDate.leap) + formatDay(lunarDate.day);
-    }
-
-    public static String formatNatural(Calendar calendar) {
-        LunarDate lunarDate = fromSolar(calendar);
-        if (lunarDate == null) {
-            return "";
-        }
-        return stemZodiacYear(lunarDate.year, false)
-                + formatMonth(lunarDate.month, lunarDate.leap) + formatDay(lunarDate.day);
-    }
-
-    public static String formatShort(Calendar calendar) {
-        LunarDate lunarDate = fromSolar(calendar);
-        if (lunarDate == null) {
-            return "";
-        }
-        if (lunarDate.day == 1) {
-            return formatMonth(lunarDate.month, lunarDate.leap);
-        }
-        return formatDay(lunarDate.day);
     }
 
     /**

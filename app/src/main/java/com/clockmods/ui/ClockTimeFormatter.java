@@ -26,18 +26,6 @@ public final class ClockTimeFormatter {
         return new DisplayTime(hoursAndMinutes + separator + twoDigits(second), "", periodText, showColon);
     }
 
-    public static String formatHourlyChime(int hour, int minute, boolean use24Hour) {
-        if (use24Hour) {
-            return twoDigits(hour) + ":" + twoDigits(minute);
-        }
-        int displayHour = hour % 12;
-        if (displayHour == 0) {
-            displayHour = 12;
-        }
-        String time = displayHour + ":" + twoDigits(minute);
-        return periodText(hour) + time;
-    }
-
     public static String periodText(int hour) {
         return hour < 12 ? "上午" : "下午";
     }

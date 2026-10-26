@@ -30,7 +30,6 @@ public class StatusBarView extends View {
     private int batteryLevel = -1;
     private boolean charging;
     private boolean networkConnected;
-    private boolean contentAlignedStart;
 
     private boolean receiverRegistered;
 
@@ -59,11 +58,6 @@ public class StatusBarView extends View {
         super(context, attrs);
         density = getResources().getDisplayMetrics().density;
         preferences = new ClockPreferences(context.getApplicationContext());
-    }
-
-    public void setContentAlignedStart(boolean alignedStart) {
-        contentAlignedStart = alignedStart;
-        invalidate();
     }
 
     public void start() {
@@ -127,6 +121,7 @@ public class StatusBarView extends View {
     }
 
     private void updateAccessibilityDescription() {
+        requestLayout();
         setContentDescription(getContext().getString(R.string.status_network_and_battery,
                 networkText(), batteryText()));
     }
@@ -179,14 +174,14 @@ public class StatusBarView extends View {
         float scale = resolveStatusTextScale();
         applyTextPaint();
         textPaint.setShadowLayer(4f * density * scale, 0f, 1.5f * density * scale, 0x66000000);
-        textPaint.setTextAlign(contentAlignedStart ? Paint.Align.LEFT : Paint.Align.RIGHT);
+        textPaint.setTextAlign(Paint.Align.RIGHT);
 
         Paint.FontMetrics metrics = textPaint.getFontMetrics();
         float lineHeight = textPaint.getFontSpacing();
         float blockHeight = metrics.descent - metrics.ascent + lineHeight;
         float top = (getHeight() - blockHeight) / 2f;
         float firstBaseline = top - metrics.ascent;
-        float x = contentAlignedStart ? getPaddingLeft() : getWidth() - getPaddingRight();
+        float x = getWidth() - getPaddingRight();
 
         canvas.drawText(networkText(), x, firstBaseline, textPaint);
         canvas.drawText(batteryText(), x, firstBaseline + lineHeight, textPaint);

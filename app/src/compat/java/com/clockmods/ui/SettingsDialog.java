@@ -186,10 +186,7 @@ public class SettingsDialog extends Dialog {
         Button chooseImage = new Button(context);
         chooseImage.setText(R.string.choose_image);
         tintButton(chooseImage);
-        chooseImage.setOnClickListener(view -> {
-            dismiss();
-            listener.onChooseImage();
-        });
+        chooseImage.setOnClickListener(view -> listener.onChooseImage());
         imageControlsLayout.addView(chooseImage, topMargin(matchWrap(dp(42)), dp(8)));
 
         dimBackgroundSwitch = createStyleSwitch(context, R.string.dim_background,
@@ -676,6 +673,18 @@ public class SettingsDialog extends Dialog {
     private void updateStatusIconSizeState(boolean enabled) {
         setViewTreeEnabled(statusIconSizeControls, enabled);
         statusIconSizeControls.setAlpha(enabled ? 1f : 0.45f);
+    }
+
+    /** Refresh only the imported image, preserving every un-applied setting. */
+    public void onImageImported() {
+        android.view.ViewGroup controls = (android.view.ViewGroup) imageControls;
+        View previous = controls.getChildAt(0);
+        android.view.ViewGroup.LayoutParams layout = previous.getLayoutParams();
+        controls.removeViewAt(0);
+        controls.addView(createImagePreview(getContext()), 0, layout);
+        imageMode.setChecked(true);
+        colorMode.setChecked(false);
+        updateBackgroundControls(true);
     }
 
     private View createImagePreview(Context context) {

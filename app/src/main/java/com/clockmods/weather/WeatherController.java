@@ -36,6 +36,7 @@ public final class WeatherController {
     private int generation;
     private int intervalMinutes = 30;
     private LocationListener locationListener;
+    private Runnable locationTimeout;
 
     public WeatherController(Context context, Listener listener) {
         this(context, listener, null);
@@ -95,39 +96,37 @@ public final class WeatherController {
 
     @SuppressWarnings("MissingPermission")
     private void requestLocation() {
+        removeLocationListener();
         final int requestGeneration = ++generation;
-        Location best = newest(locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER),
-                locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER));
-        if (best != null && System.currentTimeMillis() - best.getTime() < 10L * 60L * 1000L) {
+        Location best = newest(lastKnownLocation(LocationManager.NETWORK_PROVIDER),
+                lastKnownLocation(LocationManager.GPS_PROVIDER));
+        if (best != null && System.currentTimeMillis() - best.getTime() >= 0
+                && System.currentTimeMillis() - best.getTime() < 10L * 60L * 1000L) {
             fetch(best, requestGeneration);
             return;
         }
         locationListener = new LocationListener() {
             @Override public void onLocationChanged(Location location) {
-                removeLocationListener(); fetch(location, requestGeneration);
+                if (!running || requestGeneration != generation || locationListener != this) return;
+                removeLocationListener();
+                fetch(location, requestGeneration);
             }
             @Override public void onStatusChanged(String provider, int status, Bundle extras) { }
             @Override public void onProviderEnabled(String provider) { }
             @Override public void onProviderDisabled(String provider) { }
         };
-        boolean requested = false;
-        if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-            locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, locationListener);
-            requested = true;
-        }
-        if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, locationListener);
-            requested = true;
-        }
+        boolean requested = requestProvider(LocationManager.NETWORK_PROVIDER);
+        requested |= requestProvider(LocationManager.GPS_PROVIDER);
         if (!requested) {
+            removeLocationListener();
             reportFailure(Status.LOCATION_UNAVAILABLE, msg(R.string.weather_location_unavailable));
             schedule(intervalMinutes * 60L * 1000L);
             return;
         }
         final Location fallback = best;
-        handler.postDelayed(new Runnable() {
+        locationTimeout = new Runnable() {
             @Override public void run() {
-                if (!running || requestGeneration != generation) return;
+                if (!running || requestGeneration != generation || locationListener == null) return;
                 removeLocationListener();
                 if (fallback != null) fetch(fallback, requestGeneration);
                 else {
@@ -135,7 +134,28 @@ public final class WeatherController {
                     schedule(intervalMinutes * 60L * 1000L);
                 }
             }
-        }, LOCATION_TIMEOUT_MS);
+        };
+        handler.postDelayed(locationTimeout, LOCATION_TIMEOUT_MS);
+    }
+
+    private Location lastKnownLocation(String provider) {
+        if (locationManager == null) return null;
+        try {
+            return locationManager.getLastKnownLocation(provider);
+        } catch (SecurityException | IllegalArgumentException unavailable) {
+            return null;
+        }
+    }
+
+    private boolean requestProvider(String provider) {
+        if (locationManager == null) return false;
+        try {
+            if (!locationManager.isProviderEnabled(provider)) return false;
+            locationManager.requestLocationUpdates(provider, 0L, 0f, locationListener);
+            return true;
+        } catch (SecurityException | IllegalArgumentException unavailable) {
+            return false;
+        }
     }
 
     private void fetch(final Location location, final int requestGeneration) {
@@ -149,10 +169,11 @@ public final class WeatherController {
                     final WeatherDisplayData data = new QWeatherClient(context, QWeatherConfig.apiHost())
                             .fetch(location.getLatitude(), location.getLongitude(),
                                     isDetailedRequired());
-                        repository.save(data, ClockPreferences.WEATHER_LOCATION_AUTOMATIC);
+
                     handler.post(new Runnable() {
                         @Override public void run() {
                             if (!running || requestGeneration != generation) return;
+                            repository.save(data, ClockPreferences.WEATHER_LOCATION_AUTOMATIC);
                             listener.onWeatherState(new WeatherState(Status.SUCCESS, data, null));
                             schedule(intervalMinutes * 60L * 1000L);
                         }
@@ -196,10 +217,11 @@ public final class WeatherController {
                     }
                     final WeatherDisplayData data = new QWeatherClient(context, QWeatherConfig.apiHost())
                             .fetchLocation(locationId, city, district, lat, lon, detailed);
-                    repository.save(data, ClockPreferences.WEATHER_LOCATION_MANUAL);
+
                     handler.post(new Runnable() {
                         @Override public void run() {
                             if (!running || requestGeneration != generation) return;
+                            repository.save(data, ClockPreferences.WEATHER_LOCATION_MANUAL);
                             listener.onWeatherState(new WeatherState(Status.SUCCESS, data, null));
                             schedule(intervalMinutes * 60L * 1000L);
                         }
@@ -244,6 +266,10 @@ public final class WeatherController {
     }
 
     private void removeLocationListener() {
+        if (locationTimeout != null) {
+            handler.removeCallbacks(locationTimeout);
+            locationTimeout = null;
+        }
         if (locationListener != null) {
             try { locationManager.removeUpdates(locationListener); } catch (SecurityException ignored) { }
             locationListener = null;

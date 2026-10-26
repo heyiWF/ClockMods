@@ -5,7 +5,6 @@ import android.content.SharedPreferences;
 import android.content.pm.ActivityInfo;
 
 
-import java.util.Calendar;
 
 public class ClockPreferences {
     public static final String MODE_COLOR = "color";
@@ -26,17 +25,10 @@ public class ClockPreferences {
     private static final String KEY_BLINK_COLON = "blink_colon";
     private static final String KEY_ANIMATE_TIME_CHANGES = "animate_time_changes";
     private static final String KEY_TIME_TRANSITION = "time_transition";
-    private static final String KEY_HOURLY_CHIME = "hourly_visual_chime";
-    private static final String KEY_HALF_HOUR_CHIME = "half_hour_visual_chime";
-    private static final String KEY_HOURLY_CHIME_QUIET = "hourly_chime_quiet";
-    private static final String KEY_HOURLY_CHIME_QUIET_START = "hourly_chime_quiet_start";
-    private static final String KEY_HOURLY_CHIME_QUIET_END = "hourly_chime_quiet_end";
     private static final String KEY_BOLD_TEXT = "bold_text";
     private static final String KEY_SHOW_SECONDS = "show_seconds";
     private static final String KEY_SHOW_LUNAR = "show_lunar";
     private static final String KEY_AUTO_START = "auto_start";
-    private static final String KEY_CALENDAR_WEEK_START = "calendar_week_start";
-    private static final String KEY_CALENDAR_HIGHLIGHT_WEEKENDS = "calendar_highlight_weekends";
     private static final String KEY_SMALL_SECONDS = "small_seconds";
     private static final String KEY_PORTRAIT_STACKED = "portrait_stacked";
     private static final String KEY_DATE_LUNAR_DUAL_LINE = "date_lunar_dual_line";
@@ -75,19 +67,10 @@ public class ClockPreferences {
     public static final boolean DEFAULT_BLINK_COLON = false;
     public static final boolean DEFAULT_ANIMATE_TIME_CHANGES = false;
     public static final String DEFAULT_TIME_TRANSITION = TRANSITION_FADE;
-    public static final boolean DEFAULT_HOURLY_CHIME = true;
-    public static final boolean DEFAULT_HALF_HOUR_CHIME = false;
-    public static final boolean DEFAULT_HOURLY_CHIME_QUIET = true;
-    public static final int DEFAULT_HOURLY_CHIME_QUIET_START = 22 * 60;
-    public static final int DEFAULT_HOURLY_CHIME_QUIET_END = 7 * 60;
     public static final boolean DEFAULT_BOLD_TEXT = true;
     public static final boolean DEFAULT_SHOW_SECONDS = true;
     public static final boolean DEFAULT_SHOW_LUNAR = true;
     public static final boolean DEFAULT_AUTO_START = false;
-    public static final int CALENDAR_WEEK_START_SUNDAY = Calendar.SUNDAY;
-    public static final int CALENDAR_WEEK_START_MONDAY = Calendar.MONDAY;
-    public static final int DEFAULT_CALENDAR_WEEK_START = CALENDAR_WEEK_START_SUNDAY;
-    public static final boolean DEFAULT_CALENDAR_HIGHLIGHT_WEEKENDS = false;
     public static final boolean DEFAULT_SMALL_SECONDS = false;
     public static final boolean DEFAULT_PORTRAIT_STACKED = false;
     /** Landscape only: whether the date and lunar lines stack on two rows (portrait always stacks). */
@@ -107,8 +90,6 @@ public class ClockPreferences {
     public static final boolean DEFAULT_WEATHER_ENABLED = false;
     public static final boolean DEFAULT_WEATHER_DETAILED = false;
     public static final int DEFAULT_WEATHER_INTERVAL_MINUTES = 30;
-    /** Weather icons default to the solid fill style; disable for the outline (line) style. */
-    /** Weather icons default to white; enable to tint them with the Material 3 accent colour. */
     public static final String WEATHER_LOCATION_AUTOMATIC = "automatic";
     public static final String WEATHER_LOCATION_MANUAL = "manual";
     public static final String DEFAULT_WEATHER_LOCATION_MODE = WEATHER_LOCATION_AUTOMATIC;
@@ -208,48 +189,6 @@ public class ClockPreferences {
                 normalizeTimeTransition(transition)).apply();
     }
 
-    public boolean isHourlyChimeEnabled() {
-        return preferences.getBoolean(KEY_HOURLY_CHIME, DEFAULT_HOURLY_CHIME);
-    }
-
-    public void setHourlyChimeEnabled(boolean enabled) {
-        preferences.edit().putBoolean(KEY_HOURLY_CHIME, enabled).apply();
-    }
-
-    public boolean isHalfHourChimeEnabled() {
-        return preferences.getBoolean(KEY_HALF_HOUR_CHIME, DEFAULT_HALF_HOUR_CHIME);
-    }
-
-    public void setHalfHourChimeEnabled(boolean enabled) {
-        preferences.edit().putBoolean(KEY_HALF_HOUR_CHIME, enabled).apply();
-    }
-
-    public boolean isHourlyChimeQuietEnabled() {
-        return preferences.getBoolean(KEY_HOURLY_CHIME_QUIET, DEFAULT_HOURLY_CHIME_QUIET);
-    }
-
-    public void setHourlyChimeQuietEnabled(boolean enabled) {
-        preferences.edit().putBoolean(KEY_HOURLY_CHIME_QUIET, enabled).apply();
-    }
-
-    public int getHourlyChimeQuietStart() {
-        return preferences.getInt(KEY_HOURLY_CHIME_QUIET_START,
-                DEFAULT_HOURLY_CHIME_QUIET_START);
-    }
-
-    public void setHourlyChimeQuietStart(int minutes) {
-        preferences.edit().putInt(KEY_HOURLY_CHIME_QUIET_START, minutes).apply();
-    }
-
-    public int getHourlyChimeQuietEnd() {
-        return preferences.getInt(KEY_HOURLY_CHIME_QUIET_END,
-                DEFAULT_HOURLY_CHIME_QUIET_END);
-    }
-
-    public void setHourlyChimeQuietEnd(int minutes) {
-        preferences.edit().putInt(KEY_HOURLY_CHIME_QUIET_END, minutes).apply();
-    }
-
     public static String normalizeTimeTransition(String transition) {
         if (TRANSITION_SLIDE_UP.equals(transition) || TRANSITION_SLIDE_DOWN.equals(transition)
                 || TRANSITION_SCALE.equals(transition) || TRANSITION_FLIP.equals(transition)) {
@@ -288,48 +227,6 @@ public class ClockPreferences {
 
     public void setAutoStart(boolean autoStart) {
         preferences.edit().putBoolean(KEY_AUTO_START, autoStart).apply();
-    }
-
-    private static String calendarMotionKey(String themeId) {
-        String scope = themeId == null ? "" : themeId.trim();
-        if (scope.length() > 160) scope = scope.substring(0, 160);
-        return "calendar_marquee__calendar:" + scope;
-    }
-
-    public com.clockmods.sdk.style.MarqueeSpec getCalendarMarquee(String themeId) {
-        return com.clockmods.sdk.style.MarqueeSpec.DEFAULT;
-    }
-
-    public void setCalendarMarquee(String themeId, com.clockmods.sdk.style.MarqueeSpec value) {
-        if (value == null) value = com.clockmods.sdk.style.MarqueeSpec.DEFAULT;
-        String key = calendarMotionKey(themeId);
-        preferences.edit().putFloat(key + "_speed", value.speedDpPerSecond)
-                .putLong(key + "_pause", value.pauseMillis).putFloat(key + "_gap", value.gapDp).apply();
-    }
-
-    public int getCalendarWeekStart() {
-        return normalizeCalendarWeekStart(preferences.getInt(
-                KEY_CALENDAR_WEEK_START, DEFAULT_CALENDAR_WEEK_START));
-    }
-
-    public void setCalendarWeekStart(int firstDayOfWeek) {
-        preferences.edit().putInt(KEY_CALENDAR_WEEK_START,
-                normalizeCalendarWeekStart(firstDayOfWeek)).apply();
-    }
-
-    public boolean isCalendarHighlightWeekends() {
-        return preferences.getBoolean(KEY_CALENDAR_HIGHLIGHT_WEEKENDS,
-                DEFAULT_CALENDAR_HIGHLIGHT_WEEKENDS);
-    }
-
-    public void setCalendarHighlightWeekends(boolean highlightWeekends) {
-        preferences.edit().putBoolean(KEY_CALENDAR_HIGHLIGHT_WEEKENDS,
-                highlightWeekends).apply();
-    }
-
-    private static int normalizeCalendarWeekStart(int firstDayOfWeek) {
-        return firstDayOfWeek == CALENDAR_WEEK_START_MONDAY
-                ? CALENDAR_WEEK_START_MONDAY : CALENDAR_WEEK_START_SUNDAY;
     }
 
     public boolean isSmallSeconds() {
@@ -497,9 +394,6 @@ public class ClockPreferences {
     /** Restores all user-configurable settings to their defaults. */
     public void restoreDefaults() {
         SharedPreferences.Editor editor = preferences.edit();
-        for (String key : preferences.getAll().keySet()) {
-            if (key.startsWith("calendar_marquee__")) editor.remove(key);
-        }
         editor
                 .putString(KEY_BACKGROUND_MODE, MODE_COLOR)
                 .putBoolean(KEY_DIM_BACKGROUND, DEFAULT_DIM_BACKGROUND)
@@ -510,23 +404,18 @@ public class ClockPreferences {
                 .putBoolean(KEY_BLINK_COLON, DEFAULT_BLINK_COLON)
                 .putBoolean(KEY_ANIMATE_TIME_CHANGES, DEFAULT_ANIMATE_TIME_CHANGES)
                 .putString(KEY_TIME_TRANSITION, DEFAULT_TIME_TRANSITION)
-                .putBoolean(KEY_HOURLY_CHIME, DEFAULT_HOURLY_CHIME)
-                .putBoolean(KEY_HALF_HOUR_CHIME, DEFAULT_HALF_HOUR_CHIME)
-                .putBoolean(KEY_HOURLY_CHIME_QUIET, DEFAULT_HOURLY_CHIME_QUIET)
-                .putInt(KEY_HOURLY_CHIME_QUIET_START, DEFAULT_HOURLY_CHIME_QUIET_START)
-                .putInt(KEY_HOURLY_CHIME_QUIET_END, DEFAULT_HOURLY_CHIME_QUIET_END)
                 .putBoolean(KEY_BOLD_TEXT, DEFAULT_BOLD_TEXT)
                 .putBoolean(KEY_SHOW_SECONDS, DEFAULT_SHOW_SECONDS)
                 .putBoolean(KEY_SHOW_LUNAR, DEFAULT_SHOW_LUNAR)
                 .putBoolean(KEY_AUTO_START, DEFAULT_AUTO_START)
-                .putInt(KEY_CALENDAR_WEEK_START, DEFAULT_CALENDAR_WEEK_START)
-                .putBoolean(KEY_CALENDAR_HIGHLIGHT_WEEKENDS,
-                        DEFAULT_CALENDAR_HIGHLIGHT_WEEKENDS)
                 .putBoolean(KEY_SMALL_SECONDS, DEFAULT_SMALL_SECONDS)
                 .putBoolean(KEY_PORTRAIT_STACKED, DEFAULT_PORTRAIT_STACKED)
                 .putBoolean(KEY_DATE_LUNAR_DUAL_LINE, DEFAULT_DATE_LUNAR_DUAL_LINE)
                 .putBoolean(KEY_USE_24_HOUR, DEFAULT_USE_24_HOUR)
                 .putInt(KEY_SCREEN_ORIENTATION, DEFAULT_SCREEN_ORIENTATION)
+                .putBoolean(KEY_USE_NETWORK_TIME, DEFAULT_USE_NETWORK_TIME)
+                .putInt(KEY_SYNC_INTERVAL_MINUTES, DEFAULT_SYNC_INTERVAL_MINUTES)
+                .putString(KEY_TIME_ZONE_ID, DEFAULT_TIME_ZONE_ID)
                 .remove(KEY_FORCE_LANDSCAPE)
                 .putBoolean(KEY_WEATHER_ENABLED, DEFAULT_WEATHER_ENABLED)
                 .putBoolean(KEY_WEATHER_DETAILED, DEFAULT_WEATHER_DETAILED)

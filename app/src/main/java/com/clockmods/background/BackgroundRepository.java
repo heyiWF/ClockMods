@@ -94,17 +94,6 @@ public class BackgroundRepository {
 
     public String getTimeTransition() { return preferences.getTimeTransition(); }
     public void setTimeTransition(String transition) { preferences.setTimeTransition(transition); }
-    public boolean isHourlyChimeEnabled() { return preferences.isHourlyChimeEnabled(); }
-    public void setHourlyChimeEnabled(boolean enabled) { preferences.setHourlyChimeEnabled(enabled); }
-    public boolean isHalfHourChimeEnabled() { return preferences.isHalfHourChimeEnabled(); }
-    public void setHalfHourChimeEnabled(boolean enabled) { preferences.setHalfHourChimeEnabled(enabled); }
-    public boolean isHourlyChimeQuietEnabled() { return preferences.isHourlyChimeQuietEnabled(); }
-    public void setHourlyChimeQuietEnabled(boolean enabled) { preferences.setHourlyChimeQuietEnabled(enabled); }
-    public int getHourlyChimeQuietStart() { return preferences.getHourlyChimeQuietStart(); }
-    public void setHourlyChimeQuietStart(int minutes) { preferences.setHourlyChimeQuietStart(minutes); }
-    public int getHourlyChimeQuietEnd() { return preferences.getHourlyChimeQuietEnd(); }
-    public void setHourlyChimeQuietEnd(int minutes) { preferences.setHourlyChimeQuietEnd(minutes); }
-
     public boolean isBoldText() {
         return preferences.isBoldText();
     }
@@ -135,29 +124,6 @@ public class BackgroundRepository {
 
     public void setAutoStart(boolean autoStart) {
         preferences.setAutoStart(autoStart);
-    }
-
-    public com.clockmods.sdk.style.MarqueeSpec getCalendarMarquee(String themeId) {
-        return preferences.getCalendarMarquee(themeId);
-    }
-    public void setCalendarMarquee(String themeId, com.clockmods.sdk.style.MarqueeSpec value) {
-        preferences.setCalendarMarquee(themeId, value);
-    }
-
-    public int getCalendarWeekStart() {
-        return preferences.getCalendarWeekStart();
-    }
-
-    public void setCalendarWeekStart(int firstDayOfWeek) {
-        preferences.setCalendarWeekStart(firstDayOfWeek);
-    }
-
-    public boolean isCalendarHighlightWeekends() {
-        return preferences.isCalendarHighlightWeekends();
-    }
-
-    public void setCalendarHighlightWeekends(boolean highlightWeekends) {
-        preferences.setCalendarHighlightWeekends(highlightWeekends);
     }
 
     public boolean isSmallSeconds() {

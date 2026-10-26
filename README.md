@@ -29,7 +29,7 @@ ClockMods 是一款可定制的 Android 全屏时钟。把手机放在书桌、�
 
 ## 从白天到夜晚，调成喜欢的样子
 
-选一张本机照片作为背景，或者用固定的纯黑衬托时间。图片背景可以开启「立即压暗」，让夜间显示更柔和。
+选一张本机照片作为背景，或者用固定的纯黑衬托时间。图片背景可以开启「背景压暗」，让夜间显示更柔和。
 
 ## 日期与天气
 
@@ -66,4 +66,4 @@ ClockMods 是一款可定制的 Android 全屏时钟。把手机放在书桌、�
 
 ## 许可与致谢
 
-项目采用 [MIT 许可证](LICENSE)。天气数据来自 [QWeather](https://www.qweather.com)，[QWeather Icons](https://icons.qweather.com) 图标采用 CC BY 4.0；农历引擎 [tyme4j](https://github.com/6tail/tyme4j) 与节假日数据 [holiday-cn](https://github.com/NateScarlet/holiday-cn) 采用 MIT。字体及其他资源以各自随附许可为准。
+项目采用 [MIT 许可证](LICENSE)。天气数据来自 [QWeather](https://www.qweather.com)，[QWeather Icons](https://icons.qweather.com) 图标采用 CC BY 4.0；农历引擎 [tyme4j](https://github.com/6tail/tyme4j) 采用 MIT。字体及其他资源以各自随附许可为准。

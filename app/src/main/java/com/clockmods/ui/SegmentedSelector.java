@@ -11,16 +11,11 @@ import android.widget.LinearLayout;
 import android.widget.TextView;
 
 public final class SegmentedSelector extends LinearLayout {
-    public interface OnSelectionChangedListener {
-        void onSelectionChanged(int index);
-    }
-
     private final TextView[] segments;
     private final int selectedColor;
     private final int unselectedColor;
     private final int selectedTextColor;
     private final int unselectedTextColor;
-    private OnSelectionChangedListener listener;
     private int selectedIndex;
 
     public SegmentedSelector(Context context, CharSequence[] labels, int selectedColor,
@@ -56,19 +51,12 @@ public final class SegmentedSelector extends LinearLayout {
         updateAppearance(false);
     }
 
-    public void setOnSelectionChangedListener(OnSelectionChangedListener listener) {
-        this.listener = listener;
-    }
-
     public void setSelectedIndex(int index) {
         if (index < 0 || index >= segments.length || selectedIndex == index) {
             return;
         }
         selectedIndex = index;
         updateAppearance(true);
-        if (listener != null) {
-            listener.onSelectionChanged(index);
-        }
     }
 
     public int getSelectedIndex() {

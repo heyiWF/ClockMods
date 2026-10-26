@@ -21,31 +21,21 @@ public class DateFormatterTest {
     }
 
     @Test
-    public void rendersArabicTokensWithHalfWidthSpacing() {
-        Assert.assertEquals("2026 年 8 月 7 日",
-                DateFormatter.format("yyyy年M月d日", example()));
-        Assert.assertEquals("2026 年 08 月 07 日",
-                DateFormatter.format("yyyy年MM月dd日", example()));
-        Assert.assertEquals("26", DateFormatter.format("yy", example()));
+    public void rendersLeapDayAndYearBoundary() {
+        Calendar calendar = example();
+        calendar.set(2024, Calendar.FEBRUARY, 29);
+        Assert.assertEquals("2024 年 2 月 29 日 星期四", DateFormatter.format(calendar));
+        calendar.set(2027, Calendar.JANUARY, 1);
+        Assert.assertEquals("2027 年 1 月 1 日 星期五", DateFormatter.format(calendar));
     }
 
     @Test
-    public void rendersChineseNumeralTokens() {
-        Assert.assertEquals("二〇二六年八月七日",
-                DateFormatter.format("YYY年MMM月DD日", example()));
-        Assert.assertEquals("二零二六年八月七日",
-                DateFormatter.format("YYYY年MMM月DD日", example()));
-    }
-
-    @Test
-    public void keepsUnknownCharactersLiteral() {
-        Assert.assertEquals("abc 2026", DateFormatter.format("abc yyyy", example()));
-        Assert.assertEquals("2026 年", DateFormatter.format("yyyy年", example()));
-    }
-
-    @Test
-    public void fallsBackToEmptyOrLiteralInput() {
-        Assert.assertEquals("", DateFormatter.format(null, example()));
-        Assert.assertEquals("年月日", DateFormatter.format("年月日", example()));
+    public void followsTheCalendarTimeZone() {
+        Calendar calendar = example();
+        calendar.set(2026, Calendar.AUGUST, 7, 23, 30, 0);
+        long instant = calendar.getTimeInMillis();
+        calendar.setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"));
+        calendar.setTimeInMillis(instant);
+        Assert.assertEquals("2026 年 8 月 8 日 星期六", DateFormatter.format(calendar));
     }
 }

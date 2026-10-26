@@ -44,10 +44,6 @@ public final class ClockLayoutCalculator {
         return (leftAccessoryWidth - rightAccessoryWidth) / 2f;
     }
 
-    public static boolean shouldUseSingleDateLine(boolean landscape, float fullTextWidth, int availableWidth) {
-        return landscape && fullTextWidth <= availableWidth * 0.9f;
-    }
-
     public static float centerCropScale(int bitmapWidth, int bitmapHeight, int viewWidth, int viewHeight) {
         return Math.max((float) viewWidth / bitmapWidth, (float) viewHeight / bitmapHeight);
     }

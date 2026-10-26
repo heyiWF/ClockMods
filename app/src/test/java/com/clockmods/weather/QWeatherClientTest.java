@@ -4,10 +4,8 @@ import org.json.JSONArray;
 import org.json.JSONObject;
 import org.junit.Test;
 
-import java.io.IOException;
 
 import static org.junit.Assert.assertEquals;
-import static org.junit.Assert.assertNull;
 
 public class QWeatherClientTest {
     @Test
@@ -47,31 +45,4 @@ public class QWeatherClientTest {
         assertEquals("台风红色预警\n暴雨橙色预警", QWeatherClient.formatWarnings(alerts));
     }
 
-    @Test
-    public void parsesDailyForecastByFxDateAndKeepsOptionalFields() throws Exception {
-        JSONObject body = new JSONObject("{\"code\":\"200\",\"daily\":["
-                + "{\"fxDate\":\"2026-07-30\",\"tempMin\":\"25\",\"tempMax\":\"33\","
-                + "\"iconDay\":\"305\",\"textDay\":\"小雨\"},"
-                + "{\"fxDate\":\"2026-07-28\",\"tempMin\":\"27\",\"tempMax\":\"35\","
-                + "\"iconDay\":\"100\",\"textDay\":\"晴\",\"windDirDay\":\"南风\","
-                + "\"windScaleDay\":\"2\",\"humidity\":\"63\"}]}");
-
-        WeatherModels.DailyForecastData data = QWeatherClient.parseDailyForecast(
-                body, "101280601", "深圳市", "南山区", 123L);
-
-        assertEquals(2, data.entries.size());
-        WeatherModels.DailyForecast today = data.findByDate("2026-07-28");
-        assertEquals("27", today.tempMin);
-        assertEquals("35", today.tempMax);
-        assertEquals("100", today.iconDay);
-        assertEquals("晴", today.textDay);
-        assertEquals("南风", today.windDirDay);
-        assertNull(data.findByDate("2026-07-29"));
-    }
-
-    @Test(expected = IOException.class)
-    public void rejectsEmptyDailyForecast() throws Exception {
-        QWeatherClient.parseDailyForecast(new JSONObject("{\"code\":\"200\",\"daily\":[]}"),
-                "101280601", "深圳市", "南山区", 123L);
-    }
 }

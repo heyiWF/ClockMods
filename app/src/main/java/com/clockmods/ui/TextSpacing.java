@@ -15,29 +15,6 @@ public final class TextSpacing {
     private TextSpacing() {
     }
 
-    /**
-     * @return {@code text} with half-width spaces inserted between adjacent Chinese and
-     *         Latin-alphanumeric characters. Pure-Chinese and pure-Latin strings, as well
-     *         as {@code null} or single-character input, are returned unchanged.
-     */
-    public static String pangu(String text) {
-        if (text == null || text.length() < 2) {
-            return text;
-        }
-        StringBuilder result = new StringBuilder(text.length() + 8);
-        int previous = -1;
-        for (int offset = 0; offset < text.length(); ) {
-            int codePoint = text.codePointAt(offset);
-            if (previous != -1 && needsPanguSpace(previous, codePoint)) {
-                result.append(' ');
-            }
-            result.appendCodePoint(codePoint);
-            previous = codePoint;
-            offset += Character.charCount(codePoint);
-        }
-        return result.toString();
-    }
-
     static boolean needsPanguSpace(int left, int right) {
         return (isCjk(left) && isLatinAlphanumeric(right))
                 || (isLatinAlphanumeric(left) && isCjk(right));

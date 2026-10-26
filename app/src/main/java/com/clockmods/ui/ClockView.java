@@ -38,9 +38,8 @@ public class ClockView extends View {
     private static final float SMALL_SECONDS_GAP_SPACE_FRACTION = 0.35f;
     // Fractions the main time size is fitted to: it never spans more than
     // TIME_MAX_WIDTH_FRACTION of the width nor TIME_HEIGHT_FRACTION of the height.
-    // Exposed so overlays (e.g. the hourly chime) can reproduce the exact size.
-    public static final float TIME_HEIGHT_FRACTION = 0.55f;
-    public static final float TIME_MAX_WIDTH_FRACTION = 0.98f;
+    private static final float TIME_HEIGHT_FRACTION = 0.55f;
+    private static final float TIME_MAX_WIDTH_FRACTION = 0.98f;
     private static final float SUPPORTING_TEXT_LETTER_SPACING = 0.025f;
     private static final int CLOCK_SHADOW_ALPHA = 0x66;
     private static final int DIM_BACKGROUND_OVERLAY_COLOR = 0x80000000;
@@ -506,7 +505,7 @@ public class ClockView extends View {
                 String leftText = WeatherModels.locationText(
                         weatherState.data.city, weatherState.data.district);
                 String rightText = weatherState.data.text + " " + weatherState.data.temperature + "℃";
-                WeatherIcon icon = WeatherIcon.load(getContext(), weatherState.data.icon, true);
+                WeatherIcon icon = WeatherIcon.load(getContext(), weatherState.data.icon);
                 weatherItem = icon != null
                         ? WeatherLineItem.weather(leftText, rightText, icon)
                         : WeatherLineItem.plain(leftText + "  " + rightText);
@@ -994,37 +993,6 @@ public class ClockView extends View {
 
     private static String longerOf(String a, String b) {
         return a.length() >= b.length() ? a : b;
-    }
-
-    /**
-     * Returns the pixel text size the main clock time is rendered at for the given
-     * view size, font scale and {@code displayTime}. This mirrors the measurement
-     * performed in {@link #onDraw} so overlays (e.g. the hourly chime) can match the
-     * clock's time font size exactly. {@code timeTypeface} must be the same face the
-     * clock uses so digit widths measure identically.
-     */
-    public static float measureTimeTextSize(int width, int height, float timeFontScale,
-            ClockTimeFormatter.DisplayTime displayTime, Typeface timeTypeface) {
-        Paint mainPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
-        Paint secondsPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
-        Paint periodPaint = new Paint(Paint.ANTI_ALIAS_FLAG | Paint.SUBPIXEL_TEXT_FLAG);
-        mainPaint.setTypeface(timeTypeface);
-        secondsPaint.setTypeface(timeTypeface);
-        periodPaint.setTypeface(timeTypeface);
-        mainPaint.setTextSize(1f);
-        secondsPaint.setTextSize(0.6f);
-        periodPaint.setTextSize(0.3f);
-        float gap = mainPaint.measureText(" ") * SMALL_SECONDS_GAP_SPACE_FRACTION;
-        float measuredMainWidth = ClockTextLayout.stableTextWidth(displayTime.mainText, mainPaint);
-        float leftAccessoryWidth = displayTime.hasPeriod()
-                ? gap + periodPaint.measureText(displayTime.periodText) : 0f;
-        float rightAccessoryWidth = displayTime.hasSmallSeconds()
-                ? gap + ClockTextLayout.stableTextWidth(displayTime.secondsText, secondsPaint) : 0f;
-        float measuredTimeWidth = ClockLayoutCalculator.calculateTimeGroupWidth(
-                measuredMainWidth, leftAccessoryWidth, rightAccessoryWidth);
-        return ClockLayoutCalculator.calculateWidthBasedTextSize(
-                width, height, measuredTimeWidth, timeFontScale,
-                TIME_HEIGHT_FRACTION, TIME_MAX_WIDTH_FRACTION);
     }
 
     private void drawAnimatedTime(Canvas canvas, ClockTimeFormatter.DisplayTime nextTime,
