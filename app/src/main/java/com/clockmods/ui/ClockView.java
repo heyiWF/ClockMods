@@ -40,7 +40,6 @@ public class ClockView extends View {
     // TIME_MAX_WIDTH_FRACTION of the width nor TIME_HEIGHT_FRACTION of the height.
     private static final float TIME_HEIGHT_FRACTION = 0.55f;
     private static final float TIME_MAX_WIDTH_FRACTION = 0.98f;
-    private static final float SUPPORTING_TEXT_LETTER_SPACING = 0.025f;
     private static final int CLOCK_SHADOW_ALPHA = 0x66;
     private static final int DIM_BACKGROUND_OVERLAY_COLOR = 0x80000000;
 
@@ -304,7 +303,6 @@ public class ClockView extends View {
         boolean portrait = height >= width;
         float gapFactor = portrait ? 0.40f : 0.10f;
         float gap = Math.min(height * .014f, dateSize * gapFactor);
-        float dateBaseline = timeBaseline + timeMetrics.ascent - gap - dateMetrics.descent;
         // Portrait stacks date/lunar and weather/detail as two rows each, so give those
         // rows more breathing room than a plain line (landscape keeps the tight default).
         float weatherDetailScale = portrait ? 1.35f : 1f;                        // 天气↔详细 行距倍数（竖屏更宽）
@@ -314,24 +312,22 @@ public class ClockView extends View {
 
         drawAnimatedTime(canvas, displayTime, timeCenterX, timeBaseline);
         drawWeather(canvas, centerX, timeBaseline, dateSize, timeMetrics, gap, weatherDetailScale);
-        if (lunarText.length() == 0) {
-            applySupportingTypeface(dateText);
-            drawSupportingText(canvas, dateText, centerX, dateBaseline, Paint.Align.CENTER);
-            return;
-        }
+        drawDateBlock(canvas, dateText, lunarText, singleDateLine, lunarRowGap);
+    }
 
-        if (singleDateLine) {
-            applySupportingTypeface(fullDate);
-            drawSupportingText(canvas, fullDate, centerX, dateBaseline, Paint.Align.CENTER);
-        } else {
-            // Portrait, two date lines: the lunar row (nearest the time) keeps the full
-            // gap above the time — matching the weather gap below it — and the Gregorian
-            // date sits one (wider) row-gap above the lunar row.
-            applySupportingTypeface(lunarText);
-            drawSupportingText(canvas, lunarText, centerX, dateBaseline, Paint.Align.CENTER);
-            applySupportingTypeface(dateText);
-            drawSupportingText(canvas, dateText, centerX, dateBaseline - lunarRowGap,
-                Paint.Align.CENTER);
+    /** Date and lunar rows share a fixed top-left origin in every clock layout. */
+    private void drawDateBlock(Canvas canvas, String dateText, String lunarText,
+            boolean singleLine, float rowGap) {
+        float density = getResources().getDisplayMetrics().density;
+        float left = getPaddingLeft() + 20f * density;
+        float top = getPaddingTop() + 16f * density;
+        String firstLine = singleLine && lunarText.length() > 0
+                ? dateText + " " + lunarText : dateText;
+        applySupportingTypeface(firstLine);
+        float baseline = top - datePaint.getFontMetrics().top;
+        drawSupportingText(canvas, firstLine, left, baseline, Paint.Align.LEFT);
+        if (!singleLine && lunarText.length() > 0) {
+            drawSupportingText(canvas, lunarText, left, baseline + rowGap, Paint.Align.LEFT);
         }
     }
 
@@ -441,15 +437,7 @@ public class ClockView extends View {
             postInvalidateDelayed(16L);
         }
 
-        // Date (and lunar): the block bottom sits 'gap' above the hours.
-        float dateBaseline = (blockTop - gap - dateBlockHeight) - dateMetrics.ascent;
-        applySupportingTypeface(dateText);
-        drawSupportingText(canvas, dateText, centerX, dateBaseline, Paint.Align.CENTER);
-        if (hasLunar) {
-            applySupportingTypeface(lunarText);
-            drawSupportingText(canvas, lunarText, centerX, dateBaseline + lunarGap,
-                    Paint.Align.CENTER);
-        }
+        drawDateBlock(canvas, dateText, lunarText, false, lunarGap);
 
         // Weather: first row's top sits 'gap' below the seconds (symmetric with date).
         if (weatherShown) {
@@ -796,33 +784,10 @@ public class ClockView extends View {
     private float measureSupportingText(String text) {
         if (text == null || text.length() == 0) return 0f;
         Typeface originalTypeface = datePaint.getTypeface();
-        float width = 0f;
-        float spacing = datePaint.getTextSize() * SUPPORTING_TEXT_LETTER_SPACING;
-        for (int start = 0; start < text.length();) {
-            int codePoint = text.codePointAt(start);
-            int end = start + Character.charCount(codePoint);
-            datePaint.setTypeface(supportingTypefaceFor(codePoint));
-            width += datePaint.measureText(text, start, end);
-            if (hasSupportingTrackingAt(text, end)) width += spacing;
-            start = end;
-        }
+        applySupportingTypeface(text);
+        float width = datePaint.measureText(text);
         datePaint.setTypeface(originalTypeface);
         return width;
-    }
-
-    /** Keeps a pangu U+0020 space at its font-defined width instead of widening it further. */
-    static boolean hasSupportingTrackingAt(String text, int boundary) {
-        if (boundary <= 0 || boundary >= text.length()) return false;
-        if (text.charAt(boundary - 1) == ' '
-                && isPanguSpaceAt(text, boundary - 1)) return false;
-        return text.charAt(boundary) != ' ' || !isPanguSpaceAt(text, boundary);
-    }
-
-    private static boolean isPanguSpaceAt(String text, int spaceOffset) {
-        return spaceOffset > 0 && spaceOffset + 1 < text.length()
-                && text.charAt(spaceOffset) == ' '
-                && TextSpacing.needsPanguSpace(text.codePointBefore(spaceOffset),
-                        text.codePointAt(spaceOffset + 1));
     }
 
     /**
@@ -893,29 +858,13 @@ public class ClockView extends View {
     private void drawSupportingText(Canvas canvas, String text, float x, float baseline,
             Paint.Align align) {
         if (text == null || text.length() == 0) return;
-        float width = measureSupportingText(text);
-        float cursor = align == Paint.Align.CENTER ? x - width / 2f
-            : align == Paint.Align.RIGHT ? x - width : x;
         Paint.Align originalAlign = datePaint.getTextAlign();
         Typeface originalTypeface = datePaint.getTypeface();
-        datePaint.setTextAlign(Paint.Align.LEFT);
-        float spacing = datePaint.getTextSize() * SUPPORTING_TEXT_LETTER_SPACING;
-        for (int start = 0; start < text.length();) {
-            int codePoint = text.codePointAt(start);
-            int end = start + Character.charCount(codePoint);
-            datePaint.setTypeface(supportingTypefaceFor(codePoint));
-            canvas.drawText(text, start, end, cursor, baseline, datePaint);
-            cursor += datePaint.measureText(text, start, end);
-            if (hasSupportingTrackingAt(text, end)) cursor += spacing;
-            start = end;
-        }
+        applySupportingTypeface(text);
+        datePaint.setTextAlign(align);
+        canvas.drawText(text, x, baseline, datePaint);
         datePaint.setTypeface(originalTypeface);
         datePaint.setTextAlign(originalAlign);
-    }
-
-    private Typeface supportingTypefaceFor(int codePoint) {
-        return ClockTypefaceResolver.resolveSupportingForCodePoint(
-            getContext(), boldText, codePoint);
     }
 
     private void applyTextStyles() {

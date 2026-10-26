@@ -17,16 +17,16 @@ public class DateFormatterTest {
 
     @Test
     public void rendersTheDefaultChineseDateLine() {
-        Assert.assertEquals("2026 年 8 月 7 日 星期五", DateFormatter.format(example()));
+        Assert.assertEquals("2026年8月7日 星期五", DateFormatter.format(example()));
     }
 
     @Test
     public void rendersLeapDayAndYearBoundary() {
         Calendar calendar = example();
         calendar.set(2024, Calendar.FEBRUARY, 29);
-        Assert.assertEquals("2024 年 2 月 29 日 星期四", DateFormatter.format(calendar));
+        Assert.assertEquals("2024年2月29日 星期四", DateFormatter.format(calendar));
         calendar.set(2027, Calendar.JANUARY, 1);
-        Assert.assertEquals("2027 年 1 月 1 日 星期五", DateFormatter.format(calendar));
+        Assert.assertEquals("2027年1月1日 星期五", DateFormatter.format(calendar));
     }
 
     @Test
@@ -36,6 +36,6 @@ public class DateFormatterTest {
         long instant = calendar.getTimeInMillis();
         calendar.setTimeZone(TimeZone.getTimeZone("Asia/Shanghai"));
         calendar.setTimeInMillis(instant);
-        Assert.assertEquals("2026 年 8 月 8 日 星期六", DateFormatter.format(calendar));
+        Assert.assertEquals("2026年8月8日 星期六", DateFormatter.format(calendar));
     }
 }

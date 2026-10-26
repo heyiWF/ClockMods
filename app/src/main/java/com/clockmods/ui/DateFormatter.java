@@ -10,8 +10,8 @@ public final class DateFormatter {
     private DateFormatter() { }
 
     public static String format(Calendar calendar) {
-        return calendar.get(Calendar.YEAR) + " 年 " + (calendar.get(Calendar.MONTH) + 1)
-                + " 月 " + calendar.get(Calendar.DAY_OF_MONTH) + " 日 "
+        return calendar.get(Calendar.YEAR) + "年" + (calendar.get(Calendar.MONTH) + 1)
+                + "月" + calendar.get(Calendar.DAY_OF_MONTH) + "日 "
                 + WEEKDAYS[calendar.get(Calendar.DAY_OF_WEEK) - Calendar.SUNDAY];
     }
 }
