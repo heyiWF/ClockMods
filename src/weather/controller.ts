@@ -139,10 +139,11 @@ export class WeatherController {
     }
     this.listener({ status: 'loading', data: cached, message: t('weather_fetching') });
     const generation = ++this.generation;
+    const manual = isManualLocation();
     try {
-      const data = isManualLocation() ? await this.fetchManual() : await this.fetchAutomatic();
-      saveWeather(data, isManualLocation() ? WEATHER_LOCATION_MANUAL : WEATHER_LOCATION_AUTOMATIC);
+      const data = manual ? await this.fetchManual() : await this.fetchAutomatic();
       if (!this.running || generation !== this.generation) return;
+      saveWeather(data, manual ? WEATHER_LOCATION_MANUAL : WEATHER_LOCATION_AUTOMATIC);
       this.listener({ status: 'success', data, message: null });
       this.schedule(this.intervalMinutes * 60 * 1000);
     } catch (error) {
@@ -273,8 +274,9 @@ export class DailyForecastController {
     }
     this.listener({ status: 'loading', data: null, message: t('forecast_fetching') });
     const generation = ++this.generation;
+    const manual = isManualLocation();
     try {
-      const data = isManualLocation()
+      const data = manual
         ? await fetchDailyByLocationId(
             currentConfig(),
             prefs.getWeatherLocationId(),
@@ -283,8 +285,8 @@ export class DailyForecastController {
             nowSeconds()
           )
         : await this.fetchAutomatic();
-      saveForecast(data, isManualLocation() ? WEATHER_LOCATION_MANUAL : WEATHER_LOCATION_AUTOMATIC);
       if (!this.running || generation !== this.generation) return;
+      saveForecast(data, manual ? WEATHER_LOCATION_MANUAL : WEATHER_LOCATION_AUTOMATIC);
       this.listener({ status: 'success', data, message: null });
       this.schedule(this.nextRefreshDelay(data.updatedAt));
     } catch (error) {
