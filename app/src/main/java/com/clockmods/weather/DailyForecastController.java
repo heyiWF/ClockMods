@@ -36,6 +36,7 @@ public final class DailyForecastController {
     private boolean running;
     private int generation;
     private LocationListener locationListener;
+    private Runnable locationTimeout;
 
     public DailyForecastController(Context context, Listener listener) {
         this.context = context.getApplicationContext();
@@ -83,40 +84,66 @@ public final class DailyForecastController {
 
     @SuppressWarnings("MissingPermission")
     private void requestLocation() {
+        stopLocation();
         final int requestGeneration = ++generation;
-        Location best = newest(locationManager.getLastKnownLocation(LocationManager.NETWORK_PROVIDER),
-                locationManager.getLastKnownLocation(LocationManager.GPS_PROVIDER));
-        if (best != null && System.currentTimeMillis() - best.getTime() < 10L * 60L * 1000L) {
+        Location best = newest(lastKnownLocation(LocationManager.NETWORK_PROVIDER),
+                lastKnownLocation(LocationManager.GPS_PROVIDER));
+        if (best != null && System.currentTimeMillis() - best.getTime() >= 0
+                && System.currentTimeMillis() - best.getTime() < 10L * 60L * 1000L) {
             fetchAutomatic(best, requestGeneration);
             return;
         }
-        final Location fallback = best;
         locationListener = new LocationListener() {
             @Override public void onLocationChanged(Location location) {
-                stopLocation(); fetchAutomatic(location, requestGeneration);
+                if (!running || requestGeneration != generation || locationListener != this) return;
+                stopLocation();
+                fetchAutomatic(location, requestGeneration);
             }
+            @Override public void onStatusChanged(String provider, int status, Bundle extras) { }
             @Override public void onProviderEnabled(String provider) { }
             @Override public void onProviderDisabled(String provider) { }
         };
-        boolean requested = false;
-        if (locationManager.isProviderEnabled(LocationManager.NETWORK_PROVIDER)) {
-            locationManager.requestLocationUpdates(LocationManager.NETWORK_PROVIDER, 0L, 0f, locationListener);
-            requested = true;
-        }
-        if (locationManager.isProviderEnabled(LocationManager.GPS_PROVIDER)) {
-            locationManager.requestLocationUpdates(LocationManager.GPS_PROVIDER, 0L, 0f, locationListener);
-            requested = true;
-        }
+        boolean requested = requestProvider(LocationManager.NETWORK_PROVIDER);
+        requested |= requestProvider(LocationManager.GPS_PROVIDER);
         if (!requested) {
+            stopLocation();
             reportFailure(Status.LOCATION_UNAVAILABLE, msg(R.string.weather_location_unavailable));
+            schedule(60L * 1000L);
             return;
         }
-        handler.postDelayed(() -> {
-            if (!running || requestGeneration != generation) return;
-            stopLocation();
-            if (fallback != null) fetchAutomatic(fallback, requestGeneration);
-            else reportFailure(Status.LOCATION_UNAVAILABLE, msg(R.string.weather_location_unavailable));
-        }, LOCATION_TIMEOUT_MS);
+        final Location fallback = best;
+        locationTimeout = new Runnable() {
+            @Override public void run() {
+                if (!running || requestGeneration != generation || locationListener == null) return;
+                stopLocation();
+                if (fallback != null) fetchAutomatic(fallback, requestGeneration);
+                else {
+                    reportFailure(Status.LOCATION_UNAVAILABLE, msg(R.string.weather_location_unavailable));
+                    schedule(60L * 1000L);
+                }
+            }
+        };
+        handler.postDelayed(locationTimeout, LOCATION_TIMEOUT_MS);
+    }
+
+    private Location lastKnownLocation(String provider) {
+        if (locationManager == null) return null;
+        try {
+            return locationManager.getLastKnownLocation(provider);
+        } catch (SecurityException | IllegalArgumentException unavailable) {
+            return null;
+        }
+    }
+
+    private boolean requestProvider(String provider) {
+        if (locationManager == null) return false;
+        try {
+            if (!locationManager.isProviderEnabled(provider)) return false;
+            locationManager.requestLocationUpdates(provider, 0L, 0f, locationListener);
+            return true;
+        } catch (SecurityException | IllegalArgumentException unavailable) {
+            return false;
+        }
     }
 
     private void fetchAutomatic(final Location location, final int requestGeneration) {
@@ -142,9 +169,9 @@ public final class DailyForecastController {
         executor.execute(() -> {
             try {
                 final DailyForecastData data = request.execute();
-                repository.save(data, source);
                 handler.post(() -> {
                     if (!running || requestGeneration != generation) return;
+                    repository.save(data, source);
                     listener.onDailyForecastState(new DailyForecastState(Status.SUCCESS, data, null));
                     schedule(nextRefreshDelay(data.updatedAt));
                 });
@@ -200,6 +227,10 @@ public final class DailyForecastController {
     }
 
     private void stopLocation() {
+        if (locationTimeout != null) {
+            handler.removeCallbacks(locationTimeout);
+            locationTimeout = null;
+        }
         if (locationListener != null) {
             try { locationManager.removeUpdates(locationListener); } catch (SecurityException ignored) { }
             locationListener = null;

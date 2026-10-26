@@ -19,14 +19,14 @@ class WeatherIcon private constructor(private val path: Path) {
     private var bitmap: Bitmap? = null
     private var bitmapSize = 0
     private var bitmapColor = 0
-    private var bitmapAlpha = 0
+    private val bitmapPaint = Paint(Paint.FILTER_BITMAP_FLAG)
 
     @Synchronized
     fun draw(canvas: Canvas, left: Float, top: Float, size: Float, paint: Paint) {
         val targetSize = max(1, ceil(size.toDouble()).toInt())
-        val color = paint.color
+        val color = paint.color or 0xFF000000.toInt()
         val alpha = paint.alpha
-        if (bitmap == null || bitmapSize != targetSize || bitmapColor != color || bitmapAlpha != alpha) {
+        if (bitmap == null || bitmapSize != targetSize || bitmapColor != color) {
             bitmap = Bitmap.createBitmap(targetSize, targetSize, Bitmap.Config.ARGB_8888)
             val bitmapCanvas = Canvas(bitmap!!)
             matrix.reset()
@@ -34,14 +34,14 @@ class WeatherIcon private constructor(private val path: Path) {
             scaled.reset()
             path.transform(matrix, scaled)
             iconPaint.color = color
-            iconPaint.alpha = alpha
+            iconPaint.alpha = 255
             iconPaint.style = Paint.Style.FILL
             bitmapCanvas.drawPath(scaled, iconPaint)
             bitmapSize = targetSize
             bitmapColor = color
-            bitmapAlpha = alpha
         }
-        canvas.drawBitmap(bitmap!!, left, top, null)
+        bitmapPaint.alpha = alpha
+        canvas.drawBitmap(bitmap!!, left, top, bitmapPaint)
     }
 
     companion object {
