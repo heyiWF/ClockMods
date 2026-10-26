@@ -13,3 +13,7 @@ Second-hand motion now belongs to each clock theme. The previous shared value mi
 `ThemeLibraryTest` covers persistence, fallback selection, deletion protection, exact setting scopes, default restoration, legacy motion migration, ordering and favorites. `ThemeLibraryAcceptance` exercises actual touch input: long press, minus button, cancel/confirm, final-theme guard, plus-card store entry, reinstall, favorites, reordering and Activity recreation. It restores its touched preferences.
 
 Run the standard Ultimate unit tests, Lint and debug assembly. For device checks, build with an isolated application ID and `-Pclockmods.testRunner=com.clockmods.ultimate.settings.ThemeLibraryAcceptance`, then run instrumentation with `-e kind clock` and `-e kind calendar` in actual portrait and landscape. Verify the bounds reported by the runner instead of assuming requested orientation was applied.
+
+Validated on 2026-10-27: debug app/test APK assembly and Lint passed; 307 unit tests reported no failures or errors (one existing skipped test). Clock and calendar device flows passed in portrait and landscape on API 35, including deletion, final-theme protection, plus-card store entry, reinstall and recreation. Temporary audit applications use separate IDs.
+
+The follow-up cleanup removes unreferenced rendering helpers and gallery remnants, and shares one in-memory preferences fixture between theme-library and clock-preferences tests. Regression cases remain intact.

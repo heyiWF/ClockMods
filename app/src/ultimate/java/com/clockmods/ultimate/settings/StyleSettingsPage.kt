@@ -6,7 +6,6 @@ import androidx.compose.foundation.horizontalScroll
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
-import androidx.compose.foundation.layout.ColumnScope
 import androidx.compose.foundation.layout.Row
 import androidx.compose.foundation.layout.Spacer
 import androidx.compose.foundation.layout.fillMaxHeight
@@ -17,7 +16,6 @@ import androidx.compose.foundation.layout.padding
 import androidx.compose.foundation.layout.size
 import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.lazy.LazyColumn
-import androidx.compose.foundation.lazy.LazyRow
 import androidx.compose.foundation.lazy.items
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.material.icons.Icons
@@ -28,8 +26,6 @@ import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.Remove
 import androidx.compose.material3.AlertDialog
 import androidx.compose.material3.AssistChip
-import androidx.compose.material3.Card
-import androidx.compose.material3.CardDefaults
 import androidx.compose.material3.ExperimentalMaterial3Api
 import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
@@ -54,8 +50,6 @@ import androidx.compose.ui.draw.clip
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
-import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import com.clockmods.R
 import com.clockmods.LocaleManager
@@ -68,7 +62,6 @@ import com.clockmods.sdk.clock.WorldClockEntry
 import com.clockmods.ultimate.clock.ClockPalette
 import com.clockmods.ultimate.clock.GaussianGlass
 import com.clockmods.ultimate.compose.ClockPreviewCanvas
-import com.clockmods.ultimate.compose.ClockStyleThumbnail
 import com.clockmods.ultimate.compose.previewClockBackground
 import com.clockmods.ultimate.clock.UltimateClockPreferences
 import com.clockmods.ultimate.clock.UltimateClockStyles
@@ -80,10 +73,6 @@ import kotlinx.coroutines.delay
 import kotlinx.coroutines.withContext
 
 private enum class StyleDialog { TIME_COLOR, DATE_COLOR }
-
-/** Every gallery tile shares one size so the row reads as an even grid. */
-private val STYLE_CARD_WIDTH = 190.dp
-private val STYLE_CARD_HEIGHT = 172.dp
 
 /** Height of the live theme preview shown above the palette swatches. */
 private val PALETTE_PREVIEW_HEIGHT = 168.dp
@@ -185,7 +174,6 @@ internal fun StyleSettingsPage(modifier: Modifier, settingsGeneration: Int) {
     val supportsWorldClock = capabilities.supports(ClockStyleCapabilities.Capability.WORLD_CLOCK)
     val supportsDigitTransition = capabilities.supports(
         ClockStyleCapabilities.Capability.DIGIT_TRANSITION)
-    val galleryBackground = previewClockBackground(backgroundRepository, stylePreferences, generation)
 
     SettingsColumn(modifier) {
         SettingSection(stringResource(R.string.ultimate_style_gallery)) {

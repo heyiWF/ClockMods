@@ -992,8 +992,6 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
             "zh" -> if (hour) "小时" else "分钟"
             else -> if (hour) "HOUR" else "MINUTE"
         }
-        private fun isChinese(state: ClockState): Boolean =
-            state.getLocale().language == Locale.CHINESE.language
     }
 }
 
