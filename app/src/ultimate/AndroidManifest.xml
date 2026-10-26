@@ -8,7 +8,7 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
-    <application android:name=".ultimate.UltimateApplication">
+    <application android:name=".ultimate.UltimateApplication" android:enableOnBackInvokedCallback="true">
         <activity android:name=".ultimate.settings.CalendarManagerActivity" android:exported="false" android:theme="@style/Theme.ClockMods.ImportManager" />
         <activity android:name=".ultimate.settings.FontManagerActivity" android:exported="false" android:theme="@style/Theme.ClockMods.ImportManager" />
         <property

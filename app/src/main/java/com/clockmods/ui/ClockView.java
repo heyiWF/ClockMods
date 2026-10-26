@@ -606,12 +606,7 @@ public class ClockView extends View {
         return false;
     }
 
-    /**
-     * Size of the weather summary and detail rows. They used to ride the date size, because a
-     * single control sized both; they have their own factor now, applied to the size the date row
-     * takes at its own default, so the date and the supporting rows size apart — and an untouched
-     * install, where the factor is 1, still draws exactly the size it drew before.
-     */
+    /** Shares the date fitting baseline while keeping the supporting preference independent. */
     private float supportingTextSize(int width, int height, String widestText,
             float minFraction) {
         // The calculator wants the width the text would take at one pixel, and the paint is
@@ -620,10 +615,22 @@ public class ClockView extends View {
         datePaint.setTextSize(1f);
         float measuredAtOnePixel = measureSupportingText(widestText);
         datePaint.setTextSize(restore);
-        float base = ClockLayoutCalculator.calculateWidthBasedTextSize(
-                width, height, measuredAtOnePixel, ClockPreferences.DEFAULT_DATE_FONT_SCALE,
-                minFraction, 0.92f);
-        return base * supportingFontScale / ClockPreferences.DEFAULT_SUPPORTING_FONT_SCALE;
+        // Explicit date/supporting percentages share a fitting baseline. Automatic keeps
+        // the balanced default; changing either slider never rescales the other field.
+        float scale = backgroundRepository.getSupportingFontScaleSetting() == 0f
+                ? ClockPreferences.DEFAULT_DATE_FONT_SCALE : supportingFontScale;
+        float size = ClockLayoutCalculator.calculateWidthBasedTextSize(
+                width, height, measuredAtOnePixel, scale, minFraction, 0.92f);
+        if (scale <= 1f) {
+            size = ClockLayoutCalculator.capToWidth(size, measuredAtOnePixel, width, .92f);
+            if (!(portraitStacked && height > width)) {
+                datePaint.setTextSize(1f);
+                size = ClockLayoutCalculator.capSupportingSize(size, height,
+                        timePaint.descent() - timePaint.ascent(), datePaint.descent() - datePaint.ascent());
+                datePaint.setTextSize(restore);
+            }
+        }
+        return size;
     }
 
         private void drawWeather(Canvas canvas, float centerX, float timeBaseline,
@@ -926,7 +933,7 @@ public class ClockView extends View {
         if (ClockPreferences.TRANSITION_SLIDE_UP.equals(transition)
                 || ClockPreferences.TRANSITION_SLIDE_DOWN.equals(transition)) {
             float direction = ClockPreferences.TRANSITION_SLIDE_UP.equals(transition) ? -1f : 1f;
-            float distance = datePaint.getTextSize() * 0.4f;
+            float distance = datePaint.getTextSize() * ClockDigitTransitionTiming.SLIDE_DISTANCE_FRACTION;
             canvas.save();
             canvas.translate(0f, direction * distance * phase);
             setSupportingTextAlpha(datePaint, Math.round(clampedAlpha / 255f * originalAlpha));
@@ -1614,7 +1621,7 @@ public class ClockView extends View {
             if (ClockPreferences.TRANSITION_SLIDE_UP.equals(timeTransition)
                 || ClockPreferences.TRANSITION_SLIDE_DOWN.equals(timeTransition)) {
                 float direction = ClockPreferences.TRANSITION_SLIDE_UP.equals(timeTransition) ? -1f : 1f;
-                float distance = paint.getTextSize() * 0.24f;
+                float distance = paint.getTextSize() * ClockDigitTransitionTiming.SLIDE_DISTANCE_FRACTION;
                 drawTransformedCharacter(canvas, oldCharacter, centerX, baseline, paint,
                     Math.round(255f * (1f - progress)), 1f,
                     direction * distance * progress, pivotY);

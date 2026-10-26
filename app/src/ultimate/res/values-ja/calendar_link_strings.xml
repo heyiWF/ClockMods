@@ -1,0 +1,9 @@
+<resources>
+    <string name="calendar_import_link">リンクから読み込む</string>
+    <string name="calendar_import_url">カレンダーのリンク</string>
+    <string name="calendar_import_link_hint">HTTPS または webcal リンクを貼り付けます。端末に保存され、自動更新はされません。</string>
+    <string name="calendar_import_url_invalid">有効な HTTPS または webcal リンクを入力してください。</string>
+    <string name="calendar_import_network">ダウンロードできません。リンクと接続を確認してください。</string>
+    <string name="calendar_import_carousel">日付の下に予定を表示</string>
+    <string name="calendar_import_carousel_hint">読み込んだ予定を日付の下で切り替えて表示します。週間予定には常に表示されます。</string>
+</resources>

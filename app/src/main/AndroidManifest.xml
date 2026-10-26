@@ -17,6 +17,7 @@
         android:theme="@style/Theme.ClockMods">
         <activity
             android:name="${launcherActivity}"
+            android:theme="@style/Theme.ClockMods.Launch"
             android:configChanges="keyboardHidden"
             android:exported="true"
             android:launchMode="singleTask">

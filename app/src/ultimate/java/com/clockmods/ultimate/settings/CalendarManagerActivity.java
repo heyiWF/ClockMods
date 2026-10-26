@@ -81,6 +81,17 @@ public final class CalendarManagerActivity extends AppCompatActivity {
         int scrollY = scroll.getScrollY();
         content.removeAllViews(); add.setEnabled(!model.busy);
         text(content, getString(R.string.calendar_import_summary), 16, false, false);
+        MaterialButton link = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
+        link.setText(R.string.calendar_import_link); link.setIconResource(R.drawable.import_ic_link);
+        link.setMinHeight(dp(48)); link.setEnabled(!model.busy);
+        link.setOnClickListener(view -> showLinkDialog());
+        content.addView(link, new LinearLayout.LayoutParams(-1, -2));
+        com.google.android.material.materialswitch.MaterialSwitch carousel = new com.google.android.material.materialswitch.MaterialSwitch(this);
+        carousel.setText(R.string.calendar_import_carousel); carousel.setMinHeight(dp(48));
+        carousel.setChecked(UserCalendarStore.get(this).showInDateCarousel());
+        carousel.setOnCheckedChangeListener((button, checked) -> UserCalendarStore.get(this).setShowInDateCarousel(checked));
+        content.addView(carousel, new LinearLayout.LayoutParams(-1, -2));
+        text(content, getString(R.string.calendar_import_carousel_hint), 14, false, true);
         if (model.busy) {
             LinearProgressIndicator progress = new LinearProgressIndicator(this);
             progress.setIndeterminate(true); content.addView(progress, new LinearLayout.LayoutParams(-1, dp(8)));
@@ -120,6 +131,26 @@ public final class CalendarManagerActivity extends AppCompatActivity {
             action.gravity = Gravity.END; group.addView(remove, action);
         }
         content.post(() -> scroll.scrollTo(0, scrollY));
+    }
+    private void showLinkDialog() {
+        com.google.android.material.textfield.TextInputLayout field = new com.google.android.material.textfield.TextInputLayout(this);
+        field.setHint(getString(R.string.calendar_import_url));
+        field.setBoxBackgroundMode(com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE);
+        field.setPadding(dp(24), dp(8), dp(24), 0);
+        com.google.android.material.textfield.TextInputEditText input = new com.google.android.material.textfield.TextInputEditText(field.getContext());
+        input.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
+        input.setSingleLine(true); field.addView(input);
+        androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.calendar_import_link).setMessage(R.string.calendar_import_link_hint)
+                .setView(field).setNegativeButton(android.R.string.cancel, null)
+                .setPositiveButton(R.string.calendar_import_add, null).create();
+        dialog.setOnShowListener(ignored -> dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(view -> {
+            String value = input.getText() == null ? "" : input.getText().toString();
+            try { com.clockmods.calendar.imports.CalendarLink.normalize(value); }
+            catch (java.io.IOException failure) { field.setError(getString(R.string.calendar_import_url_invalid)); return; }
+            model.importLink(value); dialog.dismiss();
+        }));
+        dialog.show();
     }
     private LinearLayout card(int colorAttr) {
         MaterialCardView card = new MaterialCardView(this);

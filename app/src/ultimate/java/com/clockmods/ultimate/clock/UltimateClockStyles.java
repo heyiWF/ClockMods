@@ -1139,7 +1139,10 @@ public final class UltimateClockStyles {
                 String previous, String visible, float x, float baseline, float size, float floor,
                 float maxWidth, float preferredSize, int readableColor, Paint.Align align,
                 Typeface face) {
-            float progress = state.getWeatherTransitionProgress();
+            float rawProgress = state.getWeatherTransitionProgress();
+            float progress = state.getWeatherTransition() == ClockState.TimeTransition.SCAN
+                    || state.getWeatherTransition() == ClockState.TimeTransition.SLIDE_RIGHT ? rawProgress
+                    : ClockDigitTransitionTiming.easeOutCubic(rawProgress);
             ClockState.TimeTransition transition = state.getWeatherTransition();
             float oldSize = (state.isPreviousMessageActive() || supportingOverflowAllowed()) ? Math.max(floor, preferredSize)
                     : Math.max(floor, fitText(previous, maxWidth, Math.max(floor, preferredSize), face));
@@ -1204,11 +1207,11 @@ public final class UltimateClockStyles {
                     float direction = transition == ClockState.TimeTransition.SLIDE_UP
                             ? -1f : 1f;
                     int oldSave = canvas.save();
-                    canvas.translate(0f, direction * distance * .3f * progress);
+                    canvas.translate(0f, direction * distance * progress);
                     drawCarouselItem(canvas, context, state, true, oldVisible, x, baseline, oldSize, oldColor, align, face, maxWidth);
                     canvas.restoreToCount(oldSave);
                     int newSave = canvas.save();
-                    canvas.translate(0f, -direction * distance * .3f * (1f - progress));
+                    canvas.translate(0f, -direction * distance * (1f - progress));
                     drawCarouselItem(canvas, context, state, false, visible, x, baseline, size, newColor, align, face, maxWidth);
                     canvas.restoreToCount(newSave);
                     break;
@@ -1470,7 +1473,10 @@ public final class UltimateClockStyles {
                 float baseline, Paint paint) {
             PaintPool pool = PAINT_POOL.get();
             ClockState state = pool.motionState;
-            float progress = state == null ? 1f : state.getTimeTransitionProgress();
+            float rawProgress = state == null ? 1f : state.getTimeTransitionProgress();
+            float progress = state == null || state.getTimeTransition() == ClockState.TimeTransition.SCAN
+                    || state.getTimeTransition() == ClockState.TimeTransition.SLIDE_RIGHT ? rawProgress
+                    : ClockDigitTransitionTiming.easeOutCubic(rawProgress);
             String previous = pool.digitTracker == null ? null
                     : pool.digitTracker.previousFor(value, progress < 1f);
             ClockState.TimeTransition transition = state == null

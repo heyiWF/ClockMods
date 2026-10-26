@@ -35,12 +35,14 @@ public final class SettingsBackAcceptance extends Instrumentation {
     private int checks;
     private String label;
     private String mode;
+    private String calendarLink;
     private Activity settingsActivity;
 
     @Override public void onCreate(Bundle arguments) {
         super.onCreate(arguments);
         label = arguments == null ? "back" : arguments.getString("label", "back");
         mode = arguments == null ? "gesture" : arguments.getString("mode", "gesture");
+        calendarLink = arguments == null ? null : arguments.getString("calendarLink");
         start();
     }
 
@@ -138,8 +140,17 @@ public final class SettingsBackAcceptance extends Instrumentation {
             if (cancel) dispatcher.dispatchOnBackCancelled();
             else dispatcher.onBackPressed();
         });
-        else touch(down, cancel ? MotionEvent.ACTION_CANCEL : MotionEvent.ACTION_UP,
-                    start + sign * width * 0.4f, y);
+        else {
+            // A user cancels by returning to the edge before lifting their finger.
+            // ACTION_CANCEL aborts injection, leaving some system gesture handlers latched.
+            if (cancel) {
+                for (int step = 17; step >= 0; step--) {
+                    touch(down, MotionEvent.ACTION_MOVE, start + sign * width * 0.4f * step / 18, y);
+                    SystemClock.sleep(20);
+                }
+            }
+            touch(down, MotionEvent.ACTION_UP, cancel ? start : start + sign * width * 0.4f, y);
+        }
         settle();
         screenshot(name + "-after").recycle();
         before.recycle(); preview.recycle();
@@ -198,6 +209,71 @@ public final class SettingsBackAcceptance extends Instrumentation {
             }
             verify(hasText(background) && hasText(weather), "Committed gesture did not return home");
             verifySystemBackAvailable();
+            // Every library is a real Activity destination. Leave its back callback disabled
+            // so Android can preview the settings window underneath, including cancellation.
+            for (Class<?> libraryClass : new Class<?>[]{CalendarManagerActivity.class, FontManagerActivity.class}) {
+                ActivityMonitor libraryMonitor = addMonitor(libraryClass.getName(), null, false);
+                Activity settings = activity;
+                runOnMainSync(() -> settings.startActivity(new Intent(settings, libraryClass)));
+                Activity library = libraryMonitor.waitForActivityWithTimeout(10000);
+                removeMonitor(libraryMonitor);
+                verify(library != null, "Library did not open: " + libraryClass.getSimpleName());
+                settingsActivity = library;
+                settle();
+                verifySystemBackAvailable();
+                String libraryName = libraryClass.getSimpleName();
+                if (libraryClass == CalendarManagerActivity.class) {
+                    verify(hasText(library.getString(R.string.calendar_import_link)), "Missing calendar link action");
+                    clickText(library.getString(R.string.calendar_import_link));
+                    settle();
+                    verify(hasText(library.getString(R.string.calendar_import_link_hint)), "Missing link input dialog");
+                    screenshot("calendar-link-dialog").recycle();
+                    sendKeyDownUpSync(KeyEvent.KEYCODE_BACK); settle();
+                    verify(!library.isFinishing(), "Dialog back exited the calendar library");
+                    com.clockmods.calendar.imports.UserCalendarStore store = com.clockmods.calendar.imports.UserCalendarStore.get(library);
+                    if (calendarLink != null) {
+                        com.clockmods.calendar.imports.UserCalendarStore.Source downloaded =
+                                com.clockmods.calendar.imports.CalendarLink.importFrom(store, calendarLink);
+                        try {
+                            verify(downloaded.eventCount > 0, "Link import did not store events");
+                            verify(store.files().stream().anyMatch(file -> file.id.equals(downloaded.id)),
+                                    "Downloaded calendar is missing from the library");
+                        } finally { store.delete(downloaded.id); }
+                    }
+                    java.time.LocalDate date = java.time.LocalDate.now();
+                    String compactDate = date.format(java.time.format.DateTimeFormatter.BASIC_ISO_DATE);
+                    String fixture = "BEGIN:VCALENDAR\r\nVERSION:2.0\r\nPRODID:-//ClockMods//Acceptance//EN\r\nBEGIN:VEVENT\r\nUID:launch-toggle-check\r\nDTSTAMP:20261025T000000Z\r\nDTSTART;VALUE=DATE:"
+                            + compactDate + "\r\nSUMMARY:Toggle acceptance\r\nEND:VEVENT\r\nEND:VCALENDAR\r\n";
+                    boolean oldToggle = store.showInDateCarousel();
+                    com.clockmods.calendar.imports.UserCalendarStore.Source source = store.importStream(
+                            new java.io.ByteArrayInputStream(fixture.getBytes(java.nio.charset.StandardCharsets.UTF_8)), "toggle-check.ics");
+                    try {
+                        java.util.TimeZone zone = java.util.TimeZone.getDefault();
+                        long until = SystemClock.uptimeMillis() + 10000;
+                        while (store.eventsOn(date.getYear(), date.getMonthValue()-1, date.getDayOfMonth(), zone).isEmpty()
+                                && SystemClock.uptimeMillis() < until) SystemClock.sleep(100);
+                        runOnMainSync(() -> store.setShowInDateCarousel(false));
+                        verify(!store.showInDateCarousel(), "Carousel toggle did not persist");
+                        verify(!com.clockmods.calendar.imports.ImportedSchedules.on(library, store,
+                                date.getYear(), date.getMonthValue()-1, date.getDayOfMonth(), zone).isEmpty(),
+                                "Disabling date labels removed Agenda events");
+                        runOnMainSync(() -> store.setShowInDateCarousel(true));
+                        verify(store.showInDateCarousel(), "Carousel toggle did not re-enable");
+                    } finally {
+                        store.delete(source.id);
+                        runOnMainSync(() -> store.setShowInDateCarousel(oldToggle));
+                    }
+
+                }
+                if ("gesture".equals(mode)) {
+                    gesture(false, true, libraryName + "-cancel");
+                    verify(!library.isFinishing(), "Cancelled library gesture finished its Activity");
+                    gesture(false, false, libraryName + "-commit");
+                } else { sendKeyDownUpSync(KeyEvent.KEYCODE_BACK); settle(); }
+                verify(library.isFinishing() || library.isDestroyed(), "Library back did not return to settings");
+                settingsActivity = activity;
+                settle();
+            }
             if ("gesture".equals(mode)) {
                 gesture(false, true, "root-cancel");
                 verify(hasText(weather), "Cancelled root gesture closed settings");

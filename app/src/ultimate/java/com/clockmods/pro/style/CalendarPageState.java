@@ -125,7 +125,7 @@ public final class CalendarPageState {
             lunarShort = builder.lunarShort;
             festivals = Collections.unmodifiableList(builder.festivals);
             importedSchedules = Collections.unmodifiableList(builder.importedSchedules);
-            eventLabels = com.clockmods.calendar.imports.ImportedSchedules.labels(importedSchedules);
+            eventLabels = builder.showImportedLabels ? com.clockmods.calendar.imports.ImportedSchedules.labels(importedSchedules) : Collections.emptyList();
             holidayName = builder.holidayName;
             holidayBadge = builder.holidayBadge;
             holidayOffDay = builder.holidayOffDay;
@@ -140,6 +140,8 @@ public final class CalendarPageState {
             private List<String> festivals = Collections.emptyList();
             private List<com.clockmods.pro.schedule.ScheduleItem> importedSchedules = Collections.emptyList();
 
+            private boolean showImportedLabels = true;
+            public Builder showImportedLabels(boolean enabled) { showImportedLabels = enabled; return this; }
             public Builder importedSchedules(List<com.clockmods.pro.schedule.ScheduleItem> value) {
                 importedSchedules = new ArrayList<>(value); return this;
             }

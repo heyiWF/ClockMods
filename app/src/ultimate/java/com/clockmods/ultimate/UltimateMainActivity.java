@@ -38,6 +38,7 @@ public final class UltimateMainActivity extends ProMainActivity {
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
+        com.clockmods.ui.LaunchSplash.install(this);
         if (savedInstanceState != null) {
             setupWizardLaunchPending = savedInstanceState.getBoolean(
                     STATE_SETUP_WIZARD_PENDING, false);

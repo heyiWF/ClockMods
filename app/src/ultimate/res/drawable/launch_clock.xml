@@ -1,0 +1,18 @@
+<vector xmlns:android="http://schemas.android.com/apk/res/android"
+    xmlns:aapt="http://schemas.android.com/aapt" android:width="288dp" android:height="288dp"
+    android:viewportWidth="288" android:viewportHeight="288">
+    <!-- The launcher artwork's slate clock and coral sector, assembled into a circle. -->
+    <group android:translateY="2">
+        <path android:fillColor="#0A1119" android:pathData="M144,66 A78,78 0,1 0,217.296,117.322 L144,144 Z" />
+    </group>
+    <path android:strokeColor="#748D9F" android:strokeWidth="0.8" android:pathData="M144,66 A78,78 0,1 0,217.296,117.322 L144,144 Z">
+        <aapt:attr name="android:fillColor"><gradient android:startX="82" android:startY="66" android:endX="202" android:endY="222" android:type="linear" android:startColor="#607887" android:endColor="#263440" /></aapt:attr>
+    </path>
+    <path android:fillColor="#00000000" android:strokeColor="#ADBFCC" android:strokeAlpha="0.78" android:strokeWidth="2.6" android:strokeLineCap="round" android:pathData="M209.000,144.000 L196.000,144.000 M200.292,176.500 L189.033,170.000 M176.500,200.292 L170.000,189.033 M144.000,209.000 L144.000,196.000 M111.500,200.292 L118.000,189.033 M87.708,176.500 L98.967,170.000 M79.000,144.000 L92.000,144.000 M87.708,111.500 L98.967,118.000 M111.500,87.708 L118.000,98.967 M144.000,79.000 L144.000,92.000" />
+    <group android:name="sector">
+        <path android:name="sectorFill" android:pathData="M144,144 L144,66 A78,78 0,0 1,217.296,117.322 Z">
+            <aapt:attr name="android:fillColor"><gradient android:startX="144" android:startY="66" android:endX="211" android:endY="142" android:type="linear" android:startColor="#FFBCAD" android:endColor="#FF633E" /></aapt:attr>
+        </path>
+        <path android:name="sectorHighlight" android:fillColor="#00000000" android:strokeColor="#FFD9D0" android:strokeWidth="1.1" android:pathData="M144.5,143 L144.5,66.5 A77.5,77.5 0,0 1,216.8,117" />
+    </group>
+</vector>

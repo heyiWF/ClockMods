@@ -422,6 +422,7 @@ public final class ProCalendarFragment extends Fragment implements CalendarLayou
                 .lunar(lunarShort)
                 .festivals(festivals)
                 .importedSchedules(imported)
+                .showImportedLabels(com.clockmods.calendar.imports.UserCalendarStore.get(requireContext()).showInDateCarousel())
                 .contentDescription(description);
         if (status != null) {
             builder.holiday(status.name, getString(status.offDay
