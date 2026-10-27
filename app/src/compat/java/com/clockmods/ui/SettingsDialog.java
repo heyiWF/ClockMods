@@ -9,6 +9,7 @@ import android.graphics.Bitmap;
 import android.graphics.Color;
 import android.graphics.drawable.ColorDrawable;
 import android.graphics.drawable.GradientDrawable;
+import android.util.DisplayMetrics;
 import android.view.Gravity;
 import android.view.View;
 import android.view.ViewGroup;
@@ -203,7 +204,10 @@ public class SettingsDialog extends Dialog {
         content.setPadding(padding, 0, padding, dp(18));
         content.setBackgroundColor(COLOR_SURFACE);
 
-        // ---- Segmented tab header (样式 / 功能) ----
+        DisplayMetrics metrics = context.getResources().getDisplayMetrics();
+        boolean twoColumn = metrics.widthPixels > metrics.heightPixels;
+
+        // Portrait switches boards; landscape shows both boards side by side.
         final SegmentedSelector boardSelector = new SegmentedSelector(context,
             new CharSequence[] {
                 context.getString(R.string.tab_style),
@@ -212,7 +216,9 @@ public class SettingsDialog extends Dialog {
         LinearLayout fixedTabs = new LinearLayout(context);
         fixedTabs.setPadding(padding, 0, padding, 0);
         fixedTabs.addView(boardSelector, topMargin(matchWrap(dp(46)), dp(12)));
-        dialogRoot.addView(fixedTabs, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
+        if (!twoColumn) {
+            dialogRoot.addView(fixedTabs, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
+        }
 
         // ---- Style board ----
         final LinearLayout styleContent = new LinearLayout(context);
@@ -576,16 +582,29 @@ public class SettingsDialog extends Dialog {
         networkTimeSwitch.setOnCheckedChangeListener((button, checked) -> updateFunctionLockedState(checked));
         updateFunctionLockedState(networkTimeSwitch.isChecked());
 
-        // ---- Boards container ----
-        content.addView(styleContent, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
-        content.addView(functionContent, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
+        // Keep the same controls and draft values in either layout.
+        if (twoColumn) {
+            LinearLayout columns = new LinearLayout(context);
+            columns.setOrientation(LinearLayout.HORIZONTAL);
+            functionContent.setVisibility(View.VISIBLE);
+            LinearLayout.LayoutParams leftParams = new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            LinearLayout.LayoutParams rightParams = new LinearLayout.LayoutParams(
+                    0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f);
+            rightParams.leftMargin = dp(12);
+            columns.addView(styleContent, leftParams);
+            columns.addView(functionContent, rightParams);
+            content.addView(columns, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
+        } else {
+            content.addView(styleContent, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
+            content.addView(functionContent, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
+            boardSelector.setOnSelectionChangedListener(index -> {
+                boolean style = index == 0;
+                styleContent.setVisibility(style ? View.VISIBLE : View.GONE);
+                functionContent.setVisibility(style ? View.GONE : View.VISIBLE);
+            });
+        }
         content.addView(reset, topMargin(matchWrap(dp(48)), dp(18)));
-
-        boardSelector.setOnSelectionChangedListener(index -> {
-            boolean style = index == 0;
-            styleContent.setVisibility(style ? View.VISIBLE : View.GONE);
-            functionContent.setVisibility(style ? View.GONE : View.VISIBLE);
-        });
 
         ScrollView scrollView = new ScrollView(context);
         scrollView.setFillViewport(true);
@@ -615,7 +634,9 @@ public class SettingsDialog extends Dialog {
             window.setGravity(Gravity.BOTTOM);
             WindowManager.LayoutParams params = window.getAttributes();
             params.width = WindowManager.LayoutParams.MATCH_PARENT;
-            params.height = Math.min(getContext().getResources().getDisplayMetrics().heightPixels, dp(760));
+            DisplayMetrics metrics = getContext().getResources().getDisplayMetrics();
+            params.height = metrics.widthPixels > metrics.heightPixels
+                    ? metrics.heightPixels : Math.min(metrics.heightPixels, dp(760));
             window.setAttributes(params);
         }
     }

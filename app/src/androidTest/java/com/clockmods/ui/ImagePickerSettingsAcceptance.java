@@ -30,6 +30,7 @@ import java.util.Map;
 /** Exercises the real choose-image click, activity result, async import and Apply path. */
 @android.annotation.TargetApi(18)
 public final class ImagePickerSettingsAcceptance extends Instrumentation {
+    private static final String MESSAGE_DRAFT = "Pending settings survive image selection";
     private int checks;
     private Activity activity;
     @Override public void onCreate(Bundle args) { super.onCreate(args); start(); }
@@ -61,11 +62,17 @@ public final class ImagePickerSettingsAcceptance extends Instrumentation {
                 launch(orientation);
                 onMain(() -> invoke(activity, "showSettings"));
                 Dialog dialog = (Dialog) field(activity, "settingsDialog").get(activity);
+                waitForIdleSync();
+                if (isCompat()) verifyCompatLayout(dialog, orientation);
                 onMain(() -> {
                     Object slider = field(dialog, "timeSizeBar").get(dialog);
                     if (slider instanceof SeekBar) ((SeekBar) slider).setProgress(90);
                     else slider.getClass().getMethod("setValue", float.class).invoke(slider, 110f);
                     ((CompoundButton) field(dialog, "boldTextSwitch").get(dialog)).setChecked(true);
+                    if (isCompat()) {
+                        ((CompoundButton) field(dialog, "imageMode").get(dialog)).setChecked(true);
+                        ((TextView) field(dialog, "customMessageInput").get(dialog)).setText(MESSAGE_DRAFT);
+                    }
                 });
                 check(!new ClockPreferences(context).isBoldText(), "draft remains unapplied before picker");
                 pickRealAndCancel(dialog);
@@ -96,6 +103,10 @@ public final class ImagePickerSettingsAcceptance extends Instrumentation {
                 check(new ClockPreferences(context).isBoldText(), "Apply saves the original bold draft");
                 check(Math.abs(new ClockPreferences(context).getTimeFontScale() - 1.1f) < 0.001f,
                         "Apply saves the original oversized font draft");
+                if (isCompat()) {
+                    check(MESSAGE_DRAFT.equals(new ClockPreferences(context).getCustomMessage()),
+                            "Apply saves the function-column message draft");
+                }
                 onMain(() -> check(!dialog.isShowing(), "only Apply dismisses settings"));
                 finishActivity();
                 background.delete();
@@ -193,7 +204,50 @@ public final class ImagePickerSettingsAcceptance extends Instrumentation {
                     : ((Number) slider.getClass().getMethod("getValue").invoke(slider)).floatValue();
             check(value == 110f, result + " preserves font draft");
             check(((CompoundButton) field(dialog, "boldTextSwitch").get(dialog)).isChecked(), result + " preserves bold draft");
+            if (isCompat()) {
+                check(MESSAGE_DRAFT.contentEquals(((TextView) field(dialog, "customMessageInput")
+                        .get(dialog)).getText()), result + " preserves function-column message draft");
+            }
         });
+    }
+    private boolean isCompat() {
+        return getTargetContext().getPackageName().endsWith(".compat");
+    }
+    private void verifyCompatLayout(Dialog dialog, int orientation) throws Exception {
+        onMain(() -> {
+            View root = dialog.getWindow().getDecorView();
+            Context context = getTargetContext();
+            View style = findText(root, context.getString(R.string.background_settings_group));
+            View function = findText(root, context.getString(R.string.display_settings_group));
+            check(style != null && function != null, "both settings groups exist");
+            if (orientation == Configuration.ORIENTATION_LANDSCAPE) {
+                check(style.isShown() && function.isShown(), "both columns are visible in landscape");
+                int[] left = new int[2]; int[] right = new int[2];
+                style.getLocationOnScreen(left); function.getLocationOnScreen(right);
+                check(style.getWidth() > 0 && right[0] > left[0] + style.getWidth(),
+                        "settings columns have separate non-overlapping horizontal bounds");
+                check(Math.abs(left[1] - right[1]) <= 1, "settings columns align at the top");
+                check(findText(root, context.getString(R.string.tab_style)) == null,
+                        "landscape needs no tab switch to access either column");
+            } else {
+                check(style.isShown() && !function.isShown(), "portrait opens the style tab");
+                View functionTab = findText(root, context.getString(R.string.tab_function));
+                check(functionTab != null && functionTab.performClick(), "portrait function tab switches");
+                check(function.isShown() && !style.isShown(), "portrait exposes function settings");
+                findText(root, context.getString(R.string.tab_style)).performClick();
+                check(style.isShown() && !function.isShown(), "portrait style tab restores");
+            }
+        });
+        waitForIdleSync();
+        SystemClock.sleep(200);
+        Bitmap screenshot = getUiAutomation().takeScreenshot();
+        check(screenshot != null, "settings screenshot captured");
+        File directory = new File(getTargetContext().getExternalFilesDir(null), "compat-settings-audit");
+        directory.mkdirs();
+        try (FileOutputStream out = new FileOutputStream(new File(directory,
+                "settings-" + orientation + ".png"))) {
+            screenshot.compress(Bitmap.CompressFormat.PNG, 100, out);
+        } finally { screenshot.recycle(); }
     }
     private void finishActivity() throws Exception {
         if (activity != null) { onMain(() -> activity.finish()); waitForIdleSync(); activity = null; }
