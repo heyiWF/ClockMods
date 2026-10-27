@@ -19,3 +19,5 @@ Validated on 2026-10-27: debug app/test APK assembly and Lint passed; 290 unit t
 The follow-up cleanup removes unreferenced rendering helpers and gallery remnants, and shares one in-memory preferences fixture between theme-library and clock-preferences tests. Regression cases remain intact.
 
 The store follows CalendarMods: three columns of rounded previews, a favorite control over the top-right corner, centered titles and full-width action buttons. Installed order is fixed by installation time; selecting or favoriting never changes it. Removing and reinstalling a theme appends it immediately before the gallery store entry. No reorder controls or reorder API are exposed.
+
+Native clock previews render at the full clock viewport, then scale uniformly into the card. Card dimensions must never become responsive-layout inputs, which would select the compact fallback for every theme. The automatic font-size action shares the title row. Run `ThemeLibraryAcceptance` with `-e mode navigation` to verify the normal settings entry, wide master/detail navigation and compact automatic-size action; direct page fixtures deliberately bypass the settings home.

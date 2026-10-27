@@ -2940,11 +2940,17 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         LinearLayout row = new LinearLayout(this);
         row.setOrientation(LinearLayout.VERTICAL);
         row.setPadding(0, dp(8), 0, dp(4));
+        LinearLayout header = new LinearLayout(this);
+        header.setGravity(Gravity.CENTER_VERTICAL);
+        LinearLayout labels = new LinearLayout(this);
+        labels.setOrientation(LinearLayout.VERTICAL);
         TextView title = label(titleRes, 16, false);
-        row.addView(title, wrapParams());
+        labels.addView(title, wrapParams());
+        header.addView(labels, new LinearLayout.LayoutParams(0, -2, 1f));
+        row.addView(header, wrapParams());
         TextView value = label(current == 0f ? getString(R.string.font_size_auto) : percentSummary(current), 13, false);
         value.setTextColor(onSurfaceVariantColor());
-        row.addView(value, topMargin(wrapParams(), dp(2)));
+        labels.addView(value, topMargin(wrapParams(), dp(2)));
         Slider slider = new Slider(this);
         slider.setValueFrom(minPercent);
         slider.setValueTo(maxPercent);
@@ -2972,7 +2978,11 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 markChanged(source);
                 showPage(pageToRefresh);
             });
-            row.addView(automatic, wrapParams());
+            automatic.setMinWidth(dp(64));
+            automatic.setMinimumWidth(dp(64));
+            LinearLayout.LayoutParams automaticParams = new LinearLayout.LayoutParams(-2, dp(48));
+            automaticParams.setMarginStart(dp(12));
+            header.addView(automatic, automaticParams);
         }
         final boolean[] trackingTouch = {false};
         slider.addOnChangeListener((control, selected, fromUser) -> {
@@ -3875,6 +3885,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         // than the one the gallery happens to have selected.
         private final ClockTypography typography = new ClockTypography();
         private final String scopeId;
+        private final int[] clockViewport;
         private ClockThemeTokens previewTokens;
         private ClockBackground previewBackground;
         private Consumer<Boolean> blurLoadingListener;
@@ -3889,6 +3900,9 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             super(context);
             this.style = style;
             this.scopeId = style.getMetadata().getId();
+            Rect bounds = WindowMetricsCalculator.getOrCreate()
+                    .computeMaximumWindowMetrics(UltimateSettingsActivity.this).getBounds();
+            clockViewport = clockPreviewViewport(bounds.width(), bounds.height(), repository.getScreenOrientation());
             previewTokens = ClockPalette.supports(scopeId)
                     ? ultimatePreferences.getPalette(scopeId).applyTo(style.getThemeTokens())
                     : style.getThemeTokens();
@@ -3989,8 +4003,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
             if (getWidth() <= 0 || getHeight() <= 0) return;
-            int renderWidth = targetViewportWidth > 0 ? targetViewportWidth : getWidth();
-            int renderHeight = targetViewportHeight > 0 ? targetViewportHeight : getHeight();
+            // The thumbnail is a scaled clock, not a tiny clock window. Passing card pixels
+            // to the responsive renderer would replace every theme with its compact fallback.
+            int renderWidth = targetViewportWidth > 0 ? targetViewportWidth : clockViewport[0];
+            int renderHeight = targetViewportHeight > 0 ? targetViewportHeight : clockViewport[1];
             Calendar calendar = Calendar.getInstance(TimeZone.getDefault(), Locale.getDefault());
             calendar.set(2026, Calendar.JUNE, 18, 10, 9, 36);
             calendar.set(Calendar.MILLISECOND, 0);
@@ -4016,8 +4032,11 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     calendar.getTimeInMillis(), previewBackground);
             int saveCount = canvas.save();
             try {
-                canvas.scale(getWidth() / (float) renderWidth,
-                        getHeight() / (float) renderHeight);
+                float scale = Math.min(getWidth() / (float) renderWidth, getHeight() / (float) renderHeight);
+                canvas.drawColor(previewTokens.getBackgroundStartColor());
+                canvas.translate((getWidth() - renderWidth * scale) / 2f,
+                        (getHeight() - renderHeight * scale) / 2f);
+                canvas.scale(scale, scale);
                 style.getRenderer().render(canvas, context, state,
                         typography.apply(getContext(), previewTokens, scopeId,
                                 repository.getRenderFontFamily(scopeId),

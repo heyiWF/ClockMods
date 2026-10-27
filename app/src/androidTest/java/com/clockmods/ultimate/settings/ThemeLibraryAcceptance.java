@@ -28,6 +28,7 @@ public final class ThemeLibraryAcceptance extends Instrumentation {
         if (!value) throw new AssertionError(message);
     }
     @Override public void onStart() {
+        if (args != null && "navigation".equals(args.getString("mode"))) { checkSettingsNavigation(); return; }
         Context context = getTargetContext();
         SharedPreferences general = context.getSharedPreferences("clock_prefs", 0);
         SharedPreferences clock = context.getSharedPreferences("clockmods_ultimate_style", 0);
@@ -130,6 +131,123 @@ public final class ThemeLibraryAcceptance extends Instrumentation {
             restore(general, savedGeneral); restore(clock, savedClock);
         }
         finish(code, report);
+    }
+    /** Exercise the public settings entry, so the platform can create the master/detail pair. */
+    private void checkSettingsNavigation() {
+        Context context = getTargetContext();
+        SharedPreferences general = context.getSharedPreferences("clock_prefs", 0);
+        SharedPreferences clock = context.getSharedPreferences("clockmods_ultimate_style", 0);
+        Map<String, ?> savedGeneral = new HashMap<>(general.getAll());
+        Map<String, ?> savedClock = new HashMap<>(clock.getAll());
+        Bundle report = new Bundle();
+        int code = Activity.RESULT_OK;
+        java.util.concurrent.atomic.AtomicReference<Activity> home = new java.util.concurrent.atomic.AtomicReference<>();
+        java.util.concurrent.atomic.AtomicReference<Activity> detailHost = new java.util.concurrent.atomic.AtomicReference<>();
+        android.app.Application application = (android.app.Application) context.getApplicationContext();
+        android.app.Application.ActivityLifecycleCallbacks lifecycle = new android.app.Application.ActivityLifecycleCallbacks() {
+            @Override public void onActivityResumed(Activity host) {
+                if (host instanceof UltimateSubSettingsActivity) detailHost.set(host);
+                else if (host instanceof UltimateSettingsActivity) home.set(host);
+            }
+            @Override public void onActivityCreated(Activity host, Bundle state) { }
+            @Override public void onActivityStarted(Activity host) { }
+            @Override public void onActivityPaused(Activity host) { }
+            @Override public void onActivityStopped(Activity host) { }
+            @Override public void onActivitySaveInstanceState(Activity host, Bundle state) { }
+            @Override public void onActivityDestroyed(Activity host) { }
+        };
+        application.registerActivityLifecycleCallbacks(lifecycle);
+        try {
+            general.edit().putString("clock_language", "zh")
+                    .putFloat("time_font_scale", Float.parseFloat(args.getString("fontScale", "1.5"))).commit();
+            clock.edit().putString("style_id", "pro.classic").remove(ThemeLibrary.ORDER).commit();
+            activity = startActivitySync(UltimateSettingsActivity.createIntent(context)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+            SystemClock.sleep(1200);
+            boolean wide = context.getResources().getConfiguration().screenWidthDp >= 720
+                    && context.getResources().getConfiguration().smallestScreenWidthDp >= 600;
+            if (!wide) {
+                check(detailHost.get() == null, "compact settings opens category list first");
+                clickActivityText(home.get(), context.getString(R.string.ultimate_category_clock_style));
+            }
+            Activity detail = awaitDetail(detailHost, "style");
+            check(detail != null, "normal settings entry opens clock detail");
+            SystemClock.sleep(800);
+            activity = home.get();
+            if (wide) {
+                check(androidx.window.embedding.ActivityEmbeddingController.getInstance(context)
+                        .isActivityEmbedded(detail), "wide settings keeps sidebar and detail embedded");
+                check(viewWithText(activity.getWindow().getDecorView(), context.getString(R.string.ultimate_category_background)) != null,
+                        "sidebar category remains present");
+                snapshot("settings-landscape-sidebar");
+            }
+            android.view.View title = viewWithText(detail.getWindow().getDecorView(), context.getString(R.string.ultimate_time_size));
+            check(title != null, "time size control present");
+            android.view.View header = (android.view.View) title.getParent().getParent();
+            android.view.View automatic = viewWithText(header, context.getString(R.string.font_size_auto), true);
+            check(automatic != null && automatic.isClickable(), "auto button shares the title header");
+            check(automatic.getWidth() < header.getWidth() / 2, "auto button uses compact width");
+            android.view.View control = (android.view.View) header.getParent();
+            runOnMainSync(() -> control.requestRectangleOnScreen(new Rect(0, 0, control.getWidth(), control.getHeight()), true));
+            snapshot(wide ? "settings-font-landscape" : "settings-font-portrait");
+            runOnMainSync(automatic::performClick);
+            check(general.getFloat("time_font_scale", -1f) == 0f, "compact auto button persists automatic size");
+            if (wide) {
+                clickActivityText(home.get(), context.getString(R.string.ultimate_category_calendar_style));
+                Activity calendar = awaitDetail(detailHost, "calendar_style");
+                check(calendar != null, "sidebar switches to calendar themes");
+                SystemClock.sleep(800);
+                check(androidx.window.embedding.ActivityEmbeddingController.getInstance(context)
+                        .isActivityEmbedded(calendar), "calendar theme library stays in detail pane");
+                snapshot("settings-calendar-sidebar");
+            }
+            report.putString("stream", "PASS: " + checks + " normal settings navigation and compact auto checks; wide=" + wide + "\n");
+        } catch (Throwable failure) {
+            code = Activity.RESULT_CANCELED;
+            report.putString("stream", "FAIL: " + android.util.Log.getStackTraceString(failure));
+        } finally {
+            application.unregisterActivityLifecycleCallbacks(lifecycle);
+            Activity latestHome = home.get();
+            Activity latestDetail = detailHost.get();
+            runOnMainSync(() -> {
+                if (latestDetail != null) latestDetail.finish();
+                if (latestHome != null) latestHome.finish();
+            });
+            restore(general, savedGeneral); restore(clock, savedClock);
+        }
+        finish(code, report);
+    }
+    private Activity awaitDetail(java.util.concurrent.atomic.AtomicReference<Activity> reference, String page) {
+        for (int retry = 0; retry < 50; retry++) {
+            Activity host = reference.get();
+            if (host != null && !host.isDestroyed() && page.equals(host.getIntent()
+                    .getStringExtra("com.clockmods.ultimate.settings.extra.PAGE_ID"))) return host;
+            SystemClock.sleep(100);
+        }
+        return null;
+    }
+    private android.view.View viewWithText(android.view.View view, String text) {
+        return viewWithText(view, text, false);
+    }
+    private android.view.View viewWithText(android.view.View view, String text, boolean clickable) {
+        if (view instanceof android.widget.TextView && (!clickable || view.isClickable())
+                && text.contentEquals(((android.widget.TextView) view).getText())) return view;
+        if (view instanceof android.view.ViewGroup) {
+            android.view.ViewGroup group = (android.view.ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                android.view.View found = viewWithText(group.getChildAt(i), text, clickable);
+                if (found != null) return found;
+            }
+        }
+        return null;
+    }
+    private void clickActivityText(Activity host, String text) {
+        android.view.View target = viewWithText(host.getWindow().getDecorView(), text);
+        while (target != null && !target.isClickable()) target = target.getParent() instanceof android.view.View
+                ? (android.view.View) target.getParent() : null;
+        check(target != null, "settings action: " + text);
+        android.view.View clicked = target;
+        runOnMainSync(clicked::performClick);
     }
     private void snapshot(String name) throws Exception {
         waitForIdleSync();
