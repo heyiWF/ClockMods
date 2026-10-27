@@ -67,6 +67,7 @@ public class SettingsDialog extends Dialog {
 
     // ---- Dark theme palette ----
     private static final int COLOR_SURFACE = 0xFF1B1D22;
+    private static final int COLOR_CARD = 0xFF23262D;
     private static final int COLOR_TITLE = 0xFFF3F4F6;
     private static final int COLOR_SECTION = 0xFF60A5FA;
     private static final int COLOR_PRIMARY_TEXT = 0xFFE5E7EB;
@@ -224,8 +225,7 @@ public class SettingsDialog extends Dialog {
         final LinearLayout styleContent = new LinearLayout(context);
         styleContent.setOrientation(LinearLayout.VERTICAL);
 
-        styleContent.addView(createSectionLabel(context, R.string.background_settings_group),
-                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(6)));
+        LinearLayout backgroundSection = createSection(context, styleContent, R.string.background_settings_group);
 
         RadioGroup modeGroup = new RadioGroup(context);
         modeGroup.setOrientation(RadioGroup.HORIZONTAL);
@@ -241,7 +241,7 @@ public class SettingsDialog extends Dialog {
         tintCompoundButton(imageMode);
         modeGroup.addView(colorMode, new RadioGroup.LayoutParams(0, dp(46), 1f));
         modeGroup.addView(imageMode, new RadioGroup.LayoutParams(0, dp(46), 1f));
-        styleContent.addView(modeGroup, topMargin(matchWrap(dp(48)), dp(2)));
+        backgroundSection.addView(modeGroup, topMargin(matchWrap(dp(48)), dp(2)));
 
         LinearLayout colorControlsLayout = new LinearLayout(context);
         colorControlsLayout.setOrientation(LinearLayout.VERTICAL);
@@ -262,7 +262,7 @@ public class SettingsDialog extends Dialog {
             colorMode.setChecked(true);
         }), topMargin(matchWrap(dp(50)), dp(12)));
         addAdvancedPicker(context, colorControlsLayout, backgroundPicker);
-        styleContent.addView(colorControlsLayout, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
+        backgroundSection.addView(colorControlsLayout, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
 
         LinearLayout imageControlsLayout = new LinearLayout(context);
         imageControlsLayout.setOrientation(LinearLayout.VERTICAL);
@@ -304,98 +304,96 @@ public class SettingsDialog extends Dialog {
         scheduleDimBackgroundSwitch.setOnCheckedChangeListener(
             (button, checked) -> updateDimScheduleState(checked));
         updateDimScheduleState(scheduleDimBackgroundSwitch.isChecked());
-        styleContent.addView(imageControlsLayout, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
+        backgroundSection.addView(imageControlsLayout, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
 
         modeGroup.setOnCheckedChangeListener((group, checkedId) ->
                 updateBackgroundControls(imageMode.isChecked()));
 
         // Font section
-        styleContent.addView(createSectionLabel(context, R.string.font_settings_group),
-                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(18)));
+        LinearLayout fontSection = createSection(context, styleContent, R.string.font_settings_group);
 
-        styleContent.addView(createSubLabel(context, R.string.font_family),
+        fontSection.addView(createSubLabel(context, R.string.font_family),
             topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(8)));
         fontFamilySpinner = createFontFamilySpinner(context, repository.getFontFamily());
-        styleContent.addView(fontFamilySpinner, topMargin(matchWrap(dp(48)), dp(4)));
+        fontSection.addView(fontFamilySpinner, topMargin(matchWrap(dp(48)), dp(4)));
         // Bold applies to both time and date, so it sits with the shared font family, not under time.
         boldTextSwitch = createStyleSwitch(context, R.string.bold_text, repository.isBoldText());
-        styleContent.addView(boldTextSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        fontSection.addView(boldTextSwitch, topMargin(matchWrap(dp(48)), dp(8)));
 
-        styleContent.addView(createSubLabel(context, R.string.time_font_settings),
+        fontSection.addView(createSubLabel(context, R.string.time_font_settings),
                 topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(8)));
         timeSizeValue = new TextView(context);
         timeSizeBar = new SeekBar(context);
-        styleContent.addView(createSizeRow(context, R.string.font_size, timeSizeBar, timeSizeValue),
+        fontSection.addView(createSizeRow(context, R.string.font_size, timeSizeBar, timeSizeValue),
                 topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(4)));
         configureSizeBar(timeSizeBar, timeSizeValue, repository.getTimeFontScale());
-        styleContent.addView(createSubLabel(context, R.string.font_color),
+        fontSection.addView(createSubLabel(context, R.string.font_color),
                 topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(10)));
         timeColorPicker = new ColorPickerView(context);
         timeColorPicker.setColor(timeColor);
         timeColorPicker.setOnColorChangedListener(color -> timeColor = color);
-        styleContent.addView(createColorSwatches(context, TEXT_COLORS, color -> {
+        fontSection.addView(createColorSwatches(context, TEXT_COLORS, color -> {
             timeColor = color;
             timeColorPicker.setColor(color);
         }), topMargin(matchWrap(dp(50)), dp(4)));
-        addAdvancedPicker(context, styleContent, timeColorPicker);
+        addAdvancedPicker(context, fontSection, timeColorPicker);
 
         blinkColonSwitch = createStyleSwitch(context, R.string.blink_colon, repository.isBlinkColon());
-        styleContent.addView(blinkColonSwitch, topMargin(matchWrap(dp(48)), dp(10)));
+        fontSection.addView(blinkColonSwitch, topMargin(matchWrap(dp(48)), dp(10)));
         animateTimeChangesSwitch = createStyleSwitch(context, R.string.animate_time_changes,
             repository.isAnimateTimeChanges());
-        styleContent.addView(animateTimeChangesSwitch, matchWrap(dp(48)));
+        fontSection.addView(animateTimeChangesSwitch, matchWrap(dp(48)));
         // 竖屏专用：开启后竖屏时钟改为竖排大字（时/分/秒分行），横屏保持不变。
         portraitStackedSwitch = createStyleSwitch(context, R.string.portrait_stacked_clock,
             repository.isPortraitStacked());
-        styleContent.addView(portraitStackedSwitch, matchWrap(dp(48)));
+        fontSection.addView(portraitStackedSwitch, matchWrap(dp(48)));
         showSecondsSwitch = createStyleSwitch(context, R.string.show_seconds, repository.isShowSeconds());
-        styleContent.addView(showSecondsSwitch, matchWrap(dp(48)));
+        fontSection.addView(showSecondsSwitch, matchWrap(dp(48)));
         smallSecondsSwitch = createStyleSwitch(context, R.string.small_seconds, repository.isSmallSeconds());
-        styleContent.addView(smallSecondsSwitch, matchWrap(dp(48)));
+        fontSection.addView(smallSecondsSwitch, matchWrap(dp(48)));
         showSecondsSwitch.setOnCheckedChangeListener(
             (button, checked) -> updateSmallSecondsState(checked));
         updateSmallSecondsState(showSecondsSwitch.isChecked());
 
-        styleContent.addView(createSubLabel(context, R.string.date_font_settings),
+        fontSection.addView(createSubLabel(context, R.string.date_font_settings),
                 topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(16)));
         dateSizeValue = new TextView(context);
         dateSizeBar = new SeekBar(context);
-        styleContent.addView(createSizeRow(context, R.string.font_size, dateSizeBar, dateSizeValue),
+        fontSection.addView(createSizeRow(context, R.string.font_size, dateSizeBar, dateSizeValue),
                 topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(4)));
         configureSizeBar(dateSizeBar, dateSizeValue, repository.getDateFontScale());
-        styleContent.addView(createSubLabel(context, R.string.font_color),
+        fontSection.addView(createSubLabel(context, R.string.font_color),
                 topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(10)));
         dateColorPicker = new ColorPickerView(context);
         dateColorPicker.setColor(dateColor);
         dateColorPicker.setOnColorChangedListener(color -> dateColor = color);
-        styleContent.addView(createColorSwatches(context, TEXT_COLORS, color -> {
+        fontSection.addView(createColorSwatches(context, TEXT_COLORS, color -> {
             dateColor = color;
             dateColorPicker.setColor(color);
         }), topMargin(matchWrap(dp(50)), dp(4)));
-        addAdvancedPicker(context, styleContent, dateColorPicker);
+        addAdvancedPicker(context, fontSection, dateColorPicker);
         // The lunar date is part of the date line, so its toggle sits with the date settings.
         showLunarSwitch = createStyleSwitch(context, R.string.show_lunar, repository.isShowLunar());
-        styleContent.addView(showLunarSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        fontSection.addView(showLunarSwitch, topMargin(matchWrap(dp(48)), dp(8)));
         dateLunarDualLineSwitch = createStyleSwitch(context, R.string.date_lunar_dual_line,
                 repository.isDateLunarDualLine());
-        addSwitchWithSummary(styleContent, dateLunarDualLineSwitch,
+        addSwitchWithSummary(fontSection, dateLunarDualLineSwitch,
                 R.string.date_lunar_dual_line_desc, dp(8));
 
         // Status bar section
-        styleContent.addView(createSectionLabel(context, R.string.status_settings_group),
-                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(18)));
+        LinearLayout statusSection = createSection(context, styleContent, R.string.status_settings_group);
         statusIconsSwitch = new Switch(context);
         statusIconsSwitch.setText(R.string.show_status_icons);
         statusIconsSwitch.setTextColor(COLOR_PRIMARY_TEXT);
         tintCompoundButton(statusIconsSwitch);
         statusIconsSwitch.setChecked(repository.isShowStatusIcons());
-        styleContent.addView(statusIconsSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        statusSection.addView(statusIconsSwitch, topMargin(matchWrap(dp(48)), dp(8)));
 
         statusIconSizeValue = new TextView(context);
         statusIconSizeBar = new SeekBar(context);
         statusIconSizeControls = createStatusIconSizeRow(
                 context, statusIconSizeBar, statusIconSizeValue);
-        styleContent.addView(statusIconSizeControls,
+        statusSection.addView(statusIconSizeControls,
                 topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(2)));
         configureStatusIconSizeBar(repository.getStatusIconScale());
         statusIconsSwitch.setOnCheckedChangeListener(
@@ -413,9 +411,8 @@ public class SettingsDialog extends Dialog {
         functionContent.setOrientation(LinearLayout.VERTICAL);
         functionContent.setVisibility(View.GONE);
 
-        functionContent.addView(createSectionLabel(context, R.string.display_settings_group),
-                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(6)));
-        functionContent.addView(createSubLabel(context, R.string.screen_orientation),
+        LinearLayout displaySection = createSection(context, functionContent, R.string.display_settings_group);
+        displaySection.addView(createSubLabel(context, R.string.screen_orientation),
             topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(8)));
         orientationSelector = new SegmentedSelector(context,
             new CharSequence[] {
@@ -424,25 +421,24 @@ public class SettingsDialog extends Dialog {
                 context.getString(R.string.orientation_landscape)
             }, COLOR_ACCENT, 0xFF252830, Color.WHITE, COLOR_SECONDARY_TEXT);
         orientationSelector.setSelectedIndex(repository.getScreenOrientation());
-        functionContent.addView(orientationSelector, topMargin(matchWrap(dp(46)), dp(6)));
+        displaySection.addView(orientationSelector, topMargin(matchWrap(dp(46)), dp(6)));
         autoStartSwitch = createStyleSwitch(context, R.string.auto_start, repository.isAutoStart());
-        addSwitchWithSummary(functionContent, autoStartSwitch, R.string.auto_start_desc, dp(8));
+        addSwitchWithSummary(displaySection, autoStartSwitch, R.string.auto_start_desc, dp(8));
 
-        functionContent.addView(createSectionLabel(context, R.string.time_settings_group),
-                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(18)));
+        LinearLayout timeSection = createSection(context, functionContent, R.string.time_settings_group);
         use24HourSwitch = new Switch(context);
         use24HourSwitch.setText(R.string.use_24_hour);
         use24HourSwitch.setTextColor(COLOR_PRIMARY_TEXT);
         tintCompoundButton(use24HourSwitch);
         use24HourSwitch.setChecked(repository.isUse24Hour());
-        functionContent.addView(use24HourSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        timeSection.addView(use24HourSwitch, topMargin(matchWrap(dp(48)), dp(8)));
 
         networkTimeSwitch = new Switch(context);
         networkTimeSwitch.setText(R.string.use_network_time);
         networkTimeSwitch.setTextColor(COLOR_PRIMARY_TEXT);
         tintCompoundButton(networkTimeSwitch);
         networkTimeSwitch.setChecked(repository.isUseNetworkTime());
-        addSwitchWithSummary(functionContent, networkTimeSwitch,
+        addSwitchWithSummary(timeSection, networkTimeSwitch,
                 R.string.use_network_time_desc, dp(8));
 
         LinearLayout locked = new LinearLayout(context);
@@ -464,33 +460,30 @@ public class SettingsDialog extends Dialog {
         checkSyncOption(repository.getSyncIntervalMinutes());
         locked.addView(syncIntervalGroup, topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(2)));
 
-        functionContent.addView(locked, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
+        timeSection.addView(locked, matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT));
 
-        functionContent.addView(createSectionLabel(context, R.string.region_settings_group),
-                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(18)));
+        LinearLayout regionSection = createSection(context, functionContent, R.string.region_settings_group);
         selectedRegionIndex = RegionTimeZones.indexOfZoneId(repository.getTimeZoneId());
         regionButton = new Button(context);
         regionButton.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
         tintButton(regionButton);
         regionButton.setText(regionSummary());
         regionButton.setOnClickListener(view -> showRegionChooser());
-        functionContent.addView(regionButton, topMargin(matchWrap(dp(48)), dp(8)));
+        regionSection.addView(regionButton, topMargin(matchWrap(dp(48)), dp(8)));
 
-        functionContent.addView(createSectionLabel(context, R.string.clock_language_settings_group),
-            topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(18)));
+        LinearLayout languageSection = createSection(context, functionContent, R.string.clock_language_settings_group);
         clockUseEnglishSwitch = new Switch(context);
         clockUseEnglishSwitch.setText(R.string.clock_use_english);
         clockUseEnglishSwitch.setTextColor(COLOR_PRIMARY_TEXT);
         tintCompoundButton(clockUseEnglishSwitch);
         clockUseEnglishSwitch.setChecked(repository.isClockUseEnglish());
-        functionContent.addView(clockUseEnglishSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        languageSection.addView(clockUseEnglishSwitch, topMargin(matchWrap(dp(48)), dp(8)));
         originalClockUseEnglish = repository.isClockUseEnglish();
 
-        functionContent.addView(createSectionLabel(context, R.string.date_format_settings_group),
-            topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(18)));
+        LinearLayout dateFormatSection = createSection(context, functionContent, R.string.date_format_settings_group);
         dateFormatContainer = new LinearLayout(context);
         dateFormatContainer.setOrientation(LinearLayout.VERTICAL);
-        functionContent.addView(dateFormatContainer,
+        dateFormatSection.addView(dateFormatContainer,
             topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(4)));
         pendingDatePatternCn = repository.getDatePatternCn();
         pendingDatePatternEn = repository.getDatePatternEn();
@@ -502,25 +495,23 @@ public class SettingsDialog extends Dialog {
             rebuildDateFormatSection(context, checked);
         });
 
-        functionContent.addView(createSectionLabel(context, R.string.custom_message_settings_group),
-            topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(18)));
+        LinearLayout messageSection = createSection(context, functionContent, R.string.custom_message_settings_group);
         customMessageInput = new android.widget.EditText(context);
         customMessageInput.setSingleLine(true);
         customMessageInput.setHint(R.string.custom_message_hint);
         customMessageInput.setTextColor(COLOR_PRIMARY_TEXT);
         customMessageInput.setHintTextColor(COLOR_SECONDARY_TEXT);
         customMessageInput.setText(repository.getCustomMessage());
-        functionContent.addView(customMessageInput, topMargin(matchWrap(dp(48)), dp(4)));
+        messageSection.addView(customMessageInput, topMargin(matchWrap(dp(48)), dp(4)));
 
-        functionContent.addView(createSectionLabel(context, R.string.weather_settings_group),
-            topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(18)));
+        LinearLayout weatherSection = createSection(context, functionContent, R.string.weather_settings_group);
         weatherSwitch = new Switch(context);
         weatherSwitch.setText(R.string.show_weather);
         weatherSwitch.setTextColor(COLOR_PRIMARY_TEXT);
         tintCompoundButton(weatherSwitch);
         weatherSwitch.setChecked(repository.isWeatherEnabled());
-        functionContent.addView(weatherSwitch, topMargin(matchWrap(dp(48)), dp(8)));
-        functionContent.addView(createSubLabel(context, R.string.weather_location),
+        weatherSection.addView(weatherSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        weatherSection.addView(createSubLabel(context, R.string.weather_location),
             topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(4)));
         weatherLocationModeSpinner = new Spinner(context);
         weatherLocationModeSpinner.setAdapter(new ArrayAdapter<>(context,
@@ -530,7 +521,7 @@ public class SettingsDialog extends Dialog {
             }));
         weatherLocationModeSpinner.setSelection(ClockPreferences.WEATHER_LOCATION_MANUAL.equals(
             repository.getWeatherLocationMode()) ? 1 : 0);
-        functionContent.addView(weatherLocationModeSpinner, topMargin(matchWrap(dp(48)), dp(4)));
+        weatherSection.addView(weatherLocationModeSpinner, topMargin(matchWrap(dp(48)), dp(4)));
         weatherLocationButton = new Button(context);
         weatherLocationButton.setTextColor(COLOR_PRIMARY_TEXT);
         weatherLocationButton.setGravity(Gravity.START | Gravity.CENTER_VERTICAL);
@@ -549,8 +540,8 @@ public class SettingsDialog extends Dialog {
                     updateWeatherLocationSummary();
                 }
             }));
-        functionContent.addView(weatherLocationButton, topMargin(matchWrap(dp(52)), dp(4)));
-        functionContent.addView(createSubLabel(context, R.string.weather_update_interval),
+        weatherSection.addView(weatherLocationButton, topMargin(matchWrap(dp(52)), dp(4)));
+        weatherSection.addView(createSubLabel(context, R.string.weather_update_interval),
             topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(8)));
         weatherIntervalSpinner = new Spinner(context);
         weatherIntervalSpinner.setAdapter(new ArrayAdapter<>(context,
@@ -563,13 +554,13 @@ public class SettingsDialog extends Dialog {
                 context.getString(R.string.weather_interval_12hour)
             }));
         weatherIntervalSpinner.setSelection(weatherIntervalIndex(repository.getWeatherIntervalMinutes()));
-        functionContent.addView(weatherIntervalSpinner, topMargin(matchWrap(dp(48)), dp(4)));
+        weatherSection.addView(weatherIntervalSpinner, topMargin(matchWrap(dp(48)), dp(4)));
         weatherDetailedSwitch = new Switch(context);
         weatherDetailedSwitch.setText(R.string.show_detailed_weather);
         weatherDetailedSwitch.setTextColor(COLOR_PRIMARY_TEXT);
         tintCompoundButton(weatherDetailedSwitch);
         weatherDetailedSwitch.setChecked(repository.isWeatherDetailed());
-        functionContent.addView(weatherDetailedSwitch, topMargin(matchWrap(dp(48)), dp(8)));
+        weatherSection.addView(weatherDetailedSwitch, topMargin(matchWrap(dp(48)), dp(8)));
         weatherSwitch.setOnCheckedChangeListener((button, checked) -> updateWeatherState(checked));
         weatherLocationModeSpinner.setOnItemSelectedListener(new AdapterView.OnItemSelectedListener() {
             @Override public void onItemSelected(AdapterView<?> parent, View view, int position, long id) {
@@ -639,6 +630,23 @@ public class SettingsDialog extends Dialog {
                     ? metrics.heightPixels : Math.min(metrics.heightPixels, dp(760));
             window.setAttributes(params);
         }
+    }
+
+    /** Each settings module uses the same inset, rounded card as the mylite layout. */
+    private LinearLayout createSection(Context context, LinearLayout parent, int titleRes) {
+        LinearLayout section = new LinearLayout(context);
+        section.setOrientation(LinearLayout.VERTICAL);
+        GradientDrawable card = new GradientDrawable();
+        card.setColor(COLOR_CARD);
+        card.setCornerRadius(dp(10));
+        section.setBackgroundDrawable(card);
+        section.setPadding(dp(12), dp(8), dp(12), dp(8));
+        TextView title = createSectionLabel(context, titleRes);
+        title.setPadding(0, 0, 0, dp(2));
+        section.addView(title);
+        parent.addView(section,
+                topMargin(matchWrap(ViewGroup.LayoutParams.WRAP_CONTENT), dp(8)));
+        return section;
     }
 
     private TextView createSectionLabel(Context context, int textRes) {
