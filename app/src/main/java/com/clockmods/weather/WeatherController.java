@@ -87,7 +87,8 @@ public final class WeatherController {
             return;
         }
         if (!hasLocationPermission()) {
-            reportFailure(Status.PERMISSION_DENIED, msg(R.string.weather_permission_denied));
+            // Permission is a prerequisite owned by the visible screen, not a fetch failure.
+            listener.onWeatherState(WeatherState.of(Status.IDLE, msg(R.string.weather_waiting_permission)));
             return;
         }
         listener.onWeatherState(WeatherState.of(Status.LOADING, msg(R.string.weather_fetching)));
@@ -271,7 +272,7 @@ public final class WeatherController {
             locationTimeout = null;
         }
         if (locationListener != null) {
-            try { locationManager.removeUpdates(locationListener); } catch (SecurityException ignored) { }
+            try { if (locationManager != null) locationManager.removeUpdates(locationListener); } catch (SecurityException ignored) { }
             locationListener = null;
         }
     }

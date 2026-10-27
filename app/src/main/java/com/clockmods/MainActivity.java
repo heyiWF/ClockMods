@@ -44,6 +44,7 @@ public class MainActivity extends Activity {
     private BackgroundRepository backgroundRepository;
     private View weatherAttribution;
     private WeatherController weatherController;
+    private boolean locationPermissionRequested;
     private final ExecutorService imageExecutor = Executors.newSingleThreadExecutor();
     private boolean timeReceiverRegistered;
     private final BroadcastReceiver timeReceiver = new BroadcastReceiver() {
@@ -223,6 +224,12 @@ public class MainActivity extends Activity {
                 != PackageManager.PERMISSION_GRANTED
                 && checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
                 != PackageManager.PERMISSION_GRANTED) {
+            weatherController.stop();
+            if (locationPermissionRequested) {
+                clockView.setWeatherMessage(getString(R.string.weather_permission_denied));
+                return;
+            }
+            locationPermissionRequested = true;
             requestPermissions(new String[] {Manifest.permission.ACCESS_COARSE_LOCATION,
                     Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION);
             clockView.setWeatherMessage(getString(R.string.weather_waiting_permission));
