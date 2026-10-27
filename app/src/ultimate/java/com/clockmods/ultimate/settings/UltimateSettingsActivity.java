@@ -957,13 +957,8 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         target.setContentDescription(getString(R.string.theme_delete_title, themeName(calendar, id)));
         target.setFocusable(true);
         target.setClickable(true);
-        TextView minus = label("−", 24, true);
-        minus.setGravity(Gravity.CENTER);
-        minus.setTextColor(Color.WHITE);
-        GradientDrawable circle = new GradientDrawable();
-        circle.setShape(GradientDrawable.OVAL);
-        circle.setColor(0xFFCF3038);
-        minus.setBackground(circle);
+        ImageView minus = new ImageView(this);
+        minus.setImageResource(R.drawable.theme_delete_badge);
         target.addView(minus, new FrameLayout.LayoutParams(dp(28), dp(28), Gravity.CENTER));
         card.addView(target, new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.TOP | Gravity.END));
         target.setVisibility(View.GONE);
