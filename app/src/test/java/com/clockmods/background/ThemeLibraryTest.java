@@ -52,16 +52,18 @@ public class ThemeLibraryTest {
         assertEquals(before, store.getAll());
         assertEquals("calendar.paper", ThemeLibrary.resolveSelection(store, "calendar.graphite"));
     }
-    @Test public void orderFavoritesAndCatalogRemainIndependent() {
+    @Test public void installationOrderIsStableAndReinstallsAppend() {
         MemorySharedPreferences store = new MemorySharedPreferences();
         ThemeLibrary library = new ThemeLibrary(store, store, false, Arrays.asList("a", "b", "c"));
-        library.favorite("b"); library.move("c", -1);
-        assertEquals(Arrays.asList("a", "c", "b"), library.installed());
+        library.favorite("b"); library.select("c");
+        assertEquals(Arrays.asList("a", "b", "c"), library.installed());
         library.remove("b");
         assertEquals(Arrays.asList("a", "b", "c"), library.catalog());
         assertTrue(library.isFavorite("b"));
         library.favorite("b"); assertFalse(library.isFavorite("b"));
         library.install("b"); library.install("b");
+        assertEquals(Arrays.asList("a", "c", "b"), library.installed());
+        library = new ThemeLibrary(store, store, false, Arrays.asList("a", "b", "c"));
         assertEquals(Arrays.asList("a", "c", "b"), library.installed());
         try { library.select("unknown"); fail(); } catch (IllegalArgumentException expected) { }
         try { library.install("unknown"); fail(); } catch (IllegalArgumentException expected) { }

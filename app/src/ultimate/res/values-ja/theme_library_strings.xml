@@ -1,7 +1,6 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="theme_store">テーマストア</string>
-    <string name="theme_manage">管理</string>
     <string name="theme_recommended">おすすめ</string>
     <string name="theme_favorites">お気に入り</string>
     <string name="theme_installed">インストール済み</string>
@@ -15,9 +14,6 @@
     <string name="theme_favorite">お気に入りに追加</string>
     <string name="theme_unfavorite">お気に入りから削除</string>
     <string name="theme_no_favorites">お気に入りのテーマがここに表示されます</string>
-    <string name="theme_move_before">前へ移動</string>
-    <string name="theme_move_after">後ろへ移動</string>
-    <string name="theme_store_hint">内蔵テーマは無料でインストールできます。削除したテーマもここから再インストールできます。</string>
     <string name="theme_done">完了</string>
     <string name="theme_library_hint">テーマを長押しすると削除できます</string>
 </resources>
