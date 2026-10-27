@@ -55,6 +55,10 @@ import java.util.Locale;
 import java.util.TimeZone;
 
 public final class ProCalendarFragment extends Fragment {
+    private boolean locationPermissionRequested;
+    private final androidx.activity.result.ActivityResultLauncher<String[]> locationPermissionLauncher =
+            registerForActivityResult(new androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions(),
+                    grants -> { if (grants.containsValue(true)) startWeatherIfEnabled(); });
     private static final String STATE_MONTH = "visible_month";
     private static final String STATE_SELECTED = "selected_date";
     // These only keep the quick-jump picker compact. Month paging is intentionally not clamped;
@@ -479,7 +483,22 @@ public final class ProCalendarFragment extends Fragment {
     }
 
     private void startWeatherIfEnabled() {
+        if (!resumed) return;
         if (!preferences.isWeatherEnabled() || weatherController == null || forecastController == null) return;
+        if (ClockPreferences.WEATHER_LOCATION_AUTOMATIC.equals(preferences.getWeatherLocationMode())
+                && requireContext().checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED
+                && requireContext().checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            weatherController.stop();
+            forecastController.stop();
+            if (!locationPermissionRequested) {
+                locationPermissionRequested = true;
+                locationPermissionLauncher.launch(new String[] {android.Manifest.permission.ACCESS_COARSE_LOCATION,
+                        android.Manifest.permission.ACCESS_FINE_LOCATION});
+            }
+            return;
+        }
         weatherController.start(preferences.getWeatherIntervalMinutes());
         forecastController.start();
     }

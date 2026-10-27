@@ -33,6 +33,7 @@ public final class ProClockFragment extends Fragment {
     private StatusBarView statusBarView;
     private View weatherAttribution;
     private WeatherController weatherController;
+    private boolean locationPermissionRequested;
 
     @Nullable
     @Override
@@ -144,6 +145,12 @@ public final class ProClockFragment extends Fragment {
                         != PackageManager.PERMISSION_GRANTED
                 && requireContext().checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
                         != PackageManager.PERMISSION_GRANTED) {
+            weatherController.stop();
+            if (locationPermissionRequested) {
+                clockView.setWeatherMessage(getString(R.string.weather_permission_denied));
+                return;
+            }
+            locationPermissionRequested = true;
             requestPermissions(new String[] {Manifest.permission.ACCESS_COARSE_LOCATION,
                     Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION);
             clockView.setWeatherMessage(getString(R.string.weather_waiting_permission));
