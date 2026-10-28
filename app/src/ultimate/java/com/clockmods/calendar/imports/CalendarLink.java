@@ -6,7 +6,7 @@ import java.net.HttpURLConnection;
 import java.net.URI;
 import java.net.URL;
 
-/** One-shot HTTPS import. Never retain subscription tokens or log the source URL. */
+/** HTTPS imports and subscriptions. Source URLs stay in private storage and are never logged. */
 public final class CalendarLink {
     private CalendarLink() { }
     public static URL normalize(String input) throws IOException {
@@ -21,6 +21,18 @@ public final class CalendarLink {
         } catch (Exception failure) { throw new CalendarImportException("url"); }
     }
     public static UserCalendarStore.Source importFrom(UserCalendarStore store, String link) throws IOException {
+        return importFrom(store, link, false);
+    }
+    public static UserCalendarStore.Source importFrom(UserCalendarStore store, String link, boolean sync) throws IOException {
+        String sourceUrl = normalize(link).toString();
+        Download downloaded = download(sourceUrl);
+        return store.importStream(new java.io.ByteArrayInputStream(downloaded.data), downloaded.name, sourceUrl, sync);
+    }
+    static final class Download {
+        final byte[] data; final String name;
+        Download(byte[] data, String name) { this.data=data; this.name=name; }
+    }
+    static Download download(String link) throws IOException {
         URL url = normalize(link);
         for (int redirect = 0; redirect <= 5; redirect++) {
             HttpURLConnection connection = (HttpURLConnection) url.openConnection();
@@ -42,7 +54,7 @@ public final class CalendarLink {
                 String path = url.getPath();
                 String name = path.substring(path.lastIndexOf('/') + 1);
                 if (name.isEmpty() || !name.toLowerCase(java.util.Locale.ROOT).endsWith(".ics")) name = "calendar.ics";
-                try (InputStream stream = connection.getInputStream()) { return store.importStream(stream, name); }
+                try (InputStream stream = connection.getInputStream()) { return new Download(ICalendarParser.readBytes(stream), name); }
             } catch (CalendarImportException failure) { throw failure; }
             catch (IOException failure) { throw new CalendarImportException("network"); }
             finally { connection.disconnect(); }

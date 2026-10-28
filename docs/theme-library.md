@@ -4,7 +4,7 @@ Clock and calendar themes have separate installed lists. Existing users initiall
 
 The store provides Discover, Favorites and Installed tabs. Users can install, select, favorite and delete bundled themes. Long-pressing a gallery card reveals a red circular minus button. Both deletion paths confirm that the theme settings will be removed, and refuse to delete the final theme in that library.
 
-Removing the active theme selects its next installed neighbor (or the previous neighbor at the end). Scoped typography, script fonts, palettes, transitions and second-hand motion are cleared. Pro Classic also clears its original face controls. Reinstallation appends the theme with default typography and rendering settings. Favorites are independent of installation. Global background, weather, clock-language and calendar-data settings remain shared.
+Removing the active theme selects its next installed neighbor (or the previous neighbor at the end). Scoped typography, script fonts, palettes, transitions and second-hand motion are cleared. Pro Classic also clears its original face controls. Reinstallation appends the theme with default typography and rendering settings. Favorites are independent of installation. Calendar week-start, weekend highlighting and typography are scoped to the selected theme and cleared on removal. Existing shared week/weekend choices migrate once to the active calendar theme. Unconfigured calendar typography uses calendar defaults, independent of clock typography. Global background, weather, clock-language and calendar data remain shared.
 
 Second-hand motion now belongs to each clock theme. The previous shared value migrates to the existing theme catalog without overwriting any already-scoped value. Global settings reset resolves selection against the installed list and does not reinstall deleted themes. Widget renderer catalogs remain independent of the app gallery.
 
@@ -19,3 +19,5 @@ Validated on 2026-10-27: debug app/test APK assembly and Lint passed; 307 unit t
 The follow-up cleanup removes unreferenced rendering helpers and gallery remnants, and shares one in-memory preferences fixture between theme-library and clock-preferences tests. Regression cases remain intact.
 
 The store follows CalendarMods: three columns of rounded previews, a favorite control over the top-right corner, centered titles and full-width action buttons. Installed order is fixed by installation time; selecting or favoriting never changes it. Removing and reinstalling a theme appends it immediately before the gallery store entry. No reorder controls or reorder API are exposed.
+
+Font-size controls use whole percentage points. Layout protection and its warning use the same `FontScalePolicy` threshold: only values greater than 100% allow overflow; automatic, 99% and 100% retain layout caps.

@@ -1,7 +1,7 @@
 <resources>
     <string name="calendar_import_link">링크에서 가져오기</string>
     <string name="calendar_import_url">캘린더 링크</string>
-    <string name="calendar_import_link_hint">HTTPS 또는 webcal 링크를 붙여 넣으세요. 기기에 저장되며 자동 갱신되지 않습니다.</string>
+    <string name="calendar_import_link_hint">HTTPS 또는 webcal 링크를 붙여넣으세요. 정기 동기화를 선택할 수 있습니다.</string>
     <string name="calendar_import_url_invalid">올바른 HTTPS 또는 webcal 링크를 입력하세요.</string>
     <string name="calendar_import_network">다운로드하지 못했습니다. 링크와 연결을 확인하세요.</string>
     <string name="calendar_import_carousel">날짜 아래 일정 표시</string>

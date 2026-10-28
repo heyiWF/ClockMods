@@ -4,7 +4,7 @@
     <string name="calendar_import_summary">Import ICS files to show events in date labels and Agenda.</string>
     <string name="calendar_import_add">Import calendar</string>
     <string name="calendar_import_empty">No calendars yet</string>
-    <string name="calendar_import_empty_hint">Choose an .ics file to begin. Files are stored in the app and do not update online automatically.</string>
+    <string name="calendar_import_empty_hint">Choose an ICS file or calendar link. Link subscriptions can sync automatically.</string>
     <string name="calendar_import_busy">Processing calendar…</string>
     <string name="calendar_import_success">Imported %1$s</string>
     <string name="calendar_import_duplicate">This calendar file is already imported.</string>

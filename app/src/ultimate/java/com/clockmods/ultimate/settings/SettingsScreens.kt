@@ -1,5 +1,7 @@
 package com.clockmods.ultimate.settings
 
+import kotlin.math.roundToInt
+
 import androidx.activity.compose.PredictiveBackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
@@ -540,7 +542,9 @@ internal fun AutomaticFontSlider(
             )
         }
         if (value != 0f) Text(valueLabel, color = MaterialTheme.colorScheme.primary)
-        Slider(value = value.coerceIn(range), onValueChange = onChange,
+        Slider(value = value.coerceIn(range),
+            onValueChange = { onChange((it * 100).roundToInt() / 100f) },
+            steps = ((range.endInclusive - range.start) * 100).roundToInt() - 1,
             valueRange = range, enabled = enabled)
     }
 }

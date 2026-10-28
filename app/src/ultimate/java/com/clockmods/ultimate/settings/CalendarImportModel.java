@@ -44,13 +44,14 @@ public final class CalendarImportModel extends AndroidViewModel {
             results = next; busy = false; state.postValue(2);
         });
     }
-    public void importLink(String link) {
+    public void importLink(String link) { importLink(link, false); }
+    public void importLink(String link, boolean sync) {
         if (busy) return; busy = true; results = new ArrayList<>(); state.setValue(1);
         worker.execute(() -> {
             List<Result> next = new ArrayList<>();
             try {
                 UserCalendarStore.Source file = com.clockmods.calendar.imports.CalendarLink.importFrom(
-                        UserCalendarStore.get(getApplication()), link);
+                        UserCalendarStore.get(getApplication()), link, sync);
                 next.add(new Result(R.string.calendar_import_success, file.name));
             } catch (Exception failure) {
                 String reason = failure instanceof CalendarImportException ? ((CalendarImportException) failure).reason : "network";
@@ -68,6 +69,28 @@ public final class CalendarImportModel extends AndroidViewModel {
                 next.add(new Result(message, ""));
             }
             results = next; busy = false; state.postValue(2);
+        });
+    }
+    public void setSyncEnabled(String id, boolean enabled) {
+        if (busy) return; busy=true; state.setValue(1);
+        worker.execute(() -> {
+            List<Result> next=new ArrayList<>();
+            try { UserCalendarStore.get(getApplication()).setSyncEnabled(id, enabled); }
+            catch (Exception failure) { next.add(new Result(R.string.calendar_sync_failed, "")); }
+            results=next; busy=false; state.postValue(2);
+        });
+    }
+    public void syncNow(UserCalendarStore.Source source) {
+        if (busy) return; busy=true; state.setValue(1);
+        worker.execute(() -> {
+            List<Result> next=new ArrayList<>();
+            UserCalendarStore store=UserCalendarStore.get(getApplication());
+            try {store.synchronize(source);next.add(new Result(R.string.calendar_sync_success, ""));}
+            catch (Exception failure) {
+                try {store.syncFailed(source);} catch(Exception ignored) { }
+                next.add(new Result(R.string.calendar_sync_failed, ""));
+            }
+            results=next;busy=false;state.postValue(2);
         });
     }
     public void delete(String id) {

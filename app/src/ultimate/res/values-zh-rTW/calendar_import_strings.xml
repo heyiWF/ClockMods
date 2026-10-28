@@ -4,7 +4,7 @@
     <string name="calendar_import_summary">匯入 ICS 日曆檔案，在日期輪播和週程中查看行程。</string>
     <string name="calendar_import_add">匯入日曆</string>
     <string name="calendar_import_empty">尚未匯入日曆</string>
-    <string name="calendar_import_empty_hint">選擇 .ics 檔案開始。檔案儲存在應用程式內，不會自動連網更新。</string>
+    <string name="calendar_import_empty_hint">選擇 ICS 檔案或日曆連結。連結訂閱可選擇自動同步。</string>
     <string name="calendar_import_busy">正在處理日曆…</string>
     <string name="calendar_import_success">已匯入 %1$s</string>
     <string name="calendar_import_duplicate">這個日曆檔案已經匯入。</string>

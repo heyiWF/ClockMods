@@ -1,7 +1,7 @@
 <resources>
     <string name="calendar_import_link">从链接导入</string>
     <string name="calendar_import_url">日历链接</string>
-    <string name="calendar_import_link_hint">粘贴 HTTPS 或 webcal 链接。导入后保存在本机，不会自动更新。</string>
+    <string name="calendar_import_link_hint">粘贴 HTTPS 或 webcal 链接，可选择定期同步。</string>
     <string name="calendar_import_url_invalid">请输入有效的 HTTPS 或 webcal 日历链接。</string>
     <string name="calendar_import_network">下载失败，请检查链接和网络后重试。</string>
     <string name="calendar_import_carousel">日期下显示事件</string>

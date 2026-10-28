@@ -1,0 +1,10 @@
+<resources>
+    <string name="calendar_import_file">從檔案匯入</string>
+    <string name="calendar_import_close">關閉匯入選項</string>
+    <string name="calendar_sync_enabled">自動同步</string>
+    <string name="calendar_sync_interval">每 6 小時連網檢查更新；系統可能延後執行。關閉後保留本機行程。</string>
+    <string name="calendar_sync_last">上次同步：%1$s</string>
+    <string name="calendar_sync_now">立即同步</string>
+    <string name="calendar_sync_success">日曆已同步。</string>
+    <string name="calendar_sync_failed">同步失敗，已保留本機行程。</string>
+</resources>

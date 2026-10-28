@@ -32,12 +32,25 @@ public final class ThemeLibrary {
         this.typography = typography;
         this.calendar = calendar;
         this.catalog = Collections.unmodifiableList(new ArrayList<>(catalog));
+        if (calendar) migrateCalendarLayout(store);
         if (!calendar && store.contains("second_motion")) {
             SharedPreferences.Editor editor = store.edit();
             String legacy = store.getString("second_motion", "smooth");
             for (String id : catalog) if (!store.contains("second_motion__" + id))
                 editor.putString("second_motion__" + id, legacy);
             editor.remove("second_motion").apply();
+        }
+    }
+
+    static void migrateCalendarLayout(SharedPreferences store) {
+        if ((store.contains("calendar_week_start") || store.contains("calendar_highlight_weekends"))) {
+            String scope = "calendar:" + resolveSelection(store, store.getString("calendar_theme", "calendar.graphite"));
+            SharedPreferences.Editor editor = store.edit();
+            if (store.contains("calendar_week_start") && !store.contains("calendar_week_start__" + scope))
+                editor.putInt("calendar_week_start__" + scope, store.getInt("calendar_week_start", java.util.Calendar.SUNDAY));
+            if (store.contains("calendar_highlight_weekends") && !store.contains("calendar_highlight_weekends__" + scope))
+                editor.putBoolean("calendar_highlight_weekends__" + scope, store.getBoolean("calendar_highlight_weekends", false));
+            editor.remove("calendar_week_start").remove("calendar_highlight_weekends").apply();
         }
     }
 
@@ -136,7 +149,7 @@ public final class ThemeLibrary {
 
     static boolean isTypographyKey(String key, String scope) {
         for (String prefix : Arrays.asList("font_family__", "font_weight__", "time_font_scale__",
-                "date_font_scale__", "supporting_font_scale__"))
+                "date_font_scale__", "supporting_font_scale__", "calendar_week_start__", "calendar_highlight_weekends__"))
             if (key.equals(prefix + scope)) return true;
         return key.startsWith("script_font__" + scope + "__")
                 || key.startsWith("calendar_marquee__" + scope + "_");

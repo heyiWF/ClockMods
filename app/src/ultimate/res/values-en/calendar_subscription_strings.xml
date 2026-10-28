@@ -1,0 +1,10 @@
+<resources>
+    <string name="calendar_import_file">Import from file</string>
+    <string name="calendar_import_close">Close import options</string>
+    <string name="calendar_sync_enabled">Automatic sync</string>
+    <string name="calendar_sync_interval">Check for updates every 6 hours when connected. Android may defer checks. Turning this off keeps local events.</string>
+    <string name="calendar_sync_last">Last synced: %1$s</string>
+    <string name="calendar_sync_now">Sync now</string>
+    <string name="calendar_sync_success">Calendar synced.</string>
+    <string name="calendar_sync_failed">Sync failed. Local events were kept.</string>
+</resources>

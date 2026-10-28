@@ -1,0 +1,10 @@
+<resources>
+    <string name="calendar_import_file">ファイルから読み込む</string>
+    <string name="calendar_import_close">読み込みメニューを閉じる</string>
+    <string name="calendar_sync_enabled">自動同期</string>
+    <string name="calendar_sync_interval">接続時に 6 時間ごとに更新を確認します。システムにより遅れる場合があります。オフにしても端末の予定は保持されます。</string>
+    <string name="calendar_sync_last">最終同期：%1$s</string>
+    <string name="calendar_sync_now">今すぐ同期</string>
+    <string name="calendar_sync_success">カレンダーを同期しました。</string>
+    <string name="calendar_sync_failed">同期できませんでした。端末の予定は保持されています。</string>
+</resources>

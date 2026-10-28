@@ -12,6 +12,7 @@ import java.util.Calendar
 open class ClockPreferences(context: Context) {
     private val preferences: SharedPreferences =
         context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE)
+    init { ThemeLibrary.migrateCalendarLayout(preferences) }
 
     fun getBackgroundMode(): String = preferences.getString(KEY_BACKGROUND_MODE, MODE_COLOR) ?: MODE_COLOR
     fun setBackgroundMode(mode: String?) { preferences.edit().putString(KEY_BACKGROUND_MODE, mode).apply() }
@@ -84,20 +85,20 @@ open class ClockPreferences(context: Context) {
     fun setFontFamily(value: String?) { preferences.edit().putString(KEY_FONT_FAMILY, normalizeFontFamily(value)).apply() }
     fun getFontFamily(scopeId: String?): String {
         val scoped = preferences.getString(KEY_FONT_FAMILY_PREFIX + normalizeScope(scopeId), null)
-        return if (scoped != null) normalizeFontFamily(scoped) else getFontFamily()
+        return if (scoped != null) normalizeFontFamily(scoped) else if (normalizeScope(scopeId).startsWith(CALENDAR_SCOPE_PREFIX)) DEFAULT_FONT_FAMILY else getFontFamily()
     }
     fun setFontFamily(scopeId: String?, value: String?) {
         preferences.edit().putString(KEY_FONT_FAMILY_PREFIX + normalizeScope(scopeId), normalizeFontFamily(value)).apply()
     }
     fun getFontWeight(scopeId: String?): Int {
         val scoped = preferences.getInt(KEY_FONT_WEIGHT_PREFIX + normalizeScope(scopeId), 0)
-        return if (scoped > 0) clampWeight(scoped) else if (isBoldText() || usesBoldReferenceWeight(scopeId)) BOLD_WEIGHT else FontCatalog.DEFAULT_WEIGHT
+        return if (scoped > 0) clampWeight(scoped) else if ((!normalizeScope(scopeId).startsWith(CALENDAR_SCOPE_PREFIX) && isBoldText()) || usesBoldReferenceWeight(scopeId)) BOLD_WEIGHT else FontCatalog.DEFAULT_WEIGHT
     }
     fun setFontWeight(scopeId: String?, weight: Int) { preferences.edit().putInt(KEY_FONT_WEIGHT_PREFIX + normalizeScope(scopeId), clampWeight(weight)).apply() }
-    fun getTimeFontScaleSetting(scopeId: String?): Float = preferences.getFloat(KEY_TIME_FONT_SCALE_PREFIX + normalizeScope(scopeId), getTimeFontScaleSetting()).let { if (it == 0f) 0f else clampScale(it) }
+    fun getTimeFontScaleSetting(scopeId: String?): Float = preferences.getFloat(KEY_TIME_FONT_SCALE_PREFIX + normalizeScope(scopeId), if (normalizeScope(scopeId).startsWith(CALENDAR_SCOPE_PREFIX)) 0f else getTimeFontScaleSetting()).let { if (it == 0f) 0f else clampScale(it) }
     fun getTimeFontScale(scopeId: String?): Float = getTimeFontScaleSetting(scopeId).let { if (it == 0f) DEFAULT_TIME_FONT_SCALE else it }
     fun setTimeFontScale(scopeId: String?, value: Float) { preferences.edit().putFloat(KEY_TIME_FONT_SCALE_PREFIX + normalizeScope(scopeId), if (value == 0f) 0f else clampScale(value)).apply() }
-    fun getDateFontScaleSetting(scopeId: String?): Float = preferences.getFloat(KEY_DATE_FONT_SCALE_PREFIX + normalizeScope(scopeId), if (normalizeScope(scopeId).startsWith(CALENDAR_SCOPE_PREFIX)) getDateFontScaleSetting() else 0f).let { if (it == 0f) 0f else clampDateScale(it) }
+    fun getDateFontScaleSetting(scopeId: String?): Float = preferences.getFloat(KEY_DATE_FONT_SCALE_PREFIX + normalizeScope(scopeId), 0f).let { if (it == 0f) 0f else clampDateScale(it) }
     fun getDateFontScale(scopeId: String?): Float = getDateFontScaleSetting(scopeId).let { if (it == 0f) (if (normalizeScope(scopeId).startsWith(CALENDAR_SCOPE_PREFIX)) DEFAULT_DATE_FONT_SCALE else DEFAULT_STYLE_TEXT_SCALE) else it }
     fun setDateFontScale(scopeId: String?, value: Float) { preferences.edit().putFloat(KEY_DATE_FONT_SCALE_PREFIX + normalizeScope(scopeId), if (value == 0f) 0f else clampDateScale(value)).apply() }
     fun getSupportingFontScaleSetting(scopeId: String?): Float = preferences.getFloat(KEY_SUPPORTING_FONT_SCALE_PREFIX + normalizeScope(scopeId), 0f).let { if (it == 0f) 0f else normalizeSupportingScale(it) }
@@ -114,10 +115,10 @@ open class ClockPreferences(context: Context) {
     fun setShowLunar(value: Boolean) { preferences.edit().putBoolean(KEY_SHOW_LUNAR, value).apply() }
     fun isAutoStart(): Boolean = preferences.getBoolean(KEY_AUTO_START, DEFAULT_AUTO_START)
     fun setAutoStart(value: Boolean) { preferences.edit().putBoolean(KEY_AUTO_START, value).apply() }
-    fun getCalendarWeekStart(): Int = normalizeCalendarWeekStart(preferences.getInt(KEY_CALENDAR_WEEK_START, DEFAULT_CALENDAR_WEEK_START))
-    fun setCalendarWeekStart(value: Int) { preferences.edit().putInt(KEY_CALENDAR_WEEK_START, normalizeCalendarWeekStart(value)).apply() }
-    fun isCalendarHighlightWeekends(): Boolean = preferences.getBoolean(KEY_CALENDAR_HIGHLIGHT_WEEKENDS, DEFAULT_CALENDAR_HIGHLIGHT_WEEKENDS)
-    fun setCalendarHighlightWeekends(value: Boolean) { preferences.edit().putBoolean(KEY_CALENDAR_HIGHLIGHT_WEEKENDS, value).apply() }
+    fun getCalendarWeekStart(): Int = normalizeCalendarWeekStart(preferences.getInt(KEY_CALENDAR_WEEK_START + "__" + calendarScope(getCalendarTheme()), DEFAULT_CALENDAR_WEEK_START))
+    fun setCalendarWeekStart(value: Int) { preferences.edit().putInt(KEY_CALENDAR_WEEK_START + "__" + calendarScope(getCalendarTheme()), normalizeCalendarWeekStart(value)).apply() }
+    fun isCalendarHighlightWeekends(): Boolean = preferences.getBoolean(KEY_CALENDAR_HIGHLIGHT_WEEKENDS + "__" + calendarScope(getCalendarTheme()), DEFAULT_CALENDAR_HIGHLIGHT_WEEKENDS)
+    fun setCalendarHighlightWeekends(value: Boolean) { preferences.edit().putBoolean(KEY_CALENDAR_HIGHLIGHT_WEEKENDS + "__" + calendarScope(getCalendarTheme()), value).apply() }
     fun getCalendarMarquee(themeId: String?): com.clockmods.sdk.style.MarqueeSpec = com.clockmods.sdk.style.MarqueeSpec.DEFAULT
 
     fun setCalendarMarquee(themeId: String?, value: com.clockmods.sdk.style.MarqueeSpec?) {
@@ -286,6 +287,6 @@ open class ClockPreferences(context: Context) {
     }
 
     private fun clearPerThemeTypography(editor: SharedPreferences.Editor) {
-        preferences.all.keys.filter { it.startsWith("script_font__") || it.startsWith(KEY_FONT_FAMILY_PREFIX) || it.startsWith(KEY_FONT_WEIGHT_PREFIX) || it.startsWith(KEY_TIME_FONT_SCALE_PREFIX) || it.startsWith(KEY_DATE_FONT_SCALE_PREFIX) || it.startsWith(KEY_SUPPORTING_FONT_SCALE_PREFIX) }.forEach(editor::remove)
+        preferences.all.keys.filter { it.startsWith("calendar_week_start__") || it.startsWith("calendar_highlight_weekends__") || it.startsWith("script_font__") || it.startsWith(KEY_FONT_FAMILY_PREFIX) || it.startsWith(KEY_FONT_WEIGHT_PREFIX) || it.startsWith(KEY_TIME_FONT_SCALE_PREFIX) || it.startsWith(KEY_DATE_FONT_SCALE_PREFIX) || it.startsWith(KEY_SUPPORTING_FONT_SCALE_PREFIX) }.forEach(editor::remove)
     }
 }
