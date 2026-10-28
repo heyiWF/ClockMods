@@ -1014,9 +1014,14 @@ public class ClockView extends View {
         long cycleStartedAt;
 
         void setItems(java.util.List<WeatherLineItem> newItems) {
+            if (java.util.Objects.equals(items, newItems)) return;
+            // Keep the current position when the refreshed list still covers it, so a data
+            // update does not jump the rotating line back to its first entry.
+            if (items == null || newItems == null || index >= newItems.size()) {
+                index = 0;
+                cycleStartedAt = 0L;
+            }
             items = newItems;
-            index = 0;
-            cycleStartedAt = 0L;
         }
 
         boolean isEmpty() {
