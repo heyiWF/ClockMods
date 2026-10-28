@@ -26,6 +26,7 @@ public final class DailyForecastController {
     public interface Listener { void onDailyForecastState(DailyForecastState state); }
 
     private static final long LOCATION_TIMEOUT_MS = 15000L;
+    private static final long RETRY_DELAY_MS = 5L * 60L * 1000L;
     private final Context context;
     private final Listener listener;
     private final LocationManager locationManager;
@@ -35,6 +36,9 @@ public final class DailyForecastController {
     private final ExecutorService executor = Executors.newSingleThreadExecutor();
     private boolean running;
     private int generation;
+    // Whether the listener already holds forecast data. Background refreshes then stay
+    // silent, so the visible columns swap old data for new without a loading state.
+    private boolean hasData;
     private LocationListener locationListener;
 
     public DailyForecastController(Context context, Listener listener) {
@@ -52,6 +56,7 @@ public final class DailyForecastController {
         generation++;
         DailyForecastData cached = getCached();
         if (cached != null) {
+            hasData = true;
             listener.onDailyForecastState(new DailyForecastState(Status.SUCCESS, cached, null));
             schedule(nextRefreshDelay(cached.updatedAt));
             return;
@@ -62,12 +67,12 @@ public final class DailyForecastController {
     public void refreshNow() {
         if (!running) return;
         if (isManualLocation()) {
-            listener.onDailyForecastState(DailyForecastState.of(Status.LOADING, msg(R.string.forecast_fetching)));
+            if (!hasData) listener.onDailyForecastState(DailyForecastState.of(Status.LOADING, msg(R.string.forecast_fetching)));
             fetchManual(++generation);
         } else if (!hasLocationPermission()) {
             reportFailure(Status.PERMISSION_DENIED, msg(R.string.weather_permission_denied));
         } else {
-            listener.onDailyForecastState(DailyForecastState.of(Status.LOADING, msg(R.string.forecast_fetching)));
+            if (!hasData) listener.onDailyForecastState(DailyForecastState.of(Status.LOADING, msg(R.string.forecast_fetching)));
             requestLocation();
         }
     }
@@ -145,6 +150,7 @@ public final class DailyForecastController {
                 repository.save(data, source);
                 handler.post(() -> {
                     if (!running || requestGeneration != generation) return;
+                    hasData = true;
                     listener.onDailyForecastState(new DailyForecastState(Status.SUCCESS, data, null));
                     schedule(nextRefreshDelay(data.updatedAt));
                 });
@@ -219,6 +225,12 @@ public final class DailyForecastController {
     }
 
     private void reportFailure(Status status, String detail) {
+        // A failed background refresh keeps the forecast already on screen and retries
+        // later; only a load without data surfaces the failure.
+        if (hasData) {
+            schedule(RETRY_DELAY_MS);
+            return;
+        }
         WeatherFailureFeedback.showOnce(context, detail);
         listener.onDailyForecastState(DailyForecastState.of(status,
                 WeatherFailureFeedback.placeholder(context)));
