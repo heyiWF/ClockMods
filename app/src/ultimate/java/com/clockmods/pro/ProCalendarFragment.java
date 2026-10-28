@@ -58,6 +58,11 @@ import java.util.TimeZone;
  * {@link CalendarLayout} nothing but pre-formatted strings.
  */
 public final class ProCalendarFragment extends Fragment implements CalendarLayoutHost {
+    private boolean locationPermissionRequested;
+    private final androidx.activity.result.ActivityResultLauncher<String[]> locationPermissionLauncher =
+            registerForActivityResult(new androidx.activity.result.contract.ActivityResultContracts.RequestMultiplePermissions(),
+                    grants -> { if (grants.containsValue(true)) startWeatherIfEnabled(); });
+
     private static final String STATE_MONTH = "visible_month";
     private static final String STATE_SELECTED = "selected_date";
     private static final int MIN_YEAR = 1901;
@@ -255,12 +260,30 @@ public final class ProCalendarFragment extends Fragment implements CalendarLayou
     }
 
     private void startWeatherIfEnabled() {
+        if (getActivity() instanceof ProMainActivity &&
+                ((ProMainActivity) getActivity()).isNotificationPermissionPending()) return;
+        if (!resumed) return;
+        if (!com.clockmods.ultimate.SetupWizardActivity.isCompleted(requireContext())) return;
         if (weatherController == null || forecastController == null || style == null) return;
         // Pure-calendar presets hide the cards the readings would land in, so don't poll for them.
         if (!style.getMetadata().getCapabilities().supports(Capability.WEATHER)
                 || !preferences.isWeatherEnabled()) {
             weatherController.stop();
             forecastController.stop();
+            return;
+        }
+        if (ClockPreferences.WEATHER_LOCATION_AUTOMATIC.equals(preferences.getWeatherLocationMode())
+                && requireContext().checkSelfPermission(android.Manifest.permission.ACCESS_COARSE_LOCATION)
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED
+                && requireContext().checkSelfPermission(android.Manifest.permission.ACCESS_FINE_LOCATION)
+                    != android.content.pm.PackageManager.PERMISSION_GRANTED) {
+            weatherController.stop();
+            forecastController.stop();
+            if (!locationPermissionRequested) {
+                locationPermissionRequested = true;
+                locationPermissionLauncher.launch(new String[] {android.Manifest.permission.ACCESS_COARSE_LOCATION,
+                        android.Manifest.permission.ACCESS_FINE_LOCATION});
+            }
             return;
         }
         weatherController.start(preferences.getWeatherIntervalMinutes());

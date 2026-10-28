@@ -73,6 +73,7 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
     private StatusBarView statusBarView;
     private View weatherAttribution;
     private WeatherController weatherController;
+    private boolean locationPermissionRequested;
     private BackgroundRepository statusOverlayRepository;
     private WeatherState lastWeatherState;
     private String lastWeatherMessage;
@@ -562,7 +563,10 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
     }
 
     private void startWeatherIfEnabled() {
-        if (weatherController == null || !isAdded()) return;
+        if (getActivity() instanceof ProMainActivity &&
+                ((ProMainActivity) getActivity()).isNotificationPermissionPending()) return;
+        if (weatherController == null || !isAdded() || !resumed
+                || !com.clockmods.ultimate.SetupWizardActivity.isCompleted(requireContext())) return;
         BackgroundRepository repository = new BackgroundRepository(requireContext());
         if (!repository.isWeatherEnabled()) return;
         boolean automatic = ClockPreferences.WEATHER_LOCATION_AUTOMATIC.equals(
@@ -572,6 +576,12 @@ public final class UltimateClockFragment extends Fragment implements SettingsRef
                         != PackageManager.PERMISSION_GRANTED
                 && requireContext().checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
                         != PackageManager.PERMISSION_GRANTED) {
+            weatherController.stop();
+            if (locationPermissionRequested) {
+                showWeatherMessage(getString(R.string.weather_permission_denied));
+                return;
+            }
+            locationPermissionRequested = true;
             locationPermissionLauncher.launch(new String[] {
                     Manifest.permission.ACCESS_COARSE_LOCATION,
                     Manifest.permission.ACCESS_FINE_LOCATION});

@@ -37,6 +37,7 @@ import com.google.android.material.color.MaterialColors;
 
 public abstract class ProMainActivity extends AppCompatActivity {
     private static final int REQUEST_NOTIFICATIONS = 3002;
+    private boolean notificationPermissionPending;
     private static final String STATE_SELECTED_PAGE = "selected_page";
     private static final long CHROME_VISIBLE_MILLIS = 3000L;
     private final Handler chromeHandler = new Handler(Looper.getMainLooper());
@@ -311,6 +312,7 @@ public abstract class ProMainActivity extends AppCompatActivity {
         if (Build.VERSION.SDK_INT >= 33
                 && checkSelfPermission(Manifest.permission.POST_NOTIFICATIONS)
                 != PackageManager.PERMISSION_GRANTED) {
+            notificationPermissionPending = true;
             requestPermissions(new String[] {Manifest.permission.POST_NOTIFICATIONS},
                     REQUEST_NOTIFICATIONS);
         }
@@ -318,6 +320,16 @@ public abstract class ProMainActivity extends AppCompatActivity {
 
     protected boolean shouldDeferNotificationPermission() {
         return false;
+    }
+
+    public final boolean isNotificationPermissionPending() { return notificationPermissionPending; }
+
+    @Override public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
+        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
+        if (requestCode == REQUEST_NOTIFICATIONS) {
+            notificationPermissionPending = false;
+            refreshSettingsPages();
+        }
     }
 
     @Override protected void onDestroy() {
