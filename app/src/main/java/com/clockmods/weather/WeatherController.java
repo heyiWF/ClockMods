@@ -36,6 +36,9 @@ public final class WeatherController {
     private boolean running;
     private int generation;
     private int intervalMinutes = 30;
+    // Whether the listener already holds weather data. Background refreshes then stay
+    // silent, so the visible line swaps old data for new without a loading state.
+    private boolean hasData;
     private LocationListener locationListener;
     private Runnable locationTimeout;
 
@@ -59,7 +62,10 @@ public final class WeatherController {
         running = true;
         this.intervalMinutes = intervalMinutes;
         WeatherDisplayData cached = getCached();
-        if (cached != null) listener.onWeatherState(new WeatherState(Status.SUCCESS, cached, null));
+        if (cached != null) {
+            hasData = true;
+            listener.onWeatherState(new WeatherState(Status.SUCCESS, cached, null));
+        }
         boolean incompatible = cached != null && !cached.satisfies(isDetailedRequired());
         refreshIfNeeded(cached, incompatible);
     }
@@ -83,15 +89,16 @@ public final class WeatherController {
             return;
         }
         if (isManualLocation()) {
-            listener.onWeatherState(WeatherState.of(Status.LOADING, msg(R.string.weather_fetching)));
+            if (!hasData) listener.onWeatherState(WeatherState.of(Status.LOADING, msg(R.string.weather_fetching)));
             fetchManual(++generation);
             return;
         }
         if (!hasLocationPermission()) {
-            reportFailure(Status.PERMISSION_DENIED, msg(R.string.weather_permission_denied));
+            // Permission is a prerequisite owned by the visible screen, not a fetch failure.
+            if (!hasData) listener.onWeatherState(WeatherState.of(Status.IDLE, msg(R.string.weather_waiting_permission)));
             return;
         }
-        listener.onWeatherState(WeatherState.of(Status.LOADING, msg(R.string.weather_fetching)));
+        if (!hasData) listener.onWeatherState(WeatherState.of(Status.LOADING, msg(R.string.weather_fetching)));
         requestLocation();
     }
 
@@ -175,6 +182,7 @@ public final class WeatherController {
                         @Override public void run() {
                             if (!running || requestGeneration != generation) return;
                             repository.save(data, ClockPreferences.WEATHER_LOCATION_AUTOMATIC);
+                            hasData = true;
                             listener.onWeatherState(new WeatherState(Status.SUCCESS, data, null));
                             schedule(intervalMinutes * 60L * 1000L);
                         }
@@ -233,6 +241,7 @@ public final class WeatherController {
                         @Override public void run() {
                             if (!running || requestGeneration != generation) return;
                             repository.save(data, ClockPreferences.WEATHER_LOCATION_MANUAL);
+                            hasData = true;
                             listener.onWeatherState(new WeatherState(Status.SUCCESS, data, null));
                             schedule(intervalMinutes * 60L * 1000L);
                         }
@@ -282,7 +291,7 @@ public final class WeatherController {
             locationTimeout = null;
         }
         if (locationListener != null) {
-            try { locationManager.removeUpdates(locationListener); } catch (SecurityException ignored) { }
+            try { if (locationManager != null) locationManager.removeUpdates(locationListener); } catch (SecurityException ignored) { }
             locationListener = null;
         }
     }
@@ -300,6 +309,9 @@ public final class WeatherController {
     }
 
     private void reportFailure(Status status, String detail) {
+        // A failed background refresh keeps the data already on screen; only a load
+        // without data surfaces the failure.
+        if (hasData) return;
         WeatherFailureFeedback.showOnce(context, detail);
         listener.onWeatherState(WeatherState.of(status,
                 WeatherFailureFeedback.placeholder(context)));
