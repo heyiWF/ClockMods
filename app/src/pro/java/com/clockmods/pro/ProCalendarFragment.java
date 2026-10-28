@@ -483,6 +483,8 @@ public final class ProCalendarFragment extends Fragment {
     }
 
     private void startWeatherIfEnabled() {
+        if (getActivity() instanceof ProMainActivity &&
+                ((ProMainActivity) getActivity()).isNotificationPermissionPending()) return;
         if (!resumed) return;
         if (!preferences.isWeatherEnabled() || weatherController == null || forecastController == null) return;
         if (ClockPreferences.WEATHER_LOCATION_AUTOMATIC.equals(preferences.getWeatherLocationMode())

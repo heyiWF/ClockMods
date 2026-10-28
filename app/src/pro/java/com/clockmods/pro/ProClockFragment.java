@@ -135,6 +135,8 @@ public final class ProClockFragment extends Fragment {
     }
 
     private void startWeatherIfEnabled() {
+        if (getActivity() instanceof ProMainActivity &&
+                ((ProMainActivity) getActivity()).isNotificationPermissionPending()) return;
         if (weatherController == null) return;
         BackgroundRepository repository = new BackgroundRepository(requireContext());
         if (!repository.isWeatherEnabled()) return;
