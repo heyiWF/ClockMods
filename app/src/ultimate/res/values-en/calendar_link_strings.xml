@@ -1,7 +1,7 @@
 <resources>
     <string name="calendar_import_link">Import from link</string>
     <string name="calendar_import_url">Calendar link</string>
-    <string name="calendar_import_link_hint">Paste an HTTPS or webcal link. A local copy is imported; it does not update automatically.</string>
+    <string name="calendar_import_link_hint">Paste an HTTPS or webcal link. Periodic sync is optional.</string>
     <string name="calendar_import_url_invalid">Enter a valid HTTPS or webcal calendar link.</string>
     <string name="calendar_import_network">Download failed. Check the link and connection, then retry.</string>
     <string name="calendar_import_carousel">Events below dates</string>

@@ -223,6 +223,7 @@ public final class SettingsBackAcceptance extends Instrumentation {
                 verifySystemBackAvailable();
                 String libraryName = libraryClass.getSimpleName();
                 if (libraryClass == CalendarManagerActivity.class) {
+                    clickText(library.getString(R.string.calendar_import_add));
                     verify(hasText(library.getString(R.string.calendar_import_link)), "Missing calendar link action");
                     clickText(library.getString(R.string.calendar_import_link));
                     settle();

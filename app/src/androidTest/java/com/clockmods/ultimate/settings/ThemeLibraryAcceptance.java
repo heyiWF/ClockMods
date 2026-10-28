@@ -27,6 +27,33 @@ public final class ThemeLibraryAcceptance extends Instrumentation {
         checks++;
         if (!value) throw new AssertionError(message);
     }
+    private void checkCalendarStyleIsolation(Context context) {
+        SharedPreferences storage=context.getSharedPreferences("clock_prefs",0);
+        Map<String,?> previous=new HashMap<>(storage.getAll());
+        try {
+            storage.edit().clear().putFloat("time_font_scale",1.5f).putFloat("date_font_scale",1.5f)
+                    .putBoolean("bold_text",true).commit();
+            com.clockmods.background.ClockPreferences preferences=new com.clockmods.background.ClockPreferences(context);
+            String first="calendar.graphite",second="calendar.paper";
+            String scope=com.clockmods.background.ClockPreferences.calendarScope(first);
+            check(preferences.getTimeFontScaleSetting(scope)==0f && preferences.getDateFontScaleSetting(scope)==0f,
+                    "calendar defaults do not inherit clock font sizes");
+            preferences.setCalendarTheme(first);preferences.setCalendarWeekStart(java.util.Calendar.MONDAY);
+            preferences.setCalendarHighlightWeekends(true);preferences.setTimeFontScale(scope,1.4f);
+            preferences.setFontWeight(scope,900);
+            preferences.setCalendarTheme(second);
+            check(preferences.getCalendarWeekStart()==java.util.Calendar.SUNDAY && !preferences.isCalendarHighlightWeekends(),
+                    "calendar layout controls are independent per theme");
+            preferences.setCalendarTheme(first);
+            check(preferences.getCalendarWeekStart()==java.util.Calendar.MONDAY && preferences.isCalendarHighlightWeekends()
+                    && preferences.getTimeFontScaleSetting(scope)==1.4f,"switching back restores that theme settings");
+            ThemeLibrary library=new ThemeLibrary(context,true,Arrays.asList(first,second));
+            library.remove(first);library.install(first);preferences.setCalendarTheme(first);
+            check(preferences.getCalendarWeekStart()==java.util.Calendar.SUNDAY && !preferences.isCalendarHighlightWeekends()
+                    && preferences.getTimeFontScaleSetting(scope)==0f && preferences.getFontWeight(scope)==400,
+                    "delete and reinstall restore all calendar style defaults");
+        } finally {restore(storage,previous);}
+    }
     @Override public void onStart() {
         if (args != null && "navigation".equals(args.getString("mode"))) { checkSettingsNavigation(); return; }
         Context context = getTargetContext();
@@ -38,6 +65,7 @@ public final class ThemeLibraryAcceptance extends Instrumentation {
         int code = Activity.RESULT_OK;
         try {
             boolean calendar = args != null && "calendar".equals(args.getString("kind"));
+            if (calendar) checkCalendarStyleIsolation(context);
             String first = calendar ? "calendar.graphite" : "pro.classic";
             String last = calendar ? "calendar.paper" : "glass.atelier";
             String scope = calendar ? "calendar:" + first : first;

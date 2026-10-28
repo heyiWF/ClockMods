@@ -85,6 +85,24 @@ public class ThemeLibraryTest {
         assertEquals(400, fonts.getInt("font_weight__glass.atelier", 0));
         assertEquals(0f, fonts.getFloat("time_font_scale__glass.atelier", -1f), 0f);
     }
+    @Test public void calendarLayoutSettingsMigrateOnceAndAreRemovedWithTheirTheme() {
+        MemorySharedPreferences store = new MemorySharedPreferences();
+        store.edit().putInt("calendar_week_start", Calendar.MONDAY)
+            .putBoolean("calendar_highlight_weekends", true).apply();
+        List<String> ids = Arrays.asList("calendar.graphite", "calendar.paper");
+        ThemeLibrary library = new ThemeLibrary(store, store, true, ids);
+        assertEquals(Calendar.MONDAY, store.getInt("calendar_week_start__calendar:calendar.graphite", 0));
+        assertFalse(store.contains("calendar_week_start"));
+        library.select("calendar.paper");
+        new ThemeLibrary(store, store, true, ids);
+        assertFalse(store.contains("calendar_week_start__calendar:calendar.paper"));
+        store.edit().putInt("calendar_week_start__calendar:calendar.paper", Calendar.SUNDAY).apply();
+        library.remove("calendar.graphite");
+        library.install("calendar.graphite");
+        assertFalse(store.contains("calendar_week_start__calendar:calendar.graphite"));
+        assertFalse(store.contains("calendar_highlight_weekends__calendar:calendar.graphite"));
+        assertEquals(Calendar.SUNDAY, store.getInt("calendar_week_start__calendar:calendar.paper", 0));
+    }
     @Test public void exactScopeBoundariesProtectOtherThemesAndGlobalSettings() {
         assertTrue(ThemeLibrary.isTypographyKey("script_font__a__ja__weight", "a"));
         assertFalse(ThemeLibrary.isTypographyKey("font_weight__ab", "a"));

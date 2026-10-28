@@ -221,6 +221,7 @@ public class ClockPreferences {
     public ClockPreferences(Context context) {
         appContext = context.getApplicationContext();
         preferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+        ThemeLibrary.migrateCalendarLayout(preferences);
     }
 
     public String getBackgroundMode() {
@@ -513,7 +514,8 @@ public class ClockPreferences {
      */
     public String getFontFamily(String scopeId) {
         String scoped = preferences.getString(KEY_FONT_FAMILY_PREFIX + normalizeScope(scopeId), null);
-        return scoped != null ? normalizeFontFamily(scoped) : getFontFamily();
+        return scoped != null ? normalizeFontFamily(scoped)
+                : normalizeScope(scopeId).startsWith(CALENDAR_SCOPE_PREFIX) ? DEFAULT_FONT_FAMILY : getFontFamily();
     }
 
     public void setFontFamily(String scopeId, String fontFamily) {
@@ -532,7 +534,7 @@ public class ClockPreferences {
         if (scoped > 0) {
             return clampWeight(scoped);
         }
-        return isBoldText() || usesBoldReferenceWeight(scopeId)
+        return (!normalizeScope(scopeId).startsWith(CALENDAR_SCOPE_PREFIX) && isBoldText()) || usesBoldReferenceWeight(scopeId)
                 ? BOLD_WEIGHT : FontCatalog.DEFAULT_WEIGHT;
     }
 
@@ -544,7 +546,7 @@ public class ClockPreferences {
 
     /** Per-style main time size, falling back to the pre-theme global preference. */
     public float getTimeFontScaleSetting(String scopeId) {
-        float value = preferences.getFloat(KEY_TIME_FONT_SCALE_PREFIX + normalizeScope(scopeId), getTimeFontScaleSetting());
+        float value = preferences.getFloat(KEY_TIME_FONT_SCALE_PREFIX + normalizeScope(scopeId), normalizeScope(scopeId).startsWith(CALENDAR_SCOPE_PREFIX) ? 0f : getTimeFontScaleSetting());
         return value == 0f ? 0f : clampScale(value);
     }
 
@@ -560,7 +562,7 @@ public class ClockPreferences {
 
     /** Per-style date size, falling back to the pre-theme global preference. */
     public float getDateFontScaleSetting(String scopeId) {
-        float value = preferences.getFloat(KEY_DATE_FONT_SCALE_PREFIX + normalizeScope(scopeId), normalizeScope(scopeId).startsWith(CALENDAR_SCOPE_PREFIX) ? getDateFontScaleSetting() : 0f);
+        float value = preferences.getFloat(KEY_DATE_FONT_SCALE_PREFIX + normalizeScope(scopeId), 0f);
         return value == 0f ? 0f : clampDateScale(value);
     }
 
@@ -602,7 +604,8 @@ public class ClockPreferences {
     /** Drops every per-theme typography override, returning all themes to the shared fallback. */
     private void clearPerThemeTypography(SharedPreferences.Editor editor) {
         for (String key : preferences.getAll().keySet()) {
-            if (key.startsWith("script_font__") || key.startsWith(KEY_FONT_FAMILY_PREFIX) || key.startsWith(KEY_FONT_WEIGHT_PREFIX)
+            if (key.startsWith("calendar_week_start__") || key.startsWith("calendar_highlight_weekends__")
+                    || key.startsWith("script_font__") || key.startsWith(KEY_FONT_FAMILY_PREFIX) || key.startsWith(KEY_FONT_WEIGHT_PREFIX)
                     || key.startsWith(KEY_TIME_FONT_SCALE_PREFIX)
                     || key.startsWith(KEY_DATE_FONT_SCALE_PREFIX)
                     || key.startsWith(KEY_SUPPORTING_FONT_SCALE_PREFIX)) {
@@ -675,21 +678,21 @@ public class ClockPreferences {
 
     public int getCalendarWeekStart() {
         return normalizeCalendarWeekStart(preferences.getInt(
-                KEY_CALENDAR_WEEK_START, DEFAULT_CALENDAR_WEEK_START));
+                KEY_CALENDAR_WEEK_START + "__" + calendarScope(getCalendarTheme()), DEFAULT_CALENDAR_WEEK_START));
     }
 
     public void setCalendarWeekStart(int firstDayOfWeek) {
-        preferences.edit().putInt(KEY_CALENDAR_WEEK_START,
+        preferences.edit().putInt(KEY_CALENDAR_WEEK_START + "__" + calendarScope(getCalendarTheme()),
                 normalizeCalendarWeekStart(firstDayOfWeek)).apply();
     }
 
     public boolean isCalendarHighlightWeekends() {
-        return preferences.getBoolean(KEY_CALENDAR_HIGHLIGHT_WEEKENDS,
+        return preferences.getBoolean(KEY_CALENDAR_HIGHLIGHT_WEEKENDS + "__" + calendarScope(getCalendarTheme()),
                 DEFAULT_CALENDAR_HIGHLIGHT_WEEKENDS);
     }
 
     public void setCalendarHighlightWeekends(boolean highlightWeekends) {
-        preferences.edit().putBoolean(KEY_CALENDAR_HIGHLIGHT_WEEKENDS,
+        preferences.edit().putBoolean(KEY_CALENDAR_HIGHLIGHT_WEEKENDS + "__" + calendarScope(getCalendarTheme()),
                 highlightWeekends).apply();
     }
 

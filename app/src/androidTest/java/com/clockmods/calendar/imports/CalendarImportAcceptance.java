@@ -47,7 +47,7 @@ public final class CalendarImportAcceptance extends Instrumentation {
         for(UserCalendarStore.Source source:store.files())prior.add(source.id);
         output=new File(context.getExternalFilesDir(null),"calendar-import-acceptance");output.mkdirs();
         try {
-            check(context.getPackageName().contains("fontaudit"),"isolated audit package");
+            check((context.getPackageName().contains("fontaudit") || context.getPackageName().startsWith("com.clockmods.permission.")),"isolated audit package");
             ClockPreferences settings=new ClockPreferences(context);settings.setClockLanguage("en");
             settings.setChineseCalendarEnabled(false);
             context.getSharedPreferences("clock_prefs",0).edit().putBoolean("weather_enabled",false)
@@ -55,6 +55,9 @@ public final class CalendarImportAcceptance extends Instrumentation {
             context.getSharedPreferences("clockmods_onboarding",0).edit().putBoolean("completed",true).commit();
             LocalDate today=LocalDate.now(ZoneOffset.UTC);
             byte[] fixture=fixture(today);
+            if ("motion".equals(arguments.getString("mode"))) {
+                checkMenuMotion();
+            } else {
             checkNativeScheduleFonts();
             checkDocumentImport(fixture);
             UserCalendarStore.Source source=store.importStream(new ByteArrayInputStream(fixture),"Agenda.ics");
@@ -77,6 +80,7 @@ public final class CalendarImportAcceptance extends Instrumentation {
             check(retained.renameTo(tombstone),"simulate interrupted removal before catalog commit");
             UserCalendarStore recovered=constructor.newInstance(context);
             check(retained.isFile() && !tombstone.exists() && recovered.files().size()==reopened.files().size(),"interrupted removal recovers its retained source");
+            checkSubscriptions(fixture);
             int count=store.files().size();
             try{store.importStream(new ByteArrayInputStream(fixture),"Renamed.ics");throw new AssertionError("duplicate accepted");}
             catch(CalendarImportException expected){check(expected.reason.equals("duplicate"),"renamed duplicate rejected");}
@@ -90,7 +94,7 @@ public final class CalendarImportAcceptance extends Instrumentation {
                 settings.setClockLanguage(language);orientation=language.equals("ja")?1:2;
                 launch(new Intent(context,CalendarManagerActivity.class));
                 check(waitText(active.getString(R.string.calendar_import_title),true),"localized manager "+language);
-                check(waitText(active.getString(R.string.calendar_import_add),true),"accessible Extended FAB "+language);
+                check(waitText(active.getString(R.string.calendar_import_add),true),"accessible import menu "+language);
                 screenshot("manager-"+language);closeScreen();
             }
             settings.setClockLanguage("en");settings.setChineseCalendarEnabled(false);
@@ -148,6 +152,7 @@ public final class CalendarImportAcceptance extends Instrumentation {
                 check(supplied.eventCount==317,"supplied private file imports 317 events on Android");
                 check(store.delete(supplied.id),"supplied private file can be deleted");
             } else check(!"true".equals(arguments.getString("requirePrivateFixture")),"private fixture optional outside local acceptance");
+            }
             result.putString("result","PASS "+checks+" checks");
         } catch(Throwable failure) {
             code=Activity.RESULT_CANCELED;
@@ -161,6 +166,54 @@ public final class CalendarImportAcceptance extends Instrumentation {
         }
         finish(code,result);
     }
+    private void checkMenuMotion() throws Exception {
+        launch(new Intent(context,CalendarManagerActivity.class));
+        SystemClock.sleep(1200);
+        for (int cycle=0;cycle<2;cycle++) {
+            check(click(active.getString(R.string.calendar_import_add)), "menu opens for frame capture");
+            SystemClock.sleep(700);
+            check(waitText(active.getString(R.string.calendar_import_link),true), "expanded menu exposes link action");
+            check(click(active.getString(R.string.calendar_import_close)), "menu closes for frame capture");
+            SystemClock.sleep(700);
+        }
+        check(click(active.getString(R.string.calendar_import_add)), "menu reopens after animation reversal");
+        check(click(active.getString(R.string.calendar_import_link)), "link action opens dialog");
+        check(waitText(active.getString(R.string.calendar_sync_enabled),true), "link dialog offers optional subscription sync");
+        screenshot("subscription-dialog");
+        check(click(active.getString(android.R.string.cancel)), "link dialog cancels without import");
+    }
+    private void checkSubscriptions(byte[] fixture) throws Exception {
+        byte[] initial=new String(fixture,StandardCharsets.UTF_8).replace("Imported all-day","Subscribed initial").getBytes(StandardCharsets.UTF_8);
+        byte[] updated=new String(fixture,StandardCharsets.UTF_8).replace("Imported all-day","Subscribed updated").getBytes(StandardCharsets.UTF_8);
+        int before=store.files().size();
+        UserCalendarStore.Source source=store.importStream(new ByteArrayInputStream(initial),"subscription.ics","https://example.invalid/calendar.ics",true);
+        boolean scheduled=false;
+        long deadline=SystemClock.uptimeMillis()+5000;
+        do {
+            scheduled=androidx.work.WorkManager.getInstance(context).getWorkInfosForUniqueWork("calendar-subscriptions")
+                    .get().stream().anyMatch(work -> work.getState()==androidx.work.WorkInfo.State.ENQUEUED);
+            if (!scheduled) SystemClock.sleep(100);
+        } while (!scheduled && SystemClock.uptimeMillis()<deadline);
+        check(scheduled,"enabled subscription schedules durable periodic work");
+        File retained=new File(context.getFilesDir(),"imported-calendars/"+source.id+".ics");
+        check(store.replaceSubscription(source,updated),"subscription replacement accepted");
+        UserCalendarStore.Source current=store.files().stream().filter(it->it.id.equals(source.id)).findFirst().get();
+        check(store.files().size()==before+1 && current.id.equals(source.id),"sync retains one stable subscription");
+        check(new String(java.nio.file.Files.readAllBytes(retained.toPath()),StandardCharsets.UTF_8).contains("Subscribed updated"),"sync replaces old local events");
+        try {store.replaceSubscription(current,"invalid".getBytes(StandardCharsets.UTF_8));throw new AssertionError("invalid sync accepted");}
+        catch(java.io.IOException expected) {check(true,"invalid subscription rejected before replacement");}
+        check(Arrays.equals(updated,java.nio.file.Files.readAllBytes(retained.toPath())),"failed sync preserves the last valid local copy");
+        java.lang.reflect.Constructor<UserCalendarStore> constructor=UserCalendarStore.class.getDeclaredConstructor(Context.class);
+        constructor.setAccessible(true);UserCalendarStore reopened=constructor.newInstance(context);
+        UserCalendarStore.Source restored=reopened.files().stream().filter(it->it.id.equals(source.id)).findFirst().get();
+        check(restored.syncEnabled && restored.sourceUrl.equals(source.sourceUrl) && restored.lastSyncedAt>0,"subscription metadata survives recreation");
+        store.setSyncEnabled(source.id,false);
+        check(!store.replaceSubscription(current,initial),"disabled subscription ignores an in-flight download");
+        check(retained.isFile(),"disabling sync retains events");
+        store.delete(source.id);
+        check(!store.replaceSubscription(current,initial) && !retained.exists(),"in-flight download cannot resurrect deleted subscription");
+        check(store.files().size()==before,"subscription cleanup restores source count");
+    }
     private void checkDocumentImport(byte[] data)throws Exception {
         ContentValues values=new ContentValues();values.put(android.provider.MediaStore.MediaColumns.DISPLAY_NAME,"ClockMods-calendar-audit.ics");
         values.put(android.provider.MediaStore.MediaColumns.MIME_TYPE,"text/calendar");values.put(android.provider.MediaStore.MediaColumns.RELATIVE_PATH,"Download/ClockModsCalendarAudit");
@@ -171,12 +224,16 @@ public final class CalendarImportAcceptance extends Instrumentation {
             launch(new Intent(context,CalendarManagerActivity.class));
             IntentFilter filter=new IntentFilter(Intent.ACTION_OPEN_DOCUMENT);filter.addCategory(Intent.CATEGORY_OPENABLE);filter.addDataType("*/*");
             picker=addMonitor(filter,new ActivityResult(Activity.RESULT_OK,new Intent().setData(uri)),true);
-            check(click(active.getString(R.string.calendar_import_add)),"Extended FAB opens document picker");
+            check(click(active.getString(R.string.calendar_import_add)),"plus expands import options");
+            check(waitText(active.getString(R.string.calendar_import_link),true),"link action expands above plus");
+            screenshot("import-menu-expanded");
+            check(click(active.getString(R.string.calendar_import_file)),"file action opens document picker");
             long until=SystemClock.uptimeMillis()+15000;
             while(store.files().size()==count && SystemClock.uptimeMillis()<until)SystemClock.sleep(100);
             check(picker.getHits()==1 && store.files().size()==count+1,"document result imports and publishes calendar");
             check(waitText("Audit calendar",true),"manager shows calendar name");screenshot("document-import");
-            check(click(active.getString(R.string.calendar_import_add)),"repeat upload clicked");
+            check(click(active.getString(R.string.calendar_import_add)),"repeat import menu opened");
+            check(click(active.getString(R.string.calendar_import_file)),"repeat file import clicked");
             check(waitText(active.getString(R.string.calendar_import_duplicate),true),"duplicate upload feedback");
             check(store.files().size()==count+1,"duplicate retains single file");
             check(click(active.getString(R.string.calendar_import_delete)),"delete action opens confirmation");
@@ -201,7 +258,14 @@ public final class CalendarImportAcceptance extends Instrumentation {
         activeMonitor=addMonitor(intent.getComponent().getClassName(),null,false);
         context.startActivity(intent.addFlags(Intent.FLAG_ACTIVITY_NEW_TASK|Intent.FLAG_ACTIVITY_CLEAR_TASK));
         active=activeMonitor.waitForActivityWithTimeout(12000);check(active!=null,"screen launched");SystemClock.sleep(1200);
-        android.graphics.Rect screen = new android.graphics.Rect(); root().getBoundsInScreen(screen);
+        android.graphics.Rect screen = new android.graphics.Rect();
+        long rotationDeadline=SystemClock.uptimeMillis()+10000;
+        do {
+            AccessibilityNodeInfo visible=root();
+            if(visible!=null) visible.getBoundsInScreen(screen);
+            if(orientation==1 ? screen.height()>screen.width() : screen.width()>screen.height()) break;
+            SystemClock.sleep(150);
+        } while(SystemClock.uptimeMillis()<rotationDeadline);
         check(orientation==1 ? screen.height()>screen.width() : screen.width()>screen.height(),
                 "actual screen orientation " + orientation);
         if(activeMonitor.getLastActivity()!=null)active=activeMonitor.getLastActivity();

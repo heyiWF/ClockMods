@@ -4,7 +4,7 @@
     <string name="calendar_import_summary">ICS ファイルを読み込み、日付の表示欄や週間予定に予定を表示します。</string>
     <string name="calendar_import_add">カレンダーを読み込む</string>
     <string name="calendar_import_empty">カレンダーはありません</string>
-    <string name="calendar_import_empty_hint">.ics ファイルを選択してください。ファイルはアプリ内に保存され、自動でオンライン更新されません。</string>
+    <string name="calendar_import_empty_hint">ICS ファイルまたはカレンダーのリンクを選択してください。リンクは自動同期できます。</string>
     <string name="calendar_import_busy">カレンダーを処理中…</string>
     <string name="calendar_import_success">%1$s を読み込みました</string>
     <string name="calendar_import_duplicate">このカレンダーファイルは読み込み済みです。</string>

@@ -20,6 +20,7 @@ public final class UltimateApplication extends Application {
         super.onCreate();
         com.clockmods.background.UserFontStore.initialize(this);
         UltimateEmbeddingRules.install(this);
+        com.clockmods.calendar.imports.CalendarSubscriptionWorker.schedule(this);
         widgetPreferences = (prefs, key) -> {
             if (key != null && (key.startsWith("weather_") || key.equals("clock_language"))) {
                 widgetHandler.removeCallbacks(refreshWidgets);

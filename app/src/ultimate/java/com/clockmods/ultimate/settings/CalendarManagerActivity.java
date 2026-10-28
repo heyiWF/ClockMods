@@ -24,13 +24,23 @@ import com.google.android.material.color.DynamicColors;
 import com.google.android.material.color.MaterialColors;
 import com.google.android.material.dialog.MaterialAlertDialogBuilder;
 import com.google.android.material.progressindicator.LinearProgressIndicator;
-import com.google.android.material.floatingactionbutton.ExtendedFloatingActionButton;
+import com.google.android.material.floatingactionbutton.FloatingActionButton;
 
 /** Material 3 calendar library with source-file cards and file-level actions. */
 public final class CalendarManagerActivity extends AppCompatActivity {
     private LinearLayout content;
     private ScrollView scroll;
-    private MaterialButton add;
+    private MaterialToolbar toolbar;
+    private FloatingActionButton add;
+    private View menuScrim;
+    private LinearLayout importActions;
+    private boolean menuExpanded;
+    private float menuProgress;
+    private android.animation.ValueAnimator menuAnimator;
+    private android.graphics.drawable.RotateDrawable addIcon;
+    private final androidx.activity.OnBackPressedCallback closeMenu = new androidx.activity.OnBackPressedCallback(false) {
+        @Override public void handleOnBackPressed() { setMenuExpanded(false, true); }
+    };
     private CalendarImportModel model;
     private final ActivityResultLauncher<String[]> picker = registerForActivityResult(
             new ActivityResultContracts.OpenMultipleDocuments(),
@@ -52,12 +62,13 @@ public final class CalendarManagerActivity extends AppCompatActivity {
             android.graphics.Insets bars = insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
             view.setPadding(bars.left, bars.top, bars.right, bars.bottom); return insets;
         });
-        MaterialToolbar toolbar = new MaterialToolbar(this);
+        toolbar = new MaterialToolbar(this);
         toolbar.setTitle(R.string.calendar_import_title);
         toolbar.setNavigationIcon(R.drawable.import_ic_back);
         toolbar.setNavigationIconTint(color(com.google.android.material.R.attr.colorOnSurface));
         toolbar.setNavigationContentDescription(R.string.font_import_back);
-        toolbar.setNavigationOnClickListener(view -> finish());
+        toolbar.setNavigationOnClickListener(view -> { if (menuExpanded) setMenuExpanded(false, true); else finish(); });
+        toolbar.setOnClickListener(view -> { if (menuExpanded) setMenuExpanded(false, true); });
         root.addView(toolbar, new LinearLayout.LayoutParams(-1, dp(64)));
         scroll = new ScrollView(this); scroll.setClipToPadding(false);
         LinearLayout center = new LinearLayout(this); center.setGravity(Gravity.CENTER_HORIZONTAL);
@@ -68,24 +79,41 @@ public final class CalendarManagerActivity extends AppCompatActivity {
         FrameLayout library = new FrameLayout(this);
         library.addView(scroll, new FrameLayout.LayoutParams(-1, -1));
         root.addView(library, new LinearLayout.LayoutParams(-1, 0, 1));
-        add = new ExtendedFloatingActionButton(this); add.setText(R.string.calendar_import_add);
-        add.setIconResource(R.drawable.import_ic_add); add.setMinHeight(dp(56));
-        add.setOnClickListener(view -> picker.launch(new String[]{"*/*"}));
-        FrameLayout.LayoutParams action = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.END);
+        menuScrim = new View(this);
+        menuScrim.setBackgroundColor(color(com.google.android.material.R.attr.colorSurface));
+        menuScrim.setAlpha(0f); menuScrim.setVisibility(View.GONE);
+        menuScrim.setOnClickListener(view -> setMenuExpanded(false, true));
+        library.addView(menuScrim, new FrameLayout.LayoutParams(-1, -1));
+        importActions = new LinearLayout(this); importActions.setOrientation(LinearLayout.VERTICAL);
+        importActions.setGravity(Gravity.END); importActions.setVisibility(View.INVISIBLE);
+        MaterialButton linkAction = importAction(R.string.calendar_import_link, R.drawable.import_ic_link);
+        linkAction.setOnClickListener(view -> { setMenuExpanded(false, true); showLinkDialog(); });
+        MaterialButton fileAction = importAction(R.string.calendar_import_file, R.drawable.import_ic_file);
+        fileAction.setOnClickListener(view -> { setMenuExpanded(false, true); picker.launch(new String[]{"*/*"}); });
+        FrameLayout.LayoutParams actions = new FrameLayout.LayoutParams(-2, -2, Gravity.BOTTOM | Gravity.END);
+        actions.setMargins(dp(16), dp(16), dp(16), dp(80)); library.addView(importActions, actions);
+        add = new FloatingActionButton(this);
+        addIcon = new android.graphics.drawable.RotateDrawable();
+        addIcon.setDrawable(androidx.appcompat.content.res.AppCompatResources.getDrawable(this, R.drawable.import_ic_add));
+        addIcon.setFromDegrees(0); addIcon.setToDegrees(45);
+        add.setImageDrawable(addIcon);
+        add.setContentDescription(getString(R.string.calendar_import_add));
+        add.setShapeAppearanceModel(add.getShapeAppearanceModel().toBuilder().setAllCornerSizes(dp(16)).build());
+        add.setOnClickListener(view -> setMenuExpanded(!menuExpanded, true));
+        FrameLayout.LayoutParams action = new FrameLayout.LayoutParams(dp(56), dp(56), Gravity.BOTTOM | Gravity.END);
         action.setMargins(dp(16), dp(16), dp(16), dp(16));
         library.addView(add, action); setContentView(root);
+        getOnBackPressedDispatcher().addCallback(this, closeMenu);
+        if (savedInstanceState != null && savedInstanceState.getBoolean("import_menu"))
+            setMenuExpanded(true, false);
         model.state.observe(this, ignored -> render());
         UserCalendarStore.get(this).changes.observe(this, ignored -> render());
     }
     private void render() {
         int scrollY = scroll.getScrollY();
         content.removeAllViews(); add.setEnabled(!model.busy);
+        if (model.busy && menuExpanded) setMenuExpanded(false, true);
         text(content, getString(R.string.calendar_import_summary), 16, false, false);
-        MaterialButton link = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonOutlinedStyle);
-        link.setText(R.string.calendar_import_link); link.setIconResource(R.drawable.import_ic_link);
-        link.setMinHeight(dp(48)); link.setEnabled(!model.busy);
-        link.setOnClickListener(view -> showLinkDialog());
-        content.addView(link, new LinearLayout.LayoutParams(-1, -2));
         com.google.android.material.materialswitch.MaterialSwitch carousel = new com.google.android.material.materialswitch.MaterialSwitch(this);
         carousel.setText(R.string.calendar_import_carousel); carousel.setMinHeight(dp(48));
         carousel.setChecked(UserCalendarStore.get(this).showInDateCarousel());
@@ -116,6 +144,23 @@ public final class CalendarManagerActivity extends AppCompatActivity {
                     android.text.format.Formatter.formatShortFileSize(this, source.bytes)), 14, false, true);
             if (UserCalendarStore.get(this).error(source.id) != null)
                 text(group, getString(R.string.calendar_import_query_error), 14, false, true);
+            if (!source.sourceUrl.isEmpty()) {
+                com.google.android.material.materialswitch.MaterialSwitch sync = new com.google.android.material.materialswitch.MaterialSwitch(this);
+                sync.setText(R.string.calendar_sync_enabled); sync.setMinHeight(dp(48));
+                sync.setChecked(source.syncEnabled); sync.setEnabled(!model.busy);
+                sync.setOnCheckedChangeListener((button, checked) -> model.setSyncEnabled(source.id, checked));
+                group.addView(sync, new LinearLayout.LayoutParams(-1, -2));
+                text(group, getString(R.string.calendar_sync_interval), 14, false, true);
+                if (source.lastSyncedAt > 0) text(group, getString(R.string.calendar_sync_last,
+                        java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT)
+                                .format(new java.util.Date(source.lastSyncedAt))), 14, false, true);
+                if (source.syncFailed) text(group, getString(R.string.calendar_sync_failed), 14, false, true);
+                if (source.syncEnabled) {
+                    MaterialButton refresh = new MaterialButton(this, null, androidx.appcompat.R.attr.borderlessButtonStyle);
+                    refresh.setText(R.string.calendar_sync_now); refresh.setEnabled(!model.busy);
+                    refresh.setOnClickListener(view -> model.syncNow(source)); group.addView(refresh);
+                }
+            }
             MaterialButton remove = new MaterialButton(this, null, androidx.appcompat.R.attr.borderlessButtonStyle);
             remove.setText(R.string.calendar_import_delete); remove.setIconResource(R.drawable.import_ic_delete);
             remove.setTextColor(color(androidx.appcompat.R.attr.colorError));
@@ -140,17 +185,105 @@ public final class CalendarManagerActivity extends AppCompatActivity {
         com.google.android.material.textfield.TextInputEditText input = new com.google.android.material.textfield.TextInputEditText(field.getContext());
         input.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
         input.setSingleLine(true); field.addView(input);
+        LinearLayout form = new LinearLayout(this); form.setOrientation(LinearLayout.VERTICAL);
+        form.addView(field);
+        com.google.android.material.materialswitch.MaterialSwitch sync = new com.google.android.material.materialswitch.MaterialSwitch(this);
+        sync.setText(R.string.calendar_sync_enabled); sync.setPadding(dp(24), dp(8), dp(24), 0);
+        form.addView(sync);
+        TextView hint = text(form, getString(R.string.calendar_sync_interval), 14, false, true);
+        hint.setPadding(dp(24), dp(4), dp(24), dp(8));
         androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.calendar_import_link).setMessage(R.string.calendar_import_link_hint)
-                .setView(field).setNegativeButton(android.R.string.cancel, null)
+                .setView(form).setNegativeButton(android.R.string.cancel, null)
                 .setPositiveButton(R.string.calendar_import_add, null).create();
         dialog.setOnShowListener(ignored -> dialog.getButton(androidx.appcompat.app.AlertDialog.BUTTON_POSITIVE).setOnClickListener(view -> {
             String value = input.getText() == null ? "" : input.getText().toString();
             try { com.clockmods.calendar.imports.CalendarLink.normalize(value); }
             catch (java.io.IOException failure) { field.setError(getString(R.string.calendar_import_url_invalid)); return; }
-            model.importLink(value); dialog.dismiss();
+            model.importLink(value, sync.isChecked()); dialog.dismiss();
         }));
         dialog.show();
+    }
+    private MaterialButton importAction(int title, int icon) {
+        RevealButton button = new RevealButton(this);
+        button.setText(title); button.setIconResource(icon); button.setCornerRadius(dp(28));
+        button.setBackgroundTintList(ColorStateList.valueOf(color(com.google.android.material.R.attr.colorSecondaryContainer)));
+        button.setTextColor(color(com.google.android.material.R.attr.colorOnSecondaryContainer));
+        button.setIconTint(ColorStateList.valueOf(color(com.google.android.material.R.attr.colorOnSecondaryContainer)));
+        button.setInsetTop(0); button.setInsetBottom(0);
+        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(-2, dp(56));
+        params.topMargin=dp(8); importActions.addView(button,params);return button;
+    }
+    private void setMenuExpanded(boolean expanded, boolean animate) {
+        menuExpanded = expanded; closeMenu.setEnabled(expanded);
+        add.setContentDescription(getString(expanded ? R.string.calendar_import_close : R.string.calendar_import_add));
+        scroll.setImportantForAccessibility(expanded ? View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS
+                : View.IMPORTANT_FOR_ACCESSIBILITY_AUTO);
+        if (menuAnimator != null) menuAnimator.cancel();
+        menuScrim.setVisibility(View.VISIBLE); importActions.setVisibility(View.VISIBLE);
+        menuAnimator = android.animation.ValueAnimator.ofFloat(menuProgress, expanded ? 1f : 0f);
+        menuAnimator.setDuration(animate ? 200 : 0);
+        menuAnimator.setInterpolator(new android.view.animation.LinearInterpolator());
+        menuAnimator.addUpdateListener(animation -> {
+            menuProgress = (float) animation.getAnimatedValue();
+            menuScrim.setAlpha(.94f * menuProgress);
+            toolbar.setAlpha(1f - .94f * menuProgress);
+            addIcon.setLevel(Math.round(menuProgress * 10000));
+            add.setShapeAppearanceModel(add.getShapeAppearanceModel().toBuilder()
+                    .setAllCornerSizes(dp(16) + dp(12) * menuProgress).build());
+            add.setBackgroundTintList(ColorStateList.valueOf(blend(
+                    com.google.android.material.R.attr.colorPrimaryContainer, androidx.appcompat.R.attr.colorPrimary)));
+            add.setImageTintList(ColorStateList.valueOf(blend(
+                    com.google.android.material.R.attr.colorOnPrimaryContainer, com.google.android.material.R.attr.colorOnPrimary)));
+            if (menuProgress == 0f && !menuExpanded) {
+                menuScrim.setVisibility(View.GONE); importActions.setVisibility(View.INVISIBLE);
+            }
+        });
+        menuAnimator.start();
+        for (int i = 0; i < importActions.getChildCount(); i++) {
+            RevealButton item = (RevealButton) importActions.getChildAt(i);
+            item.setEnabled(expanded && !model.busy);
+            item.setImportantForAccessibility(expanded ? View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
+                    : View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+            item.expand(expanded, animate, expanded ? importActions.getChildCount() - 1 - i : i);
+        }
+    }
+    private int blend(int collapsed, int expanded) {
+        return androidx.core.graphics.ColorUtils.blendARGB(color(collapsed), color(expanded), menuProgress);
+    }
+    /** Fixed text/baseline, pill revealed from its right edge; nearest action opens first. */
+    private static final class RevealButton extends MaterialButton {
+        private final android.graphics.Path clip = new android.graphics.Path();
+        private float fraction;
+        private android.animation.ValueAnimator animator;
+        RevealButton(Context context) { super(context); }
+        void expand(boolean expanded, boolean animate, int order) {
+            if (animator != null) animator.cancel();
+            animator = android.animation.ValueAnimator.ofFloat(fraction, expanded ? 1f : 0f);
+            animator.setDuration(animate ? (expanded ? 200 : 100) : 0);
+            // Reference frames: 50 ms lead-in, 50 ms between items; reverse order on close.
+            animator.setStartDelay(animate && (fraction == 0f || fraction == 1f)
+                    ? (expanded ? 50L : 0L) + order * 50L : 0);
+            animator.setInterpolator(expanded ? new android.view.animation.PathInterpolator(.2f, 0f, 0f, 1f)
+                    : new android.view.animation.PathInterpolator(.4f, 0f, 1f, 1f));
+            animator.addUpdateListener(animation -> {
+                fraction = (float) animation.getAnimatedValue();
+                setAlpha(Math.min(1f, fraction * 3f)); invalidate();
+            });
+            animator.start();
+        }
+        @Override public void draw(android.graphics.Canvas canvas) {
+            if (fraction <= 0f) return;
+            int save = canvas.save();
+            float width = getWidth() * fraction;
+            float radius = Math.min(getHeight() / 2f, width / 2f);
+            clip.reset(); clip.addRoundRect(getWidth() - width, 0, getWidth(), getHeight(),
+                    radius, radius, android.graphics.Path.Direction.CW);
+            canvas.clipPath(clip); super.draw(canvas); canvas.restoreToCount(save);
+        }
+    }
+    @Override protected void onSaveInstanceState(Bundle state) {
+        state.putBoolean("import_menu",menuExpanded);super.onSaveInstanceState(state);
     }
     private LinearLayout card(int colorAttr) {
         MaterialCardView card = new MaterialCardView(this);

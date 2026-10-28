@@ -22,8 +22,19 @@ public final class UserCalendarStore {
         return instance;
     }
     public static final class Source {
-        public final String id,name,title;public final int eventCount;public final long bytes;
-        Source(String id,String name,String title,int count,long bytes){this.id=id;this.name=name;this.title=title;this.eventCount=count;this.bytes=bytes;}
+        public final String id, name, title, sourceUrl;
+        public final int eventCount;
+        public final long bytes, lastSyncedAt;
+        public final boolean syncEnabled, syncFailed;
+        Source(String id, String name, String title, int count, long bytes,
+                String sourceUrl, boolean syncEnabled, long lastSyncedAt, boolean syncFailed) {
+            this.id=id; this.name=name; this.title=title; this.eventCount=count; this.bytes=bytes;
+            this.sourceUrl=sourceUrl; this.syncEnabled=syncEnabled;
+            this.lastSyncedAt=lastSyncedAt; this.syncFailed=syncFailed;
+        }
+        Source withSync(boolean enabled, boolean failed) {
+            return new Source(id,name,title,eventCount,bytes,sourceUrl,enabled,lastSyncedAt,failed);
+        }
     }
     public static final class Occurrence {
         public final Source source; public final ImportedEvent event;
@@ -56,7 +67,8 @@ public final class UserCalendarStore {
                 // A process death before the catalog commit must not hide a retained source.
                 if (!original.isFile() && trash.isFile()) trash.renameTo(original);
                 loaded.add(new Source(id, item.getString("name"), item.optString("title"),
-                        item.getInt("count"), original.length()));
+                        item.getInt("count"), original.length(), item.optString("url", ""),
+                        item.optBoolean("sync", false), item.optLong("synced", 0), item.optBoolean("syncFailed", false)));
                 if (!original.isFile()) errors.put(id, "invalid");
             }
             sources=Collections.unmodifiableList(loaded);
@@ -87,6 +99,9 @@ public final class UserCalendarStore {
         }
     }
     public Source importStream(InputStream input,String originalName)throws IOException {
+        return importStream(input, originalName, "", false);
+    }
+    Source importStream(InputStream input, String originalName, String sourceUrl, boolean syncEnabled)throws IOException {
         byte[] data=ICalendarParser.readBytes(input);String id=hash(data);
         synchronized(this){for(Source source:sources)if(source.id.equals(id))throw new CalendarImportException("duplicate");}
         ICalendarParser parsed=ICalendarParser.parse(data,TimeZone.getTimeZone("UTC"));
@@ -94,9 +109,11 @@ public final class UserCalendarStore {
         parsed.between(first,first.plusMonths(1));
         String name=originalName==null?"calendar.ics":originalName.replace('\u0000',' ').trim();
         if(name.isEmpty())name="calendar.ics";name=name.substring(0,Math.min(name.length(),240));
-        Source result=new Source(id,name,parsed.name.isEmpty()?name:parsed.name,parsed.eventCount,data.length);
+        Source result=new Source(id,name,parsed.name.isEmpty()?name:parsed.name,parsed.eventCount,data.length,
+                sourceUrl,syncEnabled,sourceUrl.isEmpty()?0:System.currentTimeMillis(),false);
         synchronized(this){
-            long bytes=data.length;for(Source source:sources){bytes+=source.bytes;if(source.id.equals(id))throw new CalendarImportException("duplicate");}
+            long bytes=data.length;for(Source source:sources){bytes+=source.bytes;if(source.id.equals(id)
+                    || (!sourceUrl.isEmpty() && sourceUrl.equals(source.sourceUrl)))throw new CalendarImportException("duplicate");}
             if(sources.size()>=32||bytes>32L*1024*1024)throw new CalendarImportException("limit");
             if(!directory.isDirectory()&&!directory.mkdirs())throw new IOException("Cannot create calendar directory");
             File target=file(id),temporary=new File(directory,"pending-"+UUID.randomUUID());boolean created=!target.exists();
@@ -107,6 +124,7 @@ public final class UserCalendarStore {
             }catch(IOException failure){if(created)target.delete();throw failure;}finally{temporary.delete();}
             invalidate();
         }
+        CalendarSubscriptionWorker.schedule(context);
         return result;
     }
     public synchronized boolean delete(String id)throws IOException {
@@ -122,13 +140,68 @@ public final class UserCalendarStore {
             throw new IOException("Cannot remove calendar file");
         }
         sources=Collections.unmodifiableList(next);invalidate();
+        CalendarSubscriptionWorker.schedule(context);
         return true;
+    }
+    public synchronized void setSyncEnabled(String id, boolean enabled) throws IOException {
+        List<Source> next = new ArrayList<>(sources);
+        for (int i=0;i<next.size();i++) {
+            Source source=next.get(i);
+            if (source.id.equals(id) && !source.sourceUrl.isEmpty()) {
+                next.set(i,source.withSync(enabled,false));
+                writeCatalog(next); sources=Collections.unmodifiableList(next); invalidate();
+                CalendarSubscriptionWorker.schedule(context);
+                return;
+            }
+        }
+    }
+    public void synchronize(Source expected) throws IOException {
+        if (!expected.syncEnabled || expected.sourceUrl.isEmpty()) return;
+        CalendarLink.Download download = CalendarLink.download(expected.sourceUrl);
+        replaceSubscription(expected, download.data);
+    }
+    // Validate completely before touching the retained file; a stale download cannot resurrect a deletion.
+    boolean replaceSubscription(Source expected, byte[] data) throws IOException {
+        ICalendarParser parsed=ICalendarParser.parse(data,TimeZone.getTimeZone("UTC"));
+        LocalDate first=LocalDate.now(ZoneOffset.UTC).withDayOfMonth(1);
+        parsed.between(first,first.plusMonths(1));
+        synchronized(this) {
+            int index=sources.indexOf(expected);
+            if(index<0 || !expected.syncEnabled) return false;
+            long bytes=data.length;
+            for(Source source:sources) if(source!=expected) bytes+=source.bytes;
+            if(bytes>32L*1024*1024) throw new CalendarImportException("limit");
+            Source updated=new Source(expected.id,expected.name,parsed.name.isEmpty()?expected.name:parsed.name,
+                    parsed.eventCount,data.length,expected.sourceUrl,true,System.currentTimeMillis(),false);
+            List<Source> next=new ArrayList<>(sources);next.set(index,updated);
+            AtomicFile target=new AtomicFile(file(expected.id));
+            byte[] previous;
+            try(InputStream input=target.openRead()){previous=ICalendarParser.readBytes(input);}
+            writeSource(target,data);
+            try {writeCatalog(next);} catch(IOException failure) {
+                writeSource(target,previous);throw failure;
+            }
+            sources=Collections.unmodifiableList(next);invalidate();return true;
+        }
+    }
+    public synchronized void syncFailed(Source expected) throws IOException {
+        int index=sources.indexOf(expected);
+        if(index<0 || !expected.syncEnabled) return;
+        List<Source> next=new ArrayList<>(sources);next.set(index,expected.withSync(true,true));
+        writeCatalog(next);sources=Collections.unmodifiableList(next);changes.postValue(++revision);
+    }
+    private static void writeSource(AtomicFile target, byte[] data) throws IOException {
+        FileOutputStream output=null;
+        try {output=target.startWrite();output.write(data);target.finishWrite(output);}
+        catch(IOException failure){if(output!=null)target.failWrite(output);throw failure;}
     }
     private void writeCatalog(List<Source> sources)throws IOException {
         FileOutputStream stream=null;
         try {
-            JSONArray array=new JSONArray();for(Source source:sources)array.put(new JSONObject().put("id",source.id).put("name",source.name).put("title",source.title).put("count",source.eventCount));
-            byte[] bytes=new JSONObject().put("version",1).put("files",array).toString().getBytes(StandardCharsets.UTF_8);
+            JSONArray array=new JSONArray();for(Source source:sources)array.put(new JSONObject().put("id",source.id).put("name",source.name).put("title",source.title).put("count",source.eventCount)
+                    .put("url",source.sourceUrl).put("sync",source.syncEnabled)
+                    .put("synced",source.lastSyncedAt).put("syncFailed",source.syncFailed));
+            byte[] bytes=new JSONObject().put("version",2).put("files",array).toString().getBytes(StandardCharsets.UTF_8);
             stream=catalog.startWrite();stream.write(bytes);catalog.finishWrite(stream);
         }catch(Exception failure){if(stream!=null)catalog.failWrite(stream);throw new IOException("Cannot save calendar catalog",failure);}
     }
