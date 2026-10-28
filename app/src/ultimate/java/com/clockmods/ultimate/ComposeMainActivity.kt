@@ -35,6 +35,8 @@ open class ComposeMainActivity : ComponentActivity() {
     private val requestedDestination = mutableStateOf<String?>(null)
     private var appliedLanguage: String? = null
     private var setupWizardLaunchPending = false
+    private val notificationPermissionPending = mutableStateOf(false)
+    fun isNotificationPermissionPending() = notificationPermissionPending.value
 
     private val settingsLauncher = registerForActivityResult(
         ActivityResultContracts.StartActivityForResult(),
@@ -54,7 +56,7 @@ open class ComposeMainActivity : ComponentActivity() {
 
     private val notificationPermissionLauncher = registerForActivityResult(
         ActivityResultContracts.RequestPermission(),
-    ) { }
+    ) { notificationPermissionPending.value = false }
 
     override fun attachBaseContext(newBase: Context) {
         super.attachBaseContext(LocaleManager.wrap(newBase) ?: newBase)
@@ -148,6 +150,7 @@ open class ComposeMainActivity : ComponentActivity() {
             ContextCompat.checkSelfPermission(this, Manifest.permission.POST_NOTIFICATIONS) !=
             PackageManager.PERMISSION_GRANTED
         ) {
+            notificationPermissionPending.value = true
             notificationPermissionLauncher.launch(Manifest.permission.POST_NOTIFICATIONS)
         }
     }

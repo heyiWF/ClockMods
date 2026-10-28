@@ -39,6 +39,7 @@ public final class CleanupRegressionAcceptance extends Instrumentation {
                 checkIconAnimation();
                 checkReset();
                 checkLocationCleanup();
+                checkWeatherPermissionPrerequisite();
                 if (lite) checkStatusMeasurement();
             } catch (Throwable error) { failure[0] = error; }
         });
@@ -98,6 +99,71 @@ public final class CleanupRegressionAcceptance extends Instrumentation {
                     "reset restores sync interval");
             check(settings.getTimeZoneId().equals(ClockPreferences.DEFAULT_TIME_ZONE_ID), "reset restores time zone");
         } finally { restore(prefs, before); }
+    }
+    private void checkWeatherPermissionPrerequisite() throws Exception {
+        // Separate stores keep this test independent of real cache freshness / selected cities.
+        Map<String, SharedPreferences> stores = new HashMap<>();
+        final boolean[] granted = {false};
+        Context guarded = new ContextWrapper(getTargetContext()) {
+            @Override public Context getApplicationContext() { return this; }
+            @Override public int checkSelfPermission(String permission) {
+                return granted[0] ? android.content.pm.PackageManager.PERMISSION_GRANTED
+                        : android.content.pm.PackageManager.PERMISSION_DENIED;
+            }
+            @Override public Object getSystemService(String name) {
+                return Context.LOCATION_SERVICE.equals(name) ? null : super.getSystemService(name);
+            }
+            @Override public SharedPreferences getSharedPreferences(String name, int mode) {
+                if (!stores.containsKey(name)) {
+                    SharedPreferences prefs = super.getSharedPreferences("permission-test-" + name, mode);
+                    prefs.edit().clear().commit();
+                    stores.put(name, prefs);
+                }
+                return stores.get(name);
+            }
+        };
+        java.util.List<com.clockmods.weather.WeatherModels.Status> states = new java.util.ArrayList<>();
+        WeatherController controller = new WeatherController(guarded, state -> states.add(state.status));
+        Field deduplicatorField = com.clockmods.weather.WeatherFailureFeedback.class.getDeclaredField("DEDUPLICATOR");
+        deduplicatorField.setAccessible(true);
+        Object deduplicator = deduplicatorField.get(null);
+        Field shown = field(deduplicator, "shown");
+        boolean previousShown = shown.getBoolean(deduplicator);
+        shown.setBoolean(deduplicator, false);
+        try {
+            controller.start(30);
+            controller.refreshNow();
+            check(states.size() == 2 && states.get(0) == com.clockmods.weather.WeatherModels.Status.IDLE
+                    && states.get(1) == com.clockmods.weather.WeatherModels.Status.IDLE,
+                    "automatic weather waits instead of loading or failing before permission");
+            check(!shown.getBoolean(deduplicator), "waiting for permission does not consume the failure toast");
+            try {
+                Class<?> daily = Class.forName("com.clockmods.weather.DailyForecastController");
+                Class<?> callback = Class.forName("com.clockmods.weather.DailyForecastController$Listener");
+                java.util.List<Object> forecastStates = new java.util.ArrayList<>();
+                Object listener = java.lang.reflect.Proxy.newProxyInstance(callback.getClassLoader(),
+                        new Class<?>[]{callback}, (proxy, method, args) -> {
+                            if (args != null && args.length == 1) forecastStates.add(args[0]);
+                            return null;
+                        });
+                Object forecast = daily.getConstructor(Context.class, callback).newInstance(guarded, listener);
+                try {
+                    daily.getMethod("start").invoke(forecast);
+                    check(forecastStates.size() == 1 && forecastStates.get(0).getClass().getField("status")
+                            .get(forecastStates.get(0)) == com.clockmods.weather.WeatherModels.Status.IDLE,
+                            "forecast also waits before permission");
+                    check(!shown.getBoolean(deduplicator), "forecast permission wait has no failure toast");
+                } finally { daily.getMethod("shutdown").invoke(forecast); }
+            } catch (ClassNotFoundException removedInLite) { check(lite, "only Lite omits daily forecasts"); }
+            granted[0] = true;
+            controller.refreshNow();
+            check(states.contains(com.clockmods.weather.WeatherModels.Status.LOADING),
+                    "refresh after granting permission begins location acquisition");
+        } finally {
+            controller.shutdown();
+            shown.setBoolean(deduplicator, previousShown);
+            for (SharedPreferences prefs : stores.values()) prefs.edit().clear().commit();
+        }
     }
     private void checkLocationCleanup() throws Exception {
         Context noLocation = new ContextWrapper(getTargetContext()) {

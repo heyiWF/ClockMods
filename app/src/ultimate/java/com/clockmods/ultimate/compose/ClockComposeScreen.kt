@@ -1,5 +1,7 @@
 package com.clockmods.ultimate.compose
 
+import androidx.compose.runtime.saveable.rememberSaveable
+
 import android.Manifest
 import android.content.BroadcastReceiver
 import android.content.Context
@@ -1039,7 +1041,28 @@ internal fun rememberWeatherState(
 ): WeatherModels.WeatherState? {
     val context = LocalContext.current
     var state by remember { mutableStateOf<WeatherModels.WeatherState?>(null) }
-    var permissionGeneration by remember { mutableIntStateOf(0) }
+    val lifecycleOwner = androidx.lifecycle.compose.LocalLifecycleOwner.current
+    fun hasLocationPermission() =
+        ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED ||
+            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_FINE_LOCATION) ==
+            PackageManager.PERMISSION_GRANTED
+    var permissionGranted by remember { mutableStateOf(hasLocationPermission()) }
+    var permissionRequested by rememberSaveable { mutableStateOf(false) }
+    var permissionDenied by rememberSaveable { mutableStateOf(false) }
+    var resumed by remember(lifecycleOwner) {
+        mutableStateOf(lifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED))
+    }
+    DisposableEffect(lifecycleOwner) {
+        val observer = androidx.lifecycle.LifecycleEventObserver { _, event ->
+            resumed = lifecycleOwner.lifecycle.currentState.isAtLeast(androidx.lifecycle.Lifecycle.State.RESUMED)
+            if (event == androidx.lifecycle.Lifecycle.Event.ON_RESUME) {
+                permissionGranted = hasLocationPermission()
+            }
+        }
+        lifecycleOwner.lifecycle.addObserver(observer)
+        onDispose { lifecycleOwner.lifecycle.removeObserver(observer) }
+    }
     val controller = remember(context, detailedOverride) {
         WeatherController(
             context,
@@ -1053,29 +1076,34 @@ internal fun rememberWeatherState(
     }
     val permissionLauncher = rememberLauncherForActivityResult(
         ActivityResultContracts.RequestMultiplePermissions(),
-    ) {
-        permissionGeneration++
-        controller.refreshNow()
+    ) { grants ->
+        permissionGranted = grants.values.any { it } || hasLocationPermission()
+        permissionDenied = !permissionGranted
     }
-    val enabled = repository.isWeatherEnabled()
+    // The clock composition also exists behind onboarding; it must not request or fetch there.
+    val enabled = repository.isWeatherEnabled() &&
+        com.clockmods.ultimate.SetupWizardActivity.isCompleted(context)
     val automatic = repository.getWeatherLocationMode() != ClockPreferences.WEATHER_LOCATION_MANUAL
-    LaunchedEffect(enabled, automatic, refreshGeneration) {
-        if (enabled && automatic &&
-            ContextCompat.checkSelfPermission(context, Manifest.permission.ACCESS_COARSE_LOCATION) !=
-            PackageManager.PERMISSION_GRANTED
-        ) {
+    val notificationPending = (lifecycleOwner as? com.clockmods.ultimate.ComposeMainActivity)
+        ?.isNotificationPermissionPending() == true
+    LaunchedEffect(enabled, automatic, resumed, refreshGeneration, notificationPending) {
+        if (enabled && automatic && resumed && !notificationPending && !permissionGranted && !permissionRequested) {
+            permissionRequested = true
             permissionLauncher.launch(
-                arrayOf(
-                    Manifest.permission.ACCESS_COARSE_LOCATION,
-                    Manifest.permission.ACCESS_FINE_LOCATION,
-                ),
+                arrayOf(Manifest.permission.ACCESS_COARSE_LOCATION, Manifest.permission.ACCESS_FINE_LOCATION),
             )
         }
     }
-    DisposableEffect(controller, enabled, refreshGeneration, permissionGeneration) {
-        if (enabled) controller.start(repository.getWeatherIntervalMinutes()) else {
+    val permissionMessage = stringResource(if (permissionDenied) R.string.weather_permission_denied else R.string.weather_waiting_permission)
+    DisposableEffect(controller, enabled, automatic, resumed, refreshGeneration, permissionGranted, permissionMessage) {
+        if (enabled && resumed && (!automatic || permissionGranted)) {
+            controller.start(repository.getWeatherIntervalMinutes())
+        } else {
             controller.stop()
-            state = null
+            state = if (enabled && automatic && !permissionGranted) WeatherModels.WeatherState.of(
+                WeatherModels.Status.IDLE,
+                permissionMessage,
+            ) else null
         }
         onDispose(controller::stop)
     }
