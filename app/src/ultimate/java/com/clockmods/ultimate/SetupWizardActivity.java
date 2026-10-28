@@ -337,8 +337,7 @@ public final class SetupWizardActivity extends AppCompatActivity {
         addPageHeading(R.drawable.ultimate_ic_language, R.string.setup_wizard_language_title,
                 R.string.setup_wizard_language_summary);
 
-        languageGroup = new RadioGroup(wizardContext);
-        languageGroup.setOrientation(useWideChoices() ? RadioGroup.HORIZONTAL : RadioGroup.VERTICAL);
+        languageGroup = new LanguageChoices(wizardContext);
         addLanguageOption(ClockPreferences.LANGUAGE_SIMPLIFIED, R.string.ultimate_language_simplified);
         addLanguageOption(ClockPreferences.LANGUAGE_TRADITIONAL, R.string.ultimate_language_traditional);
         addLanguageOption(ClockPreferences.LANGUAGE_ENGLISH, R.string.ultimate_language_english);
@@ -446,6 +445,12 @@ public final class SetupWizardActivity extends AppCompatActivity {
         button.setTextColor(new ColorStateList(new int[][]{
                 {android.R.attr.state_checked}, {}},
                 new int[]{onPrimaryContainerColor(), onSurfaceColor()}));
+        if (group instanceof LanguageChoices) {
+            button.setSingleLine(true);
+            group.addView(button, new RadioGroup.LayoutParams(ViewGroup.LayoutParams.WRAP_CONTENT,
+                    ViewGroup.LayoutParams.WRAP_CONTENT));
+            return;
+        }
         boolean horizontal = group.getOrientation() == RadioGroup.HORIZONTAL;
         RadioGroup.LayoutParams params = new RadioGroup.LayoutParams(
                 horizontal ? 0 : ViewGroup.LayoutParams.MATCH_PARENT,
@@ -455,6 +460,45 @@ public final class SetupWizardActivity extends AppCompatActivity {
             else params.topMargin = dp(compactHeight ? 6 : 10);
         }
         group.addView(button, params);
+    }
+
+    /** Wrap whole language choices at their measured width, preserving RadioGroup selection. */
+    private static final class LanguageChoices extends RadioGroup {
+        private final int gap;
+        LanguageChoices(Context context) {
+            super(context);
+            gap = Math.round(10 * getResources().getDisplayMetrics().density);
+            setBaselineAligned(false);
+        }
+        @Override protected void onMeasure(int widthSpec, int heightSpec) {
+            int width = MeasureSpec.getSize(widthSpec);
+            int available = Math.max(0, width - getPaddingLeft() - getPaddingRight());
+            int x = 0, height = 0, rowHeight = 0;
+            for (int i = 0; i < getChildCount(); i++) {
+                View child = getChildAt(i);
+                child.measure(MeasureSpec.makeMeasureSpec(available, MeasureSpec.AT_MOST),
+                        MeasureSpec.makeMeasureSpec(0, MeasureSpec.UNSPECIFIED));
+                if (x > 0 && x + child.getMeasuredWidth() > available) {
+                    height += rowHeight + gap; x = 0; rowHeight = 0;
+                }
+                x += child.getMeasuredWidth() + gap;
+                rowHeight = Math.max(rowHeight, child.getMeasuredHeight());
+            }
+            setMeasuredDimension(width, resolveSize(height + rowHeight + getPaddingTop() + getPaddingBottom(), heightSpec));
+        }
+        @Override protected void onLayout(boolean changed, int left, int top, int right, int bottom) {
+            int available = right - left - getPaddingLeft() - getPaddingRight();
+            int x = 0, y = getPaddingTop(), rowHeight = 0;
+            boolean rtl = getLayoutDirection() == View.LAYOUT_DIRECTION_RTL;
+            for (int i = 0; i < getChildCount(); i++) {
+                View child = getChildAt(i);
+                int width = child.getMeasuredWidth(), height = child.getMeasuredHeight();
+                if (x > 0 && x + width > available) { y += rowHeight + gap; x = 0; rowHeight = 0; }
+                int start = getPaddingLeft() + (rtl ? available - x - width : x);
+                child.layout(start, y, start + width, y + height);
+                x += width + gap; rowHeight = Math.max(rowHeight, height);
+            }
+        }
     }
 
     private void stylePage() {
