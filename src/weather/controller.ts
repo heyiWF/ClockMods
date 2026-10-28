@@ -30,6 +30,7 @@ import type { QWeatherConfig } from './qweather';
 import { catalogIfLoaded, findById, loadCatalog } from './city-catalog';
 
 const LOCATION_TIMEOUT_MS = 15000;
+const FORECAST_RETRY_MS = 5 * 60 * 1000;
 
 function currentConfig(): QWeatherConfig {
   return {
@@ -82,6 +83,8 @@ export class WeatherController {
   private generation = 0;
   private intervalMinutes = 30;
   private timer: number | null = null;
+  /** Whether the listener already holds weather data; background refreshes then stay silent. */
+  private hasData = false;
 
   /**
    * @param detailedOverride forces the detailed payload regardless of the user
@@ -98,7 +101,10 @@ export class WeatherController {
     this.running = true;
     this.intervalMinutes = intervalMinutes;
     const cached = this.cached();
-    if (cached) this.listener({ status: 'success', data: cached, message: null });
+    if (cached) {
+      this.hasData = true;
+      this.listener({ status: 'success', data: cached, message: null });
+    }
     const incompatible = cached !== null && !satisfies(cached, this.detailedRequired());
     void this.refreshIfNeeded(cached, incompatible);
   }
@@ -134,30 +140,38 @@ export class WeatherController {
       return;
     }
     if (!prefs.isWeatherConfigured()) {
-      this.listener({ status: 'config_error', data: null, message: t('weather_not_configured') });
+      if (!this.hasData) {
+        this.listener({ status: 'config_error', data: null, message: t('weather_not_configured') });
+      }
       return;
     }
-    this.listener({ status: 'loading', data: cached, message: t('weather_fetching') });
+    if (!this.hasData) {
+      this.listener({ status: 'loading', data: null, message: t('weather_fetching') });
+    }
     const generation = ++this.generation;
     try {
       const data = isManualLocation() ? await this.fetchManual() : await this.fetchAutomatic();
       saveWeather(data, isManualLocation() ? WEATHER_LOCATION_MANUAL : WEATHER_LOCATION_AUTOMATIC);
       if (!this.running || generation !== this.generation) return;
+      this.hasData = true;
       this.listener({ status: 'success', data, message: null });
       this.schedule(this.intervalMinutes * 60 * 1000);
     } catch (error) {
       if (!this.running || generation !== this.generation) return;
-      const permissionDenied =
-        typeof GeolocationPositionError !== 'undefined' &&
-        error instanceof GeolocationPositionError &&
-        error.code === error.PERMISSION_DENIED;
-      this.listener({
-        status: permissionDenied ? 'permission_denied' : 'network_error',
-        data: cached,
-        message: permissionDenied
-          ? t('weather_permission_denied')
-          : t('weather_fetch_failed', describeError(error)),
-      });
+      // A failed background refresh keeps the data already on screen.
+      if (!this.hasData) {
+        const permissionDenied =
+          typeof GeolocationPositionError !== 'undefined' &&
+          error instanceof GeolocationPositionError &&
+          error.code === error.PERMISSION_DENIED;
+        this.listener({
+          status: permissionDenied ? 'permission_denied' : 'network_error',
+          data: null,
+          message: permissionDenied
+            ? t('weather_permission_denied')
+            : t('weather_fetch_failed', describeError(error)),
+        });
+      }
       this.schedule(this.intervalMinutes * 60 * 1000);
     }
   }
@@ -229,6 +243,8 @@ export class DailyForecastController {
   private running = false;
   private generation = 0;
   private timer: number | null = null;
+  /** Whether the listener already holds forecast data; background refreshes then stay silent. */
+  private hasData = false;
 
   constructor(private readonly listener: ForecastListener) {}
 
@@ -238,6 +254,7 @@ export class DailyForecastController {
     this.generation++;
     const cached = this.cached();
     if (cached) {
+      this.hasData = true;
       this.listener({ status: 'success', data: cached, message: null });
       this.schedule(this.nextRefreshDelay(cached.updatedAt));
       return;
@@ -268,10 +285,14 @@ export class DailyForecastController {
 
   private async refresh(): Promise<void> {
     if (!prefs.isWeatherConfigured()) {
-      this.listener({ status: 'config_error', data: null, message: t('weather_not_configured') });
+      if (!this.hasData) {
+        this.listener({ status: 'config_error', data: null, message: t('weather_not_configured') });
+      }
       return;
     }
-    this.listener({ status: 'loading', data: null, message: t('forecast_fetching') });
+    if (!this.hasData) {
+      this.listener({ status: 'loading', data: null, message: t('forecast_fetching') });
+    }
     const generation = ++this.generation;
     try {
       const data = isManualLocation()
@@ -285,10 +306,16 @@ export class DailyForecastController {
         : await this.fetchAutomatic();
       saveForecast(data, isManualLocation() ? WEATHER_LOCATION_MANUAL : WEATHER_LOCATION_AUTOMATIC);
       if (!this.running || generation !== this.generation) return;
+      this.hasData = true;
       this.listener({ status: 'success', data, message: null });
       this.schedule(this.nextRefreshDelay(data.updatedAt));
     } catch (error) {
       if (!this.running || generation !== this.generation) return;
+      // A failed background refresh keeps the forecast already on screen and retries later.
+      if (this.hasData) {
+        this.schedule(FORECAST_RETRY_MS);
+        return;
+      }
       this.listener({
         status: 'network_error',
         data: null,
