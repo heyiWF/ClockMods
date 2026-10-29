@@ -15,6 +15,7 @@ import androidx.compose.ui.unit.Density
 import androidx.compose.ui.unit.LayoutDirection
 import androidx.compose.foundation.background
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.selection.toggleable
 import androidx.compose.ui.graphics.graphicsLayer
 import android.content.Context
 import android.os.Bundle
@@ -91,7 +92,6 @@ private fun CalendarLibrary(revision: Int, model: CalendarImportModel, onBack: (
     var linkError by rememberSaveable { mutableStateOf(false) }
     val showEvents = remember(revision) { store.showInDateCarousel() }
     val carouselLabel = stringResource(R.string.calendar_import_carousel)
-    val syncLabel = stringResource(R.string.calendar_sync_enabled)
     var removing by remember { mutableStateOf<UserCalendarStore.Source?>(null) }
     Scaffold(
         topBar = { Box { TopAppBar(
@@ -202,12 +202,8 @@ private fun CalendarLibrary(revision: Int, model: CalendarImportModel, onBack: (
                             if (store.error(file.id) != null) Text(stringResource(R.string.calendar_import_query_error),
                                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
                             if (file.sourceUrl.isNotEmpty()) {
-                                Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
-                                    Text(stringResource(R.string.calendar_sync_enabled), Modifier.weight(1f))
-                                    Switch(file.syncEnabled, onCheckedChange = { model.setSyncEnabled(file.id, it) }, enabled = !busy,
-                                        modifier = Modifier.semantics { contentDescription = syncLabel })
-                                }
-                                Text(stringResource(R.string.calendar_sync_interval), style = MaterialTheme.typography.bodySmall)
+                                CalendarSyncSwitch(file.syncEnabled, enabled = !busy,
+                                    onCheckedChange = { model.setSyncEnabled(file.id, it) })
                                 if (file.lastSyncedAt > 0) Text(stringResource(R.string.calendar_sync_last,
                                     java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT)
                                         .format(java.util.Date(file.lastSyncedAt))), style = MaterialTheme.typography.bodySmall)
@@ -235,17 +231,17 @@ private fun CalendarLibrary(revision: Int, model: CalendarImportModel, onBack: (
     if (showLink) AlertDialog(
         onDismissRequest = { showLink = false },
         title = { Text(stringResource(R.string.calendar_import_link)) },
-        text = { Column(verticalArrangement = Arrangement.spacedBy(16.dp)) {
+        text = { Column(Modifier.fillMaxWidth(), verticalArrangement = Arrangement.spacedBy(16.dp)) {
             Text(stringResource(R.string.calendar_import_link_hint))
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Text(stringResource(R.string.calendar_sync_enabled), Modifier.weight(1f))
-                Switch(syncLink, onCheckedChange = { syncLink = it })
-            }
-            Text(stringResource(R.string.calendar_sync_interval), style = MaterialTheme.typography.bodySmall)
             OutlinedTextField(value = link, onValueChange = { link = it; linkError = false },
+                modifier = Modifier.fillMaxWidth(),
                 label = { Text(stringResource(R.string.calendar_import_url)) }, singleLine = true,
+                leadingIcon = { Icon(painterResource(R.drawable.import_ic_link), null) },
                 keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Uri), isError = linkError,
-                supportingText = { if (linkError) Text(stringResource(R.string.calendar_import_url_invalid)) })
+                supportingText = if (linkError) {{ Text(stringResource(R.string.calendar_import_url_invalid)) }} else null)
+            Surface(shape = RoundedCornerShape(16.dp), color = MaterialTheme.colorScheme.surfaceContainerHigh) {
+                CalendarSyncSwitch(syncLink, onCheckedChange = { syncLink = it }, contentPadding = 16.dp)
+            }
         } },
         confirmButton = { TextButton(enabled = !busy && link.isNotBlank(), onClick = {
             try {
@@ -274,5 +270,26 @@ private class ImportActionReveal(private val fraction: Float) : Shape {
         val width = size.width * fraction.coerceIn(0f, 1f)
         val radius = minOf(size.height / 2f, width / 2f)
         return Outline.Rounded(RoundRect(size.width - width, 0f, size.width, size.height, CornerRadius(radius)))
+    }
+}
+
+/** One switch target includes its title and explanation, so text taps toggle exactly once. */
+@Composable
+private fun CalendarSyncSwitch(
+    checked: Boolean,
+    enabled: Boolean = true,
+    contentPadding: androidx.compose.ui.unit.Dp = 0.dp,
+    onCheckedChange: (Boolean) -> Unit,
+) {
+    Row(Modifier.fillMaxWidth().toggleable(checked, enabled = enabled, role = Role.Switch,
+        onValueChange = onCheckedChange).padding(contentPadding).heightIn(min = 48.dp),
+        verticalAlignment = Alignment.CenterVertically,
+        horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Column(Modifier.weight(1f), verticalArrangement = Arrangement.spacedBy(4.dp)) {
+            Text(stringResource(R.string.calendar_sync_enabled), style = MaterialTheme.typography.titleSmall)
+            Text(stringResource(R.string.calendar_sync_interval), style = MaterialTheme.typography.bodySmall,
+                color = MaterialTheme.colorScheme.onSurfaceVariant)
+        }
+        Switch(checked, onCheckedChange = null, enabled = enabled)
     }
 }

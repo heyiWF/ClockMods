@@ -179,6 +179,20 @@ public final class CalendarImportAcceptance extends Instrumentation {
         check(click(active.getString(R.string.calendar_import_add)), "menu reopens after animation reversal");
         check(click(active.getString(R.string.calendar_import_link)), "link action opens dialog");
         check(waitText(active.getString(R.string.calendar_sync_enabled),true), "link dialog offers optional subscription sync");
+        String syncLabel = active.getString(R.string.calendar_sync_enabled);
+        AccessibilityNodeInfo toggle = actionFor(root(), syncLabel, false);
+        check(toggle != null && toggle.isCheckable() && !toggle.isChecked(), "subscription defaults off");
+        android.graphics.Rect bounds = new android.graphics.Rect(); toggle.getBoundsInScreen(bounds);
+        // Touch the text half, away from the switch thumb, to verify the requested hit target.
+        for (boolean expected : new boolean[]{true, false}) {
+            long now = SystemClock.uptimeMillis();
+            android.view.MotionEvent down = android.view.MotionEvent.obtain(now, now, android.view.MotionEvent.ACTION_DOWN,
+                    bounds.left + bounds.width() / 4f, bounds.centerY(), 0);
+            android.view.MotionEvent up = android.view.MotionEvent.obtain(now, now + 60, android.view.MotionEvent.ACTION_UP,
+                    bounds.left + bounds.width() / 4f, bounds.centerY(), 0);
+            sendPointerSync(down); sendPointerSync(up); down.recycle(); up.recycle(); SystemClock.sleep(200);
+            check(actionFor(root(), syncLabel, false).isChecked() == expected, "text tap toggles subscription " + expected);
+        }
         screenshot("subscription-dialog");
         check(click(active.getString(android.R.string.cancel)), "link dialog cancels without import");
     }
