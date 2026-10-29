@@ -145,12 +145,9 @@ public final class CalendarManagerActivity extends AppCompatActivity {
             if (UserCalendarStore.get(this).error(source.id) != null)
                 text(group, getString(R.string.calendar_import_query_error), 14, false, true);
             if (!source.sourceUrl.isEmpty()) {
-                com.google.android.material.materialswitch.MaterialSwitch sync = new com.google.android.material.materialswitch.MaterialSwitch(this);
-                sync.setText(R.string.calendar_sync_enabled); sync.setMinHeight(dp(48));
-                sync.setChecked(source.syncEnabled); sync.setEnabled(!model.busy);
+                com.google.android.material.materialswitch.MaterialSwitch sync = subscriptionSwitch(source.syncEnabled, !model.busy);
                 sync.setOnCheckedChangeListener((button, checked) -> model.setSyncEnabled(source.id, checked));
                 group.addView(sync, new LinearLayout.LayoutParams(-1, -2));
-                text(group, getString(R.string.calendar_sync_interval), 14, false, true);
                 if (source.lastSyncedAt > 0) text(group, getString(R.string.calendar_sync_last,
                         java.text.DateFormat.getDateTimeInstance(java.text.DateFormat.SHORT, java.text.DateFormat.SHORT)
                                 .format(new java.util.Date(source.lastSyncedAt))), 14, false, true);
@@ -181,17 +178,21 @@ public final class CalendarManagerActivity extends AppCompatActivity {
         com.google.android.material.textfield.TextInputLayout field = new com.google.android.material.textfield.TextInputLayout(this);
         field.setHint(getString(R.string.calendar_import_url));
         field.setBoxBackgroundMode(com.google.android.material.textfield.TextInputLayout.BOX_BACKGROUND_OUTLINE);
-        field.setPadding(dp(24), dp(8), dp(24), 0);
+        field.setStartIconDrawable(R.drawable.import_ic_link);
         com.google.android.material.textfield.TextInputEditText input = new com.google.android.material.textfield.TextInputEditText(field.getContext());
         input.setInputType(android.text.InputType.TYPE_CLASS_TEXT | android.text.InputType.TYPE_TEXT_VARIATION_URI);
         input.setSingleLine(true); field.addView(input);
         LinearLayout form = new LinearLayout(this); form.setOrientation(LinearLayout.VERTICAL);
-        form.addView(field);
-        com.google.android.material.materialswitch.MaterialSwitch sync = new com.google.android.material.materialswitch.MaterialSwitch(this);
-        sync.setText(R.string.calendar_sync_enabled); sync.setPadding(dp(24), dp(8), dp(24), 0);
-        form.addView(sync);
-        TextView hint = text(form, getString(R.string.calendar_sync_interval), 14, false, true);
-        hint.setPadding(dp(24), dp(4), dp(24), dp(8));
+        form.setPadding(dp(24), dp(8), dp(24), 0);
+        form.addView(field, new LinearLayout.LayoutParams(-1, -2));
+        com.google.android.material.materialswitch.MaterialSwitch sync = subscriptionSwitch(false, true);
+        sync.setPadding(dp(16), dp(16), dp(16), dp(16));
+        MaterialCardView syncCard = new MaterialCardView(this);
+        syncCard.setRadius(dp(16)); syncCard.setCardElevation(0); syncCard.setStrokeWidth(0);
+        syncCard.setCardBackgroundColor(color(com.google.android.material.R.attr.colorSurfaceContainerHigh));
+        syncCard.addView(sync, new FrameLayout.LayoutParams(-1, -2));
+        LinearLayout.LayoutParams syncLayout = new LinearLayout.LayoutParams(-1, -2);
+        syncLayout.topMargin = dp(16); form.addView(syncCard, syncLayout);
         androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(this)
                 .setTitle(R.string.calendar_import_link).setMessage(R.string.calendar_import_link_hint)
                 .setView(form).setNegativeButton(android.R.string.cancel, null)
@@ -203,6 +204,17 @@ public final class CalendarManagerActivity extends AppCompatActivity {
             model.importLink(value, sync.isChecked()); dialog.dismiss();
         }));
         dialog.show();
+    }
+    private com.google.android.material.materialswitch.MaterialSwitch subscriptionSwitch(boolean checked, boolean enabled) {
+        com.google.android.material.materialswitch.MaterialSwitch control = new com.google.android.material.materialswitch.MaterialSwitch(this);
+        String title = getString(R.string.calendar_sync_enabled);
+        android.text.SpannableString text = new android.text.SpannableString(title + "\n" + getString(R.string.calendar_sync_interval));
+        text.setSpan(new android.text.style.AbsoluteSizeSpan(14, true), title.length() + 1, text.length(), 0);
+        text.setSpan(new android.text.style.ForegroundColorSpan(color(com.google.android.material.R.attr.colorOnSurfaceVariant)),
+                title.length() + 1, text.length(), 0);
+        control.setText(text); control.setTextSize(16); control.setSwitchPadding(dp(16));
+        control.setMinHeight(dp(64)); control.setChecked(checked); control.setEnabled(enabled);
+        return control;
     }
     private MaterialButton importAction(int title, int icon) {
         RevealButton button = new RevealButton(this);
