@@ -196,4 +196,6 @@
     <string name="calendar_avoid_prefix">"피할 일: "</string>
     <string name="font_size_overflow_warning">레이아웃 보호가 꺼져 있습니다. 글자가 겹치거나 화면 밖으로 나갈 수 있습니다.</string>
     <string name="font_size_auto">자동</string>
+    <string name="weather_certificate_time">인증서 날짜 확인에 실패했습니다. 시스템 날짜와 시간을 확인하고 자동 시간을 켜세요</string>
+    <string name="weather_certificate_trust">날씨 서비스 인증서를 확인할 수 없습니다. 네트워크를 확인하거나 나중에 다시 시도하세요</string>
 </resources>

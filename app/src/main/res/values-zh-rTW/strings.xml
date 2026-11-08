@@ -257,4 +257,6 @@
     </string-array>
     <string name="font_size_overflow_warning">已關閉版面保護，文字可能重疊或超出螢幕。</string>
     <string name="font_size_auto">自動</string>
+    <string name="weather_certificate_time">憑證時間驗證失敗，請檢查系統日期與時間並開啟自動時間</string>
+    <string name="weather_certificate_trust">無法驗證天氣服務的安全憑證，請檢查網路或稍後再試</string>
 </resources>

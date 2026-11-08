@@ -257,4 +257,6 @@
     </string-array>
     <string name="font_size_overflow_warning">Layout protection is off. Text may overlap or extend beyond the screen.</string>
     <string name="font_size_auto">Auto</string>
+    <string name="weather_certificate_time">Certificate date check failed. Check the system date and time and enable automatic time.</string>
+    <string name="weather_certificate_trust">Cannot verify the weather service certificate. Check your network or try again later.</string>
 </resources>

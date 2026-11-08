@@ -829,7 +829,7 @@ object UltimateClockStyles {
         protected fun readableDate(canvas: Canvas, context: ClockRenderContext,
             state: ClockState, x: Float, lowerBaseline: Float, maxWidth: Float,
             preferredSize: Float, color: Int, align: Paint.Align, face: Typeface?,
-            stackLunar: Boolean) {
+            stackLunar: Boolean, minimumTop: Float? = null) {
             if (dateOverflowAllowed()) {
                 val size = preferredSize * state.getDateScale()
                 val lines = if (stackLunar || state.isDateLunarDualLine()) splitDateAndLunar(state.getDateText())
@@ -905,7 +905,8 @@ object UltimateClockStyles {
                 metricsPaint.textSize = size
                 val metrics = metricsPaint.fontMetrics
                 val visibleText = ellipsize(state.getDateText(), safeMaxWidth, size, face)
-                var safeBaseline = maxOf(raisedBaseline, context.getTop() + inset - metrics.ascent)
+                var safeBaseline = maxOf(raisedBaseline,
+                    maxOf(context.getTop() + inset, minimumTop ?: Float.NEGATIVE_INFINITY) - metrics.ascent)
                 safeBaseline = minOf(safeBaseline, context.getBottom() - inset - metrics.descent)
                 safeBaseline += clearStatusOverlay(safeBaseline + metrics.ascent,
                     safeBaseline + metrics.descent, size, metricsPaint.measureText(visibleText))
@@ -927,7 +928,7 @@ object UltimateClockStyles {
             val secondText = ellipsize(lines[1], safeMaxWidth, size, face)
             val textWidth = maxOf(metricsPaint.measureText(firstText), metricsPaint.measureText(secondText))
             var safeLowerBaseline = maxOf(raisedBaseline,
-                context.getTop() + inset + lineGap - metrics.ascent)
+                maxOf(context.getTop() + inset, minimumTop ?: Float.NEGATIVE_INFINITY) + lineGap - metrics.ascent)
             safeLowerBaseline = minOf(safeLowerBaseline,
                 context.getBottom() - inset - metrics.descent)
             safeLowerBaseline += clearStatusOverlay(safeLowerBaseline - lineGap + metrics.ascent,

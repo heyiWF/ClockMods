@@ -196,4 +196,6 @@
     <string name="calendar_avoid_prefix">"忌："</string>
     <string name="font_size_overflow_warning">レイアウト保護はオフです。文字が重なったり画面外にはみ出したりする場合があります。</string>
     <string name="font_size_auto">自動</string>
+    <string name="weather_certificate_time">証明書の日時を検証できません。システムの日時を確認し、自動設定を有効にしてください</string>
+    <string name="weather_certificate_trust">天気サービスの証明書を検証できません。ネットワークを確認するか、後で再試行してください</string>
 </resources>

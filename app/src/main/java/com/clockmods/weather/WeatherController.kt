@@ -98,6 +98,10 @@ class WeatherController @JvmOverloads constructor(context: Context, private val 
     private fun msg(resId: Int): String = LocaleManager.wrap(context)!!.getString(resId)
     private fun msg(resId: Int, vararg args: Any): String = LocaleManager.wrap(context)!!.getString(resId, *args)
     private fun newest(first: Location?, second: Location?): Location? = when { first == null -> second; second == null -> first; first.time >= second.time -> first; else -> second }
-    private fun describeError(error: Throwable) = error.message?.trim().takeUnless { it.isNullOrEmpty() } ?: error.javaClass.simpleName
+    private fun describeError(error: Throwable): String = when (WeatherFailure.certificateProblem(error)) {
+        WeatherFailure.CertificateProblem.TIME -> msg(R.string.weather_certificate_time)
+        WeatherFailure.CertificateProblem.TRUST -> msg(R.string.weather_certificate_trust)
+        null -> error.message?.trim().takeUnless { it.isNullOrEmpty() } ?: error.javaClass.simpleName
+    }
     companion object { private const val LOCATION_TIMEOUT_MS = 15000L }
 }

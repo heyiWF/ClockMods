@@ -544,7 +544,6 @@ internal fun AutomaticFontSlider(
         if (value != 0f) Text(valueLabel, color = MaterialTheme.colorScheme.primary)
         Slider(value = value.coerceIn(range),
             onValueChange = { onChange((it * 100).roundToInt() / 100f) },
-            steps = ((range.endInclusive - range.start) * 100).roundToInt() - 1,
             valueRange = range, enabled = enabled)
     }
 }

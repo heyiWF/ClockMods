@@ -257,4 +257,6 @@
     </string-array>
     <string name="font_size_overflow_warning">已关闭布局保护，文字可能重叠或超出屏幕。</string>
     <string name="font_size_auto">自动</string>
+    <string name="weather_certificate_time">证书时间校验失败，请检查系统日期和时间并开启自动时间</string>
+    <string name="weather_certificate_trust">无法验证天气服务的安全证书，请检查网络或稍后重试</string>
 </resources>

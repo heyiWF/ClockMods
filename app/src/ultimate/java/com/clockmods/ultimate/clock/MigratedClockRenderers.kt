@@ -211,6 +211,7 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         drawDate(
             canvas, context, state, first.left + first.width() * .05f, dateBaseline,
             first.width() * .74f, Paint.Align.LEFT, colors.onPanel, supporting, unit * .034f,
+            minimumTop = first.top + min(context.getDensity() * 20f, first.height() * .05f),
         )
         drawContext(
             canvas, context, state, second.right - second.width() * .05f,
@@ -700,12 +701,14 @@ internal abstract class MigratedRenderer : UltimateClockStyles.RendererBase() {
         color: Int,
         face: Typeface?,
         size: Float,
+        minimumTop: Float? = null,
     ) {
         withPhotoText(glass != null && mode in PHOTO_TEXT_MODES) {
             readableDate(
                 canvas, context, state, x, baseline,
                 maxWidth, size, color, align, face,
                 context.getHeight() > context.getWidth(),
+                minimumTop,
             )
         }
     }
