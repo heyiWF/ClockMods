@@ -35,7 +35,8 @@ public final class ReadmeCapture {
             test.getTargetContext().getSharedPreferences("clockmods_onboarding", 0)
                     .edit().putBoolean("completed", true).commit();
             open(test, "com.clockmods.ultimate.UltimateMainActivity", null);
-            SystemClock.sleep(5000);
+            awaitClockFrame(test);
+            SystemClock.sleep(2500);
             shot(test, "clock");
             android.os.ParcelFileDescriptor recording = test.getUiAutomation().executeShellCommand(
                     "screenrecord --bit-rate 6000000 --time-limit 26 /sdcard/" + pkg + "-overview.mp4");
@@ -67,6 +68,21 @@ public final class ReadmeCapture {
             report.putString("failure", android.util.Log.getStackTraceString(error));
             test.finish(Activity.RESULT_CANCELED, report);
         }
+    }
+    private static void awaitClockFrame(Instrumentation test) {
+        long deadline = SystemClock.uptimeMillis() + 40000;
+        do {
+            SystemClock.sleep(500);
+            Bitmap frame = test.getUiAutomation().takeScreenshot();
+            if (frame == null) continue;
+            java.util.Set<Integer> colors = new java.util.HashSet<>();
+            for (int y = frame.getHeight() / 5; y < frame.getHeight() * 4 / 5; y += 13)
+                for (int x = frame.getWidth() / 5; x < frame.getWidth() * 4 / 5; x += 13)
+                    colors.add(frame.getPixel(x, y));
+            frame.recycle();
+            if (colors.size() > 6) return;
+        } while (SystemClock.uptimeMillis() < deadline);
+        throw new IllegalStateException("Clock content did not render before capture");
     }
     private static void open(Instrumentation test, String name, String page) {
         Intent intent = new Intent().setClassName(test.getTargetContext(), name)

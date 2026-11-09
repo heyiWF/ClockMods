@@ -22,6 +22,10 @@ The runner's default `gesture` mode injects actual edge touches and checks scree
 
 The MuMu device initially had hardware-key navigation (`qemu.hw.mainkeys=1`) and an unattached `EdgeBackGestureHandler`. Real gesture validation requires an attached, enabled gesture handler, not only setting the predictive animation flag. The current device also cancels direct UiAutomation touch streams; the test uses Android's shell touch stream instead.
 
+Verified on 2026-11-09 with Android 15 and an attached system edge-back handler: each branch passed 40 primary gesture checks and 10 setup/store gesture checks. Both left/right cancellation and completion are exercised for settings detail, with cancellation/completion for library activities, root settings, import actions, link dialog, setup steps and the theme store. These are real shell touch gestures, not dispatcher fallback results.
+
+Unit tests: Views 291 total (1 skipped), Compose 310 total (1 skipped), no failures or errors. Both APK builds and Lint completed successfully; existing Lint warnings remain.
+
 ## README capture
 
 `-e mode media` captures the running audit app after rendering and weather initialization, using the current automatic system date. It writes screenshots to the audit application's external `readme` directory and a screen recording to `/sdcard/<audit-package>-overview.mp4`. Recordings are H.264 MP4 and the README uses GitHub video attachments, since GitHub strips arbitrary HTML video tags pointing to repository files. Repository MP4 copies remain available for offline viewing.
