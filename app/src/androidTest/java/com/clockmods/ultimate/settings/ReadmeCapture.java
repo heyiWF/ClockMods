@@ -35,27 +35,28 @@ public final class ReadmeCapture {
             test.getTargetContext().getSharedPreferences("clockmods_onboarding", 0)
                     .edit().putBoolean("completed", true).commit();
             open(test, "com.clockmods.ultimate.UltimateMainActivity", null);
-            SystemClock.sleep(5000);
+            awaitClockFrame(test);
+            SystemClock.sleep(2500);
             shot(test, "clock");
             android.os.ParcelFileDescriptor recording = test.getUiAutomation().executeShellCommand(
-                    "screenrecord --bit-rate 6000000 --time-limit 26 /sdcard/" + pkg + "-overview.mp4");
+                    "screenrecord --bit-rate 6000000 --time-limit 50 /sdcard/" + pkg + "-overview.mp4");
             SystemClock.sleep(3200);
-            swipe(test);
-            SystemClock.sleep(3200);
+            selectCalendar(test);
+            SystemClock.sleep(8000);
             shot(test, "calendar");
             open(test, UltimateSettingsActivity.class.getName(), null);
-            SystemClock.sleep(2800);
+            SystemClock.sleep(6000);
             shot(test, "settings");
             open(test, CalendarManagerActivity.class.getName(), null);
-            SystemClock.sleep(2800);
+            SystemClock.sleep(6000);
             shot(test, "calendar-library");
             test.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK);
-            SystemClock.sleep(1500);
+            SystemClock.sleep(3000);
             open(test, FontManagerActivity.class.getName(), null);
-            SystemClock.sleep(2800);
+            SystemClock.sleep(6000);
             shot(test, "font-library");
             test.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK);
-            SystemClock.sleep(1500);
+            SystemClock.sleep(3000);
             test.sendKeyDownUpSync(android.view.KeyEvent.KEYCODE_BACK);
             SystemClock.sleep(2500);
             try (java.io.InputStream stream = new android.os.ParcelFileDescriptor.AutoCloseInputStream(recording)) {
@@ -67,6 +68,49 @@ public final class ReadmeCapture {
             report.putString("failure", android.util.Log.getStackTraceString(error));
             test.finish(Activity.RESULT_CANCELED, report);
         }
+    }
+    private static void selectCalendar(Instrumentation test) throws Exception {
+        Bitmap frame = test.getUiAutomation().takeScreenshot();
+        int x = frame.getWidth() / 2, y = frame.getHeight() / 2;
+        frame.recycle();
+        try (java.io.InputStream input = new android.os.ParcelFileDescriptor.AutoCloseInputStream(
+                test.getUiAutomation().executeShellCommand("input tap " + x + " " + y))) {
+            while (input.read() != -1) { }
+        }
+        long deadline = SystemClock.uptimeMillis() + 6000;
+        do {
+            SystemClock.sleep(250);
+            test.getUiAutomation().clearCache();
+            android.view.accessibility.AccessibilityNodeInfo root = test.getUiAutomation().getRootInActiveWindow();
+            if (clickCalendar(root, test.getTargetContext().getString(com.clockmods.R.string.pro_page_calendar))) return;
+        } while (SystemClock.uptimeMillis() < deadline);
+        throw new IllegalStateException("Calendar navigation was not available");
+    }
+    private static boolean clickCalendar(android.view.accessibility.AccessibilityNodeInfo node, String label) {
+        if (node == null) return false;
+        if (label.contentEquals(node.getContentDescription() == null ? "" : node.getContentDescription())
+                || label.contentEquals(node.getText() == null ? "" : node.getText())) {
+            android.view.accessibility.AccessibilityNodeInfo target = node;
+            while (target != null && !target.isClickable()) target = target.getParent();
+            if (target != null && target.performAction(android.view.accessibility.AccessibilityNodeInfo.ACTION_CLICK)) return true;
+        }
+        for (int i = 0; i < node.getChildCount(); i++) if (clickCalendar(node.getChild(i), label)) return true;
+        return false;
+    }
+    private static void awaitClockFrame(Instrumentation test) {
+        long deadline = SystemClock.uptimeMillis() + 40000;
+        do {
+            SystemClock.sleep(500);
+            Bitmap frame = test.getUiAutomation().takeScreenshot();
+            if (frame == null) continue;
+            java.util.Set<Integer> colors = new java.util.HashSet<>();
+            for (int y = frame.getHeight() / 5; y < frame.getHeight() * 4 / 5; y += 13)
+                for (int x = frame.getWidth() / 5; x < frame.getWidth() * 4 / 5; x += 13)
+                    colors.add(frame.getPixel(x, y));
+            frame.recycle();
+            if (colors.size() > 6) return;
+        } while (SystemClock.uptimeMillis() < deadline);
+        throw new IllegalStateException("Clock content did not render before capture");
     }
     private static void open(Instrumentation test, String name, String page) {
         Intent intent = new Intent().setClassName(test.getTargetContext(), name)
