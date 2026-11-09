@@ -936,7 +936,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
 
     private void confirmThemeDelete(boolean calendar, String id, Runnable afterDelete) {
         com.clockmods.background.ThemeLibrary library = themeLibrary(calendar);
-        MaterialAlertDialogBuilder builder = new MaterialAlertDialogBuilder(this)
+        MaterialAlertDialogBuilder builder = new com.clockmods.ultimate.navigation.PredictiveAlertDialogBuilder(this)
                 .setTitle(getString(R.string.theme_delete_title, themeName(calendar, id)));
         if (library.installed().size() <= 1) {
             builder.setMessage(R.string.theme_keep_one).setPositiveButton(R.string.theme_done, null).show();
@@ -963,7 +963,30 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         card.addView(target, new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.TOP | Gravity.END));
         target.setVisibility(View.GONE);
         target.setElevation(dp(8));
-        card.setOnLongClickListener(view -> { target.setVisibility(View.VISIBLE); return true; });
+        androidx.activity.OnBackPressedCallback closeBadge = new androidx.activity.OnBackPressedCallback(false) {
+            @Override public void handleOnBackProgressed(androidx.activity.BackEventCompat event) {
+                target.setAlpha(1f - event.getProgress());
+                target.setScaleX(1f - event.getProgress()); target.setScaleY(1f - event.getProgress());
+            }
+            @Override public void handleOnBackCancelled() {
+                target.animate().alpha(1f).scaleX(1f).scaleY(1f).setDuration(180).start();
+            }
+            @Override public void handleOnBackStarted(androidx.activity.BackEventCompat event) {
+                target.animate().cancel();
+            }
+            @Override public void handleOnBackPressed() {
+                target.setVisibility(View.GONE); setEnabled(false);
+            }
+        };
+        getOnBackPressedDispatcher().addCallback(this, closeBadge);
+        target.addOnAttachStateChangeListener(new View.OnAttachStateChangeListener() {
+            @Override public void onViewAttachedToWindow(View view) {}
+            @Override public void onViewDetachedFromWindow(View view) { closeBadge.remove(); }
+        });
+        card.setOnLongClickListener(view -> {
+            target.setAlpha(1f); target.setScaleX(1f); target.setScaleY(1f);
+            target.setVisibility(View.VISIBLE); closeBadge.setEnabled(true); return true;
+        });
         target.setOnClickListener(view -> confirmThemeDelete(calendar, id, null));
     }
 
@@ -1004,6 +1027,8 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         root.setOrientation(LinearLayout.VERTICAL);
         root.setBackgroundColor(surfaceColor());
         themeStoreDialog.setContentView(root);
+        com.clockmods.ultimate.navigation.DialogBackAnimation.install(
+                themeStoreDialog.getWindow().getDecorView(), themeStoreDialog::cancel);
         themeStoreDialog.show();
         Window window = themeStoreDialog.getWindow();
         if (window != null) {
@@ -1445,7 +1470,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.WRAP_CONTENT, dp(48)));
         content.addView(actions, topMargin(wrapParams(), dp(8)));
 
-        AlertDialog dialog = new MaterialAlertDialogBuilder(this).setView(content).create();
+        AlertDialog dialog = new com.clockmods.ultimate.navigation.PredictiveAlertDialogBuilder(this).setView(content).create();
         dialogRef[0] = dialog;
         cancel.setOnClickListener(view -> dialog.dismiss());
         save.setOnClickListener(view -> {
@@ -1642,7 +1667,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 value.setText(getString(R.string.ultimate_dp_value, Math.round(selected))));
         content.addView(value, wrapParams());
         content.addView(slider, topMargin(wrapParams(), dp(8)));
-        new MaterialAlertDialogBuilder(this).setTitle(titleRes).setView(content)
+        new com.clockmods.ultimate.navigation.PredictiveAlertDialogBuilder(this).setTitle(titleRes).setView(content)
                 .setNegativeButton(R.string.ultimate_cancel, null)
                 .setPositiveButton(R.string.ultimate_apply, (dialog, which) -> {
                     change.apply(slider.getValue());
@@ -2915,7 +2940,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             IntChange change, String source, boolean refreshPage) {
         int safeSelected = selected < 0 || selected >= items.length ? 0 : selected;
         Page pageToRefresh = currentPage;
-        new MaterialAlertDialogBuilder(this)
+        new com.clockmods.ultimate.navigation.PredictiveAlertDialogBuilder(this)
                 .setTitle(titleRes)
                 .setSingleChoiceItems(items, safeSelected, (dialog, which) -> {
                     change.apply(which);
@@ -3134,7 +3159,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         holder.setMinimumHeight(holderHeight);
         holder.addView(scroll, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.MATCH_PARENT));
-        AlertDialog dialog = new MaterialAlertDialogBuilder(this)
+        AlertDialog dialog = new com.clockmods.ultimate.navigation.PredictiveAlertDialogBuilder(this)
                 .setTitle(R.string.ultimate_style_palette)
                 .setView(holder)
                 .setNegativeButton(R.string.ultimate_cancel, null)
@@ -3224,7 +3249,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         holder.addView(picker, new FrameLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, dp(230)));
         Page pageToRefresh = currentPage;
-        new MaterialAlertDialogBuilder(this)
+        new com.clockmods.ultimate.navigation.PredictiveAlertDialogBuilder(this)
                 .setTitle(titleRes)
                 .setView(holder)
                 .setNegativeButton(R.string.ultimate_cancel, null)
@@ -3321,7 +3346,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         });
         refreshPreview.run();
 
-        AlertDialog dialog = new MaterialAlertDialogBuilder(this)
+        AlertDialog dialog = new com.clockmods.ultimate.navigation.PredictiveAlertDialogBuilder(this)
                 .setTitle(R.string.ultimate_date_format)
                 .setMessage(R.string.ultimate_date_format_help)
                 .setView(content)
@@ -3357,7 +3382,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         help.setAllCaps(false);
         help.setInsetTop(0);
         help.setInsetBottom(0);
-        help.setOnClickListener(view -> new MaterialAlertDialogBuilder(this)
+        help.setOnClickListener(view -> new com.clockmods.ultimate.navigation.PredictiveAlertDialogBuilder(this)
                 .setTitle(R.string.date_format_help_title)
                 .setMessage(english ? R.string.date_format_help_body_en
                         : R.string.date_format_help_body_cn)
@@ -3405,7 +3430,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.MATCH_PARENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         LinearLayout content = dialogContent();
         content.addView(field, wrapParams());
-        new MaterialAlertDialogBuilder(this)
+        new com.clockmods.ultimate.navigation.PredictiveAlertDialogBuilder(this)
                 .setTitle(R.string.ultimate_custom_message)
                 .setView(content)
                 .setNegativeButton(R.string.ultimate_cancel, null)

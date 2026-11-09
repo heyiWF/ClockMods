@@ -160,7 +160,7 @@ public final class ProTimerFragment extends Fragment {
         pickers.addView(minutes, pickerParams());
         pickers.addView(seconds, pickerParams());
 
-        AlertDialog dialog = new MaterialAlertDialogBuilder(requireContext())
+        AlertDialog dialog = new com.clockmods.ultimate.navigation.PredictiveAlertDialogBuilder(requireContext())
             .setTitle(R.string.timer_custom_title)
             .setView(pickers)
             .setNegativeButton(R.string.cancel, null)

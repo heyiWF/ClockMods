@@ -697,7 +697,7 @@ public final class ProCalendarFragment extends Fragment implements CalendarLayou
         content.addView(yearPicker, pickerParams);
         content.addView(monthPicker, pickerParams);
 
-        new MaterialAlertDialogBuilder(requireContext())
+        new com.clockmods.ultimate.navigation.PredictiveAlertDialogBuilder(requireContext())
                 .setTitle(R.string.calendar_jump_title)
                 .setView(content)
                 .setNegativeButton(R.string.cancel, null)

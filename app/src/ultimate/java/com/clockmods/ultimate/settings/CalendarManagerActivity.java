@@ -40,6 +40,16 @@ public final class CalendarManagerActivity extends AppCompatActivity {
     private android.graphics.drawable.RotateDrawable addIcon;
     private final androidx.activity.OnBackPressedCallback closeMenu = new androidx.activity.OnBackPressedCallback(false) {
         @Override public void handleOnBackPressed() { setMenuExpanded(false, true); }
+        @Override public void handleOnBackStarted(androidx.activity.BackEventCompat event) {
+            if (menuAnimator != null) menuAnimator.cancel();
+        }
+        @Override public void handleOnBackProgressed(androidx.activity.BackEventCompat event) {
+            renderMenuProgress(1f - event.getProgress());
+            for (int i = 0; i < importActions.getChildCount(); i++) {
+                ((RevealButton) importActions.getChildAt(i)).seek(1f - event.getProgress());
+            }
+        }
+        @Override public void handleOnBackCancelled() { setMenuExpanded(true, true); }
     };
     private CalendarImportModel model;
     private final ActivityResultLauncher<String[]> picker = registerForActivityResult(
@@ -164,7 +174,7 @@ public final class CalendarManagerActivity extends AppCompatActivity {
             remove.setIconTint(ColorStateList.valueOf(color(androidx.appcompat.R.attr.colorError)));
             remove.setContentDescription(getString(R.string.calendar_import_delete) + " " + source.name);
             remove.setMinHeight(dp(48)); remove.setEnabled(!model.busy);
-            remove.setOnClickListener(view -> new MaterialAlertDialogBuilder(this)
+            remove.setOnClickListener(view -> new com.clockmods.ultimate.navigation.PredictiveAlertDialogBuilder(this)
                     .setTitle(R.string.calendar_import_delete)
                     .setMessage(getString(R.string.calendar_import_delete_confirm, source.name))
                     .setNegativeButton(android.R.string.cancel, null)
@@ -193,7 +203,7 @@ public final class CalendarManagerActivity extends AppCompatActivity {
         syncCard.addView(sync, new FrameLayout.LayoutParams(-1, -2));
         LinearLayout.LayoutParams syncLayout = new LinearLayout.LayoutParams(-1, -2);
         syncLayout.topMargin = dp(16); form.addView(syncCard, syncLayout);
-        androidx.appcompat.app.AlertDialog dialog = new MaterialAlertDialogBuilder(this)
+        androidx.appcompat.app.AlertDialog dialog = new com.clockmods.ultimate.navigation.PredictiveAlertDialogBuilder(this)
                 .setTitle(R.string.calendar_import_link).setMessage(R.string.calendar_import_link_hint)
                 .setView(form).setNegativeButton(android.R.string.cancel, null)
                 .setPositiveButton(R.string.calendar_import_add, null).create();
@@ -237,7 +247,19 @@ public final class CalendarManagerActivity extends AppCompatActivity {
         menuAnimator.setDuration(animate ? 200 : 0);
         menuAnimator.setInterpolator(new android.view.animation.LinearInterpolator());
         menuAnimator.addUpdateListener(animation -> {
-            menuProgress = (float) animation.getAnimatedValue();
+            renderMenuProgress((float) animation.getAnimatedValue());
+        });
+        menuAnimator.start();
+        for (int i = 0; i < importActions.getChildCount(); i++) {
+            RevealButton item = (RevealButton) importActions.getChildAt(i);
+            item.setEnabled(expanded && !model.busy);
+            item.setImportantForAccessibility(expanded ? View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
+                    : View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
+            item.expand(expanded, animate, expanded ? importActions.getChildCount() - 1 - i : i);
+        }
+    }
+    private void renderMenuProgress(float progress) {
+        menuProgress = progress;
             menuScrim.setAlpha(.94f * menuProgress);
             toolbar.setAlpha(1f - .94f * menuProgress);
             addIcon.setLevel(Math.round(menuProgress * 10000));
@@ -250,15 +272,6 @@ public final class CalendarManagerActivity extends AppCompatActivity {
             if (menuProgress == 0f && !menuExpanded) {
                 menuScrim.setVisibility(View.GONE); importActions.setVisibility(View.INVISIBLE);
             }
-        });
-        menuAnimator.start();
-        for (int i = 0; i < importActions.getChildCount(); i++) {
-            RevealButton item = (RevealButton) importActions.getChildAt(i);
-            item.setEnabled(expanded && !model.busy);
-            item.setImportantForAccessibility(expanded ? View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
-                    : View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
-            item.expand(expanded, animate, expanded ? importActions.getChildCount() - 1 - i : i);
-        }
     }
     private int blend(int collapsed, int expanded) {
         return androidx.core.graphics.ColorUtils.blendARGB(color(collapsed), color(expanded), menuProgress);
@@ -269,6 +282,11 @@ public final class CalendarManagerActivity extends AppCompatActivity {
         private float fraction;
         private android.animation.ValueAnimator animator;
         RevealButton(Context context) { super(context); }
+        void seek(float progress) {
+            if (animator != null) animator.cancel();
+            fraction = progress;
+            setAlpha(Math.min(1f, fraction * 3f)); invalidate();
+        }
         void expand(boolean expanded, boolean animate, int order) {
             if (animator != null) animator.cancel();
             animator = android.animation.ValueAnimator.ofFloat(fraction, expanded ? 1f : 0f);

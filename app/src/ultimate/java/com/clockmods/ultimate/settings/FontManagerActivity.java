@@ -118,7 +118,7 @@ public final class FontManagerActivity extends AppCompatActivity {
                 remove.setIconTint(ColorStateList.valueOf(color(androidx.appcompat.R.attr.colorError)));
                 remove.setContentDescription(getString(R.string.font_import_delete) + " " + face.source.name);
                 remove.setMinHeight(dp(48)); remove.setEnabled(!model.busy);
-                remove.setOnClickListener(view -> new MaterialAlertDialogBuilder(this)
+                remove.setOnClickListener(view -> new com.clockmods.ultimate.navigation.PredictiveAlertDialogBuilder(this)
                         .setTitle(R.string.font_import_delete)
                         .setMessage(getString(R.string.font_import_delete_confirm, face.source.name))
                         .setNegativeButton(android.R.string.cancel, null)

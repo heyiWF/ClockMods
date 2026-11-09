@@ -78,7 +78,7 @@ public final class WeatherLocationChooser {
             }
         });
 
-        new MaterialAlertDialogBuilder(context)
+        new com.clockmods.ultimate.navigation.PredictiveAlertDialogBuilder(context)
                 .setTitle(R.string.weather_choose_location)
                 .setView(content)
                 .setNegativeButton(R.string.cancel, null)

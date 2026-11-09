@@ -86,7 +86,7 @@ final class StatusIconStyleDialog {
         opticalHint.setText(R.string.ultimate_status_icon_optical_size_summary);
         content.addView(opticalHint);
 
-        new MaterialAlertDialogBuilder(activity)
+        new com.clockmods.ultimate.navigation.PredictiveAlertDialogBuilder(activity)
                 .setTitle(R.string.ultimate_status_icon_style)
                 .setView(scroll)
                 .setNegativeButton(R.string.ultimate_cancel, null)

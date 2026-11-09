@@ -60,6 +60,7 @@ public final class SetupWizardActivity extends AppCompatActivity {
     private static final int STEP_COUNT = 4;
 
     private int step;
+    private OnBackPressedCallback stepBack;
     private Context wizardContext;
     private LinearLayout pageHost;
     private LinearLayout pageContent;
@@ -147,12 +148,64 @@ public final class SetupWizardActivity extends AppCompatActivity {
         }
         buildShell();
         showStep(savedInstanceState == null ? 0 : savedInstanceState.getInt(STATE_STEP, 0));
-        getOnBackPressedDispatcher().addCallback(this, new OnBackPressedCallback(true) {
-            @Override
-            public void handleOnBackPressed() {
-                finishWithoutChanges();
+        stepBack = new OnBackPressedCallback(step > 0) {
+            private android.graphics.Bitmap frame;
+            private android.widget.ImageView preview;
+            private int originalStep;
+            private int originalScroll;
+            private void clearPreview() {
+                android.widget.ImageView oldPreview = preview;
+                preview = null;
+                if (oldPreview != null) {
+                    oldPreview.animate().cancel();
+                    pageScroll.getOverlay().remove(oldPreview);
+                }
+                if (frame != null) frame.recycle();
+                frame = null;
             }
-        });
+            @Override public void handleOnBackStarted(androidx.activity.BackEventCompat event) {
+                clearPreview();
+                captureCurrentStep();
+                originalStep = step;
+                originalScroll = pageScroll.getScrollY();
+                if (pageScroll.getWidth() == 0 || pageScroll.getHeight() == 0) return;
+                frame = android.graphics.Bitmap.createBitmap(pageScroll.getWidth(), pageScroll.getHeight(),
+                        android.graphics.Bitmap.Config.ARGB_8888);
+                pageScroll.draw(new android.graphics.Canvas(frame));
+                preview = new android.widget.ImageView(SetupWizardActivity.this);
+                preview.setBackgroundColor(surfaceColor());
+                preview.setImageBitmap(frame);
+                preview.layout(0, 0, pageScroll.getWidth(), pageScroll.getHeight());
+                showStep(originalStep - 1);
+                // Keep saved navigation state at the origin until the gesture commits.
+                step = originalStep;
+                setEnabled(true);
+                pageScroll.getOverlay().add(preview);
+            }
+            @Override public void handleOnBackProgressed(androidx.activity.BackEventCompat event) {
+                if (preview == null) return;
+                float sign = event.getSwipeEdge() == androidx.activity.BackEventCompat.EDGE_LEFT ? 1f : -1f;
+                preview.setTranslationX(sign * preview.getWidth() * event.getProgress());
+                preview.setAlpha(1f - .2f * event.getProgress());
+            }
+            @Override public void handleOnBackCancelled() {
+                android.widget.ImageView cancelledPreview = preview;
+                if (cancelledPreview == null) return;
+                cancelledPreview.animate().translationX(0f).alpha(1f).setDuration(180)
+                        .withEndAction(() -> {
+                            if (preview != cancelledPreview) return;
+                            clearPreview();
+                            showStep(originalStep);
+                            pageScroll.post(() -> pageScroll.scrollTo(0, originalScroll));
+                        }).start();
+            }
+            @Override public void handleOnBackPressed() {
+                if (preview == null) { finishWithoutChanges(); return; }
+                clearPreview();
+                showStep(originalStep - 1);
+            }
+        };
+        getOnBackPressedDispatcher().addCallback(this, stepBack);
     }
 
     private void buildShell() {
@@ -305,6 +358,7 @@ public final class SetupWizardActivity extends AppCompatActivity {
 
     private void showStep(int requestedStep) {
         step = Math.max(0, Math.min(STEP_COUNT - 1, requestedStep));
+        if (stepBack != null) stepBack.setEnabled(step > 0);
         pageHost.removeAllViews();
         styleCards.clear();
         styleRadios.clear();
@@ -765,6 +819,12 @@ public final class SetupWizardActivity extends AppCompatActivity {
         for (int index = 0; index < group.getChildCount(); index++) {
             group.getChildAt(index).setEnabled(enabled);
         }
+    }
+
+    @Override public void finish() {
+        // A system-owned root Back must have the same skip semantics as the toolbar.
+        markCompleted(this);
+        super.finish();
     }
 
     private void finishWithoutChanges() {

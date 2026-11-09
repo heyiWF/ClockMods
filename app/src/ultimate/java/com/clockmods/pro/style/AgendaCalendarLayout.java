@@ -543,7 +543,7 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
      */
     private void showScheduleEditor(@Nullable ScheduleItem existing) {
         if (existing != null && !existing.importSource.isEmpty()) {
-            new MaterialAlertDialogBuilder(context).setTitle(existing.title).setMessage(existing.details)
+            new com.clockmods.ultimate.navigation.PredictiveAlertDialogBuilder(context).setTitle(existing.title).setMessage(existing.details)
                     .setPositiveButton(android.R.string.ok, null).show();
             return;
         }
@@ -590,7 +590,7 @@ public final class AgendaCalendarLayout implements CalendarLayout, CalendarPager
         timeParams.topMargin = Math.round(density * 12f);
         content.addView(timeField, timeParams);
 
-        MaterialAlertDialogBuilder editor = new MaterialAlertDialogBuilder(context)
+        MaterialAlertDialogBuilder editor = new com.clockmods.ultimate.navigation.PredictiveAlertDialogBuilder(context)
                 .setTitle(existing == null ? R.string.ultimate_schedule_dialog_add
                         : R.string.ultimate_schedule_dialog_edit)
                 .setView(content)
