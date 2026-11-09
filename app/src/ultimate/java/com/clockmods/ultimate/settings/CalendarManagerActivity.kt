@@ -1,6 +1,10 @@
 package com.clockmods.ultimate.settings
 
-import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
+import androidx.compose.animation.core.SeekableTransitionState
+import androidx.compose.animation.core.rememberTransition
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.core.animateFloat
@@ -32,6 +36,7 @@ import androidx.compose.material.icons.automirrored.filled.ArrowBack
 import androidx.compose.material.icons.outlined.Add
 import androidx.compose.material.icons.outlined.Delete
 import androidx.compose.material3.*
+import com.clockmods.ultimate.navigation.PredictiveAlertDialog as AlertDialog
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.foundation.text.KeyboardOptions
@@ -80,9 +85,19 @@ private fun CalendarLibrary(revision: Int, model: CalendarImportModel, onBack: (
     var showLink by rememberSaveable { mutableStateOf(false) }
     var menuExpanded by rememberSaveable { mutableStateOf(false) }
     var syncLink by rememberSaveable { mutableStateOf(false) }
-    BackHandler(menuExpanded) { menuExpanded = false }
+    val menuState = remember { SeekableTransitionState(menuExpanded) }
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(menuExpanded) { menuState.animateTo(menuExpanded) }
+    PredictiveBackHandler(menuExpanded && !showLink) { events ->
+        try {
+            events.collect { menuState.seekTo(it.progress, false) }
+            menuExpanded = false
+        } catch (_: CancellationException) {
+            scope.launch { menuState.animateTo(menuExpanded) }
+        }
+    }
     LaunchedEffect(busy) { if (busy) menuExpanded = false }
-    val menuTransition = updateTransition(menuExpanded, label = "import menu")
+    val menuTransition = rememberTransition(menuState, label = "import menu")
     val menuProgress by menuTransition.animateFloat(
         transitionSpec = { tween(200, easing = LinearEasing) }, label = "scrim and plus",
     ) { if (it) 1f else 0f }

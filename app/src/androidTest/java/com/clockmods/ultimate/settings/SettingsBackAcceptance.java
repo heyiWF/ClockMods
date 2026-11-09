@@ -73,21 +73,26 @@ public final class SettingsBackAcceptance extends Instrumentation {
 
     private boolean matchesTitle(AccessibilityNodeInfo node, String text) {
         // Compose merges a row's title and summary into one accessibility node.
-        return node.getText() != null && text.equals(node.getText().toString().split("\n", 2)[0]);
+        return (node.getText() != null && text.equals(node.getText().toString().split("\n", 2)[0]))
+                || (node.getContentDescription() != null && text.equals(node.getContentDescription().toString()));
     }
 
     private void clickText(String text) {
-        for (AccessibilityNodeInfo node : nodes()) {
-            if (!matchesTitle(node, text)) continue;
-            while (node != null && !node.isClickable()) node = node.getParent();
-            if (node != null && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return;
-        }
+        long deadline = SystemClock.uptimeMillis() + 6000;
+        do {
+            for (AccessibilityNodeInfo node : nodes()) {
+                if (!matchesTitle(node, text)) continue;
+                while (node != null && !node.isClickable()) node = node.getParent();
+                if (node != null && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) return;
+            }
+            SystemClock.sleep(150);
+        } while (SystemClock.uptimeMillis() < deadline);
         throw new AssertionError("Cannot click " + text);
     }
 
     // The native clock continuously draws; waiting for its message queue to become idle
     // can block forever before settings is opened. Activity monitors bound startup instead.
-    private void settle() { SystemClock.sleep(700); }
+    private void settle() { SystemClock.sleep(1400); }
 
     private Bitmap screenshot(String name) throws Exception {
         Bitmap image = getUiAutomation().takeScreenshot();
@@ -101,10 +106,15 @@ public final class SettingsBackAcceptance extends Instrumentation {
     }
 
     private void touch(long down, int action, float x, float y) {
-        MotionEvent event = MotionEvent.obtain(down, SystemClock.uptimeMillis(), action, x, y, 0);
-        event.setSource(InputDevice.SOURCE_TOUCHSCREEN);
-        try { verify(getUiAutomation().injectInputEvent(event, true), "Gesture injection failed"); }
-        finally { event.recycle(); }
+        String motion = action == MotionEvent.ACTION_DOWN ? "DOWN"
+                : action == MotionEvent.ACTION_UP ? "UP" : "MOVE";
+        // Use the platform input command: this emulator cancels UiAutomation's direct
+        // injected streams at the gesture monitor, while shell touch streams reach it.
+        String command = "input motionevent " + motion + " " + Math.round(x) + " " + Math.round(y);
+        try (java.io.InputStream result = new android.os.ParcelFileDescriptor.AutoCloseInputStream(
+                getUiAutomation().executeShellCommand(command))) {
+            while (result.read() != -1) { /* Wait for this event before sending the next. */ }
+        } catch (java.io.IOException error) { throw new AssertionError("Touch injection failed", error); }
     }
 
     private void gesture(boolean right, boolean cancel, String name) throws Exception {
@@ -130,7 +140,10 @@ public final class SettingsBackAcceptance extends Instrumentation {
         Bitmap preview = screenshot(name + "-preview");
         int changed = 0, samples = 0;
         // Exclude the edge arrow and system bars: the content itself must preview navigation.
-        for (int py = before.getHeight() / 5; py < before.getHeight() * 4 / 5; py += 8) {
+        // Setup content is at the top on tall tablets; its center is intentionally empty.
+        int top = name.startsWith("wizard") ? before.getHeight() / 10 : before.getHeight() / 5;
+        int bottom = name.startsWith("wizard") ? before.getHeight() / 3 : before.getHeight() * 4 / 5;
+        for (int py = top; py < bottom; py += 8) {
             for (int px = before.getWidth() / 4; px < before.getWidth() * 3 / 4; px += 8) {
                 samples++;
                 if (before.getPixel(px, py) != preview.getPixel(px, py)) changed++;
@@ -164,13 +177,60 @@ public final class SettingsBackAcceptance extends Instrumentation {
         verify(!intercepted[0], "Settings root intercepts platform predictive Back");
     }
 
+    private void checkSurfaces() {
+        Bundle report = new Bundle();
+        mode = "gesture";
+        Activity activity = null;
+        try {
+            verify(getTargetContext().getPackageName().contains("predictive"), "Audit package required");
+            activity = startActivitySync(new Intent(getTargetContext(), com.clockmods.ultimate.SetupWizardActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK | Intent.FLAG_ACTIVITY_CLEAR_TASK));
+            settingsActivity = activity; settle();
+            clickText(activity.getString(R.string.ultimate_language_simplified)); settle();
+            clickText(activity.getString(R.string.setup_wizard_next)); settle();
+            gesture(false, true, "wizard-cancel");
+            verify(hasText(activity.getString(R.string.setup_wizard_weather_title)), "Wizard cancel lost step");
+            gesture(false, false, "wizard-commit");
+            verify(hasText(activity.getString(R.string.setup_wizard_language_title)), "Wizard did not return to language");
+            Activity wizard = activity; runOnMainSync(wizard::finish); settle();
+            getTargetContext().getSharedPreferences("clockmods_ultimate_style", 0).edit()
+                    .putString(com.clockmods.background.ThemeLibrary.ORDER, "pro.classic|glass.atelier").commit();
+            activity = startActivitySync(UltimateSettingsActivity.createSubpageIntent(getTargetContext(), "style")
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            settingsActivity = activity; settle();
+            clickText(activity.getString(R.string.theme_store)); settle();
+            verify(hasText(activity.getString(R.string.theme_recommended)), "Store did not open");
+            gesture(false, true, "store-cancel");
+            verify(hasText(activity.getString(R.string.theme_recommended)), "Store cancel dismissed it");
+            gesture(false, false, "store-commit");
+            verify(!hasText(activity.getString(R.string.theme_recommended)), "Store gesture did not dismiss it");
+            report.putString("stream", "PASS additional surfaces: " + checks + " checks\n");
+            finish(Activity.RESULT_OK, report);
+        } catch (Throwable error) {
+            try { screenshot("surfaces-failure").recycle(); } catch (Exception ignored) { }
+            report.putString("stream", "FAIL surfaces: " + android.util.Log.getStackTraceString(error));
+            finish(Activity.RESULT_CANCELED, report);
+        } finally {
+            Activity last = activity;
+            if (last != null) runOnMainSync(last::finish);
+        }
+    }
+
     @Override public void onStart() {
+        if ("media".equals(mode)) { ReadmeCapture.run(this); return; }
+        if ("surfaces".equals(mode)) { checkSurfaces(); return; }
         Bundle report = new Bundle();
         Activity activity = null;
         Activity clock = null;
         SharedPreferences onboarding = getTargetContext().getSharedPreferences("clockmods_onboarding", 0);
         boolean hadCompleted = onboarding.contains("completed");
         boolean completed = onboarding.getBoolean("completed", false);
+        SharedPreferences preferences = getTargetContext().getSharedPreferences("clock_prefs", 0);
+        boolean hadOrientation = preferences.contains("screen_orientation");
+        int orientation = preferences.getInt("screen_orientation", 0);
+        boolean hadWeather = preferences.contains("weather_enabled");
+        boolean weatherEnabled = preferences.getBoolean("weather_enabled", true);
+        preferences.edit().putInt("screen_orientation", 0).putBoolean("weather_enabled", false).commit();
         try {
             getUiAutomation().setServiceInfo(getUiAutomation().getServiceInfo());
             onboarding.edit().putBoolean("completed", true).commit();
@@ -192,22 +252,22 @@ public final class SettingsBackAcceptance extends Instrumentation {
             settle();
             SystemClock.sleep(1000);
             String background = activity.getString(R.string.ultimate_category_background);
-            String weather = activity.getString(R.string.ultimate_category_weather);
-            verify(hasText(background) && hasText(weather), "Expected compact settings home");
+            String homeLabel = activity.getString(R.string.ultimate_category_clock_style);
+            verify(hasText(background) && hasText(homeLabel), "Expected compact settings home");
             clickText(background);
             settle();
-            verify(!hasText(weather), "Detail page did not open in compact mode");
+            verify(!hasText(homeLabel), "Detail page did not open in compact mode");
             if ("keys".equals(mode)) {
                 sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
                 settle();
             } else {
                 gesture(false, true, "left-cancel");
-                verify(!hasText(weather), "Cancelled gesture popped the detail page");
+                verify(!hasText(homeLabel), "Cancelled gesture popped the detail page");
                 gesture(true, true, "right-cancel");
-                verify(!hasText(weather), "Cancelled right-edge gesture popped the detail page");
+                verify(!hasText(homeLabel), "Cancelled right-edge gesture popped the detail page");
                 gesture(false, false, "detail-commit");
             }
-            verify(hasText(background) && hasText(weather), "Committed gesture did not return home");
+            verify(hasText(background) && hasText(homeLabel), "Committed gesture did not return home");
             verifySystemBackAvailable();
             // Every library is a real Activity destination. Leave its back callback disabled
             // so Android can preview the settings window underneath, including cancellation.
@@ -223,13 +283,24 @@ public final class SettingsBackAcceptance extends Instrumentation {
                 verifySystemBackAvailable();
                 String libraryName = libraryClass.getSimpleName();
                 if (libraryClass == CalendarManagerActivity.class) {
-                    clickText(library.getString(R.string.calendar_import_add));
+                    clickText(library.getString(R.string.calendar_import_add)); settle();
                     verify(hasText(library.getString(R.string.calendar_import_link)), "Missing calendar link action");
+                    if ("gesture".equals(mode)) {
+                        gesture(false, true, "import-menu-cancel");
+                        verify(hasText(library.getString(R.string.calendar_import_link)), "Menu cancel lost actions");
+                        gesture(false, false, "import-menu-commit");
+                        verify(!hasText(library.getString(R.string.calendar_import_link)), "Menu commit did not close actions");
+                        clickText(library.getString(R.string.calendar_import_add)); settle();
+                    }
                     clickText(library.getString(R.string.calendar_import_link));
                     settle();
                     verify(hasText(library.getString(R.string.calendar_import_link_hint)), "Missing link input dialog");
                     screenshot("calendar-link-dialog").recycle();
-                    sendKeyDownUpSync(KeyEvent.KEYCODE_BACK); settle();
+                    if ("gesture".equals(mode)) {
+                        gesture(false, true, "link-dialog-cancel");
+                        verify(hasText(library.getString(R.string.calendar_import_link_hint)), "Dialog cancel lost input");
+                        gesture(false, false, "link-dialog-commit");
+                    } else { sendKeyDownUpSync(KeyEvent.KEYCODE_BACK); settle(); }
                     verify(!library.isFinishing(), "Dialog back exited the calendar library");
                     com.clockmods.calendar.imports.UserCalendarStore store = com.clockmods.calendar.imports.UserCalendarStore.get(library);
                     if (calendarLink != null) {
@@ -277,7 +348,7 @@ public final class SettingsBackAcceptance extends Instrumentation {
             }
             if ("gesture".equals(mode)) {
                 gesture(false, true, "root-cancel");
-                verify(hasText(weather), "Cancelled root gesture closed settings");
+                verify(hasText(homeLabel), "Cancelled root gesture closed settings");
                 gesture(false, false, "root-commit");
             } else {
                 sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
@@ -301,6 +372,10 @@ public final class SettingsBackAcceptance extends Instrumentation {
             if (hadCompleted) editor.putBoolean("completed", completed);
             else editor.remove("completed");
             editor.commit();
+            SharedPreferences.Editor restore = preferences.edit();
+            if (hadOrientation) restore.putInt("screen_orientation", orientation); else restore.remove("screen_orientation");
+            if (hadWeather) restore.putBoolean("weather_enabled", weatherEnabled); else restore.remove("weather_enabled");
+            restore.commit();
         }
     }
 }

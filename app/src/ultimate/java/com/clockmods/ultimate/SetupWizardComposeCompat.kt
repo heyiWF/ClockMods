@@ -5,7 +5,18 @@ import android.content.Context
 import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.BackHandler
+import androidx.activity.compose.PredictiveBackHandler
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.SeekableTransitionState
+import androidx.compose.animation.core.rememberTransition
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.slideInHorizontally
+import androidx.compose.animation.slideOutHorizontally
+import androidx.compose.animation.togetherWith
+import androidx.compose.runtime.LaunchedEffect
+import androidx.compose.runtime.rememberCoroutineScope
+import kotlinx.coroutines.CancellationException
+import kotlinx.coroutines.launch
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.StringRes
@@ -105,6 +116,11 @@ class SetupWizardActivity : ComponentActivity() {
         }
     }
 
+    override fun finish() {
+        markCompleted(this)
+        super.finish()
+    }
+
     companion object {
         private const val PREFS = "clockmods_onboarding"
         private const val KEY_COMPLETED = "completed"
@@ -179,7 +195,18 @@ private fun SetupWizard(
         if (step > 0) step-- else onSkip()
     }
 
-    BackHandler(onBack = ::goBack)
+    val navigationState = remember { SeekableTransitionState(step) }
+    val navigation = rememberTransition(navigationState, label = "setupBack")
+    val scope = rememberCoroutineScope()
+    LaunchedEffect(step) { navigationState.animateTo(step) }
+    PredictiveBackHandler(step > 0) { events ->
+        try {
+            events.collect { navigationState.seekTo(it.progress, step - 1) }
+            step--
+        } catch (_: CancellationException) {
+            scope.launch { navigationState.animateTo(step) }
+        }
+    }
     CompositionLocalProvider(
         LocalContext provides localizedContext,
         LocalConfiguration provides configuration,
@@ -210,14 +237,21 @@ private fun SetupWizard(
                         color = MaterialTheme.colorScheme.primary,
                         style = MaterialTheme.typography.labelLarge,
                     )
-                    key(step) {
+                    navigation.AnimatedContent(
+                        modifier = Modifier.weight(1f),
+                        transitionSpec = {
+                            val direction = if (targetState > initialState) 1 else -1
+                            slideInHorizontally(tween(260)) { it * direction }
+                                .togetherWith(slideOutHorizontally(tween(260)) { -it * direction })
+                        },
+                    ) { targetStep ->
                         Column(
                             Modifier
-                                .weight(1f)
+                                .fillMaxSize()
                                 .verticalScroll(rememberScrollState())
                                 .padding(vertical = 20.dp),
                         ) {
-                            when (step) {
+                            when (targetStep) {
                                 0 -> LanguageStep(language, onSelected = { language = it })
                                 1 -> WeatherStep(
                                     enabled = weatherEnabled,

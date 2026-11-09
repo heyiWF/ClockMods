@@ -1,6 +1,8 @@
 package com.clockmods.ultimate.settings
 
-import androidx.activity.compose.BackHandler
+import com.clockmods.ultimate.navigation.predictiveBackProgress
+import com.clockmods.ultimate.navigation.PredictiveDialogBack
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.foundation.combinedClickable
 import androidx.compose.foundation.background
 import androidx.compose.foundation.shape.CircleShape
@@ -17,6 +19,7 @@ import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Favorite
 import androidx.compose.material.icons.filled.FavoriteBorder
 import androidx.compose.material3.*
+import com.clockmods.ultimate.navigation.PredictiveAlertDialog as AlertDialog
 import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
@@ -59,7 +62,7 @@ internal fun ThemeLibrarySection(calendar: Boolean, onChanged: () -> Unit) {
     var deleting by rememberSaveable { mutableStateOf<String?>(null) }
     fun changed() { revision++; onChanged() }
     val installed = remember(revision) { library.installed() }
-    BackHandler(enabled = editingId != null && storeTab < 0) { editingId = null }
+    val editBackProgress = predictiveBackProgress(editingId != null && storeTab < 0 && deleting == null) { editingId = null }
     LazyRow(horizontalArrangement = Arrangement.spacedBy(10.dp), modifier = Modifier.testTag("theme-library").semantics { testTagsAsResourceId = true }) {
         items(installed, key = { it }) { id ->
             Box(Modifier.width(190.dp).height(172.dp)) {
@@ -71,7 +74,7 @@ internal fun ThemeLibrarySection(calendar: Boolean, onChanged: () -> Unit) {
                 key(revision) { ThemeTileContents(calendar, id) }
             }
             if (editingId == id) IconButton(onClick = { deleting = id },
-                modifier = Modifier.align(Alignment.TopEnd).testTag("delete-$id")) {
+                modifier = Modifier.align(Alignment.TopEnd).graphicsLayer { alpha = 1f - editBackProgress; scaleX = 1f - editBackProgress; scaleY = scaleX }.testTag("delete-$id")) {
                 Box(Modifier.size(28.dp).background(Color(0xFFCF3038), CircleShape),
                     contentAlignment = Alignment.Center) {
                     Icon(androidx.compose.material.icons.Icons.Default.Remove,
@@ -150,7 +153,7 @@ private fun ThemeStoreDialog(calendar: Boolean, library: ThemeLibrary, tab: Int,
     val window = LocalWindowInfo.current.containerSize
     val previewRatio = window.width.toFloat() / window.height.coerceAtLeast(1)
     Dialog(onDismissRequest = onClose, properties = DialogProperties(usePlatformDefaultWidth = false)) {
-        BackHandler(onBack = onClose)
+        PredictiveDialogBack(onClose)
         Surface(Modifier.fillMaxSize().testTag("theme-store")) {
             Column(Modifier.fillMaxSize().windowInsetsPadding(WindowInsets.safeDrawing)) {
                 TopAppBar(title = { Text(stringResource(R.string.theme_store)) }, navigationIcon = {
