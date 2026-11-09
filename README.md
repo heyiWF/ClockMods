@@ -16,7 +16,9 @@ ClockMods Ultimate · Compose 是一款面向 Android 12 及以上设备的全�
 
 以下录屏与截图更新于 2026-11-09，来自本分支当前构建。
 
-[观看或下载介绍视频](docs/media/ultimate-compose-overview.mp4)
+https://github.com/user-attachments/assets/9612d5c0-6eae-4e21-8d2e-f674cd9564c9
+
+[下载介绍视频](docs/media/ultimate-compose-overview.mp4)
 
 | 双块时钟 | 石墨深空日历 |
 | --- | --- |
