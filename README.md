@@ -52,7 +52,21 @@ ClockMods 是一款可定制的 Android 全屏时钟。把手机放在书桌、�
 
 月历支持已收录年份的休 / 班标记，横屏还可结合天气与预报展示。整点视觉报时与勿扰时段，让提醒更贴合作息。传统宜忌作为民俗历法内容提供，调休安排以已收录的数据为准。
 
-[观看专业版工具演示](docs/media/pro-features-overview.mp4) · [观看中文报时演示](docs/media/pro-chime-12h-zh.mp4)
+### 专业版工具演示
+
+以下两段录屏更新于 2026-11-10，来自本分支最新构建。
+
+https://github.com/user-attachments/assets/88ca7c32-851a-40c1-94db-cb2c30606550
+
+[下载工具演示视频](docs/media/pro-features-overview.mp4)
+
+### 中文视觉报时演示
+
+12 小时制的中文报时动画预览，主动触发下一整点的视觉效果，无音轨。
+
+https://github.com/user-attachments/assets/714dace3-ffd4-47db-b358-f9ab2ad05e62
+
+[下载报时演示视频](docs/media/pro-chime-12h-zh.mp4)
 
 ## 开始使用
 
