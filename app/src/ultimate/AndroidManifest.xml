@@ -9,8 +9,12 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
     <application android:name=".ultimate.UltimateApplication" android:enableOnBackInvokedCallback="true">
-        <activity android:name=".ultimate.settings.CalendarManagerActivity" android:exported="false" android:theme="@style/Theme.ClockMods.ImportManager" />
-        <activity android:name=".ultimate.settings.FontManagerActivity" android:exported="false" android:theme="@style/Theme.ClockMods.ImportManager" />
+        <activity android:name=".ultimate.settings.CalendarManagerActivity"
+            android:enableOnBackInvokedCallback="true"
+            android:exported="false" android:theme="@style/Theme.ClockMods.ImportManager" />
+        <activity android:name=".ultimate.settings.FontManagerActivity"
+            android:enableOnBackInvokedCallback="true"
+            android:exported="false" android:theme="@style/Theme.ClockMods.ImportManager" />
         <property
             android:name="android.window.PROPERTY_ACTIVITY_EMBEDDING_SPLITS_ENABLED"
             android:value="true" />

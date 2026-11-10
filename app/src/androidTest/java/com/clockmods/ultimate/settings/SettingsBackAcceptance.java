@@ -150,7 +150,10 @@ public final class SettingsBackAcceptance extends Instrumentation {
             }
         }
         if (dispatch) runOnMainSync(() -> {
-            if (cancel) dispatcher.dispatchOnBackCancelled();
+            if (cancel) {
+                dispatcher.dispatchOnBackProgressed(new BackEventCompat(start, y, 0f, edge));
+                dispatcher.dispatchOnBackCancelled();
+            }
             else dispatcher.onBackPressed();
         });
         else {
@@ -161,6 +164,11 @@ public final class SettingsBackAcceptance extends Instrumentation {
                     touch(down, MotionEvent.ACTION_MOVE, start + sign * width * 0.4f * step / 18, y);
                     SystemClock.sleep(20);
                 }
+            }
+            if (cancel) {
+                // Hold at the edge before release: reversing direction must not start an enter animation.
+                SystemClock.sleep(300);
+                screenshot(name + "-edge-held").recycle();
             }
             touch(down, MotionEvent.ACTION_UP, cancel ? start : start + sign * width * 0.4f, y);
         }
@@ -340,6 +348,8 @@ public final class SettingsBackAcceptance extends Instrumentation {
                 if ("gesture".equals(mode)) {
                     gesture(false, true, libraryName + "-cancel");
                     verify(!library.isFinishing(), "Cancelled library gesture finished its Activity");
+                    gesture(true, true, libraryName + "-right-cancel");
+                    verify(!library.isFinishing(), "Cancelled right-edge library gesture finished its Activity");
                     gesture(false, false, libraryName + "-commit");
                 } else { sendKeyDownUpSync(KeyEvent.KEYCODE_BACK); settle(); }
                 verify(library.isFinishing() || library.isDestroyed(), "Library back did not return to settings");

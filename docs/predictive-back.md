@@ -29,3 +29,27 @@ Unit tests: Views 291 total (1 skipped), Compose 310 total (1 skipped), no failu
 ## README capture
 
 `-e mode media` captures the running audit app after rendering and weather initialization, using the current automatic system date. It writes screenshots to the audit application's external `readme` directory and a screen recording to `/sdcard/<audit-package>-overview.mp4`. Recordings are H.264 MP4 and the README uses GitHub video attachments, since GitHub strips arbitrary HTML video tags pointing to repository files. Repository MP4 copies remain available for offline viewing.
+
+## Cancellation recovery (2026-11-10)
+
+Font and calendar import activities explicitly opt in at the activity level as well as the
+application level. Their root Back remains system-owned; an expanded calendar action menu
+or a dialog consumes only its own internal Back step.
+
+Compose settings, setup and the calendar menu rewind the existing seekable timeline to
+fraction zero before settling the origin. They do not retarget the transition to the current
+page: doing that changes the enter/exit specifications and can replay an enter animation at
+the end of cancellation. A new gesture cancels and joins any outstanding recovery first.
+The native calendar action menu also restores preview progress directly, without its normal
+staggered opening animation.
+
+Regression coverage includes a hold at the edge before releasing a reversed gesture,
+left/right library cancellation, and frame-by-frame Compose cancellation at partial and
+zero progress (`BackPreviewCancellationTest`). System animation behavior on HyperOS 3 /
+Android 16 still requires confirmation on that device; an emulator result is not a substitute.
+
+Local validation: 291 unit tests (1 skipped), no failures/errors; debug and instrumentation APKs
+build successfully; Lint has no errors (existing warnings remain).
+The native key/back-stack acceptance runner passed 19 checks.
+The current emulator still reports an unattached edge-back handler after changing navigation
+mode, so this run does not certify real system cross-activity predictive animations.

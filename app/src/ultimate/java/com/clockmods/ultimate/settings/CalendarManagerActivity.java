@@ -44,12 +44,17 @@ public final class CalendarManagerActivity extends AppCompatActivity {
             if (menuAnimator != null) menuAnimator.cancel();
         }
         @Override public void handleOnBackProgressed(androidx.activity.BackEventCompat event) {
-            renderMenuProgress(1f - event.getProgress());
-            for (int i = 0; i < importActions.getChildCount(); i++) {
-                ((RevealButton) importActions.getChildAt(i)).seek(1f - event.getProgress());
-            }
+            renderMenuPreview(1f - event.getProgress());
         }
-        @Override public void handleOnBackCancelled() { setMenuExpanded(true, true); }
+        @Override public void handleOnBackCancelled() {
+            // Continue the same preview backwards, without replaying the staggered open animation.
+            if (menuAnimator != null) menuAnimator.cancel();
+            if (menuProgress >= 1f) { renderMenuPreview(1f); return; }
+            menuAnimator = android.animation.ValueAnimator.ofFloat(menuProgress, 1f);
+            menuAnimator.setDuration(Math.round(180 * (1f - menuProgress)));
+            menuAnimator.addUpdateListener(animation -> renderMenuPreview((float) animation.getAnimatedValue()));
+            menuAnimator.start();
+        }
     };
     private CalendarImportModel model;
     private final ActivityResultLauncher<String[]> picker = registerForActivityResult(
@@ -256,6 +261,12 @@ public final class CalendarManagerActivity extends AppCompatActivity {
             item.setImportantForAccessibility(expanded ? View.IMPORTANT_FOR_ACCESSIBILITY_AUTO
                     : View.IMPORTANT_FOR_ACCESSIBILITY_NO_HIDE_DESCENDANTS);
             item.expand(expanded, animate, expanded ? importActions.getChildCount() - 1 - i : i);
+        }
+    }
+    private void renderMenuPreview(float progress) {
+        renderMenuProgress(progress);
+        for (int i = 0; i < importActions.getChildCount(); i++) {
+            ((RevealButton) importActions.getChildAt(i)).seek(progress);
         }
     }
     private void renderMenuProgress(float progress) {
