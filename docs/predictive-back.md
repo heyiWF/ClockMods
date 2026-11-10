@@ -53,3 +53,7 @@ build successfully; Lint has no errors (existing warnings remain).
 The native key/back-stack acceptance runner passed 19 checks.
 The current emulator still reports an unattached edge-back handler after changing navigation
 mode, so this run does not certify real system cross-activity predictive animations.
+
+The device report was confirmed as HyperOS-specific on 2026-11-10. Import activities
+now inherit the application opt-in again; no vendor workaround is needed. The generic
+seekable timeline cancellation fix and its regression tests remain.

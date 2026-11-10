@@ -398,6 +398,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             hasEmbeddingSnapshot = true;
             lastKnownEmbedded = false;
         }
+        detailPreviewsReady = currentPage == Page.HOME || expectedEmbedded || savedInstanceState != null;
         configureEdgeToEdge();
         buildShell();
         showPage(currentPage);
@@ -625,6 +626,15 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     }
 
     private long fontRevision = -1;
+    private boolean detailPreviewsReady;
+    private final java.util.List<View> detailPreviews = new java.util.ArrayList<>();
+
+    @Override public void onEnterAnimationComplete() {
+        super.onEnterAnimationComplete();
+        detailPreviewsReady = true;
+        for (View preview : detailPreviews) if (preview.isAttachedToWindow()) preview.invalidate();
+    }
+
 
     @Override
     protected void onResume() {
@@ -652,6 +662,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         currentStyleGalleryScroll = null;
         styleCards.clear();
         calendarThemeCards.clear();
+        detailPreviews.clear();
         hideMainSwitch();
         View incoming;
         int titleRes;
@@ -3919,6 +3930,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         UltimateThemePreviewView(Context context, ClockStyle style) {
             super(context);
             this.style = style;
+            detailPreviews.add(this);
             this.scopeId = style.getMetadata().getId();
             Rect bounds = WindowMetricsCalculator.getOrCreate()
                     .computeMaximumWindowMetrics(UltimateSettingsActivity.this).getBounds();
@@ -4023,6 +4035,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
             if (getWidth() <= 0 || getHeight() <= 0) return;
+            if (!detailPreviewsReady) { canvas.drawColor(previewTokens.getBackgroundStartColor()); return; }
             // The thumbnail is a scaled clock, not a tiny clock window. Passing card pixels
             // to the responsive renderer would replace every theme with its compact fallback.
             int renderWidth = targetViewportWidth > 0 ? targetViewportWidth : clockViewport[0];
