@@ -1,10 +1,8 @@
 package com.clockmods.ultimate.settings
 
-import androidx.activity.compose.PredictiveBackHandler
+import com.clockmods.ultimate.navigation.SeekableBackHandler
 import androidx.compose.animation.core.SeekableTransitionState
 import androidx.compose.animation.core.rememberTransition
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
 import androidx.compose.animation.core.tween
 import androidx.compose.animation.core.updateTransition
 import androidx.compose.animation.core.animateFloat
@@ -86,15 +84,9 @@ private fun CalendarLibrary(revision: Int, model: CalendarImportModel, onBack: (
     var menuExpanded by rememberSaveable { mutableStateOf(false) }
     var syncLink by rememberSaveable { mutableStateOf(false) }
     val menuState = remember { SeekableTransitionState(menuExpanded) }
-    val scope = rememberCoroutineScope()
     LaunchedEffect(menuExpanded) { menuState.animateTo(menuExpanded) }
-    PredictiveBackHandler(menuExpanded && !showLink) { events ->
-        try {
-            events.collect { menuState.seekTo(it.progress, false) }
-            menuExpanded = false
-        } catch (_: CancellationException) {
-            scope.launch { menuState.animateTo(menuExpanded) }
-        }
+    SeekableBackHandler(menuExpanded && !showLink, menuState, menuExpanded, false) {
+        menuExpanded = false
     }
     LaunchedEffect(busy) { if (busy) menuExpanded = false }
     val menuTransition = rememberTransition(menuState, label = "import menu")

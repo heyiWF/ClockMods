@@ -2,7 +2,7 @@ package com.clockmods.ultimate.settings
 
 import kotlin.math.roundToInt
 
-import androidx.activity.compose.PredictiveBackHandler
+import com.clockmods.ultimate.navigation.SeekableBackHandler
 import androidx.annotation.StringRes
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
@@ -66,7 +66,6 @@ import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
-import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
@@ -88,8 +87,6 @@ import com.clockmods.background.ClockPreferences
 import com.clockmods.ultimate.AntiBurnPreferences
 import com.clockmods.ultimate.clock.UltimateClockPreferences
 import com.clockmods.ultimate.clock.WorldClockRepository
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
 
 internal enum class SettingsPage(
     @StringRes val title: Int,
@@ -164,22 +161,9 @@ internal fun SettingsScreen(
     val closeOnBack = UltimateSettingsActivity.shouldCloseSettingsOnBack(expanded, page != null)
     val navigationState = remember { SeekableTransitionState(page) }
     val navigation = rememberTransition(navigationState, label = "settingsNavigation")
-    val scope = rememberCoroutineScope()
-    LaunchedEffect(page) {
-        navigationState.animateTo(page)
-    }
-    // Only intercept the in-Compose detail -> home step. At the root (and in two-pane
-    // mode), leave Back to the Activity so Android can preview the previous window.
-    PredictiveBackHandler(enabled = !closeOnBack) { events ->
-        try {
-            events.collect { event -> navigationState.seekTo(event.progress, null) }
-            page = null
-        } catch (_: CancellationException) {
-            // Cancellation also cancels this callback's coroutine; use the composition scope
-            // to smoothly return to the current page without losing its controls or scroll.
-            scope.launch { navigationState.animateTo(page) }
-        }
-    }
+    LaunchedEffect(page) { navigationState.animateTo(page) }
+    // Root/two-pane Back remains a system Activity transition.
+    SeekableBackHandler(!closeOnBack, navigationState, page, null) { page = null }
 
     Scaffold(
         topBar = {

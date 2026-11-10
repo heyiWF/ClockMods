@@ -5,7 +5,7 @@ import android.content.Context
 import android.content.res.Configuration
 import android.os.Bundle
 import androidx.activity.ComponentActivity
-import androidx.activity.compose.PredictiveBackHandler
+import com.clockmods.ultimate.navigation.SeekableBackHandler
 import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.core.SeekableTransitionState
 import androidx.compose.animation.core.rememberTransition
@@ -14,9 +14,6 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.runtime.LaunchedEffect
-import androidx.compose.runtime.rememberCoroutineScope
-import kotlinx.coroutines.CancellationException
-import kotlinx.coroutines.launch
 import androidx.activity.compose.setContent
 import androidx.activity.enableEdgeToEdge
 import androidx.annotation.StringRes
@@ -197,16 +194,8 @@ private fun SetupWizard(
 
     val navigationState = remember { SeekableTransitionState(step) }
     val navigation = rememberTransition(navigationState, label = "setupBack")
-    val scope = rememberCoroutineScope()
     LaunchedEffect(step) { navigationState.animateTo(step) }
-    PredictiveBackHandler(step > 0) { events ->
-        try {
-            events.collect { navigationState.seekTo(it.progress, step - 1) }
-            step--
-        } catch (_: CancellationException) {
-            scope.launch { navigationState.animateTo(step) }
-        }
-    }
+    SeekableBackHandler(step > 0, navigationState, step, step - 1) { step-- }
     CompositionLocalProvider(
         LocalContext provides localizedContext,
         LocalConfiguration provides configuration,
