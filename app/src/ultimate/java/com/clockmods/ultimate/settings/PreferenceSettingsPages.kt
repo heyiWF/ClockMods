@@ -389,7 +389,7 @@ internal fun BackgroundSettingsPage(modifier: Modifier, generation: Int) {
     }
 
     SettingsColumn(modifier) {
-        SettingSection(stringResource(R.string.ultimate_background_source_section)) {
+        SettingSection(R.string.ultimate_background_source_section) {
             SettingChoices(
                 options = listOf(
                     SettingOption(
@@ -433,7 +433,7 @@ internal fun BackgroundSettingsPage(modifier: Modifier, generation: Int) {
             )
         }
 
-        SettingSection(stringResource(R.string.ultimate_display_section)) {
+        SettingSection(R.string.ultimate_display_section) {
             SettingSwitch(
                 stringResource(R.string.ultimate_avoid_display_cutout),
                 avoidDisplayCutout,
@@ -465,7 +465,7 @@ internal fun BackgroundSettingsPage(modifier: Modifier, generation: Int) {
             }
         }
 
-        SettingSection(stringResource(R.string.ultimate_status_icon_style)) {
+        SettingSection(R.string.ultimate_status_icon_style) {
             Row(
                 Modifier.fillMaxWidth().padding(vertical = 8.dp),
                 horizontalArrangement = Arrangement.spacedBy(16.dp),
@@ -535,7 +535,7 @@ internal fun BackgroundSettingsPage(modifier: Modifier, generation: Int) {
             ) { updateStatusStyle(StatusIconStyle.defaults()) }
         }
 
-        SettingSection(stringResource(R.string.ultimate_dimming_section)) {
+        SettingSection(R.string.ultimate_dimming_section) {
             SettingSwitch(
                 stringResource(R.string.ultimate_dim_background),
                 dim,
@@ -636,7 +636,7 @@ internal fun TimeDateSettingsPage(modifier: Modifier, generation: Int) {
     }
 
     SettingsColumn(modifier) {
-        SettingSection(stringResource(R.string.ultimate_time_section)) {
+        SettingSection(R.string.ultimate_time_section) {
             SettingSwitch(
                 stringResource(R.string.ultimate_use_24_hour),
                 use24Hour,
@@ -655,7 +655,7 @@ internal fun TimeDateSettingsPage(modifier: Modifier, generation: Int) {
             }
         }
 
-        SettingSection(stringResource(R.string.ultimate_time_sync_section)) {
+        SettingSection(R.string.ultimate_time_sync_section) {
             SettingSwitch(
                 stringResource(R.string.ultimate_network_time),
                 useNetworkTime,
@@ -677,7 +677,7 @@ internal fun TimeDateSettingsPage(modifier: Modifier, generation: Int) {
             ) { dialog = TimeDateDialog.TIME_ZONE }
         }
 
-        SettingSection(stringResource(R.string.ultimate_date_section)) {
+        SettingSection(R.string.ultimate_date_section) {
             SettingSwitch(
                 stringResource(R.string.ultimate_show_lunar),
                 showLunar,
@@ -860,7 +860,7 @@ internal fun WeatherSettingsPage(modifier: Modifier, generation: Int) {
     )
 
     SettingsColumn(modifier) {
-        SettingSection(stringResource(R.string.ultimate_weather_section)) {
+        SettingSection(R.string.ultimate_weather_section) {
             SettingSwitch(
                 stringResource(R.string.ultimate_weather_enabled),
                 enabled,
@@ -879,14 +879,14 @@ internal fun WeatherSettingsPage(modifier: Modifier, generation: Int) {
             }
         }
 
-        SettingSection(stringResource(R.string.ultimate_custom_message_section)) {
+        SettingSection(R.string.ultimate_custom_message_section) {
             SettingAction(
                 stringResource(R.string.ultimate_custom_message),
                 message.ifBlank { stringResource(R.string.ultimate_custom_message_empty) },
             ) { dialog = WeatherDialog.MESSAGE }
         }
 
-        SettingSection(stringResource(R.string.ultimate_weather_location_section)) {
+        SettingSection(R.string.ultimate_weather_location_section) {
             SettingChoices(
                 options = listOf(
                     SettingOption(
@@ -919,7 +919,7 @@ internal fun WeatherSettingsPage(modifier: Modifier, generation: Int) {
             ) { dialog = WeatherDialog.LOCATION }
         }
 
-        SettingSection(stringResource(R.string.ultimate_weather_temperature_section)) {
+        SettingSection(R.string.ultimate_weather_temperature_section) {
             SettingChoices(
                 options = listOf(
                     SettingOption(
@@ -939,7 +939,7 @@ internal fun WeatherSettingsPage(modifier: Modifier, generation: Int) {
             }
         }
 
-        SettingSection(stringResource(R.string.ultimate_weather_refresh_section)) {
+        SettingSection(R.string.ultimate_weather_refresh_section) {
             SettingAction(
                 label = stringResource(R.string.ultimate_weather_refresh_interval),
                 summary = intervalOptions.firstOrNull { it.value == interval }?.label
@@ -948,7 +948,7 @@ internal fun WeatherSettingsPage(modifier: Modifier, generation: Int) {
             ) { dialog = WeatherDialog.INTERVAL }
         }
 
-        SettingSection(stringResource(R.string.ultimate_weather_icon_section)) {
+        SettingSection(R.string.ultimate_weather_icon_section) {
             SettingSwitch(
                 stringResource(R.string.ultimate_weather_icon_fill),
                 iconFill,
@@ -1218,11 +1218,11 @@ internal fun CalendarSettingsPage(modifier: Modifier, settingsGeneration: Int) {
 
 
     SettingsColumn(modifier) {
-        SettingSection(stringResource(R.string.ultimate_style_gallery)) {
+        SettingSection(R.string.ultimate_style_gallery) {
             ThemeLibrarySection(calendar = true, onChanged = { libraryRevision++ })
         }
 
-        SettingSection(stringResource(R.string.ultimate_calendar_week_section)) {
+        SettingSection(R.string.ultimate_calendar_week_section) {
             SettingChoices(
                 options = listOf(
                     SettingOption(
@@ -1249,7 +1249,7 @@ internal fun CalendarSettingsPage(modifier: Modifier, settingsGeneration: Int) {
             }
         }
 
-        SettingSection(stringResource(R.string.ultimate_typography_section)) {
+        SettingSection(R.string.ultimate_typography_section) {
             Text(stringResource(R.string.font_western))
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -1357,7 +1357,7 @@ internal fun ChimeSettingsPage(modifier: Modifier, generation: Int) {
     var editingTime by rememberSaveable { mutableStateOf<ChimeTime?>(null) }
 
     SettingsColumn(modifier) {
-        SettingSection(stringResource(R.string.ultimate_chime_cues_section)) {
+        SettingSection(R.string.ultimate_chime_cues_section) {
             SettingSwitch(
                 stringResource(R.string.ultimate_hourly_chime),
                 hourly,
@@ -1392,7 +1392,7 @@ internal fun ChimeSettingsPage(modifier: Modifier, generation: Int) {
             }
         }
 
-        SettingSection(stringResource(R.string.ultimate_chime_quiet_section)) {
+        SettingSection(R.string.ultimate_chime_quiet_section) {
             SettingSwitch(
                 stringResource(R.string.ultimate_chime_quiet_hours),
                 quietHours,
@@ -1467,7 +1467,7 @@ internal fun SystemSettingsPage(
     }
 
     SettingsColumn(modifier) {
-        SettingSection(stringResource(R.string.ultimate_anti_burn_section)) {
+        SettingSection(R.string.ultimate_anti_burn_section) {
             SettingSwitch(
                 stringResource(R.string.ultimate_anti_burn_enabled),
                 antiBurnEnabled,
@@ -1506,7 +1506,7 @@ internal fun SystemSettingsPage(
             }
         }
 
-        SettingSection(stringResource(R.string.ultimate_orientation_section)) {
+        SettingSection(R.string.ultimate_orientation_section) {
             SettingChoices(
                 options = listOf(
                     SettingOption(
@@ -1529,7 +1529,7 @@ internal fun SystemSettingsPage(
             }
         }
 
-        SettingSection(stringResource(R.string.ultimate_language_section)) {
+        SettingSection(R.string.ultimate_language_section) {
             SettingChoices(
                 options = listOf(
                     SettingOption(

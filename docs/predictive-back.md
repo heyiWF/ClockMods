@@ -54,3 +54,7 @@ Both frame-by-frame cancellation instrumentation tests passed on Android 15.
 The current emulator still reports an unattached edge-back handler after changing navigation
 mode, so this run does not certify real system cross-activity predictive animations.
 The Compose dispatcher acceptance runner also passed 24 checks in a locked portrait window.
+
+The device report was confirmed as HyperOS-specific on 2026-11-10. Import activities
+now inherit the application opt-in again; no vendor workaround is needed. The generic
+seekable timeline cancellation fix and its regression tests remain.

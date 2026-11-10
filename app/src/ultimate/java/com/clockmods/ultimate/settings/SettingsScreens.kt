@@ -15,6 +15,9 @@ import androidx.compose.animation.slideInHorizontally
 import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
+import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListScope
+import androidx.compose.foundation.layout.PaddingValues
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -412,17 +415,24 @@ private fun SettingsPageContent(
 @Composable
 internal fun SettingsColumn(
     modifier: Modifier,
-    content: @Composable ColumnScope.() -> Unit,
+    content: LazyListScope.() -> Unit,
 ) {
-    Column(
-        modifier.verticalScroll(rememberScrollState()).padding(16.dp),
+    LazyColumn(
+        modifier,
+        contentPadding = PaddingValues(16.dp),
         verticalArrangement = Arrangement.spacedBy(12.dp),
         content = content,
     )
 }
 
+internal fun LazyListScope.SettingSection(@StringRes title: Int, content: @Composable ColumnScope.() -> Unit) {
+    item(key = title, contentType = "settings-section") {
+        SettingsSectionCard(stringResource(title), content)
+    }
+}
+
 @Composable
-internal fun SettingSection(title: String, content: @Composable ColumnScope.() -> Unit) {
+private fun SettingsSectionCard(title: String, content: @Composable ColumnScope.() -> Unit) {
     Card(Modifier.fillMaxWidth()) {
         Column(Modifier.padding(16.dp)) {
             Text(title, style = MaterialTheme.typography.titleMedium)

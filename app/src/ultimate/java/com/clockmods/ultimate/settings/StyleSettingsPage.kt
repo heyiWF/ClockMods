@@ -176,12 +176,12 @@ internal fun StyleSettingsPage(modifier: Modifier, settingsGeneration: Int) {
         ClockStyleCapabilities.Capability.DIGIT_TRANSITION)
 
     SettingsColumn(modifier) {
-        SettingSection(stringResource(R.string.ultimate_style_gallery)) {
+        SettingSection(R.string.ultimate_style_gallery) {
             ThemeLibrarySection(calendar = false, onChanged = { libraryRevision++ })
         }
 
         if (UltimateSettingsActivity.shouldShowSecondMotionControls(activeStyle)) {
-            SettingSection(stringResource(R.string.ultimate_style_second_motion)) {
+            SettingSection(R.string.ultimate_style_second_motion) {
                 Row(
                     Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
                     horizontalArrangement = Arrangement.spacedBy(8.dp),
@@ -206,7 +206,7 @@ internal fun StyleSettingsPage(modifier: Modifier, settingsGeneration: Int) {
             }
         }
 
-        SettingSection(stringResource(R.string.ultimate_typography_section)) {
+        SettingSection(R.string.ultimate_typography_section) {
             Text(stringResource(R.string.font_western))
             Row(
                 Modifier.fillMaxWidth().horizontalScroll(rememberScrollState()),
@@ -276,7 +276,7 @@ internal fun StyleSettingsPage(modifier: Modifier, settingsGeneration: Int) {
         }
 
         if (proClassic) {
-            SettingSection(stringResource(R.string.ultimate_time_appearance_section)) {
+            SettingSection(R.string.ultimate_time_appearance_section) {
                 StyleColorSetting(
                     label = stringResource(R.string.ultimate_time_color),
                     color = timeColor,
@@ -326,7 +326,7 @@ internal fun StyleSettingsPage(modifier: Modifier, settingsGeneration: Int) {
         }
 
         if (!proClassic && supportsDigitTransition) {
-            SettingSection(stringResource(R.string.ultimate_time_appearance_section)) {
+            SettingSection(R.string.ultimate_time_appearance_section) {
                 DigitTransitionControls(
                     animateDigits, transition,
                     onAnimateChange = {
@@ -342,7 +342,7 @@ internal fun StyleSettingsPage(modifier: Modifier, settingsGeneration: Int) {
         }
 
         if (capabilities.supports(ClockStyleCapabilities.Capability.WEATHER)) {
-            SettingSection(stringResource(R.string.ultimate_weather_appearance_section)) {
+            SettingSection(R.string.ultimate_weather_appearance_section) {
                 WeatherTransitionControls(weatherTransition, animateDigits) {
                     weatherTransition = it
                     if (proClassic) preferences.setWeatherTransition(it)
@@ -352,7 +352,7 @@ internal fun StyleSettingsPage(modifier: Modifier, settingsGeneration: Int) {
         }
 
         if (ClockPalette.supports(styleId)) {
-            SettingSection(stringResource(R.string.ultimate_style_palette)) {
+            SettingSection(R.string.ultimate_style_palette) {
                 Text(
                     stringResource(R.string.ultimate_palette_preview),
                     style = MaterialTheme.typography.labelMedium,
@@ -373,7 +373,7 @@ internal fun StyleSettingsPage(modifier: Modifier, settingsGeneration: Int) {
         }
 
         if (supportsWorldClock) {
-            SettingSection(stringResource(R.string.ultimate_world_clock_section)) {
+            SettingSection(R.string.ultimate_world_clock_section) {
                 SettingSwitch(
                     stringResource(R.string.ultimate_world_clock_enabled),
                     worldEnabled,

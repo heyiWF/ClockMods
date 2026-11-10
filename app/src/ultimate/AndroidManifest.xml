@@ -10,10 +10,8 @@
 
     <application android:name=".ultimate.UltimateApplication" android:enableOnBackInvokedCallback="true">
         <activity android:name=".ultimate.settings.CalendarManagerActivity"
-            android:enableOnBackInvokedCallback="true"
             android:exported="false" />
         <activity android:name=".ultimate.settings.FontManagerActivity"
-            android:enableOnBackInvokedCallback="true"
             android:exported="false" />
         <activity
             android:name=".ultimate.SetupWizardActivity"
