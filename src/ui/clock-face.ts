@@ -249,8 +249,31 @@ export function measureColonShift(fontFamily: string, weight: number | string): 
   return shift;
 }
 
-/** Static time labels (world clocks) share the same colon correction as animated digits. */
-export function setAlignedTime(element: HTMLElement,text:string,family:string,weight:number): void {
- if(element.dataset.clockText!==text){element.dataset.clockText=text;element.replaceChildren(...text.split(':').flatMap((part,index)=>{const nodes:Node[]=[];if(index){const colon=document.createElement('span');colon.className='aligned-time-colon';colon.textContent=':';nodes.push(colon);}nodes.push(document.createTextNode(part));return nodes;}));}
- element.style.fontFamily=family;element.style.fontWeight=String(weight);element.style.setProperty('--colon-shift',measureColonShift(family,weight)+'em');
+/** Static labels use the same measured geometry as animated clock digits. */
+export function setAlignedTime(element: HTMLElement, text: string, family?: string, weight?: number | string): void {
+  if (element.dataset.clockText !== text || element.textContent !== text) {
+    element.dataset.clockText = text;
+    const nodes: Node[] = [];
+    text.split(':').forEach((part, index) => {
+      if (index) {
+        const colon = document.createElement('span'); colon.className = 'aligned-time-colon';
+        colon.textContent = ':'; nodes.push(colon);
+      }
+      nodes.push(document.createTextNode(part));
+    });
+    element.replaceChildren(...nodes);
+  }
+  if (family !== undefined) element.style.fontFamily = family;
+  if (weight !== undefined) element.style.fontWeight = String(weight);
+  if (!element.isConnected && family === undefined) {
+    requestAnimationFrame(() => { if (element.isConnected) setAlignedTime(element, element.dataset.clockText!); });
+    return;
+  }
+  const style = getComputedStyle(element);
+  element.style.setProperty('--colon-shift', measureColonShift(family ?? (style.fontFamily || 'sans-serif'), weight ?? (style.fontWeight || '400')) + 'em');
 }
+
+if (typeof document !== 'undefined') document.fonts?.addEventListener('loadingdone', () => {
+  document.querySelectorAll<HTMLElement>('[data-clock-text]').forEach(element =>
+    setAlignedTime(element, element.dataset.clockText!));
+});

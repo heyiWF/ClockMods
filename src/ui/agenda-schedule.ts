@@ -1,3 +1,4 @@
+import { setAlignedTime } from './clock-face';
 import { t } from '../core/i18n';
 import { MAX_SCHEDULE_ITEMS, removeSchedule, saveSchedule, schedulesFor } from '../core/schedule-store';
 import type { ScheduleItem } from '../core/schedule-store';
@@ -20,7 +21,7 @@ export function agendaSchedule(date: string, readOnly = false): HTMLElement {
     if (!items.length) { const empty = document.createElement('p'); empty.className = 'cal-schedule-empty'; empty.textContent = t('schedule_empty'); list.append(empty); }
     for (const item of items) {
       const row = button('', 'cal-schedule-row'); row.disabled = readOnly;
-      const time = document.createElement('span'); time.className = 'cal-schedule-time' + (item.minutes === null ? ' is-all-day' : ''); time.textContent = item.minutes === null ? t('schedule_all_day') : timeLabel(item.minutes);
+      const time = document.createElement('span'); time.className = 'cal-schedule-time' + (item.minutes === null ? ' is-all-day' : ''); setAlignedTime(time, item.minutes === null ? t('schedule_all_day') : timeLabel(item.minutes));
       const title = document.createElement('span'); title.className = 'cal-schedule-item-title'; title.textContent = item.title;
       row.append(time, title); row.onclick = () => openEditor(item); list.append(row);
     }
@@ -40,7 +41,7 @@ export function agendaSchedule(date: string, readOnly = false): HTMLElement {
     const timeRow = document.createElement('div'); timeRow.className = 'schedule-time-row';
     const time = button(''); time.classList.add('schedule-time'); time.setAttribute('aria-label', t('schedule_time'));
     const allDay = button(t('schedule_all_day')); allDay.classList.add('schedule-all-day');
-    const refreshTime = () => { time.textContent = minutes === null ? t('schedule_choose_time') : timeLabel(minutes); allDay.setAttribute('aria-pressed', String(minutes === null)); };
+    const refreshTime = () => { setAlignedTime(time, minutes === null ? t('schedule_choose_time') : timeLabel(minutes)); allDay.setAttribute('aria-pressed', String(minutes === null)); };
     time.onclick = () => openTimePicker(minutes ?? 9 * 60, t('schedule_time'), value => { minutes = value; refreshTime(); });
     allDay.onclick = () => { minutes = null; refreshTime(); }; refreshTime(); timeRow.append(time, allDay);
     const error = document.createElement('p'); error.className = 'schedule-error'; error.setAttribute('role', 'alert'); error.hidden = true;

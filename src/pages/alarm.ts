@@ -1,3 +1,4 @@
+import { setAlignedTime } from '../ui/clock-face';
 import { openTimePicker } from '../ui/time-picker';
 /**
  * The daily alarm.
@@ -136,10 +137,10 @@ export class AlarmPage implements Page {
   }
 
   private render(): void {
-    this.timeView.textContent = `${twoDigits(this.hour)}:${twoDigits(this.minute)}`;
+    setAlignedTime(this.timeView, `${twoDigits(this.hour)}:${twoDigits(this.minute)}`);
     this.toggle.checked = this.enabled;
     if (!this.enabled) {
-      this.nextView.textContent = t('alarm_disabled');
+      setAlignedTime(this.nextView, t('alarm_disabled'));
       return;
     }
     const trigger = nextTrigger(this.hour, this.minute, timeSource.now());
@@ -148,7 +149,7 @@ export class AlarmPage implements Page {
       timeStyle: 'short',
       hour12: !prefs.isUse24Hour(),
     }).format(new Date(trigger));
-    this.nextView.textContent = t('alarm_next_trigger', formatted);
+    setAlignedTime(this.nextView, t('alarm_next_trigger', formatted));
   }
 
   private schedule(): void {
@@ -184,7 +185,7 @@ export class AlarmPage implements Page {
     panel.className = 'alarm-ringing';
     const time = document.createElement('div');
     time.className = 'alarm-ringing-time';
-    time.textContent = `${twoDigits(this.hour)}:${twoDigits(this.minute)}`;
+    setAlignedTime(time, `${twoDigits(this.hour)}:${twoDigits(this.minute)}`);
     const label = document.createElement('div');
     label.className = 'alarm-ringing-label';
     label.textContent = t('alarm_ringing');

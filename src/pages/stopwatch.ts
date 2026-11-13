@@ -1,3 +1,4 @@
+import { setAlignedTime } from '../ui/clock-face';
 /**
  * Stopwatch with laps.
  *
@@ -106,7 +107,7 @@ export class StopwatchPage implements Page {
   private addLap(): void {
     if (!this.running && this.accumulated === 0) return;
     const item = document.createElement('li');
-    item.textContent = t('stopwatch_lap_value', ++this.lapCount, format(this.elapsed()));
+    setAlignedTime(item, t('stopwatch_lap_value', ++this.lapCount, format(this.elapsed())));
     this.laps.prepend(item);
   }
 
@@ -115,7 +116,7 @@ export class StopwatchPage implements Page {
   }
 
   private render(): void {
-    this.display.textContent = format(this.elapsed());
+    setAlignedTime(this.display, format(this.elapsed()));
     this.startPause.textContent = t(this.running ? 'timer_pause' : 'timer_start');
   }
 

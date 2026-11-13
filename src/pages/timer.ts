@@ -1,3 +1,4 @@
+import { setAlignedTime } from '../ui/clock-face';
 /**
  * Pomodoro and countdown, which share one implementation.
  *
@@ -193,11 +194,11 @@ export class TimerPage implements Page {
       }
     }
     const totalSeconds = Math.ceil(this.remainingMillis / 1000);
-    this.display.textContent = this.pomodoro
+    setAlignedTime(this.display, this.pomodoro
       ? `${twoDigits(Math.floor(totalSeconds / 60))}:${twoDigits(totalSeconds % 60)}`
       : `${twoDigits(Math.floor(totalSeconds / 3600))}:${twoDigits(
           Math.floor(totalSeconds / 60) % 60
-        )}:${twoDigits(totalSeconds % 60)}`;
+        )}:${twoDigits(totalSeconds % 60)}`);
     if (this.pomodoro) this.phase.textContent = this.phaseLabel();
     this.startPause.textContent = t(this.running ? 'timer_pause' : 'timer_start');
   }
