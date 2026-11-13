@@ -63,15 +63,15 @@ public final class ProAlarmFragment extends Fragment {
     }
 
     private void render() {
-        time.setText(String.format(Locale.getDefault(), "%02d:%02d", store.hour(), store.minute()));
+        time.setText(com.clockmods.ui.ClockTimeText.align(String.format(Locale.getDefault(), "%02d:%02d", store.hour(), store.minute())));
         if (!store.enabled()) {
             next.setText(R.string.alarm_disabled);
             return;
         }
         long trigger = AlarmScheduler.nextTrigger(store.hour(), store.minute(),
                 System.currentTimeMillis());
-        next.setText(getString(R.string.alarm_next_trigger,
+        next.setText(com.clockmods.ui.ClockTimeText.align(getString(R.string.alarm_next_trigger,
                 DateFormat.getDateTimeInstance(DateFormat.SHORT, DateFormat.SHORT)
-                        .format(new Date(trigger))));
+                        .format(new Date(trigger)))));
     }
 }

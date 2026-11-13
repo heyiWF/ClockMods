@@ -81,7 +81,7 @@ public final class ProStopwatchFragment extends Fragment {
     private void addLap() {
         if (!running && accumulated == 0L) return;
         TextView lap = new TextView(requireContext());
-        lap.setText(getString(R.string.stopwatch_lap_value, ++lapCount, format(elapsed())));
+        lap.setText(com.clockmods.ui.ClockTimeText.align(getString(R.string.stopwatch_lap_value, ++lapCount, format(elapsed()))));
         lap.setTextSize(15);
         lap.setPadding(12, 6, 12, 6);
         ProFontApplier.apply(lap);
@@ -94,7 +94,7 @@ public final class ProStopwatchFragment extends Fragment {
 
     private void render() {
         if (display == null) return;
-        display.setText(format(elapsed()));
+        display.setText(com.clockmods.ui.ClockTimeText.align(format(elapsed())));
         startPause.setText(running ? R.string.timer_pause : R.string.timer_start);
     }
 

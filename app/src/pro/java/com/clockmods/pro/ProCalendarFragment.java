@@ -515,11 +515,11 @@ public final class ProCalendarFragment extends Fragment {
         // rendered in the device default zone while the AM/PM period below uses the app zone.
         SimpleDateFormat timeFormat = new SimpleDateFormat(pattern, Locale.CHINA);
         timeFormat.setTimeZone(zone);
-        timeView.setText(timeFormat.format(now.getTime()));
+        timeView.setText(com.clockmods.ui.ClockTimeText.align(timeFormat.format(now.getTime())));
         secondsView.setVisibility(preferences.isShowSeconds() ? View.VISIBLE : View.GONE);
         SimpleDateFormat secondsFormat = new SimpleDateFormat(":ss", Locale.CHINA);
         secondsFormat.setTimeZone(zone);
-        secondsView.setText(secondsFormat.format(now.getTime()));
+        secondsView.setText(com.clockmods.ui.ClockTimeText.align(secondsFormat.format(now.getTime())));
         if (periodView != null) {
             periodView.setVisibility(use24Hour ? View.GONE : View.VISIBLE);
             if (!use24Hour) {
@@ -548,10 +548,10 @@ public final class ProCalendarFragment extends Fragment {
         feelsLikeLabel.setVisibility(View.VISIBLE);
         WeatherModels.WeatherDisplayData data = state.data;
         currentWeatherIcon.setIconCode(data.icon, preferences.isWeatherIconFill());
-        currentTemperature.setText(getString(R.string.weather_temperature_format,
-                data.temperature));
+        currentTemperature.setText(com.clockmods.ui.TemperatureText.align(getString(R.string.weather_temperature_format,
+                data.temperature)));
         String feel = data.detail == null || empty(data.detail.feelsLike) ? "--" : data.detail.feelsLike;
-        feelsLike.setText(getString(R.string.weather_temperature_format, feel));
+        feelsLike.setText(com.clockmods.ui.TemperatureText.align(getString(R.string.weather_temperature_format, feel)));
         StringBuilder summary = new StringBuilder(WeatherModels.locationText(data.city, data.district));
         append(summary, data.text);
         if (data.detail != null) {

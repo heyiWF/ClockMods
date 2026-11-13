@@ -890,10 +890,10 @@ public class SettingsDialog extends Dialog {
     }
 
     private void updateDimTimeLabels() {
-        dimStartButton.setText(getContext().getString(R.string.dim_start_time)
-                + " " + formatMinutes(dimStartMinutes));
-        dimEndButton.setText(getContext().getString(R.string.dim_end_time)
-                + " " + formatMinutes(dimEndMinutes));
+        dimStartButton.setText(ClockTimeText.align(getContext().getString(R.string.dim_start_time)
+                + " " + formatMinutes(dimStartMinutes)));
+        dimEndButton.setText(ClockTimeText.align(getContext().getString(R.string.dim_end_time)
+                + " " + formatMinutes(dimEndMinutes)));
     }
 
     private void updateDimScheduleState(boolean enabled) {

@@ -29,8 +29,8 @@ public final class AlarmRingingActivity extends Activity {
         setTurnScreenOn(true);
         getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
         setContentView(R.layout.activity_alarm_ringing);
-        ((TextView) findViewById(R.id.ringing_time)).setText(
-                new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date()));
+        ((TextView) findViewById(R.id.ringing_time)).setText(com.clockmods.ui.ClockTimeText.align(
+                new SimpleDateFormat("HH:mm", Locale.getDefault()).format(new Date())));
         ProFontApplier.apply(getWindow().getDecorView());
         ButtonTextSizer.applyToTree(getWindow().getDecorView());
         findViewById(R.id.alarm_dismiss).setOnClickListener(view -> {

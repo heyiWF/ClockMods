@@ -260,11 +260,11 @@ public final class ProTimerFragment extends Fragment {
         }
         long totalSeconds = (remainingMillis + 999L) / 1000L;
         if (pomodoro) {
-            display.setText(String.format(Locale.US, "%02d:%02d", totalSeconds / 60,
-                totalSeconds % 60));
+            display.setText(com.clockmods.ui.ClockTimeText.align(String.format(Locale.US, "%02d:%02d", totalSeconds / 60,
+                totalSeconds % 60)));
         } else {
-            display.setText(String.format(Locale.US, "%02d:%02d:%02d", totalSeconds / 3600,
-                (totalSeconds / 60) % 60, totalSeconds % 60));
+            display.setText(com.clockmods.ui.ClockTimeText.align(String.format(Locale.US, "%02d:%02d:%02d", totalSeconds / 3600,
+                (totalSeconds / 60) % 60, totalSeconds % 60)));
         }
         if (pomodoro) phase.setText(phaseLabel());
         startPause.setText(running ? R.string.timer_pause : R.string.timer_start);

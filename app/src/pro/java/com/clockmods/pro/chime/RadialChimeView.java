@@ -85,7 +85,7 @@ public final class RadialChimeView extends View {
             textPaint.setTextSize(resolveBaseTextSize() * textScale);
             Paint.FontMetrics metrics = textPaint.getFontMetrics();
             float baseline = getHeight() / 2f - (metrics.ascent + metrics.descent) / 2f;
-            canvas.drawText(displayedTime, getWidth() / 2f, baseline, textPaint);
+            com.clockmods.ui.ClockTimeText.draw(canvas, displayedTime, getWidth() / 2f, baseline, textPaint);
         }
         if (progress < 1f) postInvalidateDelayed(16L);
         else stopChime();
