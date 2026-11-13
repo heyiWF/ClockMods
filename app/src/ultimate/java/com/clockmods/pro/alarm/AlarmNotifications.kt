@@ -19,7 +19,7 @@ import com.clockmods.R
 
 class AlarmNotifications private constructor() {
     companion object {
-        private const val CHANNEL_ID = "clockmods_alarm"
+        private const val CHANNEL_ID = "clockmods_alarm_v2"
         private const val NOTIFICATION_ID = 100
         private const val RINGING_REQUEST_CODE = 101
         private const val STOP_REQUEST_CODE = 102
@@ -117,46 +117,9 @@ class AlarmNotifications private constructor() {
         }
 
         @JvmStatic
-        fun build(context: Context): Notification {
-            val localized = requireNotNull(LocaleManager.wrap(context))
-            val manager = notificationManager(context)
-            val channel = NotificationChannel(
-                CHANNEL_ID,
-                localized.getString(R.string.alarm_channel),
-                NotificationManager.IMPORTANCE_HIGH,
-            ).apply {
-                setSound(
-                    Settings.System.DEFAULT_ALARM_ALERT_URI,
-                    AudioAttributes.Builder().setUsage(AudioAttributes.USAGE_ALARM).build(),
-                )
-                enableVibration(true)
-            }
-            manager.createNotificationChannel(channel)
-            val ringing = PendingIntent.getActivity(
-                context,
-                RINGING_REQUEST_CODE,
-                ringingActivityIntent(context),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-            )
-            val builder = NotificationCompat.Builder(context, CHANNEL_ID)
-                .setSmallIcon(R.drawable.ic_notification_clock)
-                .setContentTitle(localized.getString(R.string.alarm_ringing))
-                .setContentText(localized.getString(R.string.alarm_open_to_dismiss))
-                .setCategory(NotificationCompat.CATEGORY_ALARM)
-                .setPriority(NotificationCompat.PRIORITY_MAX)
-                .setOngoing(true)
-                .setAutoCancel(false)
-                .setContentIntent(ringing)
-                .addAction(
-                    R.drawable.ic_notification_clock,
-                    localized.getString(R.string.alarm_dismiss),
-                    stopRingingIntent(context),
-                )
-            if (shouldAttachFullScreenIntent(canUseFullScreenIntent(context))) {
-                builder.setFullScreenIntent(ringing, true)
-            }
-            return builder.build()
-        }
+        fun build(context: Context): Notification = AlarmDelivery.notification(
+            context, AlarmStore(context).find(AlarmStore(context).ringingId()), 1,
+        )
 
         @JvmStatic
         fun cancel(context: Context) {

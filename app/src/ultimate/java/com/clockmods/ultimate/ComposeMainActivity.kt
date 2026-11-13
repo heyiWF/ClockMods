@@ -125,10 +125,7 @@ open class ComposeMainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
-        val alarmStore = AlarmStore(this)
-        if (alarmStore.enabled()) {
-            AlarmScheduler.schedule(this, alarmStore.hour(), alarmStore.minute())
-        }
+        AlarmScheduler.rescheduleAll(this)
         TimerScheduler.restoreRunningTimers(this)
         val language = ClockPreferences(this).getClockLanguage()
         if (appliedLanguage != null && language != appliedLanguage) {

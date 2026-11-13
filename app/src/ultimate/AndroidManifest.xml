@@ -8,7 +8,13 @@
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE" />
     <uses-permission android:name="android.permission.FOREGROUND_SERVICE_MEDIA_PLAYBACK" />
 
+    <uses-permission android:name="android.permission.WAKE_LOCK" />
+
     <application android:name=".ultimate.UltimateApplication" android:enableOnBackInvokedCallback="true">
+        <activity android:name=".pro.alarm.AlarmEditorActivity" android:exported="false" android:theme="@style/Theme.ClockMods.AlarmEditor" />
+        <activity android:name=".pro.alarm.AlarmDatesActivity" android:exported="false" android:theme="@style/Theme.ClockMods.AlarmEditor" />
+        <activity android:name=".pro.alarm.AlarmShiftActivity" android:exported="false" android:theme="@style/Theme.ClockMods.AlarmEditor" />
+
         <activity android:name=".ultimate.settings.CalendarManagerActivity"
             android:exported="false" />
         <activity android:name=".ultimate.settings.FontManagerActivity"
