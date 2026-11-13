@@ -22,6 +22,8 @@ import com.clockmods.ui.ClockTimeText;
 import com.google.android.material.button.MaterialButton;
 
 import java.util.Locale;
+import java.util.ArrayList;
+import android.view.Gravity;
 
 public final class ProStopwatchFragment extends Fragment {
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -35,7 +37,11 @@ public final class ProStopwatchFragment extends Fragment {
     private long accumulated;
     private long startedElapsed;
     private boolean running;
-    private int lapCount;
+    private long startedWall;
+    private final ArrayList<Long> lapTimes = new ArrayList<>();
+    private View records;
+    private ToolWorkspaceLayout workspace;
+    private MaterialButton lapButton, resetButton;
 
     @Nullable
     @Override
@@ -46,14 +52,25 @@ public final class ProStopwatchFragment extends Fragment {
         display = root.findViewById(R.id.stopwatch_display);
         startPause = root.findViewById(R.id.stopwatch_start_pause);
         laps = root.findViewById(R.id.stopwatch_laps);
+        workspace = (ToolWorkspaceLayout) root;
+        records = root.findViewById(R.id.stopwatch_records);
+        lapButton = root.findViewById(R.id.stopwatch_lap);
+        resetButton = root.findViewById(R.id.stopwatch_reset);
+        ToolButtonMotion.install(startPause); ToolButtonMotion.install(resetButton); ToolButtonMotion.install(lapButton);
         accumulated = preferences.getLong("accumulated", 0L);
         running = preferences.getBoolean("running", false);
-        startedElapsed = running ? SystemClock.elapsedRealtime() : 0L;
+        startedElapsed = preferences.getLong("started_at_realtime", SystemClock.elapsedRealtime());
+        startedWall = preferences.getLong("started_at_wall", System.currentTimeMillis());
+        lapTimes.clear();
+        for (String value : preferences.getString("laps", "").split(",")) {
+            try { lapTimes.add(Long.parseLong(value)); } catch (NumberFormatException ignored) { }
+        }
         startPause.setOnClickListener(view -> toggle());
         root.findViewById(R.id.stopwatch_reset).setOnClickListener(view -> reset());
         root.findViewById(R.id.stopwatch_lap).setOnClickListener(view -> addLap());
         ProFontApplier.apply(root);
         ButtonTextSizer.applyToTree(root);
+        renderLaps();
         render();
         return root;
     }
@@ -64,6 +81,7 @@ public final class ProStopwatchFragment extends Fragment {
             running = false;
         } else {
             startedElapsed = SystemClock.elapsedRealtime();
+            startedWall = System.currentTimeMillis();
             running = true;
         }
         persist();
@@ -73,33 +91,74 @@ public final class ProStopwatchFragment extends Fragment {
     private void reset() {
         running = false;
         accumulated = 0L;
-        lapCount = 0;
-        laps.removeAllViews();
+        lapTimes.clear();
+        renderLaps();
         persist();
         render();
     }
 
     private void addLap() {
         if (!running && accumulated == 0L) return;
-        TextView lap = new TextView(requireContext());
-        // Aligned after formatting: getString() runs the args through String.format, which
-        // would flatten a spanned time back to plain text.
-        lap.setText(ClockTimeText.align(
-                getString(R.string.stopwatch_lap_value, ++lapCount, format(elapsed()))));
-        lap.setTextSize(15);
-        lap.setPadding(12, 6, 12, 6);
-        ProFontApplier.apply(lap);
-        laps.addView(lap, 0);
+        if (workspace.isLaidOut()) androidx.transition.TransitionManager.beginDelayedTransition(workspace, new androidx.transition.AutoTransition().setDuration(280));
+        lapTimes.add(0, elapsed());
+        persist();
+        renderLaps();
+        View entry = laps.getChildAt(0);
+        if (entry != null && android.animation.ValueAnimator.areAnimatorsEnabled()) {
+            entry.setTranslationY(-dp(24)); entry.setAlpha(0);
+            entry.animate().translationY(0).alpha(1).setDuration(260).start();
+        }
     }
 
+    private void renderLaps() {
+        laps.removeAllViews();
+        records.setVisibility(lapTimes.isEmpty() ? View.GONE : View.VISIBLE);
+        workspace.setExpandedDetails(!lapTimes.isEmpty());
+        for (int index = 0; index < lapTimes.size(); index++) {
+            long total = lapTimes.get(index);
+            long previous = index + 1 < lapTimes.size() ? lapTimes.get(index + 1) : 0;
+            LinearLayout row = new LinearLayout(requireContext());
+            row.setGravity(Gravity.CENTER_VERTICAL);
+            row.setMinimumHeight(dp(48));
+            row.addView(lapCell(Integer.toString(lapTimes.size() - index), false),
+                    new LinearLayout.LayoutParams(dp(48), -2));
+            row.addView(lapCell(format(Math.max(0, total - previous)), true),
+                    new LinearLayout.LayoutParams(0, -2, 1));
+            row.addView(lapCell(format(total), true), new LinearLayout.LayoutParams(0, -2, 1));
+            ProFontApplier.apply(row);
+            laps.addView(row);
+        }
+    }
+
+    private TextView lapCell(String value, boolean time) {
+        androidx.appcompat.widget.AppCompatTextView cell = new androidx.appcompat.widget.AppCompatTextView(requireContext());
+        cell.setText(ClockTimeText.align(value));
+        cell.setTextSize(16);
+        cell.setSingleLine(true);
+        cell.setGravity(time ? Gravity.END : Gravity.START);
+        androidx.core.widget.TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(cell, 10, 16, 1, android.util.TypedValue.COMPLEX_UNIT_SP);
+        return cell;
+    }
+
+    private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
+
     private long elapsed() {
-        return accumulated + (running ? SystemClock.elapsedRealtime() - startedElapsed : 0L);
+        return StopwatchTimebase.elapsed(accumulated, running, startedElapsed, startedWall,
+                SystemClock.elapsedRealtime(), System.currentTimeMillis());
     }
 
     private void render() {
         if (display == null) return;
         display.setText(ClockTimeText.align(format(elapsed())));
+        ToolButtonMotion.running(startPause, running);
         startPause.setText(running ? R.string.timer_pause : R.string.timer_start);
+        startPause.setContentDescription(startPause.getText());
+        startPause.setIconResource(running ? R.drawable.tool_ic_pause : R.drawable.tool_ic_play);
+        int visibility = running || accumulated > 0 ? View.VISIBLE : View.GONE;
+        if (lapButton.getVisibility() != visibility && startPause.isLaidOut())
+            androidx.transition.TransitionManager.beginDelayedTransition((ViewGroup) startPause.getParent(), new androidx.transition.AutoTransition().setDuration(300));
+        lapButton.setVisibility(visibility);
+        resetButton.setVisibility(running || accumulated > 0 ? View.VISIBLE : View.GONE);
     }
 
     private String format(long millis) {
@@ -109,14 +168,16 @@ public final class ProStopwatchFragment extends Fragment {
     }
 
     private void persist() {
-        preferences.edit().putLong("accumulated", elapsed())
-                .putBoolean("running", running).apply();
-        if (running) {
-            accumulated = elapsed();
-            startedElapsed = SystemClock.elapsedRealtime();
-        }
+        if (preferences == null) return;
+        StringBuilder savedLaps = new StringBuilder();
+        for (long lap : lapTimes) { if (savedLaps.length() > 0) savedLaps.append(','); savedLaps.append(lap); }
+        preferences.edit().putLong("accumulated", accumulated)
+                .putLong("started_at_realtime", running ? startedElapsed : 0)
+                .putLong("started_at_wall", running ? startedWall : 0)
+                .putString("laps", savedLaps.toString()).putBoolean("running", running).apply();
     }
 
     @Override public void onResume() { super.onResume(); handler.post(ticker); }
     @Override public void onPause() { handler.removeCallbacks(ticker); persist(); super.onPause(); }
+    @Override public void onDestroyView() { display = null; super.onDestroyView(); }
 }

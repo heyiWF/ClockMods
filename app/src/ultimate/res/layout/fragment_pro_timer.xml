@@ -1,83 +1,43 @@
 <?xml version="1.0" encoding="utf-8"?>
-<LinearLayout xmlns:android="http://schemas.android.com/apk/res/android"
-    android:layout_width="match_parent"
-    android:layout_height="match_parent"
-    android:background="?attr/colorSurface"
-    android:gravity="center_horizontal"
-    android:orientation="vertical"
-    android:padding="24dp">
-
-    <TextView
-        android:id="@+id/timer_title"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="28dp"
-        android:textAppearance="?attr/textAppearanceTitleLarge" />
-
-    <TextView
-        android:id="@+id/timer_phase"
-        android:layout_width="wrap_content"
-        android:layout_height="wrap_content"
-        android:layout_marginTop="12dp"
-        android:textColor="?attr/colorOnSurfaceVariant"
-        android:textAppearance="?attr/textAppearanceLabelLarge" />
-
-    <TextView
-        android:id="@+id/timer_display"
-        android:layout_width="match_parent"
-        android:layout_height="0dp"
-        android:layout_weight="1"
-        android:fontFamily="sans-serif-light"
-        android:gravity="center"
-        android:maxLines="1"
-        android:text="25:00"
-        android:textColor="?attr/colorOnSurface"
-        android:textSize="72sp" />
-
-    <LinearLayout
-        android:id="@+id/timer_presets"
-        android:layout_width="match_parent"
-        android:layout_height="48dp"
-        android:gravity="center"
-        android:orientation="horizontal" />
-
-    <LinearLayout
-        android:layout_width="match_parent"
-        android:layout_height="64dp"
-        android:gravity="center"
-        android:orientation="horizontal">
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/timer_reset"
-            style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="0dp"
-            android:layout_height="56dp"
-            android:layout_weight="1"
-            android:ellipsize="none"
-            android:maxLines="1"
-            android:text="@string/timer_reset" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/timer_start_pause"
-            android:layout_width="0dp"
-            android:layout_height="56dp"
-            android:layout_marginStart="12dp"
-            android:layout_weight="1"
-            android:ellipsize="none"
-            android:maxLines="1"
-            android:text="@string/timer_start" />
-
-        <com.google.android.material.button.MaterialButton
-            android:id="@+id/timer_skip"
-            style="@style/Widget.Material3.Button.OutlinedButton"
-            android:layout_width="0dp"
-            android:layout_height="56dp"
-            android:layout_marginStart="12dp"
-            android:layout_weight="1"
-            android:ellipsize="none"
-            android:maxLines="1"
-            android:text="@string/timer_skip" />
-
+<com.clockmods.pro.ToolWorkspaceLayout xmlns:android="http://schemas.android.com/apk/res/android" xmlns:app="http://schemas.android.com/apk/res-auto"
+    android:layout_width="match_parent" android:layout_height="match_parent" android:padding="24dp" android:background="?attr/colorSurface">
+    <LinearLayout android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1" android:orientation="vertical">
+        <TextView android:id="@+id/timer_title" android:layout_width="match_parent" android:layout_height="wrap_content" android:textAppearance="?attr/textAppearanceHeadlineMedium"/>
+        <TextView android:id="@+id/timer_phase" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginTop="8dp" android:textAppearance="?attr/textAppearanceTitleMedium" android:textColor="?attr/colorPrimary"/>
+        <androidx.appcompat.widget.AppCompatTextView android:id="@+id/timer_display" android:layout_width="match_parent" android:layout_height="0dp" android:layout_weight="1"
+        android:gravity="center" android:fontFamily="sans-serif-light" android:maxLines="1" android:text="00:00.00" android:textColor="?attr/colorOnSurface"
+        app:autoSizeTextType="uniform" app:autoSizeMinTextSize="24sp" app:autoSizeMaxTextSize="96sp" app:autoSizeStepGranularity="1sp"/>
     </LinearLayout>
-
-</LinearLayout>
+    <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical" android:gravity="center_vertical">
+        <com.google.android.material.chip.ChipGroup android:id="@+id/timer_presets" android:layout_width="match_parent" android:layout_height="wrap_content" android:layout_marginBottom="24dp" app:chipSpacingHorizontal="8dp" app:chipSpacingVertical="4dp"/>
+        <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="horizontal">
+        <com.google.android.material.button.MaterialButton
+        android:id="@+id/timer_reset" style="@style/Widget.Material3.Button.TonalButton"
+        android:layout_width="64dp" android:layout_height="72dp"
+         android:layout_marginHorizontal="4dp"
+        android:insetTop="0dp" android:insetBottom="0dp" android:minWidth="0dp"
+        android:paddingHorizontal="12dp" app:cornerRadius="36dp"
+        android:contentDescription="@string/timer_reset"
+        android:textSize="20sp" app:icon="@drawable/tool_ic_reset" app:iconSize="28dp"
+        app:iconGravity="textStart" app:iconPadding="0dp" />
+        <com.google.android.material.button.MaterialButton
+        android:id="@+id/timer_start_pause" style="@style/Widget.Material3.Button"
+        android:layout_width="0dp" android:layout_height="72dp"
+        android:layout_weight="1" android:layout_marginHorizontal="4dp"
+        android:insetTop="0dp" android:insetBottom="0dp" android:minWidth="0dp"
+        android:paddingHorizontal="12dp" app:cornerRadius="36dp"
+        android:contentDescription="@string/timer_start" android:text="@string/timer_start"
+        android:textSize="20sp" app:icon="@drawable/tool_ic_play" app:iconSize="28dp"
+        app:iconGravity="textStart" app:iconPadding="8dp" />
+        <com.google.android.material.button.MaterialButton
+        android:id="@+id/timer_skip" style="@style/Widget.Material3.Button.TonalButton"
+        android:layout_width="64dp" android:layout_height="72dp"
+         android:layout_marginHorizontal="4dp"
+        android:insetTop="0dp" android:insetBottom="0dp" android:minWidth="0dp"
+        android:paddingHorizontal="12dp" app:cornerRadius="36dp"
+        android:contentDescription="@string/timer_skip"
+        android:textSize="20sp" app:icon="@drawable/tool_ic_skip" app:iconSize="28dp"
+        app:iconGravity="textStart" app:iconPadding="0dp" />
+        </LinearLayout>
+    </LinearLayout>
+</com.clockmods.pro.ToolWorkspaceLayout>

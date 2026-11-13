@@ -1,0 +1,4 @@
+<resources>
+    <string name="stopwatch_split">ラップタイム</string>
+    <string name="stopwatch_total">合計</string>
+</resources>

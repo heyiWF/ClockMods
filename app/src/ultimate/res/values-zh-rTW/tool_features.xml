@@ -1,0 +1,4 @@
+<resources>
+    <string name="stopwatch_split">分段</string>
+    <string name="stopwatch_total">總計</string>
+</resources>

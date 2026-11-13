@@ -9,6 +9,8 @@ import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
 import android.widget.LinearLayout;
+import com.google.android.material.chip.Chip;
+import com.google.android.material.chip.ChipGroup;
 import android.widget.NumberPicker;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -38,6 +40,7 @@ public final class ProTimerFragment extends Fragment {
 
     private SharedPreferences preferences;
     private TextView display;
+    private RollingTimeText rollingTime;
     private TextView phase;
     private MaterialButton startPause;
     private boolean pomodoro;
@@ -66,9 +69,13 @@ public final class ProTimerFragment extends Fragment {
         pomodoro = MODE_POMODORO.equals(requireArguments().getString(ARG_MODE));
         preferences = requireContext().getSharedPreferences("pro_timers", Context.MODE_PRIVATE);
         display = root.findViewById(R.id.timer_display);
+        rollingTime = new RollingTimeText(display);
         phase = root.findViewById(R.id.timer_phase);
         phase.setVisibility(pomodoro ? View.VISIBLE : View.GONE);
         startPause = root.findViewById(R.id.timer_start_pause);
+        ToolButtonMotion.install(startPause);
+        ToolButtonMotion.install(root.findViewById(R.id.timer_reset));
+        ToolButtonMotion.install(root.findViewById(R.id.timer_skip));
         ((TextView) root.findViewById(R.id.timer_title)).setText(
                 pomodoro ? R.string.pro_page_pomodoro : R.string.pro_page_countdown);
         root.findViewById(R.id.timer_reset).setOnClickListener(view -> reset());
@@ -83,61 +90,22 @@ public final class ProTimerFragment extends Fragment {
         return root;
     }
 
-    private void setupPresets(LinearLayout container) {
-        if (pomodoro) {
-            addPresetRow(container, new int[] {5, 15, 25}, 12);
-            return;
+    private void setupPresets(ChipGroup container) {
+        int[] minutes = pomodoro ? new int[] {5, 15, 25} : new int[] {5, 10, 30, 60};
+        for (int value : minutes) {
+            Chip chip = new Chip(requireContext());
+            chip.setText(getString(R.string.timer_minutes, value));
+            chip.setEnsureMinTouchTargetSize(true);
+            chip.setOnClickListener(view -> setDuration(value * 60_000L));
+            container.addView(chip);
         }
-        int[] minutes = {5, 10, 30, 60};
-        int spacing = dp(8);
-        for (int index = 0; index < minutes.length; index++) {
-            container.addView(createPresetButton(minutes[index]),
-                    equalPresetParams(index, spacing));
+        if (!pomodoro) {
+            Chip custom = new Chip(requireContext());
+            custom.setText(R.string.timer_custom);
+            custom.setEnsureMinTouchTargetSize(true);
+            custom.setOnClickListener(view -> showCustomDurationDialog());
+            container.addView(custom);
         }
-        container.addView(createCustomButton(), equalPresetParams(minutes.length, spacing));
-    }
-
-    private void addPresetRow(LinearLayout container, int[] minutes, int spacingDp) {
-        int spacing = dp(spacingDp);
-        for (int index = 0; index < minutes.length; index++) {
-            LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0,
-                    ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-            if (index > 0) params.setMarginStart(spacing);
-            container.addView(createPresetButton(minutes[index]), params);
-        }
-    }
-
-        private LinearLayout.LayoutParams equalPresetParams(int index, int spacing) {
-        LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0,
-            ViewGroup.LayoutParams.MATCH_PARENT, 1f);
-        if (index > 0) params.setMarginStart(spacing);
-        return params;
-    }
-
-    private MaterialButton createPresetButton(int minutes) {
-        MaterialButton button = new MaterialButton(requireContext(), null,
-                com.google.android.material.R.attr.materialButtonOutlinedStyle);
-        configureCompactButton(button);
-        button.setText(getString(R.string.timer_minutes, minutes));
-        button.setOnClickListener(view -> setDuration(minutes * 60_000L));
-        return button;
-    }
-
-    private MaterialButton createCustomButton() {
-        MaterialButton button = new MaterialButton(requireContext(), null,
-                com.google.android.material.R.attr.materialButtonOutlinedStyle);
-        configureCompactButton(button);
-        button.setText(R.string.timer_custom);
-        button.setOnClickListener(view -> showCustomDurationDialog());
-        return button;
-    }
-
-    private void configureCompactButton(MaterialButton button) {
-        button.setMinWidth(0);
-        button.setMinimumWidth(0);
-        button.setPadding(dp(4), 0, dp(4), 0);
-        button.setSingleLine(true);
-        ButtonTextSizer.apply(button);
     }
 
     private int dp(int value) {
@@ -205,6 +173,8 @@ public final class ProTimerFragment extends Fragment {
         }
 
     private void setDuration(long duration) {
+        TimerScheduler.cancel(requireContext(), prefixMode());
+        deadlineMillis = 0L;
         running = false;
         durationMillis = duration;
         remainingMillis = duration;
@@ -261,14 +231,16 @@ public final class ProTimerFragment extends Fragment {
         }
         long totalSeconds = (remainingMillis + 999L) / 1000L;
         if (pomodoro) {
-            display.setText(ClockTimeText.align(String.format(Locale.US, "%02d:%02d",
-                totalSeconds / 60, totalSeconds % 60)));
+            rollingTime.set(String.format(Locale.US, "%02d:%02d", totalSeconds / 60, totalSeconds % 60), running);
         } else {
-            display.setText(ClockTimeText.align(String.format(Locale.US, "%02d:%02d:%02d",
-                totalSeconds / 3600, (totalSeconds / 60) % 60, totalSeconds % 60)));
+            rollingTime.set(String.format(Locale.US, "%02d:%02d:%02d", totalSeconds / 3600, (totalSeconds / 60) % 60, totalSeconds % 60), running);
         }
         if (pomodoro) phase.setText(phaseLabel());
+        ToolButtonMotion.running(startPause, running);
         startPause.setText(running ? R.string.timer_pause : R.string.timer_start);
+        startPause.setIconResource(running ? R.drawable.tool_ic_pause : R.drawable.tool_ic_play);
+        startPause.setContentDescription(startPause.getText());
+        startPause.setEnabled(remainingMillis > 0);
     }
 
     private String phaseLabel() {
@@ -296,6 +268,8 @@ public final class ProTimerFragment extends Fragment {
                 .putBoolean(prefix() + "running", running)
                 .putInt(prefix() + "phase", pomodoroPhase).apply();
     }
+
+    @Override public void onDestroyView() { rollingTime.dispose(); display = null; super.onDestroyView(); }
 
     @Override public void onResume() { super.onResume(); handler.post(ticker); }
     @Override public void onPause() { handler.removeCallbacks(ticker); persist(); super.onPause(); }
