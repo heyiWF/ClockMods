@@ -1139,6 +1139,8 @@ private fun WeatherLocationDialog(
                                 modifier = Modifier.padding(bottom = 8.dp),
                             )
                         }
+                        // A different location level starts at its first entry.
+                        androidx.compose.runtime.key(stage, province, city) {
                         LazyColumn(Modifier.fillMaxWidth().heightIn(max = 420.dp)) {
                             when (stage) {
                                 LocationStage.PROVINCE -> {
@@ -1178,6 +1180,7 @@ private fun WeatherLocationDialog(
                                     }
                                 }
                             }
+                        }
                         }
                     }
                 }

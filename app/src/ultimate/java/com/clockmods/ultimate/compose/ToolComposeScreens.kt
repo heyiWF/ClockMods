@@ -1,5 +1,7 @@
 package com.clockmods.ultimate.compose
 
+import com.clockmods.ui.compose.TimeText
+
 import android.content.Context
 import android.content.Intent
 import android.Manifest
@@ -183,7 +185,7 @@ internal fun TimerScreen(modifier: Modifier, pomodoro: Boolean) {
             )
         }
         Spacer(Modifier.height(28.dp))
-        Text(
+        TimeText(
             formatDuration(remaining, pomodoro),
             fontSize = if (pomodoro) 64.sp else 54.sp,
             fontWeight = FontWeight.Light,
@@ -396,7 +398,7 @@ internal fun AlarmScreen(modifier: Modifier) {
         Card(Modifier.fillMaxWidth().widthIn(max = 560.dp)) {
             Column(Modifier.padding(24.dp), verticalArrangement = Arrangement.spacedBy(18.dp)) {
                 Row(verticalAlignment = Alignment.CenterVertically) {
-                    Text(
+                    TimeText(
                         String.format(
                             LocalConfiguration.current.locales[0],
                             "%02d:%02d",
@@ -416,7 +418,7 @@ internal fun AlarmScreen(modifier: Modifier) {
                         } else AlarmScheduler.cancel(context)
                     })
                 }
-                Text(
+                TimeText(
                     if (enabled) {
                         stringResource(
                             R.string.alarm_next_trigger,
@@ -596,7 +598,7 @@ internal fun StopwatchScreen(modifier: Modifier) {
         modifier.fillMaxSize().padding(24.dp),
         horizontalAlignment = Alignment.CenterHorizontally,
     ) {
-        Text(
+        TimeText(
             formatStopwatch(elapsed),
             fontSize = 54.sp,
             fontWeight = FontWeight.Light,
@@ -654,7 +656,7 @@ internal fun StopwatchScreen(modifier: Modifier) {
         Spacer(Modifier.height(20.dp))
         LazyColumn(Modifier.fillMaxWidth().weight(1f).widthIn(max = 560.dp)) {
             itemsIndexed(laps) { index, lap ->
-                Text(
+                TimeText(
                     stringResource(
                         R.string.stopwatch_lap_value,
                         laps.size - index,

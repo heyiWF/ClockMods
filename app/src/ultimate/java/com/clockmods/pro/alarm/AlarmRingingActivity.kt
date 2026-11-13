@@ -1,5 +1,7 @@
 package com.clockmods.pro.alarm
 
+import com.clockmods.ui.compose.TimeText
+
 import android.content.Context
 import android.content.Intent
 import android.os.Bundle
@@ -115,7 +117,7 @@ private fun AlarmRingingScreen(onDismiss: () -> Unit) {
             tint = MaterialTheme.colorScheme.primary,
         )
         Spacer(Modifier.weight(1f))
-        Text(
+        TimeText(
             time,
             modifier = Modifier.fillMaxWidth(),
             color = MaterialTheme.colorScheme.onBackground,

@@ -598,7 +598,7 @@ private fun ScheduleEditorDialog(
                 }
                 TextButton(onClick = { showTimePicker = true }) {
                     val locale = LocalConfiguration.current.locales[0]
-                    Text(
+                    com.clockmods.ui.compose.TimeText(
                         if (hasTime) {
                             String.format(locale, "%02d:%02d", selectedHour, selectedMinute)
                         } else {

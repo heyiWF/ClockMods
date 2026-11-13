@@ -1,3 +1,4 @@
+import { setTemperature } from '../ui/temperature';
 import { agendaSchedule } from '../ui/agenda-schedule';
 import { WeatherAttribution, renderWeatherAttribution } from '../ui/weather-attribution';
 import { applyCalendarTheme } from '../core/calendar-themes';
@@ -314,7 +315,7 @@ export class CalendarPage implements Page {
     this.lastWeather=state;this.renderAgendaWeather();
     this.weatherIcon.hidden = !state.data;
     if (!state.data) {
-      this.temperature.textContent = temperature('--',this.settings.getTemperatureUnit());this.feels.textContent=temperature('--',this.settings.getTemperatureUnit());
+      setTemperature(this.temperature, temperature('--',this.settings.getTemperatureUnit()), ['calendar.graphite', 'calendar.carbon'].includes(this.settings.getUltimateOptions().calendarTheme));setTemperature(this.feels, temperature('--',this.settings.getTemperatureUnit()), ['calendar.graphite', 'calendar.carbon'].includes(this.settings.getUltimateOptions().calendarTheme));
       this.summary.textContent = pangu(state.message ?? t('calendar_forecast_loading'));
       this.fitWeatherTypography();
       return;
@@ -323,9 +324,9 @@ export class CalendarPage implements Page {
     this.weatherIcon.replaceChildren(
       createWeatherIcon(data.icon, this.settings.isWeatherIconFill()) ?? document.createTextNode('')
     );
-    this.temperature.textContent = temperature(data.temperature, this.settings.getTemperatureUnit());
+    setTemperature(this.temperature, temperature(data.temperature, this.settings.getTemperatureUnit()), ['calendar.graphite', 'calendar.carbon'].includes(this.settings.getUltimateOptions().calendarTheme));
     const feelsLike = data.detail?.feelsLike?.trim() ? data.detail.feelsLike : '--';
-    this.feels.textContent = temperature(feelsLike, this.settings.getTemperatureUnit());
+    setTemperature(this.feels, temperature(feelsLike, this.settings.getTemperatureUnit()), ['calendar.graphite', 'calendar.carbon'].includes(this.settings.getUltimateOptions().calendarTheme));
 
     const parts = [locationText(data.city, data.district), data.text];
     if (data.detail) {
