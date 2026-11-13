@@ -211,6 +211,43 @@
     if (type === 'flip') transform += ' scaleY('+Math.max(0.05, 1-Math.abs(phase))+')';
     track.style.transform = transform; track.style.opacity = String(opacity);
   }
+  var colonMetrics = {};
+  function colonShift(element) {
+    var style = win.getComputedStyle ? win.getComputedStyle(element) : element.currentStyle;
+    var family = style.fontFamily || 'sans-serif', weight = style.fontWeight || '400', key = family+'|'+weight;
+    if (colonMetrics[key] !== undefined) return colonMetrics[key];
+    var canvas = doc.createElement('canvas'), paint;
+    if (!canvas.getContext) return 0;
+    try { paint = canvas.getContext('2d'); } catch (ignored) { return 0; }
+    if (!paint) return 0;
+    canvas.width = 220; canvas.height = 200; paint.font = weight+' 100px '+family;
+    function bounds(glyph) {
+      var measured = paint.measureText(glyph);
+      if (isFinite(measured.actualBoundingBoxAscent) && isFinite(measured.actualBoundingBoxDescent))
+        return [-measured.actualBoundingBoxAscent, measured.actualBoundingBoxDescent];
+      // IE canvas lacks ink metrics; scan the rendered glyph once per font instead.
+      paint.clearRect(0,0,220,200); paint.fillText(glyph,10,140);
+      var pixels = paint.getImageData(0,0,220,200).data, top=200, bottom=-1, x, y;
+      for(y=0;y<200;y++) for(x=0;x<220;x++) if(pixels[(y*220+x)*4+3]) {top=Math.min(top,y);bottom=Math.max(bottom,y);}
+      return bottom<top ? [0,0] : [top-140,bottom+1-140];
+    }
+    var digit=bounds('0'), colon=bounds(':'), shift=(digit[0]+digit[1]-colon[0]-colon[1])/200;
+    colonMetrics[key] = shift; return shift;
+  }
+  function alignedTime(element,value) {
+    if(element.getAttribute('data-aligned-time') !== value || element.textContent !== value) {
+      while(element.firstChild)element.removeChild(element.firstChild);
+      var parts=value.split(':'), i, separator;
+      for(i=0;i<parts.length;i++) {
+        if(i) { separator=doc.createElement('span');separator.className='time-colon';text(separator,':');element.appendChild(separator); }
+        element.appendChild(doc.createTextNode(parts[i]));
+      }
+      element.setAttribute('data-aligned-time',value);
+    }
+    var separators=element.querySelectorAll('.time-colon'), shift=colonShift(element), index;
+    for(index=0;index<separators.length;index++)separators[index].style.top=shift+'em';
+  }
+  if(doc.fonts && doc.fonts.addEventListener)doc.fonts.addEventListener('loadingdone',function(){colonMetrics={};render();});
   function render() {
     win.clearTimeout(tickTimer);
     var now = Date.now()+offset, date = clockDate(now), hour = date.getHours(), second = date.getSeconds(), current = hour*60+date.getMinutes();
@@ -238,7 +275,7 @@
       }
     } else if(!grouped) {
       if(main.getAttribute('data-groups')!==null) {while(main.firstChild)main.removeChild(main.firstChild);main.className='';}
-      main.removeAttribute('data-groups');text(main,value);
+      main.removeAttribute('data-groups');alignedTime(main,value);
     }
     text(node('clock-small-seconds'), prefs['show-seconds'] && prefs['small-seconds'] ? pad(second) : '');
     text(node('clock-period'), twelve ? (prefs.language === 'en' ? hour<12?'AM':'PM' : hour<12?'上午':'下午') : '');
@@ -252,6 +289,7 @@
     var dim = prefs['use-image'] && (prefs.dim || prefs['schedule-dim'] && within(current,minutes(prefs['dim-start']),minutes(prefs['dim-end'])));
     show(node('clock-dim'), dim);
     supportingItems(); fit();
+    if (!grouped) alignedTime(main,value);
     if (prefs['hourly-chime'] && date.getMinutes() === 0 && second === 0 && lastChime !== date.toString() &&
         !(prefs['chime-quiet'] && within(current,minutes(prefs['chime-start']),minutes(prefs['chime-end'])))) {
       lastChime = date.toString(); node('clock-face').className = 'clock-face is-chiming';

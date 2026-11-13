@@ -91,3 +91,5 @@ button:focus,input:focus,select:focus { outline:2px solid #435f91; outline-offse
 .is-cursor-idle .fullscreen-button { opacity:0; pointer-events:none; transition:opacity .6s ease; }
 .is-cursor-idle.is-keyboard .fullscreen-button:focus { opacity:.85; pointer-events:auto; outline:2px solid #fff; }
 @media (prefers-reduced-motion:reduce) { .fullscreen-button { transition:none; } }
+
+.time-colon { position: relative; }
