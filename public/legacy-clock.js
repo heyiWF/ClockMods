@@ -422,6 +422,7 @@
   node('settings-panel').addEventListener('input',preview,false);node('settings-panel').addEventListener('change',preview,false);
   doc.addEventListener('mousemove',function(){if(isPreview)return;doc.documentElement.className=doc.documentElement.className.replace(/ ?is-keyboard/g,'');revealCursor();show(node('weather-attribution'),prefs.weather);win.clearTimeout(attributionTimer);attributionTimer=win.setTimeout(function(){show(node('weather-attribution'),false);},3000);},false);
   doc.addEventListener('mousedown',function(){doc.documentElement.className=doc.documentElement.className.replace(/ ?is-keyboard/g,'');revealCursor();},false);
+  doc.addEventListener('touchstart',function(){if(!isPreview)revealCursor();},{passive:true});
   win.addEventListener('focus',revealCursor,false);
   var touchX=0,touchY=0,touchAt=0,lastTap=0;
   node('clock-face').addEventListener('touchstart',function(e){if(e.touches.length===1){touchX=e.touches[0].clientX;touchY=e.touches[0].clientY;touchAt=Date.now();}},false);
