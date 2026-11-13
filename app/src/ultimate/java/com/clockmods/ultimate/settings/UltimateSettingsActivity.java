@@ -1239,7 +1239,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT));
         body.addView(galleryScroll, topMargin(new LinearLayout.LayoutParams(
                 ViewGroup.LayoutParams.MATCH_PARENT, galleryHeight), dp(4)));
-        body.addView(label(R.string.theme_library_hint, 12, false));
+        body.addView(label(R.string.theme_library_hint, 12, false), topMargin(wrapParams(), dp(16)));
         updateStyleCards(selectedId);
         View cardToReveal = selectedCard;
         galleryScroll.post(() -> {
@@ -2317,7 +2317,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         gallery.addView(themeStoreEntry(true, dp(190), dp(172)));
         scroll.addView(gallery);
         body.addView(scroll, new LinearLayout.LayoutParams(-1, dp(188)));
-        body.addView(label(R.string.theme_library_hint, 12, false));
+        body.addView(label(R.string.theme_library_hint, 12, false), topMargin(wrapParams(), dp(16)));
         updateCalendarThemeCards(selectedId);
         return selectedId;
     }
@@ -4081,12 +4081,13 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     }
 
     /** Thin wrapper: the drawing itself lives with the compositions, in CalendarPreviewPainter. */
-    private static final class CalendarThemePreviewView extends View {
+    private final class CalendarThemePreviewView extends View {
         private final CalendarPreviewPainter painter;
         private final ClockPreferences preferences;
 
         CalendarThemePreviewView(Context context, CalendarStyle style) {
             super(context);
+            detailPreviews.add(this);
             preferences = new ClockPreferences(context);
             painter = new CalendarPreviewPainter(style,
                     context.getResources().getDisplayMetrics().density);
@@ -4101,6 +4102,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         @Override
         protected void onDraw(Canvas canvas) {
             super.onDraw(canvas);
+            if (!detailPreviewsReady) return;
             painter.setChineseCalendarEnabled(preferences.isChineseCalendarEnabled());
             painter.draw(canvas, getWidth(), getHeight());
         }

@@ -660,10 +660,10 @@ public class DashboardCalendarLayout implements CalendarLayout, CalendarPager {
         }
         WeatherModels.WeatherDisplayData data = state.data;
         currentWeatherIcon.setIconCode(data.icon, preferences.isWeatherIconFill());
-        currentTemperature.setText(temperatureLabel(data.temperature));
+        currentTemperature.setText(com.clockmods.ui.TemperatureText.align(temperatureLabel(data.temperature)));
         String feel = data.detail == null || empty(data.detail.feelsLike)
                 ? "--" : data.detail.feelsLike;
-        feelsLike.setText(temperatureLabel(feel));
+        feelsLike.setText(com.clockmods.ui.TemperatureText.align(temperatureLabel(feel)));
         StringBuilder summary =
                 new StringBuilder(WeatherModels.locationText(data.city, data.district));
         append(summary, data.text);
