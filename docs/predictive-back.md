@@ -32,8 +32,7 @@ Unit tests: Views 291 total (1 skipped), Compose 310 total (1 skipped), no failu
 
 ## Cancellation recovery (2026-11-10)
 
-Font and calendar import activities explicitly opt in at the activity level as well as the
-application level. Their root Back remains system-owned; an expanded calendar action menu
+Font and calendar import activities inherit predictive Back from the application opt-in. Their root Back remains system-owned; an expanded calendar action menu
 or a dialog consumes only its own internal Back step.
 
 Compose settings, setup and the calendar menu rewind the existing seekable timeline to
@@ -45,8 +44,7 @@ staggered opening animation.
 
 Regression coverage includes a hold at the edge before releasing a reversed gesture,
 left/right library cancellation, and frame-by-frame Compose cancellation at partial and
-zero progress (`BackPreviewCancellationTest`). System animation behavior on HyperOS 3 /
-Android 16 still requires confirmation on that device; an emulator result is not a substitute.
+zero progress (`BackPreviewCancellationTest`). The user confirmed normal behavior on stock Android; no HyperOS-specific workaround is applied.
 
 Local validation: 291 unit tests (1 skipped), no failures/errors; debug and instrumentation APKs
 build successfully; Lint has no errors (existing warnings remain).
@@ -57,3 +55,5 @@ mode, so this run does not certify real system cross-activity predictive animati
 The device report was confirmed as HyperOS-specific on 2026-11-10. Import activities
 now inherit the application opt-in again; no vendor workaround is needed. The generic
 seekable timeline cancellation fix and its regression tests remain.
+
+Alarm editing, multi-date selection and shift-cycle editing use system-owned activity Back. Returning without Apply discards that page’s draft. Native time/date dialogs install dialog-window cancellation handling; the system ringtone picker owns its own Back transition.
