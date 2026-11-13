@@ -55,7 +55,7 @@ it('shares the three second cursor deadline and restores the button for mouse an
     expect(doc.documentElement.className).not.toContain('is-cursor-idle');
     expect(doc.documentElement.className).toContain('is-keyboard');
     const css = readFileSync('public/legacy-clock.css', 'utf8');
-    expect(css).toContain('.is-cursor-idle .fullscreen-button { opacity:0; pointer-events:none; }');
+    expect(css).toMatch(/\.is-cursor-idle \.fullscreen-button\s*\{[^}]*opacity:0;[^}]*pointer-events:none;/);
   } finally { win.close(); }
 });
 it('reports browser request rejection without an unhandled rejection', async () => {
