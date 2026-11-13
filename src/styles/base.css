@@ -307,17 +307,17 @@ html.is-cursor-idle, html.is-cursor-idle body, html.is-cursor-idle #app * { curs
   width: 44px;
   height: 44px;
   padding: 10px;
-  border: 1px solid rgba(255,255,255,.25);
+  border: 1px solid rgba(255,255,255,.12);
   border-radius: 50%;
-  background: rgba(0,0,0,.7);
-  color: #fff;
+  background: rgba(0,0,0,.25);
+  color: rgba(255,255,255,.8);
   cursor: pointer;
-  opacity: .65;
-  transition: opacity .18s ease;
+  opacity: .45;
+  transition: opacity .3s ease;
 }
 .fullscreen-button svg { width: 24px; height: 24px; fill: currentColor; }
-.fullscreen-button:hover, .fullscreen-button:focus-visible { opacity: 1; }
+.fullscreen-button:hover, .fullscreen-button:focus-visible { opacity: .85; }
 .fullscreen-button:focus-visible { outline: 2px solid #fff; outline-offset: 3px; }
-html.is-cursor-idle .fullscreen-button { opacity: 0; pointer-events: none; }
-html.is-cursor-idle .fullscreen-button:focus-visible { opacity: 1; pointer-events: auto; }
+html.is-cursor-idle .fullscreen-button { opacity: 0; pointer-events: none; transition: opacity .6s ease; }
+html.is-cursor-idle .fullscreen-button:focus-visible { opacity: .85; pointer-events: auto; }
 @media (prefers-reduced-motion: reduce) { .fullscreen-button { transition: none; } }
