@@ -178,7 +178,13 @@ private fun Modifier.calendarPanel(theme: ComposeCalendarTheme): Modifier {
 @Composable
 private fun CalendarText(text: String, size: Float, color: Int, typography: CalendarTypography,
     modifier: Modifier = Modifier, emphasized: Boolean = false, maxLines: Int = 1,
-    date: Boolean = false) {
+    date: Boolean = false, temperatureUnit: Boolean = false) {
+    if (temperatureUnit) {
+        com.clockmods.ui.compose.TemperatureLabel(text, modifier, Color(color),
+            typography.supportingStyle(TextStyle(fontSize = size.sp, lineHeight = (size * 1.18f).sp), text, emphasized),
+            if (typography.supportingScale > 1f) TextOverflow.Visible else TextOverflow.Ellipsis)
+        return
+    }
     Text(text, modifier, color = Color(color), maxLines = maxLines, overflow = if ((if (date) typography.dateScale else typography.supportingScale) > 1f) TextOverflow.Visible else TextOverflow.Ellipsis,
         style = if (date) typography.dateStyle(TextStyle(fontSize = size.sp), text, emphasized)
             else typography.supportingStyle(TextStyle(fontSize = size.sp, lineHeight = (size * 1.18f).sp),
@@ -501,10 +507,10 @@ private fun DashboardReadings(theme: ComposeCalendarTheme, typography: CalendarT
                 }
                 Column(Modifier.weight(2.2f).offset(x = (-6).dp), horizontalAlignment = Alignment.CenterHorizontally) {
                     Row(verticalAlignment = Alignment.Bottom, horizontalArrangement = Arrangement.spacedBy(15.dp)) {
-                        CalendarText(temperature(data?.temperature, preferences), temperatureSize, theme.text, typography, Modifier.offset(y = 5.dp), emphasized = true)
+                        CalendarText(temperature(data?.temperature, preferences), temperatureSize, theme.text, typography, Modifier.offset(y = 5.dp), emphasized = true, temperatureUnit = true)
                         Column(horizontalAlignment = Alignment.CenterHorizontally) {
                             CalendarText(stringResource(R.string.calendar_feels_like), temperatureSize * .26f, theme.secondary, typography)
-                            CalendarText(temperature(data?.detail?.feelsLike, preferences), temperatureSize * .53f, theme.accent, typography)
+                            CalendarText(temperature(data?.detail?.feelsLike, preferences), temperatureSize * .53f, theme.accent, typography, temperatureUnit = true)
                         }
                     }
                     val summary = listOfNotNull(data?.let { WeatherModels.locationText(it.city, it.district) }, data?.text,

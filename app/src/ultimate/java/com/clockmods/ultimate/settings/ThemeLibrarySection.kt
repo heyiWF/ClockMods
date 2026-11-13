@@ -94,7 +94,7 @@ internal fun ThemeLibrarySection(calendar: Boolean, onChanged: () -> Unit) {
             }
         }
     }
-    Text(stringResource(R.string.theme_library_hint), style = MaterialTheme.typography.labelSmall,
+    Text(stringResource(R.string.theme_library_hint), modifier = Modifier.padding(top = 16.dp), style = MaterialTheme.typography.labelSmall,
         color = MaterialTheme.colorScheme.onSurfaceVariant)
     deleting?.let { id ->
         ThemeDeleteConfirmation(calendar, id, installed.size > 1, onDismiss = { deleting = null }) {
