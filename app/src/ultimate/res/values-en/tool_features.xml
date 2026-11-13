@@ -1,0 +1,4 @@
+<resources>
+    <string name="stopwatch_split">Lap time</string>
+    <string name="stopwatch_total">Total</string>
+</resources>

@@ -1,5 +1,7 @@
 package com.clockmods.ultimate.compose
 
+import com.clockmods.ui.compose.TimeText
+
 import android.content.Context
 import android.content.Intent
 import android.Manifest
@@ -10,6 +12,7 @@ import android.provider.Settings
 import androidx.activity.compose.rememberLauncherForActivityResult
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.horizontalScroll
+import androidx.compose.foundation.layout.FlowRow
 import androidx.compose.foundation.layout.Arrangement
 import androidx.compose.foundation.layout.Box
 import androidx.compose.foundation.layout.Column
@@ -165,34 +168,31 @@ internal fun TimerScreen(modifier: Modifier, pomodoro: Boolean) {
         }
     }
 
-    Column(
-        modifier.fillMaxSize().verticalScroll(rememberScrollState()).padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        if (pomodoro) {
-            Text(
-                stringResource(
-                    when (phase) {
-                        0 -> R.string.pomodoro_focus
-                        1 -> R.string.pomodoro_short_break
-                        else -> R.string.pomodoro_long_break
-                    },
-                ),
-                style = MaterialTheme.typography.titleLarge,
-                color = MaterialTheme.colorScheme.primary,
-            )
-        }
-        Spacer(Modifier.height(28.dp))
-        Text(
-            formatDuration(remaining, pomodoro),
-            fontSize = if (pomodoro) 64.sp else 54.sp,
-            fontWeight = FontWeight.Light,
-            maxLines = 1,
-        )
-        Spacer(Modifier.height(28.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-            Button(
-                onClick = {
+    ToolWorkspace(
+        modifier = modifier,
+        time = formatDuration(remaining, pomodoro),
+        rollDigits = true,
+        phase = if (pomodoro) stringResource(when (phase) {
+            0 -> R.string.pomodoro_focus
+            1 -> R.string.pomodoro_short_break
+            else -> R.string.pomodoro_long_break
+        }) else null,
+        details = {
+            FlowRow(Modifier.fillMaxWidth().padding(bottom = 24.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                val presets = if (pomodoro) listOf(5L, 15L, 25L) else listOf(5L, 10L, 30L, 60L)
+                presets.forEach { minutes ->
+                    FilterChip(selected = duration == minutes * 60_000L,
+                        onClick = { setDuration(minutes * 60_000L) },
+                        label = { Text(stringResource(R.string.timer_minutes, minutes)) })
+                }
+                if (!pomodoro) FilterChip(selected = false, onClick = { customDialog = true },
+                    label = { Text(stringResource(R.string.timer_custom)) })
+            }
+        },
+        actions = {
+            ToolActions(running, enabled = remaining > 0,
+                onToggle = {
                     if (running) {
                         remaining = (deadline - System.currentTimeMillis()).coerceAtLeast(0L)
                         running = false
@@ -204,60 +204,18 @@ internal fun TimerScreen(modifier: Modifier, pomodoro: Boolean) {
                     }
                     persist()
                 },
-                enabled = remaining > 0L,
-            ) {
-                Icon(
-                    if (running) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = null,
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(if (running) R.string.timer_pause else R.string.timer_start))
-            }
-            OutlinedButton(onClick = {
-                TimerScheduler.cancel(context, mode)
-                running = false
-                if (pomodoro) {
-                    phase = 0
-                    duration = defaultDuration
-                }
-                remaining = duration
-                deadline = 0L
-                persist()
-            }) {
-                Icon(Icons.Default.RestartAlt, contentDescription = null)
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.timer_reset))
-            }
-            if (pomodoro) {
-                OutlinedButton(onClick = ::advancePomodoro) {
-                    Icon(Icons.Default.SkipNext, contentDescription = null)
-                    Spacer(Modifier.width(6.dp))
-                    Text(stringResource(R.string.timer_skip))
-                }
-            }
-        }
-        Spacer(Modifier.height(24.dp))
-        Row(
-            Modifier.horizontalScroll(rememberScrollState()),
-            horizontalArrangement = Arrangement.spacedBy(8.dp),
-        ) {
-            val presets = if (pomodoro) listOf(5L, 15L, 25L) else listOf(5L, 10L, 30L, 60L)
-            presets.forEach { minutes ->
-                FilterChip(
-                    selected = duration == minutes * 60_000L,
-                    onClick = { setDuration(minutes * 60_000L) },
-                    label = { Text(stringResource(R.string.timer_minutes, minutes)) },
-                )
-            }
-            if (!pomodoro) {
-                FilterChip(
-                    selected = false,
-                    onClick = { customDialog = true },
-                    label = { Text(stringResource(R.string.timer_custom)) },
-                )
-            }
-        }
-    }
+                onReset = {
+                    TimerScheduler.cancel(context, mode)
+                    running = false
+                    if (pomodoro) { phase = 0; duration = defaultDuration }
+                    remaining = duration
+                    deadline = 0L
+                    persist()
+                },
+                extra = if (pomodoro) Icons.Default.SkipNext else null,
+                extraLabel = stringResource(R.string.timer_skip), onExtra = ::advancePomodoro)
+        },
+    )
     if (customDialog) {
         CustomDurationDialog(
             initialMillis = duration,
@@ -413,81 +371,40 @@ internal fun StopwatchScreen(modifier: Modifier) {
         if (running && preferences.getLong("started_at_realtime", 0L) <= 0L) persist()
     }
 
-    Column(
-        modifier.fillMaxSize().padding(24.dp),
-        horizontalAlignment = Alignment.CenterHorizontally,
-    ) {
-        Text(
-            formatStopwatch(elapsed),
-            fontSize = 54.sp,
-            fontWeight = FontWeight.Light,
-            maxLines = 1,
-        )
-        Spacer(Modifier.height(24.dp))
-        Row(horizontalArrangement = Arrangement.spacedBy(10.dp)) {
-            Button(onClick = {
-                if (running) {
-                    accumulated = calculateElapsed()
-                    elapsed = accumulated
-                    running = false
-                } else {
-                    startedAtRealtime = SystemClock.elapsedRealtime()
-                    startedAtWall = System.currentTimeMillis()
-                    running = true
-                }
-                persist()
-            }) {
-                Icon(
-                    if (running) Icons.Default.Pause else Icons.Default.PlayArrow,
-                    contentDescription = null,
-                )
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(if (running) R.string.timer_pause else R.string.timer_start))
-            }
-            OutlinedButton(
-                onClick = {
-                    val value = calculateElapsed()
-                    if (value > 0L) {
-                        laps.add(0, value)
-                        persist()
+    ToolWorkspace(
+        modifier = modifier,
+        time = formatStopwatch(elapsed), expandedDetails = laps.isNotEmpty(),
+        details = { if (laps.isNotEmpty()) StopwatchLaps(laps, Modifier.weight(1f)) },
+        actions = {
+            ToolActions(running, showSecondary = running || elapsed > 0,
+                onToggle = {
+                    if (running) {
+                        accumulated = calculateElapsed()
+                        elapsed = accumulated
+                        running = false
+                    } else {
+                        startedAtRealtime = SystemClock.elapsedRealtime()
+                        startedAtWall = System.currentTimeMillis()
+                        running = true
                     }
+                    persist()
                 },
-                enabled = running || elapsed > 0L,
-            ) {
-                Icon(Icons.Default.Flag, contentDescription = null)
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.stopwatch_lap))
-            }
-            OutlinedButton(onClick = {
-                running = false
-                accumulated = 0L
-                elapsed = 0L
-                startedAtRealtime = 0L
-                startedAtWall = 0L
-                laps.clear()
-                persist()
-            }) {
-                Icon(Icons.Default.RestartAlt, contentDescription = null)
-                Spacer(Modifier.width(6.dp))
-                Text(stringResource(R.string.timer_reset))
-            }
-        }
-        Spacer(Modifier.height(20.dp))
-        LazyColumn(Modifier.fillMaxWidth().weight(1f).widthIn(max = 560.dp)) {
-            itemsIndexed(laps) { index, lap ->
-                Text(
-                    stringResource(
-                        R.string.stopwatch_lap_value,
-                        laps.size - index,
-                        formatStopwatch(lap),
-                    ),
-                    Modifier.fillMaxWidth().padding(horizontal = 12.dp, vertical = 8.dp),
-                    textAlign = TextAlign.Center,
-                    style = MaterialTheme.typography.bodyLarge,
-                )
-            }
-        }
-    }
+                onReset = {
+                    running = false
+                    accumulated = 0L
+                    elapsed = 0L
+                    startedAtRealtime = 0L
+                    startedAtWall = 0L
+                    laps.clear()
+                    persist()
+                },
+                extra = Icons.Default.Flag, extraLabel = stringResource(R.string.stopwatch_lap),
+                onExtra = {
+                    val value = calculateElapsed()
+                    if (value > 0L) { laps.add(0, value); persist() }
+                })
+        },
+    )
 }
 
 private fun formatDuration(millis: Long, pomodoro: Boolean): String {
@@ -505,7 +422,7 @@ private fun formatDuration(millis: Long, pomodoro: Boolean): String {
     }
 }
 
-private fun formatStopwatch(millis: Long): String {
+internal fun formatStopwatch(millis: Long): String {
     val centiseconds = millis / 10L
     return String.format(
         Locale.US,

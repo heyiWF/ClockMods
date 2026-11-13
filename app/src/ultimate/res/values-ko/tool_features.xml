@@ -1,0 +1,4 @@
+<resources>
+    <string name="stopwatch_split">구간 시간</string>
+    <string name="stopwatch_total">총 시간</string>
+</resources>
