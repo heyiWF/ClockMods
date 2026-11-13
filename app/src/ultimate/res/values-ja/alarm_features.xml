@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alarm_add">アラームを追加</string>
+    <string name="alarm_edit_title">アラームを編集</string>
+    <string name="alarm_label">ラベル</string>
+    <string name="alarm_repeat">繰り返し</string>
+    <string name="alarm_once">1回のみ</string>
+    <string name="alarm_once_date">鳴動日</string>
+    <string name="alarm_weekdays">曜日を選択</string>
+    <string name="alarm_holidays">中国本土の法定祝日</string>
+    <string name="alarm_workdays">中国本土の法定勤務日</string>
+    <string name="alarm_shift">シフト制</string>
+    <string name="alarm_cycle_length">周期の日数</string>
+    <string name="alarm_cycle_start">周期の開始日</string>
+    <string name="alarm_days">%1$d 日</string>
+    <string name="alarm_cycle_day">%1$d 日目</string>
+    <string name="alarm_today">今日</string>
+    <string name="alarm_rest_day">休み（鳴動なし）</string>
+    <string name="alarm_shift_help">各日の時刻を設定するか、スイッチをオフにして休日にします。開始日から周期を繰り返します。</string>
+    <string name="alarm_shift_empty">周期内で少なくとも1日を有効にしてください</string>
+    <string name="alarm_extra_dates">追加の鳴動日</string>
+    <string name="alarm_excluded_dates">一時的に無効にする日</string>
+    <string name="alarm_dates_help">複数の月から日付を選べます。追加日は鳴動を追加し、除外日は常に優先されます。適用で保存します。</string>
+    <string name="alarm_date_count">%1$d 日を選択済み</string>
+    <string name="alarm_previous_month">前の月</string>
+    <string name="alarm_next_month">次の月</string>
+    <string name="alarm_selected">選択済み</string>
+    <string name="alarm_unselected">未選択</string>
+    <string name="alarm_clear_dates">選択をクリア</string>
+    <string name="alarm_remove_date">%1$s を削除</string>
+    <string name="alarm_ringtone">アラーム音</string>
+    <string name="alarm_default_ringtone">システム既定のアラーム音</string>
+    <string name="alarm_silent">サイレント</string>
+    <string name="alarm_ringtone_unavailable">この端末にはシステムの着信音選択機能がありません</string>
+    <string name="alarm_vibrate">バイブレーション</string>
+    <string name="alarm_snooze">スヌーズ</string>
+    <string name="alarm_delete">アラームを削除</string>
+    <string name="alarm_delete_confirm">このアラームと予定された通知を削除しますか？</string>
+    <string name="alarm_empty">アラームはありません。右下のボタンで追加できます。</string>
+    <string name="alarm_choose_days">少なくとも1日を選択してください</string>
+    <string name="alarm_no_next">次の鳴動日がありません。繰り返し設定と選択した日付を確認してください。</string>
+    <string name="alarm_holiday_coverage">法定祝日と振替勤務日は公表済みの2025～2027年の日程を使用します。未公表の年は推測しません。</string>
+    <string name="alarm_queue_count">%1$d 件のアラームが待機中</string>
+    <string name="alarm_exact_access_required">時刻どおりに鳴らすため、正確なアラームを許可してください</string>
+    <string name="alarm_full_screen_access_required">ロック画面に表示するため、全画面通知を許可してください</string>
+    <string name="alarm_notification_access_required">アラームの確認と停止のため、通知を許可してください</string>
+</resources>

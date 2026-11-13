@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alarm_add">알람 추가</string>
+    <string name="alarm_edit_title">알람 편집</string>
+    <string name="alarm_label">알람 이름</string>
+    <string name="alarm_repeat">반복</string>
+    <string name="alarm_once">한 번</string>
+    <string name="alarm_once_date">알람 날짜</string>
+    <string name="alarm_weekdays">요일 선택</string>
+    <string name="alarm_holidays">중국 본토 법정 공휴일</string>
+    <string name="alarm_workdays">중국 본토 법정 근무일</string>
+    <string name="alarm_shift">교대 근무</string>
+    <string name="alarm_cycle_length">주기 길이</string>
+    <string name="alarm_cycle_start">주기 시작일</string>
+    <string name="alarm_days">%1$d일</string>
+    <string name="alarm_cycle_day">%1$d일차</string>
+    <string name="alarm_today">오늘</string>
+    <string name="alarm_rest_day">휴무일 · 알람 없음</string>
+    <string name="alarm_shift_help">날짜별 시간을 설정하거나 스위치를 꺼서 휴무일로 지정하세요. 시작일부터 주기가 반복됩니다.</string>
+    <string name="alarm_shift_empty">주기에서 하루 이상 활성화하세요</string>
+    <string name="alarm_extra_dates">추가 알람 날짜</string>
+    <string name="alarm_excluded_dates">일시적으로 제외할 날짜</string>
+    <string name="alarm_dates_help">여러 달에서 날짜를 선택할 수 있습니다. 추가 날짜에는 알람이 울리며, 제외 날짜가 항상 우선합니다. 적용하면 저장됩니다.</string>
+    <string name="alarm_date_count">%1$d개 날짜 선택됨</string>
+    <string name="alarm_previous_month">이전 달</string>
+    <string name="alarm_next_month">다음 달</string>
+    <string name="alarm_selected">선택됨</string>
+    <string name="alarm_unselected">선택 안 됨</string>
+    <string name="alarm_clear_dates">선택 지우기</string>
+    <string name="alarm_remove_date">%1$s 삭제</string>
+    <string name="alarm_ringtone">알람음</string>
+    <string name="alarm_default_ringtone">시스템 기본 알람음</string>
+    <string name="alarm_silent">무음</string>
+    <string name="alarm_ringtone_unavailable">이 기기에는 시스템 알람음 선택기가 없습니다</string>
+    <string name="alarm_vibrate">진동</string>
+    <string name="alarm_snooze">다시 알림</string>
+    <string name="alarm_delete">알람 삭제</string>
+    <string name="alarm_delete_confirm">이 알람과 예약된 알림을 삭제할까요?</string>
+    <string name="alarm_empty">알람이 없습니다. 오른쪽 아래 버튼으로 추가하세요.</string>
+    <string name="alarm_choose_days">하루 이상 선택하세요</string>
+    <string name="alarm_no_next">예정된 알람 날짜가 없습니다. 반복 규칙과 선택한 날짜를 확인하세요.</string>
+    <string name="alarm_holiday_coverage">법정 공휴일과 조정 근무일은 공표된 2025~2027년 일정을 사용합니다. 미공표 연도는 추정하지 않습니다.</string>
+    <string name="alarm_queue_count">알람 %1$d개 대기 중</string>
+    <string name="alarm_exact_access_required">정시에 울리도록 정확한 알람을 허용하세요</string>
+    <string name="alarm_full_screen_access_required">잠금 화면에 알람을 표시하도록 전체 화면 알림을 허용하세요</string>
+    <string name="alarm_notification_access_required">알람을 확인하고 중지하도록 알림을 허용하세요</string>
+</resources>

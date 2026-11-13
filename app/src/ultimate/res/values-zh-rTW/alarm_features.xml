@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alarm_add">新增鬧鐘</string>
+    <string name="alarm_edit_title">編輯鬧鐘</string>
+    <string name="alarm_label">鬧鐘名稱</string>
+    <string name="alarm_repeat">重複</string>
+    <string name="alarm_once">單次</string>
+    <string name="alarm_once_date">響鈴日期</string>
+    <string name="alarm_weekdays">自訂星期</string>
+    <string name="alarm_holidays">中國大陸法定節假日</string>
+    <string name="alarm_workdays">中國大陸法定工作日</string>
+    <string name="alarm_shift">輪班制</string>
+    <string name="alarm_cycle_length">輪班週期</string>
+    <string name="alarm_cycle_start">輪班開始日</string>
+    <string name="alarm_days">%1$d 天</string>
+    <string name="alarm_cycle_day">第 %1$d 天</string>
+    <string name="alarm_today">今天</string>
+    <string name="alarm_rest_day">休息，不響鈴</string>
+    <string name="alarm_shift_help">每天可分別設定時間，關閉開關表示休息日。週期會從開始日期重複。</string>
+    <string name="alarm_shift_empty">週期內至少啟用一天</string>
+    <string name="alarm_extra_dates">預定啟用日期</string>
+    <string name="alarm_excluded_dates">暫時停用日期</string>
+    <string name="alarm_dates_help">可跨月選擇多個日期。預定啟用日期增加響鈴；暫時停用日期優先略過。儲存後生效。</string>
+    <string name="alarm_date_count">已選 %1$d 個日期</string>
+    <string name="alarm_previous_month">上個月</string>
+    <string name="alarm_next_month">下個月</string>
+    <string name="alarm_selected">已選取</string>
+    <string name="alarm_unselected">未選取</string>
+    <string name="alarm_clear_dates">清空已選日期</string>
+    <string name="alarm_remove_date">移除 %1$s</string>
+    <string name="alarm_ringtone">鈴聲</string>
+    <string name="alarm_default_ringtone">系統預設鬧鐘鈴聲</string>
+    <string name="alarm_silent">靜音</string>
+    <string name="alarm_ringtone_unavailable">此裝置沒有可用的系統鈴聲選擇器</string>
+    <string name="alarm_vibrate">震動</string>
+    <string name="alarm_snooze">稍後提醒</string>
+    <string name="alarm_delete">刪除鬧鐘</string>
+    <string name="alarm_delete_confirm">刪除這個鬧鐘及其預定提醒？</string>
+    <string name="alarm_empty">尚無鬧鐘，點右下角按鈕新增</string>
+    <string name="alarm_choose_days">請至少選擇一天</string>
+    <string name="alarm_no_next">沒有可用的未來響鈴日期，請檢查重複規則或已選日期</string>
+    <string name="alarm_holiday_coverage">法定節假日和調休工作日使用已發布的 2025–2027 年安排；未發布年份不會推測排班。</string>
+    <string name="alarm_queue_count">共有 %1$d 個鬧鐘等待處理</string>
+    <string name="alarm_exact_access_required">允許精確鬧鐘，以便準時響鈴</string>
+    <string name="alarm_full_screen_access_required">允許全螢幕提醒，以顯示鎖定畫面鬧鐘</string>
+    <string name="alarm_notification_access_required">允許鬧鐘通知，以便查看和停止響鈴</string>
+</resources>

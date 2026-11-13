@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alarm_add">Add alarm</string>
+    <string name="alarm_edit_title">Edit alarm</string>
+    <string name="alarm_label">Label</string>
+    <string name="alarm_repeat">Repeat</string>
+    <string name="alarm_once">Once</string>
+    <string name="alarm_once_date">Alarm date</string>
+    <string name="alarm_weekdays">Days of the week</string>
+    <string name="alarm_holidays">Mainland China statutory holidays</string>
+    <string name="alarm_workdays">Mainland China statutory workdays</string>
+    <string name="alarm_shift">Shift cycle</string>
+    <string name="alarm_cycle_length">Cycle length</string>
+    <string name="alarm_cycle_start">Cycle start date</string>
+    <string name="alarm_days">%1$d days</string>
+    <string name="alarm_cycle_day">Day %1$d</string>
+    <string name="alarm_today">Today</string>
+    <string name="alarm_rest_day">Rest day — no alarm</string>
+    <string name="alarm_shift_help">Set a time for each day or turn it off for a rest day. The cycle repeats from the start date.</string>
+    <string name="alarm_shift_empty">Enable at least one day in the cycle</string>
+    <string name="alarm_extra_dates">Additional alarm dates</string>
+    <string name="alarm_excluded_dates">Skipped dates</string>
+    <string name="alarm_dates_help">Select dates across months. Additional dates add occurrences; skipped dates always take priority. Apply to save.</string>
+    <string name="alarm_date_count">%1$d dates selected</string>
+    <string name="alarm_previous_month">Previous month</string>
+    <string name="alarm_next_month">Next month</string>
+    <string name="alarm_selected">Selected</string>
+    <string name="alarm_unselected">Not selected</string>
+    <string name="alarm_clear_dates">Clear dates</string>
+    <string name="alarm_remove_date">Remove %1$s</string>
+    <string name="alarm_ringtone">Ringtone</string>
+    <string name="alarm_default_ringtone">Default alarm sound</string>
+    <string name="alarm_silent">Silent</string>
+    <string name="alarm_ringtone_unavailable">No system ringtone picker is available on this device</string>
+    <string name="alarm_vibrate">Vibrate</string>
+    <string name="alarm_snooze">Snooze</string>
+    <string name="alarm_delete">Delete alarm</string>
+    <string name="alarm_delete_confirm">Delete this alarm and its scheduled reminders?</string>
+    <string name="alarm_empty">No alarms yet. Use the button at the bottom right to add one.</string>
+    <string name="alarm_choose_days">Choose at least one day</string>
+    <string name="alarm_no_next">No upcoming alarm date. Check the repeat rule and selected dates.</string>
+    <string name="alarm_holiday_coverage">Statutory holidays and adjusted workdays use published 2025–2027 schedules. Unpublished years are not inferred.</string>
+    <string name="alarm_queue_count">%1$d alarms waiting</string>
+    <string name="alarm_exact_access_required">Allow exact alarms for on-time alerts</string>
+    <string name="alarm_full_screen_access_required">Allow full-screen alerts to show alarms on the lock screen</string>
+    <string name="alarm_notification_access_required">Allow alarm notifications to view and dismiss alerts</string>
+</resources>
