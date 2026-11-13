@@ -16,6 +16,7 @@ import androidx.compose.ui.text.font.FontSynthesis
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.text.style.BaselineShift
 import androidx.compose.ui.text.style.TextOverflow
+import androidx.compose.ui.unit.em
 import com.clockmods.ui.TemperatureText
 
 @Composable
@@ -30,10 +31,13 @@ fun TemperatureLabel(text: String, modifier: Modifier, color: Color, style: Text
             val unit = listOf("℃", "℉", "°C", "°F").firstOrNull { text.endsWith(it) }
             if (unit != null) {
                 val digits = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = resolved as Typeface; textSize = size }
-                val scale = TemperatureText.unitScale(digits, unit)
+                val number = text.dropLast(unit.length)
+                val scale = TemperatureText.unitScale(digits, unit, number)
                 val small = Paint(digits).apply { textSize = size * scale }
-                val shift = if (small.ascent() == 0f) 0f else TemperatureText.topOffset(digits, small, unit) / small.ascent()
-                addStyle(SpanStyle(fontSize = style.fontSize * scale, baselineShift = BaselineShift(shift)), text.length - unit.length, text.length)
+                // Android applies BaselineShiftSpan before the span's relative font size.
+                // Its multiplier therefore uses the full-size digit ascent.
+                val shift = if (digits.ascent() == 0f) 0f else TemperatureText.topOffset(digits, small, unit, number) / digits.ascent()
+                addStyle(SpanStyle(fontSize = scale.em, baselineShift = BaselineShift(shift)), text.length - unit.length, text.length)
             }
         }
     }
