@@ -127,6 +127,7 @@ open class ComposeMainActivity : ComponentActivity() {
         super.onResume()
         AlarmScheduler.rescheduleAll(this)
         TimerScheduler.restoreRunningTimers(this)
+        com.clockmods.pro.timer.TimingLiveUpdates.refreshAll(this)
         val language = ClockPreferences(this).getClockLanguage()
         if (appliedLanguage != null && language != appliedLanguage) {
             appliedLanguage = language
@@ -182,7 +183,7 @@ open class ComposeMainActivity : ComponentActivity() {
         /** Accepts both Compose-era extras and URIs held by pre-migration widget PendingIntents. */
         @JvmStatic
         fun resolveDestination(requested: String?, legacyWidgetAction: String?): String? = when {
-            requested == DESTINATION_CLOCK || requested == DESTINATION_CALENDAR -> requested
+            requested in listOf(DESTINATION_CLOCK, DESTINATION_CALENDAR, "pomodoro", "countdown", "stopwatch") -> requested
             legacyWidgetAction.equals("CLOCK", ignoreCase = true) -> DESTINATION_CLOCK
             legacyWidgetAction.equals("CALENDAR", ignoreCase = true) -> DESTINATION_CALENDAR
             else -> null

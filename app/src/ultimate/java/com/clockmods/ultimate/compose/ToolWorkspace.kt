@@ -3,6 +3,7 @@ package com.clockmods.ultimate.compose
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -120,6 +121,10 @@ private fun ToolIconButton(icon: ImageVector, label: String, action: () -> Unit)
 
 @Composable
 internal fun StopwatchLaps(laps: List<Long>, modifier: Modifier = Modifier) {
+    val listState = rememberLazyListState()
+    LaunchedEffect(laps.size) {
+        if (laps.isNotEmpty()) listState.animateScrollToItem(0)
+    }
     Column(modifier.padding(bottom = 16.dp)) {
         Row(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
             Text(stringResource(R.string.stopwatch_lap), Modifier.width(48.dp), style = MaterialTheme.typography.labelMedium)
@@ -129,13 +134,10 @@ internal fun StopwatchLaps(laps: List<Long>, modifier: Modifier = Modifier) {
                 style = MaterialTheme.typography.labelMedium)
         }
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
-        LazyColumn(Modifier.fillMaxWidth().weight(1f)) {
+        LazyColumn(Modifier.fillMaxWidth().weight(1f), state = listState) {
             itemsIndexed(laps, key = { index, _ -> laps.size - index }) { index, lap ->
-                var entered by remember { mutableStateOf(false) }
-                LaunchedEffect(Unit) { entered = true }
-                val entrance by animateFloatAsState(if (entered) 1f else 0f, tween(260), label = "lap entrance")
-                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).animateItem()
-                    .graphicsLayer { alpha = entrance; translationY = -24.dp.toPx() * (1f - entrance) },
+                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp)
+                    .animateItem(fadeInSpec = tween(260), placementSpec = tween(280)),
                     verticalAlignment = Alignment.CenterVertically) {
                     Text((laps.size - index).toString(), Modifier.width(48.dp), style = MaterialTheme.typography.bodyMedium)
                     TimeText(formatStopwatch((lap - (laps.getOrNull(index + 1) ?: 0)).coerceAtLeast(0)),

@@ -33,6 +33,7 @@ class TimerScheduler private constructor() {
         fun cancel(context: Context, mode: String?) {
             val manager = context.getSystemService(Context.ALARM_SERVICE) as AlarmManager
             manager.cancel(intent(context, mode))
+            TimingLiveUpdates.cancelTimer(context, mode)
         }
 
         /** Rebuilds one-shot alarms after boot, package replacement or permission changes. */
@@ -41,6 +42,7 @@ class TimerScheduler private constructor() {
             val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
             restoreOne(context, preferences, "pomodoro_", MODE_POMODORO, nowMillis)
             restoreOne(context, preferences, "countdown_", null, nowMillis)
+            TimingLiveUpdates.refreshAll(context)
         }
 
         private fun restoreOne(

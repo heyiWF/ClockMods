@@ -27,6 +27,7 @@ class UltimateApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
+        com.clockmods.pro.timer.TimingLiveUpdates.initialize(this)
         com.clockmods.background.UserFontStore.initialize(this)
         com.clockmods.calendar.imports.CalendarSubscriptionWorker.schedule(this)
         getSharedPreferences("clock_prefs", MODE_PRIVATE)

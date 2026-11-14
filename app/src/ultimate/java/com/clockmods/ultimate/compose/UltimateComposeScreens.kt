@@ -101,6 +101,9 @@ fun UltimateApp(
         destination = when (requestedDestination) {
             ComposeMainActivity.DESTINATION_CALENDAR -> Destination.CALENDAR
             ComposeMainActivity.DESTINATION_CLOCK -> Destination.CLOCK
+            "pomodoro" -> Destination.POMODORO
+            "countdown" -> Destination.COUNTDOWN
+            "stopwatch" -> Destination.STOPWATCH
             else -> return@LaunchedEffect
         }
     }

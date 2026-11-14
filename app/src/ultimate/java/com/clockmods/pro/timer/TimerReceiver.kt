@@ -2,14 +2,12 @@ package com.clockmods.pro.timer
 
 import android.app.NotificationChannel
 import android.app.NotificationManager
-import android.app.PendingIntent
 import android.content.BroadcastReceiver
 import android.content.Context
 import android.content.Intent
 import androidx.core.app.NotificationCompat
 import com.clockmods.LocaleManager
 import com.clockmods.R
-import com.clockmods.ultimate.UltimateMainActivity
 
 class TimerReceiver : BroadcastReceiver() {
     override fun onReceive(context: Context, intent: Intent?) {
@@ -24,13 +22,15 @@ class TimerReceiver : BroadcastReceiver() {
         private const val MODE_POMODORO = "pomodoro"
         private const val POMODORO_REQUEST_CODE = 201
         private const val COUNTDOWN_REQUEST_CODE = 202
-        private const val OPEN_REQUEST_CODE = 203
 
         @JvmStatic
+        @Synchronized
         fun complete(context: Context, mode: String?) {
             val appContext = context.applicationContext
             val prefix = if (mode == MODE_POMODORO) "pomodoro_" else "countdown_"
             val preferences = appContext.getSharedPreferences("pro_timers", Context.MODE_PRIVATE)
+            if (!preferences.getBoolean(prefix + "running", false) ||
+                preferences.getLong(prefix + "deadline", 0L) > System.currentTimeMillis()) return
             val editor = preferences.edit()
                 .putBoolean(prefix + "running", false)
                 .putLong(prefix + "deadline", 0L)
@@ -49,6 +49,7 @@ class TimerReceiver : BroadcastReceiver() {
                 editor.putLong(prefix + "remaining", 0L)
             }
             editor.apply()
+            TimerScheduler.cancel(context, mode)
 
             val localized = requireNotNull(LocaleManager.wrap(appContext))
             val manager = requireNotNull(
@@ -61,28 +62,27 @@ class TimerReceiver : BroadcastReceiver() {
                     NotificationManager.IMPORTANCE_HIGH,
                 ),
             )
-            val open = PendingIntent.getActivity(
-                appContext,
-                OPEN_REQUEST_CODE,
-                Intent(appContext, UltimateMainActivity::class.java),
-                PendingIntent.FLAG_UPDATE_CURRENT or PendingIntent.FLAG_IMMUTABLE,
-            )
-            manager.notify(
-                if (pomodoro) POMODORO_REQUEST_CODE else COUNTDOWN_REQUEST_CODE,
-                NotificationCompat.Builder(appContext, CHANNEL_ID)
-                    .setSmallIcon(R.drawable.ic_notification_clock)
-                    .setContentTitle(
-                        localized.getString(
-                            if (pomodoro) R.string.pomodoro_complete
-                            else R.string.countdown_complete,
-                        ),
-                    )
-                    .setContentText(localized.getString(R.string.timer_complete_open))
-                    .setPriority(NotificationCompat.PRIORITY_HIGH)
-                    .setAutoCancel(true)
-                    .setContentIntent(open)
-                    .build(),
-            )
+            val open = TimingLiveUpdates.open(appContext, if (pomodoro) "pomodoro" else "countdown",
+                if (pomodoro) POMODORO_REQUEST_CODE else COUNTDOWN_REQUEST_CODE)
+            if (!manager.areNotificationsEnabled()) return
+            try {
+                manager.notify(
+                    if (pomodoro) POMODORO_REQUEST_CODE else COUNTDOWN_REQUEST_CODE,
+                    NotificationCompat.Builder(appContext, CHANNEL_ID)
+                        .setSmallIcon(R.drawable.ic_notification_clock)
+                        .setContentTitle(
+                            localized.getString(
+                                if (pomodoro) R.string.pomodoro_complete
+                                else R.string.countdown_complete,
+                            ),
+                        )
+                        .setContentText(localized.getString(R.string.timer_complete_open))
+                        .setPriority(NotificationCompat.PRIORITY_HIGH)
+                        .setAutoCancel(true)
+                        .setContentIntent(open)
+                        .build(),
+                )
+            } catch (_: SecurityException) { /* Permission revoked while completing. */ }
         }
     }
 }

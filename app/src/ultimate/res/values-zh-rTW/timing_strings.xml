@@ -1,0 +1,4 @@
+<resources>
+    <string name="timing_channel">進行中的計時</string>
+    <string name="timing_running">計時中</string>
+</resources>

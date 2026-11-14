@@ -143,30 +143,20 @@ internal fun TimerScreen(modifier: Modifier, pomodoro: Boolean) {
     LaunchedEffect(running, deadline) {
         while (running) {
             remaining = (deadline - System.currentTimeMillis()).coerceAtLeast(0L)
-            if (remaining == 0L) {
-                running = false
-                if (pomodoro) advancePomodoro() else persist()
+            if (remaining == 0L || !preferences.getBoolean(prefix + "running", false)) {
+                com.clockmods.pro.timer.TimerReceiver.complete(context, mode)
+                running = preferences.getBoolean(prefix + "running", false)
+                phase = preferences.getInt(prefix + "phase", 0)
+                duration = preferences.getLong(prefix + "duration", defaultDuration)
+                remaining = preferences.getLong(prefix + "remaining", duration)
+                deadline = preferences.getLong(prefix + "deadline", 0L)
                 break
             }
             kotlinx.coroutines.delay(200L)
         }
     }
-    val latestDuration by rememberUpdatedState(duration)
-    val latestRemaining by rememberUpdatedState(remaining)
-    val latestDeadline by rememberUpdatedState(deadline)
-    val latestRunning by rememberUpdatedState(running)
-    val latestPhase by rememberUpdatedState(phase)
-    DisposableEffect(Unit) {
-        onDispose {
-            preferences.edit()
-                .putLong(prefix + "duration", latestDuration)
-                .putLong(prefix + "remaining", latestRemaining)
-                .putLong(prefix + "deadline", latestDeadline)
-                .putBoolean(prefix + "running", latestRunning)
-                .putInt(prefix + "phase", latestPhase)
-                .apply()
-        }
-    }
+    // Actions persist immediately. Never write a stale UI snapshot on disposal after the
+    // alarm receiver has completed a timer while this screen was in the background.
 
     ToolWorkspace(
         modifier = modifier,
