@@ -9,7 +9,7 @@ import java.util.TreeSet;
 
 /** A saved alarm, independent of any scheduled or ringing occurrence. */
 public final class AlarmSpec {
-    public enum Repeat { ONCE, WEEKLY, HOLIDAYS, WORKDAYS, SHIFT }
+    public enum Repeat { ONCE, WEEKLY, HOLIDAYS, WORKDAYS, SHIFT, ALTERNATING }
     public long id;
     public int hour = 7, minute = 30;
     public boolean enabled = true, vibrate = true;
@@ -17,6 +17,9 @@ public final class AlarmSpec {
     public Repeat repeat = Repeat.ONCE;
     /** Monday is bit 0; Sunday is bit 6. */
     public int weekdays = 31;
+    public LocalDate alternatingStart = LocalDate.now();
+    public boolean startBigWeek = true, alternatingRestDays = false;
+    public int bigWeekDays = 63, smallWeekDays = 31;
     public LocalDate onceDate = LocalDate.now(), cycleStart = LocalDate.now();
     public int cycleLength = 2;
     /** Minutes since midnight; -1 is a rest day. */
@@ -41,6 +44,11 @@ public final class AlarmSpec {
         try { repeat = Repeat.valueOf(json.optString("repeat", "ONCE")); } catch (Exception ignored) { repeat = Repeat.ONCE; }
         weekdays = json.optInt("weekdays", 31) & 127;
         onceDate = date(json.optString("onceDate"), LocalDate.now());
+        alternatingStart = date(json.optString("alternatingStart"), LocalDate.now());
+        startBigWeek = json.optBoolean("startBigWeek", true);
+        alternatingRestDays = json.optBoolean("alternatingRestDays", false);
+        bigWeekDays = json.optInt("bigWeekDays", 63) & 127;
+        smallWeekDays = json.optInt("smallWeekDays", 31) & 127;
         cycleStart = date(json.optString("cycleStart"), LocalDate.now());
         cycleLength = clamp(json.optInt("cycleLength", 2), 2, 62);
         JSONArray cycle = json.optJSONArray("cycleMinutes");
@@ -56,6 +64,8 @@ public final class AlarmSpec {
         JSONObject out = new JSONObject().put("id", id).put("hour", hour).put("minute", minute)
                 .put("enabled", enabled).put("vibrate", vibrate).put("label", label).put("ringtone", ringtone)
                 .put("repeat", repeat.name()).put("weekdays", weekdays).put("onceDate", onceDate.toString())
+                .put("alternatingStart", alternatingStart.toString()).put("startBigWeek", startBigWeek)
+                .put("alternatingRestDays", alternatingRestDays).put("bigWeekDays", bigWeekDays).put("smallWeekDays", smallWeekDays)
                 .put("cycleStart", cycleStart.toString()).put("cycleLength", cycleLength)
                 .put("snoozeMinutes", snoozeMinutes).put("snoozeAt", snoozeAt)
                 .put("scheduledAt", scheduledAt).put("lastFiredAt", lastFiredAt);

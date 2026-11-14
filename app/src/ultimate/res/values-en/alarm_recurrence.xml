@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alarm_alternating">Alternating weeks</string>
+    <string name="alarm_alternating_help">The selected date anchors its week; weeks change on Monday. Long weeks default to six workdays and short weeks to five. Customize both schedules. Public holidays do not override this pattern; use extra/excluded dates for exceptions.</string>
+    <string name="alarm_anchor_week">Starting week (choose any date in it)</string>
+    <string name="alarm_start_big">Start with a long week</string>
+    <string name="alarm_rest_mode">Ring on rest days</string>
+    <string name="alarm_rest_mode_help">Off: ring on selected workdays. On: ring on the remaining rest days.</string>
+    <string name="alarm_big_days">Long-week workdays (one day off)</string>
+    <string name="alarm_small_days">Short-week workdays (two days off)</string>
+    <string name="alarm_repeat_once_hint">Ring on a specific date</string>
+    <string name="alarm_repeat_weekly_hint">Choose fixed days each week</string>
+    <string name="alarm_repeat_holiday_hint">Published mainland China public holidays</string>
+    <string name="alarm_repeat_workday_hint">Includes official weekend workdays</string>
+    <string name="alarm_repeat_shift_hint">A 2–62 day cycle with daily times</string>
+    <string name="alarm_repeat_alternating_hint">Alternate long and short weeks; work or rest days</string>
+</resources>

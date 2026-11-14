@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alarm_alternating">大小周</string>
+    <string name="alarm_alternating_help">以所选日期所在周为起始周，每周一换周。大周默认上班六天、小周默认上班五天；可分别修改工作日。法定调休不自动覆盖，请用预定启用／暂时禁用日期调整。</string>
+    <string name="alarm_anchor_week">起始周（选择该周任意日期）</string>
+    <string name="alarm_start_big">以大周开始</string>
+    <string name="alarm_rest_mode">休息日闹钟</string>
+    <string name="alarm_rest_mode_help">关闭：在所选工作日响铃；开启：在其余休息日响铃</string>
+    <string name="alarm_big_days">大周工作日（默认单休）</string>
+    <string name="alarm_small_days">小周工作日（默认双休）</string>
+    <string name="alarm_repeat_once_hint">仅在指定日期提醒</string>
+    <string name="alarm_repeat_weekly_hint">每周选择固定的星期</string>
+    <string name="alarm_repeat_holiday_hint">按已公布的中国大陆假期提醒</string>
+    <string name="alarm_repeat_workday_hint">包含法定调休上班日</string>
+    <string name="alarm_repeat_shift_hint">2–62 天循环，每天可设置时间</string>
+    <string name="alarm_repeat_alternating_hint">单休／双休交替，工作或休息日提醒</string>
+</resources>

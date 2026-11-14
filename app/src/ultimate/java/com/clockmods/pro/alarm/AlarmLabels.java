@@ -11,7 +11,9 @@ import java.time.format.TextStyle;
 
 public final class AlarmLabels {
     public static final int[] REPEATS = { R.string.alarm_once, R.string.alarm_weekdays,
-            R.string.alarm_holidays, R.string.alarm_workdays, R.string.alarm_shift };
+            R.string.alarm_holidays, R.string.alarm_workdays, R.string.alarm_shift, R.string.alarm_alternating };
+    public static final int[] REPEAT_HINTS = { R.string.alarm_repeat_once_hint, R.string.alarm_repeat_weekly_hint,
+            R.string.alarm_repeat_holiday_hint, R.string.alarm_repeat_workday_hint, R.string.alarm_repeat_shift_hint, R.string.alarm_repeat_alternating_hint };
     private AlarmLabels() {}
     public static String repeat(Context context, AlarmSpec alarm) {
         return alarm.repeat == AlarmSpec.Repeat.WEEKLY ? weekdays(context, alarm.weekdays) : context.getString(REPEATS[alarm.repeat.ordinal()]);

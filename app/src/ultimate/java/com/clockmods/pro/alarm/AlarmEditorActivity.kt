@@ -8,6 +8,10 @@ import android.widget.Toast
 import androidx.activity.compose.setContent
 import androidx.activity.result.contract.ActivityResultContracts
 import androidx.compose.foundation.clickable
+import androidx.compose.foundation.rememberScrollState
+import androidx.compose.foundation.verticalScroll
+import androidx.compose.foundation.selection.selectable
+import androidx.compose.ui.semantics.Role
 import androidx.compose.foundation.layout.*
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.*
@@ -82,6 +86,21 @@ class AlarmEditorActivity : AlarmUi() {
                 AlarmTimeHeader(alarm.hour * 60 + alarm.minute) { dialog = "time" }
                 AlarmRow(Icons.Outlined.Repeat, stringResource(R.string.alarm_repeat), stringResource(AlarmLabels.REPEATS[alarm.repeat.ordinal]), { dialog = "repeat" })
                 if (alarm.repeat == AlarmSpec.Repeat.WEEKLY) AlarmWeekdays(alarm.weekdays) { value -> edit { it.weekdays = value } }
+                if (alarm.repeat == AlarmSpec.Repeat.ALTERNATING) {
+                    Text(stringResource(R.string.alarm_alternating_help), Modifier.padding(12.dp), style = MaterialTheme.typography.bodyLarge)
+                    AlarmRow(Icons.Outlined.CalendarMonth, stringResource(R.string.alarm_anchor_week), alarmDate(alarm.alternatingStart), { dialog = "anchor" })
+                    AlarmRow(Icons.Outlined.Repeat, stringResource(R.string.alarm_start_big), onClick = { edit { it.startBigWeek = !it.startBigWeek } }, trailing = {
+                        Switch(alarm.startBigWeek, { value -> edit { it.startBigWeek = value } })
+                    })
+                    AlarmRow(Icons.Outlined.Snooze, stringResource(R.string.alarm_rest_mode), onClick = { edit { it.alternatingRestDays = !it.alternatingRestDays } }, trailing = {
+                        Switch(alarm.alternatingRestDays, { value -> edit { it.alternatingRestDays = value } })
+                    })
+                    Text(stringResource(R.string.alarm_rest_mode_help), Modifier.padding(12.dp))
+                    Text(stringResource(R.string.alarm_big_days), style = MaterialTheme.typography.titleMedium)
+                    AlarmWeekdays(alarm.bigWeekDays) { value -> edit { it.bigWeekDays = value } }
+                    Text(stringResource(R.string.alarm_small_days), style = MaterialTheme.typography.titleMedium)
+                    AlarmWeekdays(alarm.smallWeekDays) { value -> edit { it.smallWeekDays = value } }
+                }
                 if (alarm.repeat == AlarmSpec.Repeat.ONCE) AlarmRow(Icons.Outlined.CalendarMonth, stringResource(R.string.alarm_once_date), alarmDate(alarm.onceDate), { dialog = "date" })
                 if (alarm.repeat == AlarmSpec.Repeat.SHIFT) AlarmRow(Icons.Outlined.WorkOutline, stringResource(R.string.alarm_shift), stringResource(R.string.alarm_days, alarm.cycleLength), { openChild("shift") })
                 if (alarm.repeat == AlarmSpec.Repeat.HOLIDAYS || alarm.repeat == AlarmSpec.Repeat.WORKDAYS)
@@ -109,12 +128,15 @@ class AlarmEditorActivity : AlarmUi() {
                     if (it.repeat == AlarmSpec.Repeat.ONCE) it.onceDate = AlarmPlan.nextDate(it.hour, it.minute, System.currentTimeMillis(), ZoneId.systemDefault()) }
                 dialog = null
             }
+            "anchor" -> AlarmDateDialog(alarm.alternatingStart, { dialog = null }) { date -> edit { it.alternatingStart = date }; dialog = null }
             "date" -> AlarmDateDialog(alarm.onceDate, { dialog = null }) { date -> edit { it.onceDate = date }; dialog = null }
             "snooze" -> AlarmNumberDialog(stringResource(R.string.alarm_snooze), alarm.snoozeMinutes, 1, 60, { dialog = null }) { number -> edit { it.snoozeMinutes = number }; dialog = null }
             "repeat" -> AlertDialog(onDismissRequest = { dialog = null }, title = { Text(stringResource(R.string.alarm_repeat)) }, text = {
-                Column { AlarmSpec.Repeat.values().forEach { repeat ->
-                    Row(Modifier.fillMaxWidth().clickable { edit { it.repeat = repeat }; dialog = null }.padding(vertical = 4.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
-                        RadioButton(alarm.repeat == repeat, null); Spacer(Modifier.width(12.dp)); Text(stringResource(AlarmLabels.REPEATS[repeat.ordinal]))
+                Column(Modifier.verticalScroll(rememberScrollState())) { AlarmSpec.Repeat.values().forEach { repeat ->
+                    Row(Modifier.fillMaxWidth().heightIn(min = 80.dp).selectable(selected = alarm.repeat == repeat, role = Role.RadioButton, onClick = { edit { it.repeat = repeat }; dialog = null }).padding(vertical = 14.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
+                        RadioButton(alarm.repeat == repeat, null); Spacer(Modifier.width(16.dp))
+                        Column { Text(stringResource(AlarmLabels.REPEATS[repeat.ordinal]), style = MaterialTheme.typography.titleMedium)
+                            Text(stringResource(AlarmLabels.REPEAT_HINTS[repeat.ordinal]), style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant) }
                     }
                 } }
             }, confirmButton = {}, dismissButton = { TextButton(onClick = { dialog = null }) { Text(stringResource(R.string.cancel)) } })

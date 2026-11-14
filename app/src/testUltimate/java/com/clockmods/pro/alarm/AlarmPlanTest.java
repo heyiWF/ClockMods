@@ -104,4 +104,31 @@ public class AlarmPlanTest {
         AlarmSpec a = alarm(); a.repeat = AlarmSpec.Repeat.SHIFT; a.cycleStart = LocalDate.of(2040, 1, 1);
         assertEquals(time("2040-01-01T07:30"), AlarmPlan.next(a, time("2026-10-01T12:00"), zone, holidays));
     }
+
+    @Test public void alternatingWeeksRespectAnchorOrderAndRestComplement() throws Exception {
+        AlarmSpec a = alarm(); a.repeat = AlarmSpec.Repeat.ALTERNATING;
+        a.alternatingStart = LocalDate.of(2026, 11, 11); // Wednesday anchors Monday Nov 9.
+        assertEquals(-1, AlarmPlan.minutesOn(a, LocalDate.of(2026, 11, 8), holidays));
+        assertEquals(450, AlarmPlan.minutesOn(a, LocalDate.of(2026, 11, 14), holidays));
+        assertEquals(-1, AlarmPlan.minutesOn(a, LocalDate.of(2026, 11, 21), holidays));
+        a.startBigWeek = false;
+        assertEquals(-1, AlarmPlan.minutesOn(a, LocalDate.of(2026, 11, 14), holidays));
+        a.alternatingRestDays = true;
+        assertEquals(450, AlarmPlan.minutesOn(a, LocalDate.of(2026, 11, 14), holidays));
+        a.smallWeekDays = 64; a.bigWeekDays = 0;
+        AlarmSpec copy = AlarmSpec.fromJson(a.toJson());
+        assertEquals(64, copy.smallWeekDays); assertEquals(0, copy.bigWeekDays);
+        assertFalse(copy.startBigWeek); assertTrue(copy.alternatingRestDays);
+        assertEquals(a.alternatingStart, copy.alternatingStart);
+        a.excludedDates.add(LocalDate.of(2026, 11, 14)); a.extraDates.add(LocalDate.of(2026, 11, 14));
+        assertEquals(-1, AlarmPlan.minutesOn(a, LocalDate.of(2026, 11, 14), holidays));
+    }
+    @Test public void alternatingWeeksCrossYearAndDistantAnchorWithoutResetting() {
+        AlarmSpec a = alarm(); a.repeat = AlarmSpec.Repeat.ALTERNATING; a.alternatingStart = LocalDate.of(2040, 12, 31);
+        LocalDate monday = a.alternatingStart.with(DayOfWeek.MONDAY);
+        assertEquals(monday.atTime(7, 30).atZone(zone).toInstant().toEpochMilli(), AlarmPlan.next(a, time("2026-01-01T00:00"), zone, holidays));
+        assertEquals(450, AlarmPlan.minutesOn(a, monday.plusDays(5), holidays));
+        assertEquals(-1, AlarmPlan.minutesOn(a, monday.plusDays(12), holidays));
+        assertEquals(450, AlarmPlan.minutesOn(a, monday.plusDays(19), holidays));
+    }
 }

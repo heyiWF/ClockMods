@@ -21,6 +21,14 @@ public final class AlarmPlan {
             case WEEKLY: occurs = (alarm.weekdays & (1 << (date.getDayOfWeek().getValue() - 1))) != 0; break;
             case HOLIDAYS: occurs = holidays.isHoliday(date); break;
             case WORKDAYS: occurs = holidays.isWorkday(date); break;
+            case ALTERNATING:
+                LocalDate monday = alarm.alternatingStart.with(java.time.DayOfWeek.MONDAY);
+                long week = Math.floorDiv(ChronoUnit.DAYS.between(monday, date), 7);
+                boolean big = (week % 2 == 0) == alarm.startBigWeek;
+                int workdays = big ? alarm.bigWeekDays : alarm.smallWeekDays;
+                boolean workday = (workdays & (1 << (date.getDayOfWeek().getValue() - 1))) != 0;
+                occurs = !date.isBefore(monday) && (alarm.alternatingRestDays ? !workday : workday);
+                break;
             case SHIFT:
                 long days = ChronoUnit.DAYS.between(alarm.cycleStart, date);
                 int shift = days < 0 ? -1 : alarm.cycleMinutes[(int) (days % alarm.cycleLength)];
@@ -36,6 +44,8 @@ public final class AlarmPlan {
         long after = Math.max(now, alarm.lastFiredAt);
         LocalDate today = Instant.ofEpochMilli(after).atZone(zone).toLocalDate();
         LocalDate searchStart = alarm.repeat == AlarmSpec.Repeat.SHIFT && alarm.cycleStart.isAfter(today) ? alarm.cycleStart : today;
+        if (alarm.repeat == AlarmSpec.Repeat.ALTERNATING && alarm.alternatingStart.with(java.time.DayOfWeek.MONDAY).isAfter(today))
+            searchStart = alarm.alternatingStart.with(java.time.DayOfWeek.MONDAY);
         // Bound recurring searches, but separately evaluate arbitrarily distant explicit dates.
         for (int offset = 0; alarm.repeat != AlarmSpec.Repeat.ONCE && offset <= 366 * 5; offset++) {
             LocalDate date = searchStart.plusDays(offset);
