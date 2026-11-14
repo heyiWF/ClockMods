@@ -1,0 +1,4 @@
+<resources>
+    <string name="timing_channel">Active timers</string>
+    <string name="timing_running">Running</string>
+</resources>

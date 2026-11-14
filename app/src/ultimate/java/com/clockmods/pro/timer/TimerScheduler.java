@@ -12,14 +12,28 @@ public final class TimerScheduler {
         AlarmManager manager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         PendingIntent operation = intent(context, mode);
         if (manager.canScheduleExactAlarms()) {
-            manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, deadlineMillis, operation);
-        } else {
-            manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, deadlineMillis, operation);
+            try {
+                manager.setExactAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, deadlineMillis, operation);
+                return;
+            } catch (SecurityException ignored) { /* Permission changed; use inexact fallback. */ }
         }
+        manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, deadlineMillis, operation);
     }
 
     public static void cancel(Context context, String mode) {
         ((AlarmManager) context.getSystemService(Context.ALARM_SERVICE)).cancel(intent(context, mode));
+        TimingLiveUpdates.cancelTimer(context, mode);
+    }
+
+    public static void restoreRunningTimers(Context context) {
+        android.content.SharedPreferences p = context.getSharedPreferences("pro_timers", 0);
+        for (String mode : new String[] {"pomodoro", "countdown"}) {
+            if (!p.getBoolean(mode + "_running", false)) continue;
+            long deadline = p.getLong(mode + "_deadline", 0);
+            if (deadline > System.currentTimeMillis()) schedule(context, mode, deadline);
+            else TimerReceiver.complete(context, mode);
+        }
+        TimingLiveUpdates.refreshAll(context);
     }
 
     private static PendingIntent intent(Context context, String mode) {

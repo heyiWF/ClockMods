@@ -1,8 +1,8 @@
 package com.clockmods.pro;
 
 /** Preserve the monotonic time base across page changes and process recreation. */
-final class StopwatchTimebase {
-    static long elapsed(long accumulated, boolean running, long startedRealtime, long startedWall,
+public final class StopwatchTimebase {
+    public static long elapsed(long accumulated, boolean running, long startedRealtime, long startedWall,
             long nowRealtime, long nowWall) {
         long base = Math.max(0, accumulated);
         if (!running) return base;

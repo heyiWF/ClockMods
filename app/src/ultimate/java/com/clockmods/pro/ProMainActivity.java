@@ -104,6 +104,7 @@ public abstract class ProMainActivity extends AppCompatActivity {
             selectedPage = savedInstanceState.getInt(STATE_SELECTED_PAGE,
                 ProPage.CLOCK.ordinal());
         }
+        if (savedInstanceState == null) selectedPage = timingDestination(getIntent(), selectedPage);
         pager.setCurrentItem(selectedPage, false);
         ProFontApplier.apply(navigation);
         ButtonTextSizer.applyAllTextToTree(navigation);
@@ -140,6 +141,20 @@ public abstract class ProMainActivity extends AppCompatActivity {
         if (!shouldDeferNotificationPermission()) {
             requestNotificationPermissionIfNeeded();
         }
+    }
+
+    private int timingDestination(android.content.Intent intent, int fallback) {
+        String mode = intent.getStringExtra(com.clockmods.pro.timer.TimingLiveUpdates.EXTRA_DESTINATION);
+        if ("pomodoro".equals(mode)) return ProPage.POMODORO.ordinal();
+        if ("countdown".equals(mode)) return ProPage.COUNTDOWN.ordinal();
+        if ("stopwatch".equals(mode)) return ProPage.STOPWATCH.ordinal();
+        return fallback;
+    }
+
+    @Override protected void onNewIntent(android.content.Intent intent) {
+        super.onNewIntent(intent);
+        setIntent(intent);
+        pager.setCurrentItem(timingDestination(intent, selectedPage), true);
     }
 
     /** Creates the adapter for the Ultimate clock and its integrated tool destinations. */

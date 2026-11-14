@@ -65,6 +65,7 @@ public final class UltimateMainActivity extends ProMainActivity {
     @Override
     protected void onResume() {
         super.onResume();
+        com.clockmods.pro.timer.TimerScheduler.restoreRunningTimers(this);
         String currentLanguage = new ClockPreferences(this).getClockLanguage();
         if (appliedLanguage != null && !appliedLanguage.equals(currentLanguage)) {
             appliedLanguage = currentLanguage;

@@ -34,6 +34,8 @@ public final class ProStopwatchFragment extends Fragment {
     private TextView display;
     private MaterialButton startPause;
     private LinearLayout laps;
+    private android.widget.ScrollView lapScroll;
+    private android.animation.ValueAnimator lapScrollAnimator;
     private long accumulated;
     private long startedElapsed;
     private boolean running;
@@ -52,6 +54,7 @@ public final class ProStopwatchFragment extends Fragment {
         display = root.findViewById(R.id.stopwatch_display);
         startPause = root.findViewById(R.id.stopwatch_start_pause);
         laps = root.findViewById(R.id.stopwatch_laps);
+        lapScroll = (android.widget.ScrollView) laps.getParent();
         workspace = (ToolWorkspaceLayout) root;
         records = root.findViewById(R.id.stopwatch_records);
         lapButton = root.findViewById(R.id.stopwatch_lap);
@@ -89,6 +92,7 @@ public final class ProStopwatchFragment extends Fragment {
     }
 
     private void reset() {
+        if (lapScrollAnimator != null) lapScrollAnimator.cancel();
         running = false;
         accumulated = 0L;
         lapTimes.clear();
@@ -99,15 +103,28 @@ public final class ProStopwatchFragment extends Fragment {
 
     private void addLap() {
         if (!running && accumulated == 0L) return;
-        if (workspace.isLaidOut()) androidx.transition.TransitionManager.beginDelayedTransition(workspace, new androidx.transition.AutoTransition().setDuration(280));
+        if (workspace.isLaidOut() && android.animation.ValueAnimator.areAnimatorsEnabled())
+            androidx.transition.TransitionManager.beginDelayedTransition(workspace,
+                    new androidx.transition.ChangeBounds().setDuration(280));
         lapTimes.add(0, elapsed());
         persist();
-        renderLaps();
+        records.setVisibility(View.VISIBLE);
+        workspace.setExpandedDetails(true);
+        laps.addView(createLapRow(0), 0);
         View entry = laps.getChildAt(0);
         if (entry != null && android.animation.ValueAnimator.areAnimatorsEnabled()) {
             entry.setTranslationY(-dp(24)); entry.setAlpha(0);
             entry.animate().translationY(0).alpha(1).setDuration(260).start();
         }
+        if (lapScrollAnimator != null) lapScrollAnimator.cancel();
+        // Start from the current position even if a previous insertion is still scrolling.
+        if (android.animation.ValueAnimator.areAnimatorsEnabled()) {
+            lapScrollAnimator = android.animation.ValueAnimator.ofInt(lapScroll.getScrollY(), 0);
+            lapScrollAnimator.setDuration(280);
+            lapScrollAnimator.setInterpolator(new android.view.animation.DecelerateInterpolator());
+            lapScrollAnimator.addUpdateListener(value -> lapScroll.scrollTo(0, (Integer) value.getAnimatedValue()));
+            lapScrollAnimator.start();
+        } else lapScroll.scrollTo(0, 0);
     }
 
     private void renderLaps() {
@@ -115,19 +132,23 @@ public final class ProStopwatchFragment extends Fragment {
         records.setVisibility(lapTimes.isEmpty() ? View.GONE : View.VISIBLE);
         workspace.setExpandedDetails(!lapTimes.isEmpty());
         for (int index = 0; index < lapTimes.size(); index++) {
-            long total = lapTimes.get(index);
-            long previous = index + 1 < lapTimes.size() ? lapTimes.get(index + 1) : 0;
-            LinearLayout row = new LinearLayout(requireContext());
-            row.setGravity(Gravity.CENTER_VERTICAL);
-            row.setMinimumHeight(dp(48));
-            row.addView(lapCell(Integer.toString(lapTimes.size() - index), false),
-                    new LinearLayout.LayoutParams(dp(48), -2));
-            row.addView(lapCell(format(Math.max(0, total - previous)), true),
-                    new LinearLayout.LayoutParams(0, -2, 1));
-            row.addView(lapCell(format(total), true), new LinearLayout.LayoutParams(0, -2, 1));
-            ProFontApplier.apply(row);
-            laps.addView(row);
+            laps.addView(createLapRow(index));
         }
+    }
+
+    private View createLapRow(int index) {
+        long total = lapTimes.get(index);
+        long previous = index + 1 < lapTimes.size() ? lapTimes.get(index + 1) : 0;
+        LinearLayout row = new LinearLayout(requireContext());
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setMinimumHeight(dp(48));
+        row.addView(lapCell(Integer.toString(lapTimes.size() - index), false),
+                new LinearLayout.LayoutParams(dp(48), -2));
+        row.addView(lapCell(format(Math.max(0, total - previous)), true),
+                new LinearLayout.LayoutParams(0, -2, 1));
+        row.addView(lapCell(format(total), true), new LinearLayout.LayoutParams(0, -2, 1));
+        ProFontApplier.apply(row);
+        return row;
     }
 
     private TextView lapCell(String value, boolean time) {
@@ -179,5 +200,5 @@ public final class ProStopwatchFragment extends Fragment {
 
     @Override public void onResume() { super.onResume(); handler.post(ticker); }
     @Override public void onPause() { handler.removeCallbacks(ticker); persist(); super.onPause(); }
-    @Override public void onDestroyView() { display = null; super.onDestroyView(); }
+    @Override public void onDestroyView() { if (lapScrollAnimator != null) lapScrollAnimator.cancel(); display = null; super.onDestroyView(); }
 }

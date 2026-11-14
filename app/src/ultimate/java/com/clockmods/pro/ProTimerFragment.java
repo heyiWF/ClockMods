@@ -221,12 +221,12 @@ public final class ProTimerFragment extends Fragment {
 
     private void refresh() {
         if (display == null) return;
+        if (running && !preferences.getBoolean(prefix() + "running", false)) restore();
         if (running) {
             remainingMillis = Math.max(0L, deadlineMillis - System.currentTimeMillis());
             if (remainingMillis == 0L) {
-                running = false;
-                if (pomodoro) advancePomodoro();
-                else persist();
+                com.clockmods.pro.timer.TimerReceiver.complete(requireContext(), prefixMode());
+                restore();
             }
         }
         long totalSeconds = (remainingMillis + 999L) / 1000L;
@@ -271,6 +271,6 @@ public final class ProTimerFragment extends Fragment {
 
     @Override public void onDestroyView() { rollingTime.dispose(); display = null; super.onDestroyView(); }
 
-    @Override public void onResume() { super.onResume(); handler.post(ticker); }
-    @Override public void onPause() { handler.removeCallbacks(ticker); persist(); super.onPause(); }
+    @Override public void onResume() { super.onResume(); restore(); handler.post(ticker); }
+    @Override public void onPause() { handler.removeCallbacks(ticker); super.onPause(); }
 }

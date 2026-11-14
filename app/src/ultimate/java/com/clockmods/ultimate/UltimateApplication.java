@@ -18,6 +18,7 @@ public final class UltimateApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
+        com.clockmods.pro.timer.TimingLiveUpdates.initialize(this);
         com.clockmods.background.UserFontStore.initialize(this);
         UltimateEmbeddingRules.install(this);
         com.clockmods.calendar.imports.CalendarSubscriptionWorker.schedule(this);
