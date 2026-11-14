@@ -38,6 +38,8 @@
         <activity
             android:name=".pro.alarm.AlarmRingingActivity"
             android:excludeFromRecents="true"
+            android:launchMode="singleTask"
+            android:taskAffinity="${applicationId}.ringing"
             android:exported="false"
             android:showWhenLocked="true"
             android:turnScreenOn="true" />

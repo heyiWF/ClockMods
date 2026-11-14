@@ -27,11 +27,18 @@ public final class AlarmRingingService extends Service {
     private PowerManager.WakeLock wakeLock;
     private AudioFocusRequest focus;
     private final Runnable timeout = () -> dismiss(activeId, false);
+    private final android.content.BroadcastReceiver screenOff = new android.content.BroadcastReceiver() {
+        @Override public void onReceive(android.content.Context context, Intent intent) {
+            if (Intent.ACTION_SCREEN_OFF.equals(intent.getAction()) && activeId != 0
+                    && AlarmPreferences.enabled(context, AlarmPreferences.POWER)) dismiss(activeId, true);
+        }
+    };
     @Override public void onCreate() {
         super.onCreate();
+        androidx.core.content.ContextCompat.registerReceiver(this, screenOff,
+                new android.content.IntentFilter(Intent.ACTION_SCREEN_OFF), androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED);
         AlarmStore store = new AlarmStore(this);
-        for (Long id : store.pendingRings().keySet()) queue.put(id, store.find(id));
-        startForeground(100, AlarmDelivery.notification(this, null, 0));
+        for (Long id : store.pendingRings().keySet()) { AlarmSpec alarm = store.find(id); if (alarm != null) queue.put(id, alarm); }
         PowerManager power = getSystemService(PowerManager.class);
         wakeLock = power.newWakeLock(PowerManager.PARTIAL_WAKE_LOCK, "ClockMods:alarm");
         wakeLock.acquire(11 * 60_000L);
@@ -55,17 +62,24 @@ public final class AlarmRingingService extends Service {
         AlarmSpec ringing = queue.remove(id);
         new AlarmStore(this).forgetRing(id);
         if (ringing != null && snooze) {
-            AlarmStore store = new AlarmStore(this); AlarmSpec saved = store.find(id);
+            androidx.core.content.ContextCompat.registerReceiver(this, screenOff,
+                new android.content.IntentFilter(Intent.ACTION_SCREEN_OFF), androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED);
+        AlarmStore store = new AlarmStore(this); AlarmSpec saved = store.find(id);
             if (saved != null) {
                 saved.snoozeAt = System.currentTimeMillis() + saved.snoozeMinutes * 60_000L;
                 store.save(saved); AlarmScheduler.schedule(this, saved);
             }
         }
-        if (activeId == id || queue.isEmpty()) { stopAudio(); activeId = 0; playNext(); }
+        if (id < 0 && !snooze) new AlarmStore(this).delete(id);
+        if (activeId == id || queue.isEmpty()) { stopAudio(); stopForeground(STOP_FOREGROUND_REMOVE); activeId = 0; playNext(); }
         else startForeground(100, AlarmDelivery.notification(this, queue.get(activeId), queue.size()));
     }
     private void playNext() {
-        if (queue.isEmpty()) { new AlarmStore(this).setRingingId(0); stopSelf(); return; }
+        if (queue.isEmpty()) {
+            // Even an obsolete startForegroundService intent must satisfy its foreground deadline.
+            startForeground(100, AlarmDelivery.notification(this, null, 0));
+            new AlarmStore(this).setRingingId(0); stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(); return;
+        }
         AlarmSpec alarm = queue.values().iterator().next(); activeId = alarm.id;
         new AlarmStore(this).setRingingId(activeId);
         startForeground(100, AlarmDelivery.notification(this, alarm, queue.size()));
@@ -103,7 +117,7 @@ public final class AlarmRingingService extends Service {
         if (focus != null) { getSystemService(AudioManager.class).abandonAudioFocusRequest(focus); focus = null; }
     }
     @Override public void onDestroy() {
-        stopAudio(); new AlarmStore(this).setRingingId(0);
+        unregisterReceiver(screenOff); stopAudio(); new AlarmStore(this).setRingingId(0);
         if (wakeLock != null && wakeLock.isHeld()) wakeLock.release();
         stopForeground(STOP_FOREGROUND_REMOVE); super.onDestroy();
     }

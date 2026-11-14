@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alarm_alternating">隔週勤務</string>
+    <string name="alarm_alternating_help">選択した日を含む週から開始し、月曜日に切り替わります。長い週は週6日、短い週は週5日勤務が初期設定です。勤務日は変更できます。祝日は自動反映されません。追加・除外日で調整してください。</string>
+    <string name="alarm_anchor_week">開始週（週内の日付を選択）</string>
+    <string name="alarm_start_big">長い週から開始</string>
+    <string name="alarm_rest_mode">休日のアラーム</string>
+    <string name="alarm_rest_mode_help">オフ：選択した勤務日。オン：それ以外の休日。</string>
+    <string name="alarm_big_days">長い週の勤務日（週休1日）</string>
+    <string name="alarm_small_days">短い週の勤務日（週休2日）</string>
+    <string name="alarm_repeat_once_hint">指定した日だけ通知</string>
+    <string name="alarm_repeat_weekly_hint">毎週の曜日を選択</string>
+    <string name="alarm_repeat_holiday_hint">公表済みの中国本土の祝日</string>
+    <string name="alarm_repeat_workday_hint">振替出勤日を含む</string>
+    <string name="alarm_repeat_shift_hint">2～62日周期、日ごとの時刻を設定</string>
+    <string name="alarm_repeat_alternating_hint">週休1日と2日を交互に、勤務日・休日を選択</string>
+</resources>

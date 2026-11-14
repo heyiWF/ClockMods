@@ -51,38 +51,7 @@ class TimerReceiver : BroadcastReceiver() {
             editor.apply()
             TimerScheduler.cancel(context, mode)
 
-            val localized = requireNotNull(LocaleManager.wrap(appContext))
-            val manager = requireNotNull(
-                appContext.getSystemService(NotificationManager::class.java),
-            )
-            manager.createNotificationChannel(
-                NotificationChannel(
-                    CHANNEL_ID,
-                    localized.getString(R.string.timer_channel),
-                    NotificationManager.IMPORTANCE_HIGH,
-                ),
-            )
-            val open = TimingLiveUpdates.open(appContext, if (pomodoro) "pomodoro" else "countdown",
-                if (pomodoro) POMODORO_REQUEST_CODE else COUNTDOWN_REQUEST_CODE)
-            if (!manager.areNotificationsEnabled()) return
-            try {
-                manager.notify(
-                    if (pomodoro) POMODORO_REQUEST_CODE else COUNTDOWN_REQUEST_CODE,
-                    NotificationCompat.Builder(appContext, CHANNEL_ID)
-                        .setSmallIcon(R.drawable.ic_notification_clock)
-                        .setContentTitle(
-                            localized.getString(
-                                if (pomodoro) R.string.pomodoro_complete
-                                else R.string.countdown_complete,
-                            ),
-                        )
-                        .setContentText(localized.getString(R.string.timer_complete_open))
-                        .setPriority(NotificationCompat.PRIORITY_HIGH)
-                        .setAutoCancel(true)
-                        .setContentIntent(open)
-                        .build(),
-                )
-            } catch (_: SecurityException) { /* Permission revoked while completing. */ }
+            com.clockmods.pro.alarm.AlarmDelivery.timer(context, pomodoro)
         }
     }
 }

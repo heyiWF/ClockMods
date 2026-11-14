@@ -1,0 +1,18 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alarm_settings">闹钟与到时提醒</string>
+    <string name="alarm_random_buttons">随机交换提醒按钮</string>
+    <string name="alarm_random_buttons_summary">每次响铃随机排列“稍后提醒”和“停止闹钟”；本次响铃中保持不变</string>
+    <string name="alarm_volume_snooze">音量键稍后提醒</string>
+    <string name="alarm_volume_snooze_summary">全屏提醒页收到音量键时稍后提醒，包括显示在锁屏上时。系统拦截按键时无法生效</string>
+    <string name="alarm_power_snooze">电源键息屏时稍后提醒</string>
+    <string name="alarm_power_snooze_summary">响铃期间设备进入休眠时稍后提醒。系统不向应用提供电源键事件，自动休眠也可能触发；已熄屏时再次按键无法保证生效</string>
+    <string name="alarm_access_summary">闹钟、倒计时和番茄钟共用这些设置。请允许通知、精确闹钟与全屏提醒，并将提醒通知设为高优先级。使用手机时系统可能只显示横幅</string>
+    <string name="alarm_access_notifications">通知与提醒优先级</string>
+    <string name="alarm_access_exact">精确闹钟权限</string>
+    <string name="alarm_access_fullscreen">锁屏全屏提醒权限</string>
+    <string name="alarm_access_app">系统应用设置</string>
+    <string name="alarm_rom_xiaomi">HyperOS／MIUI：若锁屏提醒仍被拦截，请在系统应用权限中检查“锁屏显示”“后台弹出界面”以及自启动和后台电量限制。不同系统版本名称可能不同</string>
+    <string name="alarm_rom_oppo">ColorOS／一加／realme：若提醒被延迟或锁屏未显示，请检查应用通知的锁屏显示、允许后台活动和自启动设置。可用选项由系统版本决定</string>
+    <string name="alarm_rom_help">应用优先使用 Android 原生全屏通知和返回手势。若系统不提供预测性返回进度，仍可正常返回，但无法保证跟手预览</string>
+</resources>

@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alarm_alternating">격주 근무</string>
+    <string name="alarm_alternating_help">선택한 날짜가 속한 주부터 시작하며 월요일에 바뀝니다. 긴 주는 주 6일, 짧은 주는 주 5일 근무가 기본값입니다. 근무일은 변경할 수 있습니다. 공휴일은 자동 적용되지 않으며 추가·제외 날짜로 조정하세요.</string>
+    <string name="alarm_anchor_week">시작 주 (해당 주의 날짜 선택)</string>
+    <string name="alarm_start_big">긴 주부터 시작</string>
+    <string name="alarm_rest_mode">휴무일 알람</string>
+    <string name="alarm_rest_mode_help">끄기: 선택한 근무일에 울림. 켜기: 나머지 휴무일에 울림.</string>
+    <string name="alarm_big_days">긴 주 근무일 (기본 주 1일 휴무)</string>
+    <string name="alarm_small_days">짧은 주 근무일 (기본 주 2일 휴무)</string>
+    <string name="alarm_repeat_once_hint">지정한 날짜에만 알림</string>
+    <string name="alarm_repeat_weekly_hint">매주 고정 요일 선택</string>
+    <string name="alarm_repeat_holiday_hint">공표된 중국 본토 공휴일</string>
+    <string name="alarm_repeat_workday_hint">공식 대체 근무일 포함</string>
+    <string name="alarm_repeat_shift_hint">2~62일 주기로 날짜별 시간 설정</string>
+    <string name="alarm_repeat_alternating_hint">주 1일·2일 휴무 교대, 근무일 또는 휴무일 알림</string>
+</resources>

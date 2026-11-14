@@ -19,16 +19,7 @@ public final class AlarmReceiver extends BroadcastReceiver {
         alarm.scheduledAt = 0;
         if (alarm.repeat == AlarmSpec.Repeat.ONCE
                 && AlarmScheduler.nextTrigger(alarm, context, System.currentTimeMillis()) == 0) alarm.enabled = false;
-        store.save(alarm); store.rememberRing(alarm.id);
-        try {
-            ContextCompat.startForegroundService(context, new Intent(context, AlarmRingingService.class)
-                    .putExtra(AlarmScheduler.EXTRA_ID, alarm.id));
-        } catch (android.app.ForegroundServiceStartNotAllowedException restricted) {
-            // Inexact fallback alarms may lack the exact-alarm FGS exemption. A user tap can resume.
-            store.setRingingId(alarm.id);
-            context.getSystemService(android.app.NotificationManager.class).notify(100,
-                    AlarmDelivery.notification(context, alarm, store.pendingRings().size()));
-        }
+        store.save(alarm); AlarmDelivery.ring(context, alarm);
         AlarmScheduler.schedule(context, alarm);
     }
 }

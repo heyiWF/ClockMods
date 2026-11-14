@@ -10,7 +10,9 @@ import java.util.List;
 public final class AlarmStore {
     private static final Object LOCK = new Object();
     private final SharedPreferences preferences;
+    private final Context context;
     public AlarmStore(Context context) {
+        this.context = context.getApplicationContext();
         preferences = context.getSharedPreferences("pro_alarm", Context.MODE_PRIVATE);
         synchronized (LOCK) {
             if (!preferences.contains("alarms_v2")) {
@@ -26,11 +28,13 @@ public final class AlarmStore {
             }
         }
     }
-    public List<AlarmSpec> all() {
+    public List<AlarmSpec> all() { return readList("alarms_v2"); }
+    public List<AlarmSpec> timerAlerts() { return readList("timer_alerts"); }
+    private List<AlarmSpec> readList(String key) {
         synchronized (LOCK) {
             List<AlarmSpec> out = new ArrayList<>();
             try {
-                JSONArray items = new JSONArray(preferences.getString("alarms_v2", "[]"));
+                JSONArray items = new JSONArray(preferences.getString(key, "[]"));
                 for (int i = 0; i < items.length(); i++) {
                     try { out.add(AlarmSpec.fromJson(items.getJSONObject(i))); } catch (Exception ignored) { }
                 }
@@ -38,10 +42,10 @@ public final class AlarmStore {
             return out;
         }
     }
-    public AlarmSpec find(long id) { for (AlarmSpec alarm : all()) if (alarm.id == id) return alarm; return null; }
+    public AlarmSpec find(long id) { for (AlarmSpec alarm : id < 0 ? timerAlerts() : all()) if (alarm.id == id) return alarm; return null; }
     public void save(AlarmSpec alarm) {
         synchronized (LOCK) {
-            List<AlarmSpec> items = all();
+            List<AlarmSpec> items = alarm.id < 0 ? timerAlerts() : all();
             if (alarm.id == 0) {
                 long next = preferences.getLong("next_alarm_id", 2);
                 for (AlarmSpec item : items) next = Math.max(next, item.id + 1);
@@ -50,15 +54,16 @@ public final class AlarmStore {
             items.removeIf(item -> item.id == alarm.id); items.add(new AlarmSpec(alarm));
             items.sort((a, b) -> { int time = Integer.compare(a.hour * 60 + a.minute, b.hour * 60 + b.minute);
                 return time != 0 ? time : Long.compare(a.id, b.id); });
-            write(items);
+            write(alarm.id < 0 ? "timer_alerts" : "alarms_v2", items);
         }
     }
-    public void delete(long id) { synchronized (LOCK) { List<AlarmSpec> items = all(); items.removeIf(item -> item.id == id); write(items); } }
-    private void write(List<AlarmSpec> items) {
+    public void delete(long id) { synchronized (LOCK) { List<AlarmSpec> items = id < 0 ? timerAlerts() : all(); items.removeIf(item -> item.id == id); write(id < 0 ? "timer_alerts" : "alarms_v2", items); } }
+    private void write(List<AlarmSpec> items) { write("alarms_v2", items); }
+    private void write(String key, List<AlarmSpec> items) {
         JSONArray array = new JSONArray();
         try { for (AlarmSpec item : items) array.put(item.toJson()); }
         catch (Exception e) { throw new IllegalStateException("Cannot serialize alarm", e); }
-        preferences.edit().putString("alarms_v2", array.toString()).apply();
+        preferences.edit().putString(key, array.toString()).apply();
     }
     public java.util.LinkedHashMap<Long, Long> pendingRings() {
         synchronized (LOCK) {
@@ -78,11 +83,13 @@ public final class AlarmStore {
     public void rememberRing(long id) {
         synchronized (LOCK) {
             java.util.LinkedHashMap<Long, Long> pending = pendingRings();
+            if (!pending.containsKey(id)) preferences.edit().putBoolean("ring_swap_" + id,
+                    AlarmPreferences.enabled(context, AlarmPreferences.RANDOM) && java.util.concurrent.ThreadLocalRandom.current().nextBoolean()).apply();
             pending.putIfAbsent(id, System.currentTimeMillis() + 10 * 60_000L); writeRings(pending);
         }
     }
     public void forgetRing(long id) {
-        synchronized (LOCK) { java.util.LinkedHashMap<Long, Long> pending = pendingRings(); pending.remove(id); writeRings(pending); }
+        synchronized (LOCK) { java.util.LinkedHashMap<Long, Long> pending = pendingRings(); pending.remove(id); preferences.edit().remove("ring_swap_" + id).apply(); writeRings(pending); }
     }
     public void clearRings() { synchronized (LOCK) { writeRings(new java.util.LinkedHashMap<>()); setRingingId(0); } }
     private void writeRings(java.util.LinkedHashMap<Long, Long> pending) {

@@ -87,7 +87,7 @@ public final class TimingAcceptance extends Instrumentation {
         SystemClock.sleep(350);
         check(timers.getInt("pomodoro_phase", -1) == 1, "completion advances once");
         check(!timers.getBoolean("pomodoro_running", true), "completion persists stopped state");
-        check(notification(211) == null && notification(201) != null, "completion replaces live update with alert");
+        check(notification(211) == null && notification(100) != null, "completion replaces live update with alert");
         timers.edit().putBoolean("countdown_running", true)
                 .putLong("countdown_deadline", System.currentTimeMillis() + 600).commit();
         refresh();

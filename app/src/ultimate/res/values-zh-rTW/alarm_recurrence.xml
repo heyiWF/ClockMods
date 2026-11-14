@@ -1,0 +1,17 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="alarm_alternating">大小週</string>
+    <string name="alarm_alternating_help">以所選日期所在週為起始週，每週一換週。大週預設上班六天、小週預設上班五天；可分別修改工作日。法定調班不自動覆蓋，請用預定啟用／暫時停用日期調整。</string>
+    <string name="alarm_anchor_week">起始週（選擇該週任意日期）</string>
+    <string name="alarm_start_big">以大週開始</string>
+    <string name="alarm_rest_mode">休息日鬧鐘</string>
+    <string name="alarm_rest_mode_help">關閉：在所選工作日響鈴；開啟：在其餘休息日響鈴</string>
+    <string name="alarm_big_days">大週工作日（預設單休）</string>
+    <string name="alarm_small_days">小週工作日（預設雙休）</string>
+    <string name="alarm_repeat_once_hint">僅在指定日期提醒</string>
+    <string name="alarm_repeat_weekly_hint">每週選擇固定的星期</string>
+    <string name="alarm_repeat_holiday_hint">按已公布的中國大陸假期提醒</string>
+    <string name="alarm_repeat_workday_hint">包含法定調班上班日</string>
+    <string name="alarm_repeat_shift_hint">2–62 天循環，每天可設定時間</string>
+    <string name="alarm_repeat_alternating_hint">單休／雙休交替，工作或休息日提醒</string>
+</resources>

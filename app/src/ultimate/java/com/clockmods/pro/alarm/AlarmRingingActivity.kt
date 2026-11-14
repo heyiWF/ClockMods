@@ -25,6 +25,7 @@ import java.util.Date
 
 class AlarmRingingActivity : ComponentActivity() {
     private var alarm by mutableStateOf<AlarmSpec?>(null)
+    private var swapped by mutableStateOf(false)
     private lateinit var preferences: SharedPreferences
     private val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
         if (key == "ringing_id") refresh()
@@ -57,11 +58,17 @@ class AlarmRingingActivity : ComponentActivity() {
                             fontSize = 64.sp, maxLines = 1)
                     }
                     Row(Modifier.widthIn(max = 520.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        FilledTonalButton(onClick = { command(AlarmDelivery.SNOOZE) }, Modifier.weight(1f).heightIn(min = 72.dp)) {
-                            Text(stringResource(R.string.alarm_snooze), style = MaterialTheme.typography.titleLarge)
-                        }
-                        Button(onClick = { command(AlarmDelivery.STOP) }, Modifier.weight(1f).heightIn(min = 72.dp)) {
-                            Text(stringResource(R.string.alarm_dismiss), style = MaterialTheme.typography.titleLarge)
+                        val actions = if (swapped) listOf(AlarmDelivery.STOP, AlarmDelivery.SNOOZE) else listOf(AlarmDelivery.SNOOZE, AlarmDelivery.STOP)
+                        actions.forEach { action ->
+                            if (action == AlarmDelivery.SNOOZE) {
+                                FilledTonalButton(onClick = { command(action) }, Modifier.weight(1f).heightIn(min = 72.dp)) {
+                                    Text(stringResource(R.string.alarm_snooze), style = MaterialTheme.typography.titleLarge)
+                                }
+                            } else {
+                                Button(onClick = { command(action) }, Modifier.weight(1f).heightIn(min = 72.dp)) {
+                                    Text(stringResource(R.string.alarm_dismiss), style = MaterialTheme.typography.titleLarge)
+                                }
+                            }
                         }
                     }
                 }
@@ -72,8 +79,17 @@ class AlarmRingingActivity : ComponentActivity() {
         val store = AlarmStore(this)
         val id = store.ringingId().takeIf { it != 0L } ?: store.pendingRings().keys.firstOrNull()
         alarm = id?.let(store::find)
+        swapped = id?.let { AlarmPreferences.swapped(this, it) } ?: false
         if (alarm == null) finish()
     }
+    private fun volumeSnooze(key: Int): Boolean =
+        (key == android.view.KeyEvent.KEYCODE_VOLUME_UP || key == android.view.KeyEvent.KEYCODE_VOLUME_DOWN || key == android.view.KeyEvent.KEYCODE_VOLUME_MUTE) &&
+            AlarmPreferences.enabled(this, AlarmPreferences.VOLUME)
+    override fun onKeyDown(key: Int, event: android.view.KeyEvent): Boolean {
+        if (volumeSnooze(key)) { if (event.repeatCount == 0) command(AlarmDelivery.SNOOZE); return true }
+        return super.onKeyDown(key, event)
+    }
+    override fun onKeyUp(key: Int, event: android.view.KeyEvent): Boolean = volumeSnooze(key) || super.onKeyUp(key, event)
     private fun command(action: String) { alarm?.let { startService(AlarmDelivery.command(this, it.id, action)) } }
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); refresh() }
     override fun onDestroy() { if (::preferences.isInitialized) preferences.unregisterOnSharedPreferenceChangeListener(listener); super.onDestroy() }
