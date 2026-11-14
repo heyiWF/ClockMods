@@ -49,7 +49,7 @@ public final class AlarmEditorActivity extends AlarmUi {
         if (draft.repeat == AlarmSpec.Repeat.ONCE) draft.onceDate = AlarmPlan.nextDate(draft.hour, draft.minute, System.currentTimeMillis(), ZoneId.systemDefault());
         render();
     }
-    @Override protected void dateSelected(java.time.LocalDate date) { draft.onceDate = date; render(); }
+    @Override protected void dateSelected(java.time.LocalDate date) { if (draft.repeat == AlarmSpec.Repeat.ALTERNATING) draft.alternatingStart = date; else draft.onceDate = date; render(); }
     private void render() {
         screen(draft.id == 0 ? R.string.alarm_add : R.string.alarm_edit_title, this::save);
         timeHeader(draft.hour * 60 + draft.minute, () -> timePicker(draft.hour * 60 + draft.minute));
@@ -57,6 +57,15 @@ public final class AlarmEditorActivity extends AlarmUi {
         if (draft.repeat == AlarmSpec.Repeat.ONCE)
             row(R.string.alarm_once_date, date(draft.onceDate), () -> datePicker(draft.onceDate));
         if (draft.repeat == AlarmSpec.Repeat.WEEKLY) weekdays();
+        if (draft.repeat == AlarmSpec.Repeat.ALTERNATING) {
+            body.addView(text(getString(R.string.alarm_alternating_help), 16));
+            row(R.string.alarm_anchor_week, date(draft.alternatingStart), () -> datePicker(draft.alternatingStart));
+            toggle(R.string.alarm_start_big, draft.startBigWeek, value -> draft.startBigWeek = value);
+            toggle(R.string.alarm_rest_mode, draft.alternatingRestDays, value -> draft.alternatingRestDays = value);
+            body.addView(text(getString(R.string.alarm_rest_mode_help), 14));
+            row(R.string.alarm_big_days, AlarmLabels.weekdays(this, draft.bigWeekDays), () -> weekPicker(true));
+            row(R.string.alarm_small_days, AlarmLabels.weekdays(this, draft.smallWeekDays), () -> weekPicker(false));
+        }
         if (draft.repeat == AlarmSpec.Repeat.SHIFT) row(R.string.alarm_shift, getString(R.string.alarm_days, draft.cycleLength), () -> openChild("shift"));
         if (draft.repeat == AlarmSpec.Repeat.HOLIDAYS || draft.repeat == AlarmSpec.Repeat.WORKDAYS)
             body.addView(text(getString(R.string.alarm_holiday_coverage), 14));
@@ -103,9 +112,29 @@ public final class AlarmEditorActivity extends AlarmUi {
     private void repeatPicker() {
         int[] labels = AlarmLabels.REPEATS; String[] items = new String[labels.length];
         for (int i = 0; i < items.length; i++) items[i] = getString(labels[i]);
+        android.widget.ArrayAdapter<String> adapter = new android.widget.ArrayAdapter<String>(this, android.R.layout.simple_list_item_single_choice, items) {
+            @Override public android.view.View getView(int position, android.view.View recycled, android.view.ViewGroup parent) {
+                android.widget.CheckedTextView view = (android.widget.CheckedTextView) super.getView(position, recycled, parent);
+                android.text.SpannableString label = new android.text.SpannableString(items[position] + "\n" + getString(AlarmLabels.REPEAT_HINTS[position]));
+                label.setSpan(new android.text.style.RelativeSizeSpan(0.78f), items[position].length() + 1, label.length(), 0);
+                view.setText(label); view.setTextSize(18); view.setSingleLine(false); view.setMinHeight(dp(80));
+                view.setPadding(dp(24), dp(14), dp(24), dp(14)); return view;
+            }
+        };
         show(new com.google.android.material.dialog.MaterialAlertDialogBuilder(this).setTitle(R.string.alarm_repeat)
-                .setSingleChoiceItems(items, draft.repeat.ordinal(), (dialog, which) -> {
+                .setSingleChoiceItems(adapter, draft.repeat.ordinal(), (dialog, which) -> {
                     draft.repeat = AlarmSpec.Repeat.values()[which]; dialog.dismiss(); render();
+                }).setNegativeButton(R.string.cancel, null).create());
+    }
+    private void weekPicker(boolean big) {
+        int bits = big ? draft.bigWeekDays : draft.smallWeekDays;
+        boolean[] checked = new boolean[7]; for (int i = 0; i < 7; i++) checked[i] = (bits & (1 << i)) != 0;
+        show(new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle(big ? R.string.alarm_big_days : R.string.alarm_small_days)
+                .setMultiChoiceItems(AlarmLabels.dayNames(this), checked, (dialog, which, value) -> checked[which] = value)
+                .setPositiveButton(R.string.apply, (dialog, which) -> {
+                    int selected = 0; for (int i = 0; i < 7; i++) if (checked[i]) selected |= 1 << i;
+                    if (big) draft.bigWeekDays = selected; else draft.smallWeekDays = selected; render();
                 }).setNegativeButton(R.string.cancel, null).create());
     }
     private void weekdays() {
