@@ -16,7 +16,7 @@ public final class AlarmAccess {
         if (Build.VERSION.SDK_INT >= 33 && ContextCompat.checkSelfPermission(context, Manifest.permission.POST_NOTIFICATIONS) != PackageManager.PERMISSION_GRANTED) return false;
         NotificationManager manager = context.getSystemService(NotificationManager.class);
         android.app.NotificationChannel channel = manager.getNotificationChannel(AlarmDelivery.CHANNEL);
-        return manager.areNotificationsEnabled() && (channel == null || channel.getImportance() != NotificationManager.IMPORTANCE_NONE);
+        return manager.areNotificationsEnabled() && (channel == null || channel.getImportance() >= NotificationManager.IMPORTANCE_HIGH);
     }
     public static boolean fullScreen(Context context) {
         return Build.VERSION.SDK_INT < 34 || context.getSystemService(NotificationManager.class).canUseFullScreenIntent();
@@ -25,7 +25,20 @@ public final class AlarmAccess {
         Intent intent = kind == 0 ? new Intent(Settings.ACTION_REQUEST_SCHEDULE_EXACT_ALARM, Uri.parse("package:" + context.getPackageName()))
                 : kind == 1 && Build.VERSION.SDK_INT >= 34 ? new Intent(Settings.ACTION_MANAGE_APP_USE_FULL_SCREEN_INTENT, Uri.parse("package:" + context.getPackageName()))
                 : new Intent(Settings.ACTION_APP_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.getPackageName());
-        try { context.startActivity(intent); } catch (android.content.ActivityNotFoundException ignored) { }
+        if (kind == 2 && context.getSystemService(NotificationManager.class).getNotificationChannel(AlarmDelivery.CHANNEL) != null)
+            intent = new Intent(Settings.ACTION_CHANNEL_NOTIFICATION_SETTINGS).putExtra(Settings.EXTRA_APP_PACKAGE, context.getPackageName())
+                    .putExtra(Settings.EXTRA_CHANNEL_ID, AlarmDelivery.CHANNEL);
+        if (kind == 3) intent = new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.getPackageName()));
+        try { context.startActivity(intent); } catch (android.content.ActivityNotFoundException | SecurityException unavailable) {
+            try { context.startActivity(new Intent(Settings.ACTION_APPLICATION_DETAILS_SETTINGS, Uri.parse("package:" + context.getPackageName()))); }
+            catch (android.content.ActivityNotFoundException | SecurityException ignored) { }
+        }
+    }
+    public static int manufacturerHelp() {
+        String brand = android.os.Build.MANUFACTURER.toLowerCase(java.util.Locale.ROOT);
+        if (brand.contains("xiaomi") || brand.contains("redmi") || brand.contains("poco")) return com.clockmods.R.string.alarm_rom_xiaomi;
+        if (brand.contains("oppo") || brand.contains("oneplus") || brand.contains("realme")) return com.clockmods.R.string.alarm_rom_oppo;
+        return 0;
     }
     public static void enabled(Context context, AlarmSpec alarm, boolean value) {
         alarm.enabled = value; alarm.snoozeAt = 0;

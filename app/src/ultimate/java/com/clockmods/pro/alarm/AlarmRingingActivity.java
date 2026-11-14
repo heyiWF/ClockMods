@@ -22,6 +22,8 @@ public final class AlarmRingingActivity extends AppCompatActivity {
     private SharedPreferences preferences;
     private TextView clock, title;
     private long activeId;
+    private LinearLayout controls;
+    private MaterialButton snooze, dismiss;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable tick = new Runnable() { public void run() {
         if (clock != null) clock.setText(ClockTimeText.align(android.text.format.DateFormat.getTimeFormat(AlarmRingingActivity.this).format(new java.util.Date())));
@@ -46,11 +48,11 @@ public final class AlarmRingingActivity extends AppCompatActivity {
         androidx.core.widget.TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(time, 32, 96, 1, android.util.TypedValue.COMPLEX_UNIT_SP);
         time.setSingleLine(true); clock = time; clock.setGravity(Gravity.CENTER);
         root.addView(clock, new LinearLayout.LayoutParams(-1, 0, 1));
-        LinearLayout controls = new LinearLayout(this); controls.setGravity(Gravity.CENTER);
-        MaterialButton snooze = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonTonalStyle);
+        controls = new LinearLayout(this); controls.setGravity(Gravity.CENTER);
+        snooze = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonTonalStyle);
         snooze.setText(R.string.alarm_snooze); snooze.setIconResource(R.drawable.alarm_ic_snooze);
         snooze.setOnClickListener(v -> command(AlarmDelivery.SNOOZE));
-        MaterialButton dismiss = new MaterialButton(this); dismiss.setText(R.string.alarm_dismiss);
+        dismiss = new MaterialButton(this); dismiss.setText(R.string.alarm_dismiss);
         dismiss.setOnClickListener(v -> command(AlarmDelivery.STOP));
         int width = Math.round(Math.min(520, getResources().getConfiguration().screenWidthDp - 48) * getResources().getDisplayMetrics().density);
         for (MaterialButton button : new MaterialButton[]{snooze, dismiss}) {
@@ -70,7 +72,21 @@ public final class AlarmRingingActivity extends AppCompatActivity {
         if (activeId == 0 && !store.pendingRings().isEmpty()) activeId = store.pendingRings().keySet().iterator().next();
         AlarmSpec alarm = store.find(activeId);
         if (alarm == null) { finish(); return; }
+        controls.removeAllViews();
+        boolean swapped = AlarmPreferences.swapped(this, activeId);
+        controls.addView(swapped ? dismiss : snooze); controls.addView(swapped ? snooze : dismiss);
         title.setText(alarm.label.isEmpty() ? getString(R.string.alarm_ringing) : alarm.label);
+    }
+    private boolean volumeSnooze(int key) {
+        return (key == android.view.KeyEvent.KEYCODE_VOLUME_UP || key == android.view.KeyEvent.KEYCODE_VOLUME_DOWN
+                || key == android.view.KeyEvent.KEYCODE_VOLUME_MUTE) && AlarmPreferences.enabled(this, AlarmPreferences.VOLUME);
+    }
+    @Override public boolean onKeyDown(int key, android.view.KeyEvent event) {
+        if (volumeSnooze(key)) { if (event.getRepeatCount() == 0) command(AlarmDelivery.SNOOZE); return true; }
+        return super.onKeyDown(key, event);
+    }
+    @Override public boolean onKeyUp(int key, android.view.KeyEvent event) {
+        return volumeSnooze(key) || super.onKeyUp(key, event);
     }
     private void command(String action) { startService(AlarmDelivery.command(this, activeId, action)); }
     @Override protected void onNewIntent(Intent intent) { super.onNewIntent(intent); setIntent(intent); refresh(); }

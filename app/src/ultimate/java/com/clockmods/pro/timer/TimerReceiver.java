@@ -35,23 +35,6 @@ public final class TimerReceiver extends BroadcastReceiver {
         } else editor.putLong(prefix + "remaining", 0);
         editor.apply();
         TimerScheduler.cancel(context, mode);
-        Context localized = LocaleManager.wrap(context);
-        NotificationManager manager = context.getSystemService(NotificationManager.class);
-        manager.createNotificationChannel(new NotificationChannel(CHANNEL_ID,
-                localized.getString(R.string.timer_channel), NotificationManager.IMPORTANCE_HIGH));
-        PendingIntent open = TimingLiveUpdates.open(context, pomodoro ? "pomodoro" : "countdown",
-                pomodoro ? 201 : 202);
-        if (!manager.areNotificationsEnabled()) return;
-        try {
-            manager.notify(pomodoro ? 201 : 202, new NotificationCompat.Builder(context, CHANNEL_ID)
-                    .setSmallIcon(R.drawable.ic_notification_clock)
-                    .setContentTitle(localized.getString(pomodoro
-                            ? R.string.pomodoro_complete : R.string.countdown_complete))
-                    .setContentText(localized.getString(R.string.timer_complete_open))
-                    .setPriority(NotificationCompat.PRIORITY_HIGH)
-                    .setAutoCancel(true)
-                    .setContentIntent(open)
-                    .build());
-        } catch (SecurityException ignored) { /* Permission revoked while completing. */ }
+        com.clockmods.pro.alarm.AlarmDelivery.timer(context, pomodoro);
     }
 }

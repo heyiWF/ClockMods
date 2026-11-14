@@ -63,7 +63,12 @@ public final class AlarmScheduler {
     }
     public static void rescheduleAll(Context context) {
         cancelLegacy(context);
-        for (AlarmSpec alarm : new AlarmStore(context).all()) schedule(context, alarm);
+        AlarmStore store = new AlarmStore(context);
+        for (AlarmSpec alarm : store.all()) schedule(context, alarm);
+        for (AlarmSpec alert : store.timerAlerts()) {
+            if (alert.snoozeAt > System.currentTimeMillis()) schedule(context, alert);
+            else if (!store.pendingRings().containsKey(alert.id)) store.delete(alert.id);
+        }
     }
     public static void schedule(Context context, int hour, int minute) { rescheduleAll(context); }
     public static void cancel(Context context, long id) { manager(context).cancel(operation(context, id, 0)); }
