@@ -27,7 +27,7 @@ The layout follows available dp width and height, including spacious high-resolu
 
 Material buttons tighten their corners while pressed and return to pills on release. Running timers use a yellow Pause button with dark text. Starting the stopwatch expands its secondary controls, and new lap rows slide in. Countdown digits roll only when changed, while separators retain font-measured alignment. Disabling system animations should apply final states immediately.
 
-New editor, date and shift activities inherit system predictive Back. Dialogs handle their own preview and cancellation. When native cross-activity previews are unavailable, enable the compatible swipe preview in System settings. Cancelling a gesture restores the current surface without applying its draft.
+New editor, date and shift activities inherit system predictive Back. Dialogs handle their own preview and cancellation. Cancelling a gesture restores the current surface without applying its draft.
 
 ## Validation
 

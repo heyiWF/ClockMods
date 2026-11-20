@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="compat_back_title">相容跨頁面側滑預覽</string>
-    <string name="compat_back_summary">原生預測返回無法使用時開啟。從左右邊緣中部向內滑動，預覽上一應用程式內頁面；放開返回，滑回取消。預設關閉；不接管桌面、對話框、鍵盤或既有頁內返回操作。開啟後請重新進入頁面</string>
-</resources>

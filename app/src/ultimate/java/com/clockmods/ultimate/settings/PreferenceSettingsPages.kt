@@ -1376,7 +1376,6 @@ internal fun ChimeSettingsPage(modifier: Modifier, generation: Int) {
             }
             val manufacturerHelp = com.clockmods.pro.alarm.AlarmAccess.manufacturerHelp()
             if (manufacturerHelp != 0) Text(stringResource(manufacturerHelp), style = MaterialTheme.typography.bodyMedium)
-            Text(stringResource(R.string.alarm_rom_help), style = MaterialTheme.typography.bodyMedium)
         }
         SettingSection(R.string.ultimate_chime_cues_section) {
             SettingSwitch(
@@ -1586,10 +1585,6 @@ internal fun SystemSettingsPage(
                     chineseCalendar = it
                     preferences.setChineseCalendarEnabled(it)
                 }
-            }
-            var compatBack by remember(generation) { mutableStateOf(com.clockmods.ultimate.navigation.CompatBackGesture.enabled(context)) }
-            SettingSwitch(stringResource(R.string.compat_back_title), compatBack, stringResource(R.string.compat_back_summary)) {
-                compatBack = it; com.clockmods.ultimate.navigation.CompatBackGesture.setEnabled(context, it)
             }
             SettingSwitch(
                 stringResource(R.string.ultimate_auto_start),

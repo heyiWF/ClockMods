@@ -27,7 +27,6 @@ class UltimateApplication : Application() {
 
     override fun onCreate() {
         super.onCreate()
-        com.clockmods.ultimate.navigation.CompatBackGesture.initialize(this)
         com.clockmods.pro.timer.TimingLiveUpdates.initialize(this)
         com.clockmods.background.UserFontStore.initialize(this)
         com.clockmods.calendar.imports.CalendarSubscriptionWorker.schedule(this)

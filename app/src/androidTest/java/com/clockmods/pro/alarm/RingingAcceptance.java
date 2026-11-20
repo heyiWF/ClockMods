@@ -31,7 +31,6 @@ public final class RingingAcceptance extends Instrumentation {
             for (AlarmSpec old : clean.timerAlerts()) { AlarmScheduler.cancel(context, old.id); clean.delete(old.id); }
             clean.clearRings();
             if ("confirmation".equals(mode)) { confirmSchedule(); return; }
-            if ("compat".equals(mode)) { compatibilityGesture(); return; }
             if ("editor".equals(mode)) { captureEditor(); return; }
             if (!"logic".equals(mode)) { scheduleLocked(); return; }
             AlarmStore store = new AlarmStore(context);
@@ -89,52 +88,6 @@ public final class RingingAcceptance extends Instrumentation {
              java.io.FileInputStream stream = new java.io.FileInputStream(descriptor.getFileDescriptor())) {
             byte[] buffer = new byte[1024]; while (stream.read(buffer) >= 0) { }
         }
-    }
-    private void compatibilityGesture() throws Exception {
-        com.clockmods.ultimate.navigation.CompatBackGesture.setEnabled(context, true);
-        int savedCount = new AlarmStore(context).all().size();
-        AlarmSpec draft = new AlarmSpec(); draft.repeat = AlarmSpec.Repeat.ALTERNATING;
-        Activity parent = startActivitySync(new Intent(context, AlarmEditorActivity.class).putExtra(AlarmUi.DRAFT, draft.toJson().toString()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
-        SystemClock.sleep(1000);
-        ActivityMonitor monitor = addMonitor(AlarmDatesActivity.class.getName(), null, false);
-        runOnMainSync(() -> { try { parent.startActivity(new Intent(context, AlarmDatesActivity.class).putExtra(AlarmUi.DRAFT, draft.toJson().toString()).putExtra(AlarmUi.MODE, "extra")); }
-            catch (Exception error) { throw new IllegalStateException(error); } });
-        Activity child = monitor.waitForActivityWithTimeout(4000); check(child != null, "child activity launched"); removeMonitor(monitor);
-        SystemClock.sleep(1200);
-        android.view.ViewGroup content = child.findViewById(android.R.id.content);
-        android.view.ViewGroup wrapper = (android.view.ViewGroup) content.getChildAt(0);
-        check(wrapper.getClass().getSimpleName().equals("EdgeLayout"), "opt-in edge recognizer installed");
-        long deadline = SystemClock.uptimeMillis() + 8000;
-        while (wrapper.getSystemGestureExclusionRects().isEmpty() && SystemClock.uptimeMillis() < deadline) SystemClock.sleep(100);
-        check(wrapper.getSystemGestureExclusionRects().size() == 2, "two bounded edge regions");
-        android.graphics.Rect region = wrapper.getSystemGestureExclusionRects().get(0);
-        check(region.height() <= Math.ceil(200 * context.getResources().getDisplayMetrics().density), "200dp exclusion limit respected");
-        int[] location = new int[2]; wrapper.getLocationOnScreen(location);
-        int y = location[1] + wrapper.getHeight() / 2, x = location[0] + 4, width = wrapper.getWidth();
-        shell("input motionevent DOWN " + x + " " + y);
-        shell("input motionevent MOVE " + (x + width / 4) + " " + y);
-        SystemClock.sleep(150);
-        check(wrapper.getChildAt(1).getTranslationX() > 0, "real left edge drag drives preview");
-        screenshot("compat-left-preview");
-        shell("input motionevent MOVE " + (x + 2) + " " + y);
-        SystemClock.sleep(200); shell("input motionevent UP " + (x + 2) + " " + y);
-        SystemClock.sleep(350);
-        check(!child.isFinishing() && Math.abs(wrapper.getChildAt(1).getTranslationX()) < 1, "cancel restores page without navigation");
-        int right = location[0] + width - 4;
-        shell("input motionevent DOWN " + right + " " + y);
-        shell("input motionevent MOVE " + (right - width / 2) + " " + y);
-        SystemClock.sleep(150);
-        check(wrapper.getChildAt(1).getTranslationX() < 0, "real right edge drag drives preview");
-        screenshot("compat-right-preview");
-        shell("input motionevent UP " + (right - width / 2) + " " + y);
-        SystemClock.sleep(600); check(child.isFinishing() || child.isDestroyed(), "release commits one activity back");
-        check(new AlarmStore(context).all().size() == savedCount, "compatibility Back does not save editor drafts");
-        com.clockmods.ultimate.navigation.CompatBackGesture.setEnabled(context, false);
-        SystemClock.sleep(250);
-        android.view.View parentRoot = ((android.view.ViewGroup) parent.findViewById(android.R.id.content)).getChildAt(0);
-        check(parentRoot.getSystemGestureExclusionRects().isEmpty(), "disable restores system gesture ownership");
-        runOnMainSync(parent::finish);
-        Bundle result = new Bundle(); result.putString("stream", "PASS " + checks + " real-touch compatibility Back checks\n"); finish(Activity.RESULT_OK, result);
     }
     private void confirmSchedule() throws Exception {
         AlarmSpec draft = new AlarmSpec();

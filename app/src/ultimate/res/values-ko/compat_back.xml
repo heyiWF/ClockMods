@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="compat_back_title">호환 화면 간 스와이프 미리 보기</string>
-    <string name="compat_back_summary">기본 예측 뒤로 가기를 사용할 수 없을 때 켜세요. 양쪽 가장자리 중앙에서 안쪽으로 밀면 이전 앱 화면을 미리 봅니다. 놓으면 돌아가고 되돌리면 취소됩니다. 기본값은 꺼짐입니다. 홈, 대화상자, 키보드, 화면 내부 뒤로 가기는 변경하지 않습니다. 켠 후 화면을 다시 여세요.</string>
-</resources>

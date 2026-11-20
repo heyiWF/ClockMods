@@ -2,11 +2,11 @@
 <resources>
     <string name="alarm_settings">알람 및 타이머 알림</string>
     <string name="alarm_random_buttons">알림 버튼 위치 무작위 변경</string>
-    <string name="alarm_random_buttons_summary">알림마다 다시 알림과 중지 버튼의 위치를 정하며, 울리는 동안에는 유지합니다.</string>
+    <string name="alarm_random_buttons_summary">알림이 울릴 때마다 다시 알림과 중지 버튼의 순서를 무작위로 정합니다.</string>
     <string name="alarm_volume_snooze">음량 키로 다시 알림</string>
-    <string name="alarm_volume_snooze_summary">전체 화면 알림이 음량 키를 받으면 다시 알립니다. 잠금 화면에서도 작동하지만 시스템이 키를 처리하면 사용할 수 없습니다.</string>
+    <string name="alarm_volume_snooze_summary">전체 화면 알림이 울릴 때 음량 키를 누르면 다시 알립니다.</string>
     <string name="alarm_power_snooze">전원 키로 화면을 끄면 다시 알림</string>
-    <string name="alarm_power_snooze_summary">울리는 동안 기기가 절전 상태가 되면 다시 알립니다. 앱은 전원 키 이벤트를 받을 수 없어 자동 절전에도 작동할 수 있습니다. 이미 화면이 꺼져 있으면 동작을 보장할 수 없습니다.</string>
+    <string name="alarm_power_snooze_summary">알림이 울리는 동안 화면을 끄면 다시 알립니다.</string>
     <string name="alarm_access_summary">알람, 카운트다운, 뽀모도로가 공유하는 설정입니다. 알림, 정확한 알람, 전체 화면 알림을 허용하고 중요도를 높게 설정하세요. 기기 사용 중에는 배너가 표시될 수 있습니다.</string>
     <string name="alarm_access_notifications">알림 및 중요도</string>
     <string name="alarm_access_exact">정확한 알람 권한</string>
@@ -14,5 +14,4 @@
     <string name="alarm_access_app">시스템 앱 설정</string>
     <string name="alarm_rom_xiaomi">HyperOS / MIUI: 잠금 화면 알림이 차단되면 잠금 화면 표시, 백그라운드 팝업, 자동 시작, 백그라운드 배터리 제한을 확인하세요. 이름은 OS 버전에 따라 다릅니다.</string>
     <string name="alarm_rom_oppo">ColorOS / OnePlus / realme: 알림이 지연되거나 숨겨지면 잠금 화면 알림, 백그라운드 활동, 자동 시작 설정을 확인하세요. 옵션은 OS 버전에 따라 다릅니다.</string>
-    <string name="alarm_rom_help">Android 기본 전체 화면 알림과 뒤로 가기 제스처를 우선 사용합니다. OS가 예측 뒤로 가기 진행률을 제공하지 않아도 일반 뒤로 가기는 가능하지만 미리 보기는 보장되지 않습니다.</string>
 </resources>

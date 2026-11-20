@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="compat_back_title">Compatible cross-page swipe preview</string>
-    <string name="compat_back_summary">Enable if native predictive Back is unavailable. Swipe inward from the middle of either edge to preview the previous in-app activity; release to go back or slide back to cancel. Off by default. Home, dialogs, keyboard and existing in-page Back stay system-owned. Reopen the page after enabling.</string>
-</resources>
