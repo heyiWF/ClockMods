@@ -17,6 +17,7 @@ import { intlLocale } from '../core/i18n';
 import { timeSource } from '../core/time-source';
 import { twoDigits } from '../format/time-formatter';
 import { notify, requestNotificationPermission } from '../ui/notifications';
+import { toast } from '../ui/toast';
 import { primeAudio, startAlarmTone, vibrate } from '../ui/sound';
 import type { Page } from '../app/router';
 
@@ -30,6 +31,18 @@ export function nextTrigger(hour: number, minute: number, now: number): number {
   trigger.setHours(hour, minute, 0, 0);
   if (trigger.getTime() <= now) trigger.setDate(trigger.getDate() + 1);
   return trigger.getTime();
+}
+
+function confirmAlarm(delay: number): void {
+  const totalMinutes = Math.floor(delay / 60000);
+  const parts: string[] = [];
+  const days = Math.floor(totalMinutes / 1440);
+  const hours = Math.floor(totalMinutes / 60) % 24;
+  const minutes = totalMinutes % 60;
+  if (days > 0) parts.push(t('alarm_duration_day', days));
+  if (hours > 0) parts.push(t('alarm_duration_hour', hours));
+  if (minutes > 0) parts.push(t('alarm_duration_minute', minutes));
+  toast(parts.length ? t('alarm_set_in', parts.join(' ')) : t('alarm_within_minute'), 'alarm-confirmation');
 }
 
 export class AlarmPage implements Page {
@@ -85,13 +98,13 @@ export class AlarmPage implements Page {
     this.note = this.root.querySelector('.alarm-note')!;
     this.timeInput = this.root.querySelector('.alarm-time-input')!;
 
-    this.toggle.addEventListener('change', async () => {
+    this.toggle.addEventListener('change', () => {
       this.enabled = this.toggle.checked;
       this.persist();
       if (this.enabled) {
         primeAudio();
-        await requestNotificationPermission();
-        this.schedule();
+        this.schedule(true);
+        void requestNotificationPermission();
       } else {
         this.clearTimer();
       }
@@ -103,7 +116,7 @@ export class AlarmPage implements Page {
       this.timeInput.value = `${twoDigits(this.hour)}:${twoDigits(this.minute)}`;
       openTimePicker(this.hour*60+this.minute,t('alarm_choose_time'),value=>{this.timeInput.value=twoDigits(Math.floor(value/60))+':'+twoDigits(value%60);this.timeInput.dispatchEvent(new Event('change'));});
     });
-    this.timeInput.addEventListener('change', async () => {
+    this.timeInput.addEventListener('change', () => {
       const [hour, minute] = this.timeInput.value.split(':').map(Number);
       if (!Number.isFinite(hour) || !Number.isFinite(minute)) return;
       this.hour = hour;
@@ -112,8 +125,8 @@ export class AlarmPage implements Page {
       this.toggle.checked = true;
       this.persist();
       primeAudio();
-      await requestNotificationPermission();
-      this.schedule();
+      this.schedule(true);
+      void requestNotificationPermission();
       this.render();
     });
   }
@@ -152,12 +165,14 @@ export class AlarmPage implements Page {
     setAlignedTime(this.nextView, t('alarm_next_trigger', formatted));
   }
 
-  private schedule(): void {
+  private schedule(confirm = false): void {
     this.clearTimer();
     if (!this.enabled) return;
-    const delay = nextTrigger(this.hour, this.minute, timeSource.now()) - timeSource.now();
+    const now = timeSource.now();
+    const delay = nextTrigger(this.hour, this.minute, now) - now;
     // setTimeout saturates past ~24.8 days, well beyond the one-day maximum here.
     this.timer = window.setTimeout(() => this.ring(), Math.max(0, delay));
+    if (confirm) confirmAlarm(delay);
   }
 
   private clearTimer(): void {
