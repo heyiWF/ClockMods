@@ -36,6 +36,7 @@ public final class ToolWorkspaceLayout extends LinearLayout {
             second.height = wide ? LayoutParams.MATCH_PARENT : expandedDetails ? 0 : LayoutParams.WRAP_CONTENT;
             second.weight = wide || expandedDetails ? 1 : 0;
             second.setMarginStart(wide ? gap : 0);
+            second.resolveLayoutDirection(getLayoutDirection());
             second.topMargin = wide ? 0 : gap;
         }
         super.onMeasure(widthSpec, heightSpec);

@@ -1,5 +1,6 @@
 package com.clockmods.pro;
 
+import android.animation.ValueAnimator;
 import android.content.Context;
 import android.content.SharedPreferences;
 import android.os.Bundle;
@@ -9,11 +10,14 @@ import android.os.SystemClock;
 import android.view.LayoutInflater;
 import android.view.View;
 import android.view.ViewGroup;
+import android.view.animation.DecelerateInterpolator;
 import android.widget.LinearLayout;
+import android.widget.ScrollView;
 import android.widget.TextView;
 
 import androidx.annotation.NonNull;
 import androidx.annotation.Nullable;
+import androidx.core.view.OneShotPreDrawListener;
 import androidx.fragment.app.Fragment;
 
 import com.clockmods.R;
@@ -28,14 +32,19 @@ import android.view.Gravity;
 public final class ProStopwatchFragment extends Fragment {
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable ticker = new Runnable() {
-        @Override public void run() { render(); handler.postDelayed(this, 32L); }
+        @Override public void run() {
+            if (running) {
+                renderTime();
+                handler.postDelayed(this, 32L);
+            }
+        }
     };
     private SharedPreferences preferences;
     private TextView display;
     private MaterialButton startPause;
     private LinearLayout laps;
-    private android.widget.ScrollView lapScroll;
-    private android.animation.ValueAnimator lapScrollAnimator;
+    private ScrollView lapScroll;
+    private ValueAnimator lapScrollAnimator;
     private long accumulated;
     private long startedElapsed;
     private boolean running;
@@ -54,7 +63,7 @@ public final class ProStopwatchFragment extends Fragment {
         display = root.findViewById(R.id.stopwatch_display);
         startPause = root.findViewById(R.id.stopwatch_start_pause);
         laps = root.findViewById(R.id.stopwatch_laps);
-        lapScroll = (android.widget.ScrollView) laps.getParent();
+        lapScroll = (ScrollView) laps.getParent();
         workspace = (ToolWorkspaceLayout) root;
         records = root.findViewById(R.id.stopwatch_records);
         lapButton = root.findViewById(R.id.stopwatch_lap);
@@ -89,10 +98,13 @@ public final class ProStopwatchFragment extends Fragment {
         }
         persist();
         render();
+        handler.removeCallbacks(ticker);
+        if (running) handler.postDelayed(ticker, 32L);
     }
 
     private void reset() {
         if (lapScrollAnimator != null) lapScrollAnimator.cancel();
+        laps.setTranslationY(0);
         running = false;
         accumulated = 0L;
         lapTimes.clear();
@@ -103,28 +115,44 @@ public final class ProStopwatchFragment extends Fragment {
 
     private void addLap() {
         if (!running && accumulated == 0L) return;
-        if (workspace.isLaidOut() && android.animation.ValueAnimator.areAnimatorsEnabled())
-            androidx.transition.TransitionManager.beginDelayedTransition(workspace,
-                    new androidx.transition.ChangeBounds().setDuration(280));
+        boolean firstLap = lapTimes.isEmpty();
+        boolean animate = workspace.isLaidOut() && ValueAnimator.areAnimatorsEnabled();
+        if (firstLap && animate) {
+            androidx.transition.ChangeBounds expand = new androidx.transition.ChangeBounds();
+            expand.excludeChildren(lapScroll, true);
+            androidx.transition.TransitionManager.beginDelayedTransition(workspace, expand.setDuration(280));
+        }
         lapTimes.add(0, elapsed());
         persist();
         records.setVisibility(View.VISIBLE);
         workspace.setExpandedDetails(true);
-        laps.addView(createLapRow(0), 0);
-        View entry = laps.getChildAt(0);
-        if (entry != null && android.animation.ValueAnimator.areAnimatorsEnabled()) {
-            entry.setTranslationY(-dp(24)); entry.setAlpha(0);
-            entry.animate().translationY(0).alpha(1).setDuration(260).start();
-        }
         if (lapScrollAnimator != null) lapScrollAnimator.cancel();
-        // Start from the current position even if a previous insertion is still scrolling.
-        if (android.animation.ValueAnimator.areAnimatorsEnabled()) {
-            lapScrollAnimator = android.animation.ValueAnimator.ofInt(lapScroll.getScrollY(), 0);
-            lapScrollAnimator.setDuration(280);
-            lapScrollAnimator.setInterpolator(new android.view.animation.DecelerateInterpolator());
-            lapScrollAnimator.addUpdateListener(value -> lapScroll.scrollTo(0, (Integer) value.getAnimatedValue()));
-            lapScrollAnimator.start();
-        } else lapScroll.scrollTo(0, 0);
+        View entry = createLapRow(0);
+        laps.addView(entry, 0);
+        if (animate && !firstLap) {
+            OneShotPreDrawListener.add(entry, () -> revealLap(entry));
+        } else {
+            setLapOffset(0);
+        }
+    }
+
+    private void revealLap(View entry) {
+        if (entry.getParent() != laps) return;
+        if (lapScrollAnimator != null) lapScrollAnimator.cancel();
+        // Keep the old rows at their current screen positions across the prepend.
+        int offset = lapScroll.getScrollY() - Math.round(laps.getTranslationY()) + entry.getHeight();
+        setLapOffset(offset);
+        lapScrollAnimator = ValueAnimator.ofInt(offset, 0);
+        lapScrollAnimator.setDuration(200);
+        lapScrollAnimator.setInterpolator(new DecelerateInterpolator());
+        lapScrollAnimator.addUpdateListener(value -> setLapOffset((Integer) value.getAnimatedValue()));
+        lapScrollAnimator.start();
+    }
+
+    private void setLapOffset(int offset) {
+        lapScroll.scrollTo(0, offset);
+        // A short list has insufficient scroll range. Translate only the remaining distance.
+        laps.setTranslationY(lapScroll.getScrollY() - offset);
     }
 
     private void renderLaps() {
@@ -168,9 +196,12 @@ public final class ProStopwatchFragment extends Fragment {
                 SystemClock.elapsedRealtime(), System.currentTimeMillis());
     }
 
-    private void render() {
-        if (display == null) return;
+    private void renderTime() {
         display.setText(ClockTimeText.align(format(elapsed())));
+    }
+
+    private void render() {
+        renderTime();
         ToolButtonMotion.running(startPause, running);
         startPause.setText(running ? R.string.timer_pause : R.string.timer_start);
         startPause.setContentDescription(startPause.getText());
