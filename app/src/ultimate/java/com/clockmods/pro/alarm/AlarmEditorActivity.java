@@ -106,7 +106,7 @@ public final class AlarmEditorActivity extends AlarmUi {
         if (AlarmScheduler.nextTrigger(draft, this, System.currentTimeMillis()) == 0) {
             Toast.makeText(this, R.string.alarm_no_next, Toast.LENGTH_LONG).show(); return;
         }
-        new AlarmStore(this).save(draft); AlarmScheduler.schedule(this, draft);
+        new AlarmStore(this).save(draft); AlarmScheduler.schedule(this, draft); AlarmConfirmation.show(this, draft.scheduledAt);
         setResult(RESULT_OK); finish();
     }
     private void repeatPicker() {

@@ -21,7 +21,7 @@ public final class RingingAcceptance extends Instrumentation {
     }
     private void command(long id, String action) { context.startService(AlarmDelivery.command(context, id, action)); }
     @Override public void onStart() {
-        Bundle result = new Bundle(); context = getTargetContext();
+        Bundle result = new Bundle(); context = getTargetContext(); getUiAutomation();
         try {
             check(context.getPackageName().contains("ringingaudit"), "isolated audit app required");
             runOnMainSync(() -> context.stopService(new Intent(context, AlarmRingingService.class)));
@@ -30,6 +30,7 @@ public final class RingingAcceptance extends Instrumentation {
             for (AlarmSpec old : clean.all()) { AlarmScheduler.cancel(context, old.id); clean.delete(old.id); }
             for (AlarmSpec old : clean.timerAlerts()) { AlarmScheduler.cancel(context, old.id); clean.delete(old.id); }
             clean.clearRings();
+            if ("confirmation".equals(mode)) { confirmSchedule(); return; }
             if ("compat".equals(mode)) { compatibilityGesture(); return; }
             if ("editor".equals(mode)) { captureEditor(); return; }
             if (!"logic".equals(mode)) { scheduleLocked(); return; }
@@ -103,6 +104,8 @@ public final class RingingAcceptance extends Instrumentation {
         android.view.ViewGroup content = child.findViewById(android.R.id.content);
         android.view.ViewGroup wrapper = (android.view.ViewGroup) content.getChildAt(0);
         check(wrapper.getClass().getSimpleName().equals("EdgeLayout"), "opt-in edge recognizer installed");
+        long deadline = SystemClock.uptimeMillis() + 8000;
+        while (wrapper.getSystemGestureExclusionRects().isEmpty() && SystemClock.uptimeMillis() < deadline) SystemClock.sleep(100);
         check(wrapper.getSystemGestureExclusionRects().size() == 2, "two bounded edge regions");
         android.graphics.Rect region = wrapper.getSystemGestureExclusionRects().get(0);
         check(region.height() <= Math.ceil(200 * context.getResources().getDisplayMetrics().density), "200dp exclusion limit respected");
@@ -133,21 +136,62 @@ public final class RingingAcceptance extends Instrumentation {
         runOnMainSync(parent::finish);
         Bundle result = new Bundle(); result.putString("stream", "PASS " + checks + " real-touch compatibility Back checks\n"); finish(Activity.RESULT_OK, result);
     }
+    private void confirmSchedule() throws Exception {
+        AlarmSpec draft = new AlarmSpec();
+        java.time.LocalDateTime target = java.time.LocalDateTime.now().plusDays(2).plusHours(22).plusMinutes(4);
+        draft.onceDate = target.toLocalDate();
+        draft.hour = target.getHour();
+        draft.minute = target.getMinute();
+        Activity editor = startActivitySync(new Intent(context, AlarmEditorActivity.class)
+                .putExtra(AlarmUi.DRAFT, draft.toJson().toString()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        SystemClock.sleep(1200);
+        String apply = editor.getString(com.clockmods.R.string.apply);
+        android.view.accessibility.AccessibilityNodeInfo save = awaitText(apply);
+        android.graphics.Rect bounds = new android.graphics.Rect();
+        save.getBoundsInScreen(bounds);
+        shell("input tap " + bounds.centerX() + " " + bounds.centerY());
+        long end = SystemClock.uptimeMillis() + 5000;
+        while (!editor.isFinishing() && SystemClock.uptimeMillis() < end) SystemClock.sleep(30);
+        SystemClock.sleep(400);
+        screenshot("alarm-confirmation");
+        AlarmStore store = new AlarmStore(context);
+        check(store.all().size() == 1 && store.all().get(0).scheduledAt > System.currentTimeMillis(), "editor saved and scheduled alarm");
+        AlarmSpec alarm = store.all().get(0);
+        Activity visible = startActivitySync(new Intent(context, AlarmEditorActivity.class)
+                .putExtra(AlarmScheduler.EXTRA_ID, alarm.id).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        awaitText(visible.getString(com.clockmods.R.string.apply));
+        alarm.onceDate = target.toLocalDate();
+        runOnMainSync(() -> {
+            AlarmAccess.enabled(visible, alarm, false);
+            AlarmAccess.enabled(visible, alarm, true);
+        });
+        SystemClock.sleep(900);
+        screenshot("alarm-enabled");
+        check(store.find(alarm.id).scheduledAt == alarm.scheduledAt, "switch confirmation uses the saved occurrence");
+        runOnMainSync(visible::finish);
+        AlarmScheduler.cancel(context, alarm.id);
+        Bundle result = new Bundle();
+        result.putString("stream", "Saved alarm and captured scheduling confirmation\n");
+        finish(Activity.RESULT_OK, result);
+    }
+    private android.view.accessibility.AccessibilityNodeInfo awaitText(String text) {
+        long end = SystemClock.uptimeMillis() + 8000;
+        do {
+            android.view.accessibility.AccessibilityNodeInfo root = getUiAutomation().getRootInActiveWindow();
+            if (root != null) {
+                java.util.List<android.view.accessibility.AccessibilityNodeInfo> nodes = root.findAccessibilityNodeInfosByText(text);
+                if (!nodes.isEmpty()) return nodes.get(0);
+            }
+            SystemClock.sleep(100);
+        } while (SystemClock.uptimeMillis() < end);
+        throw new AssertionError("Missing control: " + text);
+    }
     private void captureEditor() throws Exception {
         context.getSharedPreferences("clock_prefs", 0).edit().putString("clock_language", "zh").commit();
         AlarmSpec draft = new AlarmSpec(); draft.repeat = AlarmSpec.Repeat.ALTERNATING;
         Activity activity = startActivitySync(new Intent(context, AlarmEditorActivity.class).putExtra(AlarmUi.DRAFT, draft.toJson().toString()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         SystemClock.sleep(1500); screenshot("alternating-editor");
-        android.view.accessibility.AccessibilityNodeInfo root = getUiAutomation().getRootInActiveWindow();
-        String label = com.clockmods.LocaleManager.wrap(context).getString(com.clockmods.R.string.alarm_repeat);
-        java.util.List<android.view.accessibility.AccessibilityNodeInfo> choices = root.findAccessibilityNodeInfosByText(label);
-        for (int i = 0; choices.isEmpty() && i < 15; i++) {
-            SystemClock.sleep(300); root = getUiAutomation().getRootInActiveWindow();
-            choices = root.findAccessibilityNodeInfosByText("重复");
-            if (choices.isEmpty()) choices = root.findAccessibilityNodeInfosByText("Repeat");
-        }
-        check(!choices.isEmpty(), "repeat control accessible");
-        android.view.accessibility.AccessibilityNodeInfo choice = choices.get(0);
+        android.view.accessibility.AccessibilityNodeInfo choice = awaitText(activity.getString(com.clockmods.R.string.alarm_repeat));
         android.graphics.Rect rect = new android.graphics.Rect(); choice.getBoundsInScreen(rect);
         getUiAutomation().executeShellCommand("input tap " + rect.centerX() + " " + rect.centerY()).close();
         SystemClock.sleep(2500); screenshot("repeat-dialog");

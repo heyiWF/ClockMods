@@ -1,0 +1,4 @@
+<resources>
+    <string name="alarm_set_in">알람이 %1$s 후에 울립니다.</string>
+    <string name="alarm_within_minute">알람이 1분 이내에 울립니다.</string>
+</resources>
