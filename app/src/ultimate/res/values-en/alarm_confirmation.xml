@@ -1,0 +1,4 @@
+<resources>
+    <string name="alarm_set_in">Alarm set for %1$s from now.</string>
+    <string name="alarm_within_minute">Alarm set for less than a minute from now.</string>
+</resources>

@@ -76,7 +76,7 @@ class AlarmEditorActivity : AlarmUi() {
         if (AlarmScheduler.nextTrigger(draft, this, System.currentTimeMillis()) == 0L) {
             Toast.makeText(this, R.string.alarm_no_next, Toast.LENGTH_LONG).show(); return
         }
-        AlarmStore(this).save(draft); AlarmScheduler.schedule(this, draft); setResult(RESULT_OK); finish()
+        AlarmStore(this).save(draft); AlarmScheduler.schedule(this, draft); AlarmConfirmation.show(this, draft.scheduledAt); setResult(RESULT_OK); finish()
     }
     @Composable private fun Editor(alarm: AlarmSpec) {
         var dialog by rememberSaveable { mutableStateOf<String?>(null) }

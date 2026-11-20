@@ -47,6 +47,7 @@ public final class AlarmAccess {
             alarm.onceDate = AlarmPlan.nextDate(alarm.hour, alarm.minute, System.currentTimeMillis(), java.time.ZoneId.systemDefault());
         }
         new AlarmStore(context).save(alarm); AlarmScheduler.schedule(context, alarm);
+        if (value) AlarmConfirmation.show(context, alarm.scheduledAt);
         if (!value && new AlarmStore(context).isRinging())
             context.startService(AlarmDelivery.command(context, alarm.id, AlarmDelivery.STOP));
     }

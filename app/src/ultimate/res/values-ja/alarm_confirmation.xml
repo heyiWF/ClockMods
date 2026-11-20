@@ -1,0 +1,4 @@
+<resources>
+    <string name="alarm_set_in">アラームは%1$s後に鳴ります。</string>
+    <string name="alarm_within_minute">アラームは1分以内に鳴ります。</string>
+</resources>
