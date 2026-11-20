@@ -52,7 +52,7 @@ public final class RingingAcceptance extends Instrumentation {
             runOnMainSync(() -> screen.onKeyDown(KeyEvent.KEYCODE_VOLUME_DOWN, new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_VOLUME_DOWN)));
             await(0);
             check(store.find(first.id).snoozeAt > System.currentTimeMillis(), "volume key schedules snooze");
-            AlarmScheduler.cancel(context, first.id);
+            checkSnoozeNotification(store, first.id);
             check(store.pendingRings().isEmpty(), "snooze removes active occurrence");
             AlarmPreferences.settings(context).edit().putBoolean(AlarmPreferences.POWER, true).commit();
             runOnMainSync(() -> AlarmDelivery.ring(context, store.find(first.id))); await(first.id);
@@ -65,23 +65,110 @@ public final class RingingAcceptance extends Instrumentation {
             AlarmScheduler.cancel(context, first.id);
             int originalCount = store.all().size();
             SharedPreferences timers = context.getSharedPreferences("pro_timers", 0);
-            timers.edit().putBoolean("countdown_running", true).putLong("countdown_deadline", System.currentTimeMillis() - 1).commit();
+            timers.edit().putLong("countdown_duration", 300000L).putBoolean("countdown_running", true).putLong("countdown_deadline", System.currentTimeMillis() - 1).commit();
             runOnMainSync(() -> { TimerReceiver.complete(context, "countdown"); TimerReceiver.complete(context, "countdown"); });
             SystemClock.sleep(700);
             long countdown = store.ringingId(); check(countdown < 0, "countdown rings through shared service");
             check(store.all().size() == originalCount && store.timerAlerts().size() == 1, "timer alert is isolated and completion is idempotent");
-            timers.edit().putBoolean("pomodoro_running", true).putLong("pomodoro_deadline", System.currentTimeMillis() - 1).putInt("pomodoro_phase", 0).commit();
+            timers.edit().putBoolean("pomodoro_running", true).putLong("pomodoro_deadline", System.currentTimeMillis() - 1).putInt("pomodoro_phase", 0).putLong("pomodoro_duration", 1500000L).commit();
             runOnMainSync(() -> { TimerReceiver.complete(context, "pomodoro"); TimerReceiver.complete(context, "pomodoro"); });
             SystemClock.sleep(400);
             check(store.pendingRings().size() == 2 && timers.getInt("pomodoro_phase", -1) == 1, "Pomodoro advances once and queues independently");
-            command(countdown, AlarmDelivery.SNOOZE); SystemClock.sleep(500);
+            Notification countdownNotice = notification(null, 100);
+            Context localized = com.clockmods.LocaleManager.wrap(context);
+            String stopTimer = localized.getString(com.clockmods.R.string.countdown_dismiss);
+            String title = localized.getString(com.clockmods.R.string.countdown_finished_duration, "00:05:00");
+            check(title.contentEquals(countdownNotice.extras.getCharSequence(Notification.EXTRA_TITLE)), "countdown notification title");
+            check(localized.getString(com.clockmods.R.string.countdown_ringing_hint).contentEquals(
+                    countdownNotice.extras.getCharSequence(Notification.EXTRA_TEXT)), "queued countdown notification body");
+            check(localized.getString(com.clockmods.R.string.pro_page_countdown).contentEquals(
+                    context.getSystemService(NotificationManager.class).getNotificationChannel(countdownNotice.getChannelId()).getName()),
+                    "dedicated countdown channel");
+            check(countdownNotice.actions.length == 1 && stopTimer.contentEquals(countdownNotice.actions[0].title),
+                    "countdown notification only offers stop");
+            AlarmRingingActivity countdownScreen = (AlarmRingingActivity) startActivitySync(
+                    new Intent(context, AlarmRingingActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            awaitText("00:05:00");
+            awaitText(stopTimer);
+            check(findNode(getUiAutomation().getRootInActiveWindow(),
+                    localized.getString(com.clockmods.R.string.alarm_snooze)) == null, "countdown screen has no snooze button");
+            runOnMainSync(() -> countdownScreen.onKeyDown(KeyEvent.KEYCODE_VOLUME_DOWN,
+                    new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_VOLUME_DOWN)));
+            command(countdown, AlarmDelivery.SNOOZE);
+            SystemClock.sleep(400);
+            check(store.ringingId() == countdown && store.find(countdown).snoozeAt == 0,
+                    "volume and stale snooze commands cannot postpone countdown");
+            countdownNotice.actions[0].actionIntent.send();
+            SystemClock.sleep(500);
             long pomodoro = store.ringingId(); check(pomodoro < 0 && pomodoro != countdown, "next timer becomes active");
-            check(store.find(countdown).snoozeAt > System.currentTimeMillis(), "timer snooze persists separately");
-            AlarmScheduler.cancel(context, countdown); store.delete(countdown);
-            command(pomodoro, AlarmDelivery.STOP); await(0);
+            check(store.find(countdown) == null, "stopping countdown removes its alert");
+            awaitText(localized.getString(com.clockmods.R.string.pomodoro_focus));
+            awaitText("25:00");
+            awaitText(localized.getString(com.clockmods.R.string.pomodoro_next));
+            awaitText(localized.getString(com.clockmods.R.string.pomodoro_dismiss));
+            Notification phaseNotice = notification(null, 100);
+            check(phaseNotice.actions.length == 2 && localized.getString(com.clockmods.R.string.pomodoro_dismiss)
+                    .contentEquals(phaseNotice.actions[0].title), "Pomodoro offers stop first");
+            check(localized.getString(com.clockmods.R.string.pomodoro_ringing_hint).contentEquals(
+                    phaseNotice.extras.getCharSequence(Notification.EXTRA_TEXT)), "Pomodoro notification body");
+            command(pomodoro, AlarmDelivery.SNOOZE);
+            SystemClock.sleep(250);
+            check(store.ringingId() == pomodoro && store.find(pomodoro).snoozeAt == 0, "Pomodoro cannot be snoozed");
+            check(localized.getString(com.clockmods.R.string.pomodoro_next).contentEquals(phaseNotice.actions[1].title), "next phase action");
+            check(localized.getString(com.clockmods.R.string.pomodoro_finished_duration,
+                    localized.getString(com.clockmods.R.string.pomodoro_focus), "25:00").contentEquals(
+                    phaseNotice.extras.getCharSequence(Notification.EXTRA_TITLE)), "finished phase and duration");
+            phaseNotice.actions[1].actionIntent.send(); await(0);
+            check(timers.getBoolean("pomodoro_running", false) && timers.getInt("pomodoro_phase", -1) == 1,
+                    "next starts the prepared phase");
+            TimerScheduler.cancel(context, "pomodoro");
+            timers.edit().putBoolean("pomodoro_running", false).commit();
             check(store.timerAlerts().isEmpty(), "dismiss removes temporary timer records");
             result.putString("stream", "PASS " + checks + " ringing checks\n"); finish(Activity.RESULT_OK, result);
         } catch (Throwable error) { result.putString("stream", android.util.Log.getStackTraceString(error)); finish(Activity.RESULT_CANCELED, result); }
+    }
+    private Notification notification(String tag, int id) {
+        for (android.service.notification.StatusBarNotification item :
+                context.getSystemService(NotificationManager.class).getActiveNotifications()) {
+            if (item.getId() == id && java.util.Objects.equals(tag, item.getTag())) return item.getNotification();
+        }
+        return null;
+    }
+    private void checkSnoozeNotification(AlarmStore store, long id) throws Exception {
+        Context localized = com.clockmods.LocaleManager.wrap(context);
+        AlarmSpec alarm = store.find(id);
+        String tag = Long.toString(id);
+        Notification notice = notification(tag, 101);
+        String when = android.text.format.DateUtils.formatDateTime(localized, alarm.snoozeAt,
+                android.text.format.DateUtils.FORMAT_SHOW_DATE | android.text.format.DateUtils.FORMAT_SHOW_TIME);
+        check(notice != null && (notice.flags & Notification.FLAG_ONGOING_EVENT) != 0, "ongoing snooze notification");
+        check(localized.getString(com.clockmods.R.string.alarm_next_trigger, when).contentEquals(
+                notice.extras.getCharSequence(Notification.EXTRA_TEXT)), "snooze notification shows the scheduled date and time");
+        check(notice.actions.length == 1 && localized.getString(com.clockmods.R.string.alarm_dismiss)
+                .contentEquals(notice.actions[0].title), "snooze notification has a stop action");
+        AlarmSpec other = new AlarmSpec();
+        other.enabled = false;
+        other.snoozeAt = alarm.snoozeAt + 60000;
+        store.save(other);
+        AlarmScheduler.schedule(context, other);
+        alarm.enabled = true;
+        alarm.repeat = AlarmSpec.Repeat.WEEKLY;
+        alarm.weekdays = 127;
+        alarm.snoozeAt += 120000;
+        AlarmScheduler.schedule(context, alarm);
+        notice.actions[0].actionIntent.send();
+        SystemClock.sleep(250);
+        check(store.find(id).snoozeAt == alarm.snoozeAt, "old stop action cannot cancel a newer snooze");
+        notification(tag, 101).actions[0].actionIntent.send();
+        SystemClock.sleep(350);
+        alarm = store.find(id);
+        check(alarm.snoozeAt == 0 && alarm.enabled && alarm.scheduledAt > System.currentTimeMillis(),
+                "stop cancels the snooze and retains the recurring alarm");
+        check(notification(tag, 101) == null && notification(Long.toString(other.id), 101) != null,
+                "stopping one snooze leaves the other notification");
+        AlarmScheduler.cancel(context, other.id);
+        store.delete(other.id);
+        AlarmScheduler.cancel(context, id);
     }
     private void shell(String command) throws Exception {
         try (ParcelFileDescriptor descriptor = getUiAutomation().executeShellCommand(command);
@@ -182,7 +269,9 @@ public final class RingingAcceptance extends Instrumentation {
         SystemClock.sleep(13000);
         check(store.ringingId() != 0, "scheduled " + mode + " delivered while asleep");
         android.view.accessibility.AccessibilityNodeInfo root = getUiAutomation().getRootInActiveWindow();
-        boolean visible = findNode(root, com.clockmods.LocaleManager.wrap(context).getString(com.clockmods.R.string.alarm_snooze)) != null;
+        int expectedAction = "countdown".equals(mode) ? com.clockmods.R.string.countdown_dismiss
+                : "pomodoro".equals(mode) ? com.clockmods.R.string.pomodoro_dismiss : com.clockmods.R.string.alarm_snooze;
+        boolean visible = findNode(root, com.clockmods.LocaleManager.wrap(context).getString(expectedAction)) != null;
         java.io.File dir = new java.io.File(context.getExternalFilesDir(null), "ringing-audit"); dir.mkdirs();
         try (FileOutputStream out = new FileOutputStream(new java.io.File(dir, mode + ".png"))) {
             getUiAutomation().takeScreenshot().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out);

@@ -46,38 +46,48 @@ public final class AlarmRingingService extends Service {
         vibrator = manager == null ? null : manager.getDefaultVibrator();
     }
     @Override public int onStartCommand(Intent intent, int flags, int startId) {
-        if (intent == null) { playNext(); return START_STICKY; }
+        if (intent == null) { playNext(true); return START_STICKY; }
         long id = intent.getLongExtra(AlarmScheduler.EXTRA_ID, activeId);
-        if (AlarmDelivery.STOP.equals(intent.getAction()) || AlarmDelivery.SNOOZE.equals(intent.getAction())) {
+        if (AlarmDelivery.NEXT.equals(intent.getAction())) {
+            AlarmSpec finished = queue.get(id);
+            if (finished != null && finished.isTimer() && !finished.countdown) {
+                com.clockmods.pro.timer.TimerCompletion.startNext(this, finished.completedDeadline);
+                dismiss(id, false);
+            }
+        } else if (AlarmDelivery.STOP.equals(intent.getAction()) || AlarmDelivery.SNOOZE.equals(intent.getAction())) {
             dismiss(id, AlarmDelivery.SNOOZE.equals(intent.getAction()));
         } else {
             AlarmSpec alarm = new AlarmStore(this).find(id);
             if (alarm != null) { new AlarmStore(this).rememberRing(id); queue.putIfAbsent(id, alarm); }
-            if (activeId == 0) playNext();
+            if (activeId == 0) playNext(true);
             else startForeground(100, AlarmDelivery.notification(this, queue.get(activeId), queue.size()));
         }
         return START_STICKY;
     }
     private void dismiss(long id, boolean snooze) {
-        AlarmSpec ringing = queue.remove(id);
-        new AlarmStore(this).forgetRing(id);
+        AlarmSpec ringing = queue.get(id);
+        if (snooze && ringing != null && ringing.isTimer()) {
+            if (activeId == 0) playNext(true);
+            return;
+        }
+        queue.remove(id);
+        AlarmStore store = new AlarmStore(this);
+        store.forgetRing(id);
         if (ringing != null && snooze) {
-            androidx.core.content.ContextCompat.registerReceiver(this, screenOff,
-                new android.content.IntentFilter(Intent.ACTION_SCREEN_OFF), androidx.core.content.ContextCompat.RECEIVER_NOT_EXPORTED);
-        AlarmStore store = new AlarmStore(this); AlarmSpec saved = store.find(id);
+            AlarmSpec saved = store.find(id);
             if (saved != null) {
                 saved.snoozeAt = System.currentTimeMillis() + saved.snoozeMinutes * 60_000L;
                 store.save(saved); AlarmScheduler.schedule(this, saved);
             }
         }
-        if (id < 0 && !snooze) new AlarmStore(this).delete(id);
-        if (activeId == id || queue.isEmpty()) { stopAudio(); stopForeground(STOP_FOREGROUND_REMOVE); activeId = 0; playNext(); }
+        if (id < 0 && !snooze) store.delete(id);
+        if (activeId == 0 || activeId == id || queue.isEmpty()) { stopAudio(); stopForeground(STOP_FOREGROUND_REMOVE); activeId = 0; playNext(false); }
         else startForeground(100, AlarmDelivery.notification(this, queue.get(activeId), queue.size()));
     }
-    private void playNext() {
+    private void playNext(boolean foregroundStart) {
         if (queue.isEmpty()) {
             // Even an obsolete startForegroundService intent must satisfy its foreground deadline.
-            startForeground(100, AlarmDelivery.notification(this, null, 0));
+            if (foregroundStart) startForeground(100, AlarmDelivery.notification(this, null, 0));
             new AlarmStore(this).setRingingId(0); stopForeground(STOP_FOREGROUND_REMOVE); stopSelf(); return;
         }
         AlarmSpec alarm = queue.values().iterator().next(); activeId = alarm.id;

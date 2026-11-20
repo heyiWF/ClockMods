@@ -112,8 +112,24 @@ internal fun TimerScreen(modifier: Modifier, pomodoro: Boolean) {
     }
     var customDialog by rememberSaveable { mutableStateOf(false) }
 
+    DisposableEffect(preferences, prefix) {
+        fun reload() {
+            running = preferences.getBoolean(prefix + "running", false)
+            phase = preferences.getInt(prefix + "phase", 0)
+            duration = preferences.getLong(prefix + "duration", defaultDuration)
+            remaining = preferences.getLong(prefix + "remaining", duration)
+            deadline = preferences.getLong(prefix + "deadline", 0L)
+        }
+        val listener = android.content.SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
+            if (key?.startsWith(prefix) == true) reload()
+        }
+        preferences.registerOnSharedPreferenceChangeListener(listener)
+        reload()
+        onDispose { preferences.unregisterOnSharedPreferenceChangeListener(listener) }
+    }
+
     fun persist() {
-        preferences.edit()
+        preferences.edit().apply { if (pomodoro) remove(com.clockmods.pro.timer.TimerCompletion.PENDING_PHASE) }
             .putLong(prefix + "duration", duration)
             .putLong(prefix + "remaining", remaining)
             .putLong(prefix + "deadline", deadline)

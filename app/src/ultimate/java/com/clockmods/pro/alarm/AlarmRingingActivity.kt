@@ -49,16 +49,33 @@ class AlarmRingingActivity : ComponentActivity() {
             Surface(Modifier.fillMaxSize()) {
                 Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally) {
-                    Text(alarm?.label?.takeIf { it.isNotBlank() } ?: stringResource(R.string.alarm_ringing),
+                    val current = alarm ?: return@Column
+                    Text(if (current.isTimer) stringResource(if (current.countdown) R.string.pro_page_countdown else R.string.pro_page_pomodoro)
+                        else AlarmDelivery.title(this@AlarmRingingActivity, current),
                         style = MaterialTheme.typography.headlineMedium)
-                    var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
-                    LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1000) } }
-                    Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
-                        TimeText(android.text.format.DateFormat.getTimeFormat(this@AlarmRingingActivity).format(Date(now)),
-                            fontSize = 64.sp, maxLines = 1)
+                    BoxWithConstraints(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
+                        val time = if (current.isTimer) {
+                            if (current.timerDuration > 0) AlarmDelivery.duration(current) else current.label
+                        } else {
+                            var now by remember { mutableLongStateOf(System.currentTimeMillis()) }
+                            LaunchedEffect(Unit) { while (true) { now = System.currentTimeMillis(); delay(1000) } }
+                            android.text.format.DateFormat.getTimeFormat(this@AlarmRingingActivity).format(Date(now))
+                        }
+                        Column(horizontalAlignment = Alignment.CenterHorizontally) {
+                            if (current.isTimer && !current.countdown && current.timerDuration > 0)
+                                Text(stringResource(AlarmDelivery.phaseLabel(current)), style = MaterialTheme.typography.titleLarge)
+                            val size = (this@BoxWithConstraints.maxWidth.value / (time.length.coerceAtLeast(1) * .65f) /
+                                androidx.compose.ui.platform.LocalDensity.current.fontScale).coerceAtMost(72f)
+                            TimeText(time, fontSize = size.sp, maxLines = 1)
+                        }
                     }
                     Row(Modifier.widthIn(max = 520.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
-                        val actions = if (swapped) listOf(AlarmDelivery.STOP, AlarmDelivery.SNOOZE) else listOf(AlarmDelivery.SNOOZE, AlarmDelivery.STOP)
+                        val actions = when {
+                            current.isTimer && !current.countdown && current.completedDeadline != 0L -> listOf(AlarmDelivery.STOP, AlarmDelivery.NEXT)
+                            current.isTimer -> listOf(AlarmDelivery.STOP)
+                            swapped -> listOf(AlarmDelivery.STOP, AlarmDelivery.SNOOZE)
+                            else -> listOf(AlarmDelivery.SNOOZE, AlarmDelivery.STOP)
+                        }
                         actions.forEach { action ->
                             if (action == AlarmDelivery.SNOOZE) {
                                 FilledTonalButton(onClick = { command(action) }, Modifier.weight(1f).heightIn(min = 72.dp)) {
@@ -66,7 +83,8 @@ class AlarmRingingActivity : ComponentActivity() {
                                 }
                             } else {
                                 Button(onClick = { command(action) }, Modifier.weight(1f).heightIn(min = 72.dp)) {
-                                    Text(stringResource(R.string.alarm_dismiss), style = MaterialTheme.typography.titleLarge)
+                                    Text(stringResource(if (action == AlarmDelivery.NEXT) R.string.pomodoro_next else AlarmDelivery.stopLabel(current)),
+                                        style = MaterialTheme.typography.titleLarge)
                                 }
                             }
                         }
@@ -83,7 +101,8 @@ class AlarmRingingActivity : ComponentActivity() {
         if (alarm == null) finish()
     }
     private fun volumeSnooze(key: Int): Boolean =
-        (key == android.view.KeyEvent.KEYCODE_VOLUME_UP || key == android.view.KeyEvent.KEYCODE_VOLUME_DOWN || key == android.view.KeyEvent.KEYCODE_VOLUME_MUTE) &&
+        alarm?.isTimer == false &&
+            (key == android.view.KeyEvent.KEYCODE_VOLUME_UP || key == android.view.KeyEvent.KEYCODE_VOLUME_DOWN || key == android.view.KeyEvent.KEYCODE_VOLUME_MUTE) &&
             AlarmPreferences.enabled(this, AlarmPreferences.VOLUME)
     override fun onKeyDown(key: Int, event: android.view.KeyEvent): Boolean {
         if (volumeSnooze(key)) { if (event.repeatCount == 0) command(AlarmDelivery.SNOOZE); return true }

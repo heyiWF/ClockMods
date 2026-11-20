@@ -53,7 +53,7 @@ Settings → Alarms and chimes provides three opt-in controls: shuffle alert but
 
 Android never delivers the power key to ordinary apps. During ringing only, the service can observe the public ACTION_SCREEN_OFF sleep broadcast. Automatic sleep may also snooze; pressing power while already asleep is not guaranteed to snooze. No global key interception, accessibility service, overlay, device administrator or hidden API is used.
 
-Countdown and Pomodoro completion share the alarm foreground service, queue, full-screen activity and snooze/stop controls, with default alarm sound, vibration and a five-minute snooze. Pomodoro advances phase once; snoozing only repeats the completion alert. Temporary alerts are stored separately from user alarms. The first foreground notification includes its full-screen intent and requests immediate display; a placeholder update must not consume the opportunity. A separate ringing task prevents lock-screen access to settings behind it.
+Countdown and Pomodoro completion share the foreground service, queue, default sound and vibration. Countdown alerts offer only Stop timer. Pomodoro advances phase once and shows the completed phase and duration, with Stop timer and Next phase actions. Snoozing an alarm posts an ongoing notification with its next ringing date and time. Stop alarm cancels that snooze and preserves the recurring schedule. Temporary alerts are stored separately from user alarms. The first foreground notification includes its full-screen intent and requests immediate display; a placeholder update must not consume the opportunity. A separate ringing task prevents lock-screen access to settings behind it.
 
 ## Platform and manufacturer limits
 

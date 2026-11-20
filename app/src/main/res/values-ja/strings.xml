@@ -198,4 +198,12 @@
     <string name="font_size_auto">自動</string>
     <string name="weather_certificate_time">証明書の日時を検証できません。システムの日時を確認し、自動設定を有効にしてください</string>
     <string name="weather_certificate_trust">天気サービスの証明書を検証できません。ネットワークを確認するか、後で再試行してください</string>
+    <string name="countdown_ringing_hint">時間になりました。タイマーを停止してください。</string>
+    <string name="countdown_dismiss">タイマーを停止</string>
+    <string name="pomodoro_ringing_hint">ポモドーロのフェーズが終了しました。</string>
+    <string name="pomodoro_dismiss">計測を停止</string>
+    <string name="alarm_named_ringing">アラーム「%1$s」が鳴っています</string>
+    <string name="countdown_finished_duration">%1$s のタイマーが終了しました</string>
+    <string name="pomodoro_finished_duration">%1$s %2$s の計測が終了しました</string>
+    <string name="pomodoro_next">次のフェーズ</string>
 </resources>

@@ -50,28 +50,40 @@ public final class AlarmScheduler {
         AlarmManager manager = manager(context);
         PendingIntent operation = operation(context, alarm.id, trigger);
         manager.cancel(operation);
-        if (trigger == 0) return;
+        if (trigger == 0) {
+            SnoozeNotification.cancel(context, alarm.id);
+            return;
+        }
         PendingIntent show = PendingIntent.getActivity(context, 0,
                 new Intent(context, AlarmEditorActivity.class).setData(uri(alarm.id))
                         .putExtra(EXTRA_ID, alarm.id), PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);
         try {
             if (manager.canScheduleExactAlarms()) {
-                manager.setAlarmClock(new AlarmManager.AlarmClockInfo(trigger, show), operation); return;
+                manager.setAlarmClock(new AlarmManager.AlarmClockInfo(trigger, show), operation);
+            } else {
+                manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, operation);
             }
-        } catch (SecurityException ignored) { }
-        manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, operation);
+        } catch (SecurityException denied) {
+            manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, trigger, operation);
+        }
+        SnoozeNotification.update(context, alarm);
     }
     public static void rescheduleAll(Context context) {
         cancelLegacy(context);
         AlarmStore store = new AlarmStore(context);
         for (AlarmSpec alarm : store.all()) schedule(context, alarm);
         for (AlarmSpec alert : store.timerAlerts()) {
-            if (alert.snoozeAt > System.currentTimeMillis()) schedule(context, alert);
-            else if (!store.pendingRings().containsKey(alert.id)) store.delete(alert.id);
+            if (alert.snoozeAt != 0) {
+                cancel(context, alert.id);
+                store.delete(alert.id);
+            } else if (!store.pendingRings().containsKey(alert.id)) store.delete(alert.id);
         }
     }
     public static void schedule(Context context, int hour, int minute) { rescheduleAll(context); }
-    public static void cancel(Context context, long id) { manager(context).cancel(operation(context, id, 0)); }
+    public static void cancel(Context context, long id) {
+        manager(context).cancel(operation(context, id, 0));
+        SnoozeNotification.cancel(context, id);
+    }
     public static void cancel(Context context) {
         cancelLegacy(context); for (AlarmSpec alarm : new AlarmStore(context).all()) cancel(context, alarm.id);
     }
