@@ -4,7 +4,11 @@ import android.content.Intent;
 import android.media.RingtoneManager;
 import android.net.Uri;
 import android.os.Bundle;
+import android.view.Gravity;
+import android.view.ViewGroup;
 import android.widget.EditText;
+import android.widget.FrameLayout;
+import android.widget.NumberPicker;
 import android.widget.Switch;
 import android.widget.Toast;
 import androidx.activity.result.ActivityResultLauncher;
@@ -85,18 +89,47 @@ public final class AlarmEditorActivity extends AlarmUi {
         });
         row(R.string.alarm_ringtone, AlarmLabels.ringtone(this, draft), this::chooseRingtone);
         toggle(R.string.alarm_vibrate, draft.vibrate, checked -> draft.vibrate = checked);
-        row(R.string.alarm_snooze, getString(R.string.timer_minutes, draft.snoozeMinutes), () -> {
-            android.widget.NumberPicker picker = new android.widget.NumberPicker(this); picker.setMinValue(1); picker.setMaxValue(60); picker.setValue(draft.snoozeMinutes);
-            show(new com.google.android.material.dialog.MaterialAlertDialogBuilder(this).setTitle(R.string.alarm_snooze).setView(picker)
-                    .setPositiveButton(R.string.apply, (dialog, which) -> { draft.snoozeMinutes = picker.getValue(); render(); })
-                    .setNegativeButton(R.string.cancel, null).create());
-        });
+        row(R.string.alarm_snooze, getString(R.string.timer_minutes, draft.snoozeMinutes), this::snoozePicker);
         if (draft.id != 0) row(R.string.alarm_delete, "", () -> show(new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
                 .setMessage(R.string.alarm_delete_confirm).setPositiveButton(R.string.alarm_delete, (dialog, which) -> {
                     AlarmScheduler.cancel(this, draft.id); new AlarmStore(this).delete(draft.id);
                     if (new AlarmStore(this).isRinging()) startService(AlarmDelivery.command(this, draft.id, AlarmDelivery.STOP));
                     finish();
                 }).setNegativeButton(R.string.cancel, null).create()));
+    }
+    private void snoozePicker() {
+        NumberPicker picker = new NumberPicker(this);
+        picker.setMinValue(1);
+        picker.setMaxValue(60);
+        picker.setWrapSelectorWheel(false);
+        String[] minutes = new String[picker.getMaxValue()];
+        for (int index = 0; index < minutes.length; index++) {
+            minutes[index] = getString(R.string.timer_minutes, index + 1);
+        }
+        picker.setDisplayedValues(minutes);
+        picker.setValue(draft.snoozeMinutes);
+        picker.setDescendantFocusability(ViewGroup.FOCUS_BLOCK_DESCENDANTS);
+        // The center value is read-only. Keep scrolling and accessibility adjustments enabled.
+        for (int index = 0; index < picker.getChildCount(); index++) {
+            if (picker.getChildAt(index) instanceof EditText) {
+                EditText input = (EditText) picker.getChildAt(index);
+                input.setKeyListener(null);
+                input.setShowSoftInputOnFocus(false);
+            }
+        }
+
+        FrameLayout content = new FrameLayout(this);
+        content.addView(picker, new FrameLayout.LayoutParams(
+                ViewGroup.LayoutParams.WRAP_CONTENT, ViewGroup.LayoutParams.WRAP_CONTENT, Gravity.CENTER_HORIZONTAL));
+        show(new com.google.android.material.dialog.MaterialAlertDialogBuilder(this)
+                .setTitle(R.string.alarm_snooze)
+                .setView(content)
+                .setPositiveButton(R.string.apply, (dialog, which) -> {
+                    draft.snoozeMinutes = picker.getValue();
+                    render();
+                })
+                .setNegativeButton(R.string.cancel, null)
+                .create());
     }
     private void save() {
         if (draft.repeat == AlarmSpec.Repeat.WEEKLY && draft.weekdays == 0 && draft.extraDates.isEmpty()) {
