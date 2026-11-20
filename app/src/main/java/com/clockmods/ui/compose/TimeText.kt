@@ -7,6 +7,7 @@ import androidx.compose.material3.Text
 import androidx.compose.runtime.*
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.graphics.graphicsLayer
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.platform.LocalDensity
 import androidx.compose.ui.platform.LocalFontFamilyResolver
@@ -38,27 +39,58 @@ fun TimeText(
     textAlign: TextAlign? = null,
     style: TextStyle = LocalTextStyle.current,
 ) {
+    val actual = timeTextStyle(style, fontSize, fontWeight)
+    val shift = if (':' in text) {
+        val paint = rememberTimePaint(actual)
+        remember(paint) {
+            if (paint.ascent() == 0f) 0f else ClockTimeText.colonBaselineOffset(paint) / paint.ascent()
+        }
+    } else 0f
+    val aligned = remember(text, shift) {
+        buildAnnotatedString {
+            append(text)
+            text.forEachIndexed { index, character ->
+                if (character == ':') {
+                    addStyle(SpanStyle(baselineShift = BaselineShift(shift)), index, index + 1)
+                }
+            }
+        }
+    }
+    Text(aligned, modifier, color = color, maxLines = maxLines, textAlign = textAlign, style = actual)
+}
+
+/** Draw an independently laid-out separator without changing its line height. */
+@Composable
+internal fun TimeColon(modifier: Modifier, fontSize: TextUnit, fontWeight: FontWeight) {
+    val style = timeTextStyle(LocalTextStyle.current, fontSize, fontWeight)
+    val paint = rememberTimePaint(style)
+    val offset = remember(paint) { ClockTimeText.colonBaselineOffset(paint) }
+    Text(":", modifier.graphicsLayer { translationY = offset }, maxLines = 1, style = style)
+}
+
+@Composable
+private fun timeTextStyle(style: TextStyle, fontSize: TextUnit, fontWeight: FontWeight?): TextStyle {
     val context = LocalContext.current
     val preferences = remember(context) { ClockPreferences(context) }
     val family = preferences.getRenderFontFamily()
     val revision = UserFontStore.revision()
     val weight = fontWeight ?: style.fontWeight ?: FontWeight(if (preferences.isBoldText()) 700 else 400)
     val face = remember(context, family, weight, revision) { ClockTypefaceResolver.resolve(context, family, weight.weight) }
-    val actual = LocalTextStyle.current.merge(style).merge(TextStyle(
+    return LocalTextStyle.current.merge(style).merge(TextStyle(
         fontFamily = style.fontFamily ?: FontFamily(face), fontSize = fontSize, fontWeight = weight,
     ))
-    val resolved by LocalFontFamilyResolver.current.resolve(actual.fontFamily, weight,
-        actual.fontStyle ?: FontStyle.Normal, actual.fontSynthesis ?: FontSynthesis.All)
+}
+
+@Composable
+private fun rememberTimePaint(style: TextStyle): Paint {
+    val resolved by LocalFontFamilyResolver.current.resolve(style.fontFamily, checkNotNull(style.fontWeight),
+        style.fontStyle ?: FontStyle.Normal, style.fontSynthesis ?: FontSynthesis.All)
     val density = LocalDensity.current
-    val size = with(density) { (if (actual.fontSize == TextUnit.Unspecified) 16.sp else actual.fontSize).toPx() }
-    val shift = remember(resolved, size) {
-        val paint = Paint(Paint.ANTI_ALIAS_FLAG).apply { typeface = resolved as Typeface; textSize = size }
-        if (paint.ascent() == 0f) 0f else ClockTimeText.colonBaselineOffset(paint) / paint.ascent()
+    val size = with(density) { (if (style.fontSize == TextUnit.Unspecified) 16.sp else style.fontSize).toPx() }
+    return remember(resolved, size) {
+        Paint(Paint.ANTI_ALIAS_FLAG).apply {
+            typeface = resolved as Typeface
+            textSize = size
+        }
     }
-    val aligned = remember(text, shift) { buildAnnotatedString {
-        append(text)
-        text.forEachIndexed { index, c -> if (c == ':')
-            addStyle(SpanStyle(baselineShift = BaselineShift(shift)), index, index + 1) }
-    } }
-    Text(aligned, modifier, color = color, maxLines = maxLines, textAlign = textAlign, style = actual)
 }

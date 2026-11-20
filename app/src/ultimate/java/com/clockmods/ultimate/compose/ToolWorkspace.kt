@@ -2,8 +2,8 @@ package com.clockmods.ultimate.compose
 
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.lazy.LazyColumn
+import androidx.compose.foundation.lazy.LazyListState
 import androidx.compose.foundation.lazy.itemsIndexed
-import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.foundation.interaction.MutableInteractionSource
@@ -29,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import com.clockmods.R
+import com.clockmods.ui.compose.TimeColon
 import com.clockmods.ui.compose.TimeText
 
 /** Width and height constraints, rather than physical pixels, decide the two-pane layout. */
@@ -37,13 +38,14 @@ internal fun ToolWorkspace(
     modifier: Modifier,
     time: String,
     phase: String? = null,
-    expandedDetails: Boolean = false,
+    detailsVisible: Boolean? = null,
     rollDigits: Boolean = false,
-    details: @Composable ColumnScope.() -> Unit,
+    details: @Composable () -> Unit,
     actions: @Composable () -> Unit,
 ) {
     BoxWithConstraints(modifier.fillMaxSize().padding(24.dp)) {
         val wide = maxWidth >= 472.dp && maxWidth > maxHeight
+        val paneSpacing = 24.dp
         val face: @Composable (Modifier) -> Unit = { faceModifier ->
             Column(faceModifier) {
                 if (phase != null) Text(phase, color = MaterialTheme.colorScheme.primary,
@@ -57,21 +59,38 @@ internal fun ToolWorkspace(
                 }
             }
         }
-        if (wide) {
-            Row(Modifier.widthIn(max = 1100.dp).fillMaxSize().align(Alignment.Center), horizontalArrangement = Arrangement.spacedBy(24.dp)) {
-                face(Modifier.weight(1f).fillMaxHeight())
-                Column(Modifier.weight(1f).fillMaxHeight(), verticalArrangement = Arrangement.Center) {
+        val panel: @Composable (Modifier) -> Unit = { panelModifier ->
+            Column(panelModifier, verticalArrangement = if (wide) Arrangement.Center else Arrangement.Top) {
+                if (detailsVisible == null) {
                     details()
-                    actions()
+                } else {
+                    // Let the list claim space as it expands so the controls move with it.
+                    AnimatedVisibility(
+                        visible = detailsVisible,
+                        modifier = Modifier.weight(1f, fill = false),
+                        enter = expandVertically(tween(320), expandFrom = Alignment.Top) + fadeIn(tween(220)),
+                        exit = shrinkVertically(tween(320), shrinkTowards = Alignment.Top) + fadeOut(tween(180)),
+                    ) {
+                        details()
+                    }
                 }
+                actions()
+            }
+        }
+        if (wide) {
+            Row(Modifier.widthIn(max = 1100.dp).fillMaxSize().align(Alignment.Center), horizontalArrangement = Arrangement.spacedBy(paneSpacing)) {
+                face(Modifier.weight(1f).fillMaxHeight())
+                panel(Modifier.weight(1f).fillMaxHeight())
             }
         } else {
-            Column(Modifier.widthIn(max = 640.dp).fillMaxSize().align(Alignment.Center), verticalArrangement = Arrangement.spacedBy(24.dp)) {
+            val panelModifier = if (detailsVisible == null) {
+                Modifier.fillMaxWidth()
+            } else {
+                Modifier.fillMaxWidth().heightIn(max = ((maxHeight - paneSpacing) / 2).coerceAtLeast(0.dp))
+            }
+            Column(Modifier.widthIn(max = 640.dp).fillMaxSize().align(Alignment.Center), verticalArrangement = Arrangement.spacedBy(paneSpacing)) {
                 face(Modifier.weight(1f).fillMaxWidth())
-                Column(if (expandedDetails) Modifier.fillMaxWidth().weight(1f) else Modifier.fillMaxWidth()) {
-                    details()
-                    actions()
-                }
+                panel(panelModifier)
             }
         }
     }
@@ -120,11 +139,12 @@ private fun ToolIconButton(icon: ImageVector, label: String, action: () -> Unit)
 }
 
 @Composable
-internal fun StopwatchLaps(laps: List<Long>, modifier: Modifier = Modifier) {
-    val listState = rememberLazyListState()
-    LaunchedEffect(laps.size) {
-        if (laps.isNotEmpty()) listState.animateScrollToItem(0)
-    }
+internal fun StopwatchLaps(
+    laps: List<Long>,
+    listState: LazyListState,
+    animatePlacement: Boolean,
+    modifier: Modifier = Modifier,
+) {
     Column(modifier.padding(bottom = 16.dp)) {
         Row(Modifier.fillMaxWidth().padding(vertical = 12.dp)) {
             Text(stringResource(R.string.stopwatch_lap), Modifier.width(48.dp), style = MaterialTheme.typography.labelMedium)
@@ -136,8 +156,11 @@ internal fun StopwatchLaps(laps: List<Long>, modifier: Modifier = Modifier) {
         HorizontalDivider(color = MaterialTheme.colorScheme.outlineVariant)
         LazyColumn(Modifier.fillMaxWidth().weight(1f), state = listState) {
             itemsIndexed(laps, key = { index, _ -> laps.size - index }) { index, lap ->
-                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp)
-                    .animateItem(fadeInSpec = tween(260), placementSpec = tween(280)),
+                Row(Modifier.fillMaxWidth().heightIn(min = 48.dp).animateItem(
+                    fadeInSpec = if (animatePlacement) tween(140) else null,
+                    placementSpec = if (animatePlacement) tween(200) else snap(),
+                    fadeOutSpec = null,
+                ),
                     verticalAlignment = Alignment.CenterVertically) {
                     Text((laps.size - index).toString(), Modifier.width(48.dp), style = MaterialTheme.typography.bodyMedium)
                     TimeText(formatStopwatch((lap - (laps.getOrNull(index + 1) ?: 0)).coerceAtLeast(0)),
@@ -162,6 +185,8 @@ private fun RollingTime(time: String, size: Float) {
                         (slideOutVertically(tween(240)) { -it } + fadeOut(tween(160)))
                 }, label = "timer digit") { digit ->
                 TimeText(digit.toString(), fontSize = size.sp, fontWeight = FontWeight.Light, maxLines = 1)
+            } else if (character == ':') {
+                TimeColon(Modifier.clearAndSetSemantics {}, size.sp, FontWeight.Light)
             } else TimeText(character.toString(), Modifier.clearAndSetSemantics {},
                 fontSize = size.sp, fontWeight = FontWeight.Light, maxLines = 1)
         }

@@ -26,6 +26,7 @@ import androidx.compose.foundation.layout.width
 import androidx.compose.foundation.layout.widthIn
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
+import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
 import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
@@ -60,9 +61,11 @@ import androidx.compose.runtime.mutableLongStateOf
 import androidx.compose.runtime.mutableStateListOf
 import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.remember
+import androidx.compose.runtime.rememberCoroutineScope
 import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
+import kotlinx.coroutines.launch
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -333,6 +336,9 @@ internal fun StopwatchScreen(modifier: Modifier) {
         nowWallMillis = System.currentTimeMillis(),
     )
     var elapsed by rememberSaveable { mutableLongStateOf(calculateElapsed()) }
+    val listState = rememberLazyListState()
+    val scope = rememberCoroutineScope()
+    var animateLapPlacement by remember { mutableStateOf(false) }
     val laps = remember {
         mutableStateListOf<Long>().apply {
             preferences.getString("laps", "").orEmpty().split(',')
@@ -363,8 +369,9 @@ internal fun StopwatchScreen(modifier: Modifier) {
 
     ToolWorkspace(
         modifier = modifier,
-        time = formatStopwatch(elapsed), expandedDetails = laps.isNotEmpty(),
-        details = { if (laps.isNotEmpty()) StopwatchLaps(laps, Modifier.weight(1f)) },
+        time = formatStopwatch(elapsed),
+        detailsVisible = laps.isNotEmpty(),
+        details = { StopwatchLaps(laps, listState, animateLapPlacement, Modifier.fillMaxSize()) },
         actions = {
             ToolActions(running, showSecondary = running || elapsed > 0,
                 onToggle = {
@@ -386,12 +393,24 @@ internal fun StopwatchScreen(modifier: Modifier) {
                     startedAtRealtime = 0L
                     startedAtWall = 0L
                     laps.clear()
+                    listState.requestScrollToItem(0)
                     persist()
                 },
                 extra = Icons.Default.Flag, extraLabel = stringResource(R.string.stopwatch_lap),
                 onExtra = {
                     val value = calculateElapsed()
-                    if (value > 0L) { laps.add(0, value); persist() }
+                    if (value > 0L) {
+                        val atTop = !listState.canScrollBackward
+                        animateLapPlacement = atTop && laps.isNotEmpty()
+                        laps.add(0, value)
+                        if (atTop) {
+                            // Override key-based anchoring so placement alone moves the old rows.
+                            listState.requestScrollToItem(0)
+                        } else {
+                            scope.launch { listState.animateScrollToItem(0) }
+                        }
+                        persist()
+                    }
                 })
         },
     )
