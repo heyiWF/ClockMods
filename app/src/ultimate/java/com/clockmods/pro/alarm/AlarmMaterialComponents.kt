@@ -1,5 +1,8 @@
 package com.clockmods.pro.alarm
 
+import android.view.ViewGroup
+import android.widget.EditText
+import android.widget.NumberPicker
 import androidx.compose.foundation.clickable
 import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.rememberScrollState
@@ -15,6 +18,7 @@ import androidx.compose.runtime.*
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.res.stringResource
@@ -25,6 +29,7 @@ import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.text.style.TextOverflow
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.window.DialogProperties
 import com.clockmods.R
 import com.clockmods.ui.compose.TimeText
@@ -122,6 +127,43 @@ internal fun AlarmDateDialog(date: LocalDate, dismiss: () -> Unit, confirm: (Loc
         PredictiveDialogBack(dismiss)
         TextButton(onClick = { picker.selectedDateMillis?.let { confirm(Instant.ofEpochMilli(it).atZone(ZoneOffset.UTC).toLocalDate()) } }, enabled = picker.selectedDateMillis != null) { Text(stringResource(R.string.apply)) }
     }, dismissButton = { TextButton(onClick = dismiss) { Text(stringResource(R.string.cancel)) } }) { DatePicker(picker) }
+}
+
+@Composable
+internal fun AlarmSnoozeDialog(value: Int, dismiss: () -> Unit, confirm: (Int) -> Unit) {
+    var selected by rememberSaveable { mutableIntStateOf(value) }
+    val textColor = MaterialTheme.colorScheme.onSurface
+    AlertDialog(
+        onDismissRequest = dismiss,
+        title = { Text(stringResource(R.string.alarm_snooze)) },
+        text = {
+            Box(Modifier.fillMaxWidth(), contentAlignment = Alignment.Center) {
+                AndroidView(
+                    factory = { context ->
+                        NumberPicker(context).apply {
+                            minValue = 1
+                            maxValue = 60
+                            wrapSelectorWheel = false
+                            displayedValues = Array(maxValue) { context.getString(R.string.timer_minutes, it + 1) }
+                            this.value = selected
+                            descendantFocusability = ViewGroup.FOCUS_BLOCK_DESCENDANTS
+                            // The wheel's center is a read-only value.
+                            for (index in 0 until childCount) {
+                                (getChildAt(index) as? EditText)?.apply {
+                                    keyListener = null
+                                    showSoftInputOnFocus = false
+                                }
+                            }
+                            setOnValueChangedListener { _, _, minutes -> selected = minutes }
+                        }
+                    },
+                    update = { it.setTextColor(textColor.toArgb()) },
+                )
+            }
+        },
+        confirmButton = { TextButton(onClick = { confirm(selected) }) { Text(stringResource(R.string.apply)) } },
+        dismissButton = { TextButton(onClick = dismiss) { Text(stringResource(R.string.cancel)) } },
+    )
 }
 
 @Composable

@@ -130,7 +130,10 @@ class AlarmEditorActivity : AlarmUi() {
             }
             "anchor" -> AlarmDateDialog(alarm.alternatingStart, { dialog = null }) { date -> edit { it.alternatingStart = date }; dialog = null }
             "date" -> AlarmDateDialog(alarm.onceDate, { dialog = null }) { date -> edit { it.onceDate = date }; dialog = null }
-            "snooze" -> AlarmNumberDialog(stringResource(R.string.alarm_snooze), alarm.snoozeMinutes, 1, 60, { dialog = null }) { number -> edit { it.snoozeMinutes = number }; dialog = null }
+            "snooze" -> AlarmSnoozeDialog(alarm.snoozeMinutes, { dialog = null }) { minutes ->
+                edit { it.snoozeMinutes = minutes }
+                dialog = null
+            }
             "repeat" -> AlertDialog(onDismissRequest = { dialog = null }, title = { Text(stringResource(R.string.alarm_repeat)) }, text = {
                 Column(Modifier.verticalScroll(rememberScrollState())) { AlarmSpec.Repeat.values().forEach { repeat ->
                     Row(Modifier.fillMaxWidth().heightIn(min = 80.dp).selectable(selected = alarm.repeat == repeat, role = Role.RadioButton, onClick = { edit { it.repeat = repeat }; dialog = null }).padding(vertical = 14.dp), verticalAlignment = androidx.compose.ui.Alignment.CenterVertically) {
