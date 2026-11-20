@@ -13,6 +13,7 @@ import androidx.fragment.app.Fragment;
 
 import com.clockmods.R;
 import com.clockmods.ui.ButtonTextSizer;
+import com.clockmods.pro.alarm.AlarmConfirmation;
 import com.clockmods.pro.alarm.AlarmScheduler;
 import com.clockmods.pro.alarm.AlarmStore;
 import com.google.android.material.materialswitch.MaterialSwitch;
@@ -35,10 +36,11 @@ public final class ProAlarmFragment extends Fragment {
         time = root.findViewById(R.id.alarm_time);
         next = root.findViewById(R.id.alarm_next);
         enabled = root.findViewById(R.id.alarm_enabled);
+        enabled.setSaveEnabled(false);
         enabled.setChecked(store.enabled());
         enabled.setOnCheckedChangeListener((button, checked) -> {
             store.setEnabled(checked);
-            if (checked) AlarmScheduler.schedule(requireContext(), store.hour(), store.minute());
+            if (checked) scheduleAndConfirm();
             else AlarmScheduler.cancel(requireContext());
             render();
         });
@@ -46,8 +48,8 @@ public final class ProAlarmFragment extends Fragment {
             TimePickerDialog dialog = new TimePickerDialog(requireContext(),
                 (picker, hour, minute) -> {
                     store.save(hour, minute, true);
-                    enabled.setChecked(true);
-                    AlarmScheduler.schedule(requireContext(), hour, minute);
+                    if (enabled.isChecked()) scheduleAndConfirm();
+                    else enabled.setChecked(true);
                     render();
                 }, store.hour(), store.minute(), true);
             dialog.setOnShowListener(ignored -> {
@@ -60,6 +62,11 @@ public final class ProAlarmFragment extends Fragment {
         ButtonTextSizer.applyToTree(root);
         render();
         return root;
+    }
+
+    private void scheduleAndConfirm() {
+        long trigger = AlarmScheduler.schedule(requireContext(), store.hour(), store.minute());
+        AlarmConfirmation.show(requireContext(), trigger);
     }
 
     private void render() {

@@ -21,7 +21,7 @@ public final class AlarmScheduler {
         return trigger.getTimeInMillis();
     }
 
-    public static void schedule(Context context, int hour, int minute) {
+    public static long schedule(Context context, int hour, int minute) {
         AlarmManager manager = (AlarmManager) context.getSystemService(Context.ALARM_SERVICE);
         long triggerAt = nextTrigger(hour, minute, System.currentTimeMillis());
         PendingIntent operation = alarmIntent(context);
@@ -33,6 +33,7 @@ public final class AlarmScheduler {
         } else {
             manager.setAndAllowWhileIdle(AlarmManager.RTC_WAKEUP, triggerAt, operation);
         }
+        return triggerAt;
     }
 
     public static void cancel(Context context) {
