@@ -32,18 +32,6 @@ public final class ClockTypefaceResolver {
         return resolveTime(context, family, bold);
     }
 
-    /**
-     * Resolves the typeface for a single code point of supporting text. Chinese
-     * (CJK) characters keep the system typeface so glyphs always render, while
-     * every other character (digits, latin letters, punctuation) uses the
-     * user selected font so switching the font also affects the non-Chinese
-     * parts of the date and weather lines.
-     */
-    static Typeface resolveSupportingForCodePoint(Context context, String family, boolean bold,
-            int codePoint) {
-        return resolveSupporting(context, family, bold, isChinese(codePoint));
-    }
-
     static boolean isChinese(int codePoint) {
         Character.UnicodeBlock block = Character.UnicodeBlock.of(codePoint);
         return block == Character.UnicodeBlock.CJK_UNIFIED_IDEOGRAPHS

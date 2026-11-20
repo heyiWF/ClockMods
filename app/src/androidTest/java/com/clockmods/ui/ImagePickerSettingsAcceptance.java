@@ -57,7 +57,7 @@ public final class ImagePickerSettingsAcceptance extends Instrumentation {
             for (int orientation : new int[]{1, 2}) {
                 getUiAutomation().setRotation(orientation == 1 ? 0 : 1);
                 prefs.edit().putInt("screen_orientation", orientation)
-                        .putBoolean("weather_enabled", false).putBoolean("use_network_time", false)
+                        .putBoolean("use_network_time", false)
                         .putFloat("time_font_scale", 0.8f).putBoolean("bold_text", false).commit();
                 launch(orientation);
                 onMain(() -> invoke(activity, "showSettings"));
@@ -133,8 +133,7 @@ public final class ImagePickerSettingsAcceptance extends Instrumentation {
         finish(code, report);
     }
     private void launch(int orientation) throws Exception {
-        String name = getTargetContext().getPackageName().endsWith(".pro")
-                ? "com.clockmods.pro.ProMainActivity" : "com.clockmods.MainActivity";
+        String name = "com.clockmods.MainActivity";
         ActivityMonitor monitor = addMonitor(name, null, false);
         try {
             getTargetContext().startActivity(new Intent().setClassName(getTargetContext(), name)

@@ -14,15 +14,6 @@ public class ClockPreferences {
     public static final String FONT_SYSTEM = "system";
     public static final String FONT_ROBOTO = "roboto";
     public static final String FONT_GOOGLE_SANS_DISPLAY = "google_sans_display";
-    // Pro-only font families (bundled in the pro flavor assets).
-    public static final String FONT_GOOGLE_SANS_TEXT = "google_sans_text";
-    public static final String FONT_SF_PRO_DISPLAY = "sf_pro_display";
-    public static final String FONT_SF_PRO_ROUNDED = "sf_pro_rounded";
-    public static final String FONT_INTER = "inter";
-    public static final String FONT_LATO = "lato";
-    public static final String FONT_LORA = "lora";
-    public static final String FONT_NOTO_SANS = "noto_sans";
-    public static final String FONT_BITCOUNT = "bitcount_grid_double";
     public static final String TRANSITION_FADE = "fade";
     public static final String TRANSITION_SLIDE_UP = "slide_up";
     public static final String TRANSITION_SLIDE_DOWN = "slide_down";
@@ -83,18 +74,6 @@ public class ClockPreferences {
     private static final String KEY_USE_NETWORK_TIME = "use_network_time";
     private static final String KEY_SYNC_INTERVAL_MINUTES = "sync_interval_minutes";
     private static final String KEY_TIME_ZONE_ID = "time_zone_id";
-    private static final String KEY_WEATHER_ENABLED = "weather_enabled";
-    private static final String KEY_WEATHER_DETAILED = "weather_detailed";
-    private static final String KEY_WEATHER_INTERVAL_MINUTES = "weather_interval_minutes";
-    private static final String KEY_WEATHER_LOCATION_MODE = "weather_location_mode";
-    private static final String KEY_WEATHER_LOCATION_ID = "weather_location_id";
-    private static final String KEY_WEATHER_PROVINCE = "weather_province";
-    private static final String KEY_WEATHER_CITY = "weather_city";
-    private static final String KEY_WEATHER_DISTRICT = "weather_district";
-    private static final String KEY_WEATHER_LATITUDE = "weather_latitude";
-    private static final String KEY_WEATHER_LONGITUDE = "weather_longitude";
-    private static final String KEY_WEATHER_ICON_FILL = "weather_icon_fill";
-    private static final String KEY_WEATHER_ICON_DYNAMIC_COLOR = "weather_icon_dynamic_color";
 
     /** Sentinel value meaning "follow the device's own time zone". */
     public static final String TIME_ZONE_FOLLOW_SYSTEM = "";
@@ -141,7 +120,7 @@ public class ClockPreferences {
     public static final String LANGUAGE_TRADITIONAL = "zh-Hant";
     public static final String LANGUAGE_ENGLISH = "en";
     public static final String DEFAULT_CLOCK_LANGUAGE = LANGUAGE_SIMPLIFIED;
-    /** Optional free-text message shown on the weather line; empty means "no message". */
+    /** Optional free-text message shown on the supporting line; empty means "no message". */
     public static final String DEFAULT_CUSTOM_MESSAGE = "";
     /** Upper bound on the custom message length, guarding layout and storage. */
     public static final int MAX_CUSTOM_MESSAGE_LENGTH = 200;
@@ -158,17 +137,6 @@ public class ClockPreferences {
     public static final int DEFAULT_SYNC_INTERVAL_MINUTES = 60;
     /** Time zone is set to follow the system by default. */
     public static final String DEFAULT_TIME_ZONE_ID = TIME_ZONE_FOLLOW_SYSTEM;
-    public static final boolean DEFAULT_WEATHER_ENABLED = false;
-    public static final boolean DEFAULT_WEATHER_DETAILED = false;
-    public static final int DEFAULT_WEATHER_INTERVAL_MINUTES = 30;
-    /** Weather icons default to the solid fill style; disable for the outline (line) style. */
-    public static final boolean DEFAULT_WEATHER_ICON_FILL = true;
-    /** Weather icons default to white; enable to tint them with the Material 3 accent colour. */
-    public static final boolean DEFAULT_WEATHER_ICON_DYNAMIC_COLOR = false;
-    public static final String WEATHER_LOCATION_AUTOMATIC = "automatic";
-    public static final String WEATHER_LOCATION_MANUAL = "manual";
-    public static final String DEFAULT_WEATHER_LOCATION_MODE = WEATHER_LOCATION_AUTOMATIC;
-
     /** Allowed range for the width-based font scale (fraction of screen width). */
     public static final float MIN_FONT_SCALE = 0.20f;
     public static final float MAX_FONT_SCALE = 1.50f;
@@ -178,8 +146,26 @@ public class ClockPreferences {
 
     private final SharedPreferences preferences;
 
+    /**
+     * Bumped by every write. The clock reads about twenty preferences to style one frame, which on
+     * the devices this build targets costs more than drawing the digits; instead it keeps a snapshot
+     * and refreshes it only when this number changes. Every setter goes through {@link #edit()} so no
+     * write can bypass the counter.
+     */
+    private static int writeVersion = 1;
+
+    /** Monotonic counter that changes whenever any clock preference is written. */
+    public static int writeVersion() {
+        return writeVersion;
+    }
+
     public ClockPreferences(Context context) {
         preferences = context.getSharedPreferences(PREFS_NAME, Context.MODE_PRIVATE);
+    }
+
+    private SharedPreferences.Editor edit() {
+        writeVersion++;
+        return preferences.edit();
     }
 
     public String getBackgroundMode() {
@@ -187,7 +173,7 @@ public class ClockPreferences {
     }
 
     public void setBackgroundMode(String mode) {
-        preferences.edit().putString(KEY_BACKGROUND_MODE, mode).apply();
+        edit().putString(KEY_BACKGROUND_MODE, mode).commit();
     }
 
     public int getBackgroundColor(int defaultColor) {
@@ -195,7 +181,7 @@ public class ClockPreferences {
     }
 
     public void setBackgroundColor(int color) {
-        preferences.edit().putInt(KEY_BACKGROUND_COLOR, color).apply();
+        edit().putInt(KEY_BACKGROUND_COLOR, color).commit();
     }
 
     public boolean isDimBackground() {
@@ -203,7 +189,7 @@ public class ClockPreferences {
     }
 
     public void setDimBackground(boolean dimBackground) {
-        preferences.edit().putBoolean(KEY_DIM_BACKGROUND, dimBackground).apply();
+        edit().putBoolean(KEY_DIM_BACKGROUND, dimBackground).commit();
     }
 
     public boolean isScheduleDimBackground() {
@@ -211,7 +197,7 @@ public class ClockPreferences {
     }
 
     public void setScheduleDimBackground(boolean schedule) {
-        preferences.edit().putBoolean(KEY_SCHEDULE_DIM_BACKGROUND, schedule).apply();
+        edit().putBoolean(KEY_SCHEDULE_DIM_BACKGROUND, schedule).commit();
     }
 
     public int getDimStartMinutes() {
@@ -219,7 +205,7 @@ public class ClockPreferences {
     }
 
     public void setDimStartMinutes(int minutes) {
-        preferences.edit().putInt(KEY_DIM_START_MINUTES, minutes).apply();
+        edit().putInt(KEY_DIM_START_MINUTES, minutes).commit();
     }
 
     public int getDimEndMinutes() {
@@ -227,7 +213,7 @@ public class ClockPreferences {
     }
 
     public void setDimEndMinutes(int minutes) {
-        preferences.edit().putInt(KEY_DIM_END_MINUTES, minutes).apply();
+        edit().putInt(KEY_DIM_END_MINUTES, minutes).commit();
     }
 
     public float getTimeFontScale() {
@@ -235,7 +221,7 @@ public class ClockPreferences {
     }
 
     public void setTimeFontScale(float scale) {
-        preferences.edit().putFloat(KEY_TIME_FONT_SCALE, clampScale(scale)).apply();
+        edit().putFloat(KEY_TIME_FONT_SCALE, clampScale(scale)).commit();
     }
 
     public float getDateFontScale() {
@@ -243,7 +229,7 @@ public class ClockPreferences {
     }
 
     public void setDateFontScale(float scale) {
-        preferences.edit().putFloat(KEY_DATE_FONT_SCALE, clampScale(scale)).apply();
+        edit().putFloat(KEY_DATE_FONT_SCALE, clampScale(scale)).commit();
     }
 
     public int getTimeColor() {
@@ -251,7 +237,7 @@ public class ClockPreferences {
     }
 
     public void setTimeColor(int color) {
-        preferences.edit().putInt(KEY_TIME_COLOR, color).apply();
+        edit().putInt(KEY_TIME_COLOR, color).commit();
     }
 
     public int getDateColor() {
@@ -259,7 +245,7 @@ public class ClockPreferences {
     }
 
     public void setDateColor(int color) {
-        preferences.edit().putInt(KEY_DATE_COLOR, color).apply();
+        edit().putInt(KEY_DATE_COLOR, color).commit();
     }
 
     public boolean isShowStatusIcons() {
@@ -267,7 +253,7 @@ public class ClockPreferences {
     }
 
     public void setShowStatusIcons(boolean show) {
-        preferences.edit().putBoolean(KEY_SHOW_STATUS_ICONS, show).apply();
+        edit().putBoolean(KEY_SHOW_STATUS_ICONS, show).commit();
     }
 
     public float getStatusIconScale() {
@@ -276,8 +262,8 @@ public class ClockPreferences {
     }
 
     public void setStatusIconScale(float scale) {
-        preferences.edit().putFloat(
-                KEY_STATUS_ICON_SCALE, normalizeStatusIconScale(scale)).apply();
+        edit().putFloat(
+                KEY_STATUS_ICON_SCALE, normalizeStatusIconScale(scale)).commit();
     }
 
     public static float normalizeStatusIconScale(float scale) {
@@ -290,7 +276,7 @@ public class ClockPreferences {
     }
 
     public void setBlinkColon(boolean blinkColon) {
-        preferences.edit().putBoolean(KEY_BLINK_COLON, blinkColon).apply();
+        edit().putBoolean(KEY_BLINK_COLON, blinkColon).commit();
     }
 
     public boolean isAnimateTimeChanges() {
@@ -298,7 +284,7 @@ public class ClockPreferences {
     }
 
     public void setAnimateTimeChanges(boolean animate) {
-        preferences.edit().putBoolean(KEY_ANIMATE_TIME_CHANGES, animate).apply();
+        edit().putBoolean(KEY_ANIMATE_TIME_CHANGES, animate).commit();
     }
 
     public String getTimeTransition() {
@@ -307,8 +293,8 @@ public class ClockPreferences {
     }
 
     public void setTimeTransition(String transition) {
-        preferences.edit().putString(KEY_TIME_TRANSITION,
-                normalizeTimeTransition(transition)).apply();
+        edit().putString(KEY_TIME_TRANSITION,
+                normalizeTimeTransition(transition)).commit();
     }
 
     public boolean isHourlyChimeEnabled() {
@@ -316,7 +302,7 @@ public class ClockPreferences {
     }
 
     public void setHourlyChimeEnabled(boolean enabled) {
-        preferences.edit().putBoolean(KEY_HOURLY_CHIME, enabled).apply();
+        edit().putBoolean(KEY_HOURLY_CHIME, enabled).commit();
     }
 
     public boolean isHalfHourChimeEnabled() {
@@ -324,7 +310,7 @@ public class ClockPreferences {
     }
 
     public void setHalfHourChimeEnabled(boolean enabled) {
-        preferences.edit().putBoolean(KEY_HALF_HOUR_CHIME, enabled).apply();
+        edit().putBoolean(KEY_HALF_HOUR_CHIME, enabled).commit();
     }
 
     public boolean isHourlyChimeQuietEnabled() {
@@ -332,7 +318,7 @@ public class ClockPreferences {
     }
 
     public void setHourlyChimeQuietEnabled(boolean enabled) {
-        preferences.edit().putBoolean(KEY_HOURLY_CHIME_QUIET, enabled).apply();
+        edit().putBoolean(KEY_HOURLY_CHIME_QUIET, enabled).commit();
     }
 
     public int getHourlyChimeQuietStart() {
@@ -341,7 +327,7 @@ public class ClockPreferences {
     }
 
     public void setHourlyChimeQuietStart(int minutes) {
-        preferences.edit().putInt(KEY_HOURLY_CHIME_QUIET_START, minutes).apply();
+        edit().putInt(KEY_HOURLY_CHIME_QUIET_START, minutes).commit();
     }
 
     public int getHourlyChimeQuietEnd() {
@@ -350,7 +336,7 @@ public class ClockPreferences {
     }
 
     public void setHourlyChimeQuietEnd(int minutes) {
-        preferences.edit().putInt(KEY_HOURLY_CHIME_QUIET_END, minutes).apply();
+        edit().putInt(KEY_HOURLY_CHIME_QUIET_END, minutes).commit();
     }
 
     public static String normalizeTimeTransition(String transition) {
@@ -366,7 +352,7 @@ public class ClockPreferences {
     }
 
     public void setBoldText(boolean boldText) {
-        preferences.edit().putBoolean(KEY_BOLD_TEXT, boldText).apply();
+        edit().putBoolean(KEY_BOLD_TEXT, boldText).commit();
     }
 
     public String getFontFamily() {
@@ -374,7 +360,7 @@ public class ClockPreferences {
     }
 
     public void setFontFamily(String fontFamily) {
-        preferences.edit().putString(KEY_FONT_FAMILY, normalizeFontFamily(fontFamily)).apply();
+        edit().putString(KEY_FONT_FAMILY, normalizeFontFamily(fontFamily)).commit();
     }
 
     public static String normalizeFontFamily(String fontFamily) {
@@ -392,7 +378,7 @@ public class ClockPreferences {
     }
 
     public void setShowSeconds(boolean showSeconds) {
-        preferences.edit().putBoolean(KEY_SHOW_SECONDS, showSeconds).apply();
+        edit().putBoolean(KEY_SHOW_SECONDS, showSeconds).commit();
     }
 
     public boolean isShowLunar() {
@@ -400,7 +386,7 @@ public class ClockPreferences {
     }
 
     public void setShowLunar(boolean showLunar) {
-        preferences.edit().putBoolean(KEY_SHOW_LUNAR, showLunar).apply();
+        edit().putBoolean(KEY_SHOW_LUNAR, showLunar).commit();
     }
 
     public boolean isAutoStart() {
@@ -408,7 +394,7 @@ public class ClockPreferences {
     }
 
     public void setAutoStart(boolean autoStart) {
-        preferences.edit().putBoolean(KEY_AUTO_START, autoStart).apply();
+        edit().putBoolean(KEY_AUTO_START, autoStart).commit();
     }
 
     private static String calendarMotionKey(String themeId) {
@@ -424,8 +410,8 @@ public class ClockPreferences {
     public void setCalendarMarquee(String themeId, com.clockmods.sdk.style.MarqueeSpec value) {
         if (value == null) value = com.clockmods.sdk.style.MarqueeSpec.DEFAULT;
         String key = calendarMotionKey(themeId);
-        preferences.edit().putFloat(key + "_speed", value.speedDpPerSecond)
-                .putLong(key + "_pause", value.pauseMillis).putFloat(key + "_gap", value.gapDp).apply();
+        edit().putFloat(key + "_speed", value.speedDpPerSecond)
+                .putLong(key + "_pause", value.pauseMillis).putFloat(key + "_gap", value.gapDp).commit();
     }
 
     public int getCalendarWeekStart() {
@@ -434,8 +420,8 @@ public class ClockPreferences {
     }
 
     public void setCalendarWeekStart(int firstDayOfWeek) {
-        preferences.edit().putInt(KEY_CALENDAR_WEEK_START,
-                normalizeCalendarWeekStart(firstDayOfWeek)).apply();
+        edit().putInt(KEY_CALENDAR_WEEK_START,
+                normalizeCalendarWeekStart(firstDayOfWeek)).commit();
     }
 
     public boolean isCalendarHighlightWeekends() {
@@ -444,8 +430,8 @@ public class ClockPreferences {
     }
 
     public void setCalendarHighlightWeekends(boolean highlightWeekends) {
-        preferences.edit().putBoolean(KEY_CALENDAR_HIGHLIGHT_WEEKENDS,
-                highlightWeekends).apply();
+        edit().putBoolean(KEY_CALENDAR_HIGHLIGHT_WEEKENDS,
+                highlightWeekends).commit();
     }
 
     private static int normalizeCalendarWeekStart(int firstDayOfWeek) {
@@ -458,7 +444,7 @@ public class ClockPreferences {
     }
 
     public void setSmallSeconds(boolean smallSeconds) {
-        preferences.edit().putBoolean(KEY_SMALL_SECONDS, smallSeconds).apply();
+        edit().putBoolean(KEY_SMALL_SECONDS, smallSeconds).commit();
     }
 
     public boolean isPortraitStacked() {
@@ -466,7 +452,7 @@ public class ClockPreferences {
     }
 
     public void setPortraitStacked(boolean portraitStacked) {
-        preferences.edit().putBoolean(KEY_PORTRAIT_STACKED, portraitStacked).apply();
+        edit().putBoolean(KEY_PORTRAIT_STACKED, portraitStacked).commit();
     }
 
     /**
@@ -478,7 +464,7 @@ public class ClockPreferences {
     }
 
     public void setDateLunarDualLine(boolean dualLine) {
-        preferences.edit().putBoolean(KEY_DATE_LUNAR_DUAL_LINE, dualLine).apply();
+        edit().putBoolean(KEY_DATE_LUNAR_DUAL_LINE, dualLine).commit();
     }
 
     public boolean isUse24Hour() {
@@ -486,7 +472,7 @@ public class ClockPreferences {
     }
 
     public void setUse24Hour(boolean use24Hour) {
-        preferences.edit().putBoolean(KEY_USE_24_HOUR, use24Hour).apply();
+        edit().putBoolean(KEY_USE_24_HOUR, use24Hour).commit();
     }
 
     /**
@@ -505,11 +491,11 @@ public class ClockPreferences {
 
     public void setClockLanguage(String language) {
         String normalized = normalizeClockLanguage(language);
-        preferences.edit()
+        edit()
                 .putString(KEY_CLOCK_LANGUAGE, normalized)
                 // Keep the legacy boolean in sync for any code path still reading it.
                 .putBoolean(KEY_CLOCK_USE_ENGLISH, LANGUAGE_ENGLISH.equals(normalized))
-                .apply();
+                .commit();
     }
 
     private static String normalizeClockLanguage(String language) {
@@ -536,7 +522,7 @@ public class ClockPreferences {
     }
 
     public void setCustomMessage(String message) {
-        preferences.edit().putString(KEY_CUSTOM_MESSAGE, normalizeCustomMessage(message)).apply();
+        edit().putString(KEY_CUSTOM_MESSAGE, normalizeCustomMessage(message)).commit();
     }
 
     /** Trims whitespace and caps the length so a pasted blob cannot break the layout. */
@@ -559,8 +545,8 @@ public class ClockPreferences {
     }
 
     public void setDatePatternCn(String pattern) {
-        preferences.edit().putString(KEY_DATE_PATTERN_CN,
-                normalizeDatePattern(pattern, getDatePatternCn())).apply();
+        edit().putString(KEY_DATE_PATTERN_CN,
+                normalizeDatePattern(pattern, getDatePatternCn())).commit();
     }
 
     /** @return the full date pattern applied when the interface is English. */
@@ -571,8 +557,8 @@ public class ClockPreferences {
     }
 
     public void setDatePatternEn(String pattern) {
-        preferences.edit().putString(KEY_DATE_PATTERN_EN,
-                normalizeDatePattern(pattern, getDatePatternEn())).apply();
+        edit().putString(KEY_DATE_PATTERN_EN,
+                normalizeDatePattern(pattern, getDatePatternEn())).commit();
     }
 
     /** Falls back to {@code fallback} when {@code pattern} fails validation, guarding stored data. */
@@ -603,14 +589,14 @@ public class ClockPreferences {
     public void setDateFormatState(boolean english, String core, String combo,
             boolean customEnabled, String customText) {
         if (customEnabled && !DateFormatter.isValidPattern(customText == null ? null : customText.trim())) return;
-        preferences.edit()
+        edit()
                 .putString(english ? KEY_DATE_CORE_EN : KEY_DATE_CORE_CN, core == null ? "" : core)
                 .putString(english ? KEY_DATE_COMBO_EN : KEY_DATE_COMBO_CN, combo == null ? "" : combo)
                 .putBoolean(english ? KEY_DATE_CUSTOM_ENABLED_EN : KEY_DATE_CUSTOM_ENABLED_CN,
                         customEnabled)
                 .putString(english ? KEY_DATE_CUSTOM_TEXT_EN : KEY_DATE_CUSTOM_TEXT_CN,
                         customText == null ? "" : customText)
-                .apply();
+                .commit();
     }
 
     public int getScreenOrientation() {
@@ -625,16 +611,16 @@ public class ClockPreferences {
     }
 
     public void setScreenOrientation(int mode) {
-        preferences.edit().putInt(KEY_SCREEN_ORIENTATION, mode).apply();
+        edit().putInt(KEY_SCREEN_ORIENTATION, mode).commit();
     }
 
     /** Maps a screen-orientation mode to the matching {@link ActivityInfo} constant. */
     public static int toActivityInfoOrientation(int mode) {
         switch (mode) {
             case ORIENTATION_PORTRAIT:
-                return ActivityInfo.SCREEN_ORIENTATION_SENSOR_PORTRAIT;
+                return ActivityInfo.SCREEN_ORIENTATION_PORTRAIT;
             case ORIENTATION_LANDSCAPE:
-                return ActivityInfo.SCREEN_ORIENTATION_SENSOR_LANDSCAPE;
+                return ActivityInfo.SCREEN_ORIENTATION_LANDSCAPE;
             default:
                 return ActivityInfo.SCREEN_ORIENTATION_UNSPECIFIED;
         }
@@ -645,7 +631,7 @@ public class ClockPreferences {
     }
 
     public void setUseNetworkTime(boolean useNetworkTime) {
-        preferences.edit().putBoolean(KEY_USE_NETWORK_TIME, useNetworkTime).apply();
+        edit().putBoolean(KEY_USE_NETWORK_TIME, useNetworkTime).commit();
     }
 
     public int getSyncIntervalMinutes() {
@@ -653,7 +639,7 @@ public class ClockPreferences {
     }
 
     public void setSyncIntervalMinutes(int minutes) {
-        preferences.edit().putInt(KEY_SYNC_INTERVAL_MINUTES, minutes).apply();
+        edit().putInt(KEY_SYNC_INTERVAL_MINUTES, minutes).commit();
     }
 
     /** @return the selected time zone id, or {@link #TIME_ZONE_FOLLOW_SYSTEM} to follow the system. */
@@ -662,102 +648,12 @@ public class ClockPreferences {
     }
 
     public void setTimeZoneId(String timeZoneId) {
-        preferences.edit().putString(KEY_TIME_ZONE_ID, timeZoneId == null ? TIME_ZONE_FOLLOW_SYSTEM : timeZoneId).apply();
-    }
-
-    public boolean isWeatherEnabled() {
-        return preferences.getBoolean(KEY_WEATHER_ENABLED, DEFAULT_WEATHER_ENABLED);
-    }
-
-    public void setWeatherEnabled(boolean enabled) {
-        preferences.edit().putBoolean(KEY_WEATHER_ENABLED, enabled).apply();
-    }
-
-    public boolean isWeatherDetailed() {
-        return preferences.getBoolean(KEY_WEATHER_DETAILED, DEFAULT_WEATHER_DETAILED);
-    }
-
-    public void setWeatherDetailed(boolean detailed) {
-        preferences.edit().putBoolean(KEY_WEATHER_DETAILED, detailed).apply();
-    }
-
-    public boolean isWeatherIconFill() {
-        return preferences.getBoolean(KEY_WEATHER_ICON_FILL, DEFAULT_WEATHER_ICON_FILL);
-    }
-
-    public void setWeatherIconFill(boolean fill) {
-        preferences.edit().putBoolean(KEY_WEATHER_ICON_FILL, fill).apply();
-    }
-
-    public boolean isWeatherIconDynamicColor() {
-        return preferences.getBoolean(KEY_WEATHER_ICON_DYNAMIC_COLOR, DEFAULT_WEATHER_ICON_DYNAMIC_COLOR);
-    }
-
-    public void setWeatherIconDynamicColor(boolean dynamicColor) {
-        preferences.edit().putBoolean(KEY_WEATHER_ICON_DYNAMIC_COLOR, dynamicColor).apply();
-    }
-
-    public int getWeatherIntervalMinutes() {
-        int value = preferences.getInt(KEY_WEATHER_INTERVAL_MINUTES, DEFAULT_WEATHER_INTERVAL_MINUTES);
-        return isValidWeatherInterval(value) ? value : DEFAULT_WEATHER_INTERVAL_MINUTES;
-    }
-
-    public void setWeatherIntervalMinutes(int minutes) {
-        preferences.edit().putInt(KEY_WEATHER_INTERVAL_MINUTES,
-                isValidWeatherInterval(minutes) ? minutes : DEFAULT_WEATHER_INTERVAL_MINUTES).apply();
-    }
-
-    public static boolean isValidWeatherInterval(int minutes) {
-        return minutes == 10 || minutes == 30 || minutes == 60 || minutes == 180
-                || minutes == 360 || minutes == 720;
-    }
-
-    public String getWeatherLocationMode() {
-        String mode = preferences.getString(KEY_WEATHER_LOCATION_MODE, DEFAULT_WEATHER_LOCATION_MODE);
-        return WEATHER_LOCATION_MANUAL.equals(mode) && getWeatherLocationId().length() > 0
-                ? WEATHER_LOCATION_MANUAL : WEATHER_LOCATION_AUTOMATIC;
-    }
-
-    public void setWeatherLocationMode(String mode) {
-        preferences.edit().putString(KEY_WEATHER_LOCATION_MODE,
-                WEATHER_LOCATION_MANUAL.equals(mode) ? WEATHER_LOCATION_MANUAL
-                        : WEATHER_LOCATION_AUTOMATIC).apply();
-    }
-
-    public String getWeatherLocationId() { return preferences.getString(KEY_WEATHER_LOCATION_ID, ""); }
-    public String getWeatherProvince() { return preferences.getString(KEY_WEATHER_PROVINCE, ""); }
-    public String getWeatherCity() { return preferences.getString(KEY_WEATHER_CITY, ""); }
-    public String getWeatherDistrict() { return preferences.getString(KEY_WEATHER_DISTRICT, ""); }
-
-    public double getWeatherLatitude() {
-        return Double.longBitsToDouble(preferences.getLong(KEY_WEATHER_LATITUDE,
-                Double.doubleToRawLongBits(Double.NaN)));
-    }
-
-    public double getWeatherLongitude() {
-        return Double.longBitsToDouble(preferences.getLong(KEY_WEATHER_LONGITUDE,
-                Double.doubleToRawLongBits(Double.NaN)));
-    }
-
-    public void setManualWeatherLocation(String locationId, String province, String city, String district) {
-        setManualWeatherLocation(locationId, province, city, district, Double.NaN, Double.NaN);
-    }
-
-    public void setManualWeatherLocation(String locationId, String province, String city,
-            String district, double latitude, double longitude) {
-        preferences.edit()
-                .putString(KEY_WEATHER_LOCATION_ID, locationId == null ? "" : locationId)
-                .putString(KEY_WEATHER_PROVINCE, province == null ? "" : province)
-                .putString(KEY_WEATHER_CITY, city == null ? "" : city)
-                .putString(KEY_WEATHER_DISTRICT, district == null ? "" : district)
-                .putLong(KEY_WEATHER_LATITUDE, Double.doubleToRawLongBits(latitude))
-                .putLong(KEY_WEATHER_LONGITUDE, Double.doubleToRawLongBits(longitude))
-                .apply();
+        edit().putString(KEY_TIME_ZONE_ID, timeZoneId == null ? TIME_ZONE_FOLLOW_SYSTEM : timeZoneId).commit();
     }
 
     /** Restores all user-configurable settings to their defaults. */
     public void restoreDefaults() {
-        SharedPreferences.Editor editor = preferences.edit();
+        SharedPreferences.Editor editor = edit();
         for (String key : preferences.getAll().keySet()) {
             if (key.startsWith("calendar_marquee__")) editor.remove(key);
         }
@@ -812,19 +708,7 @@ public class ClockPreferences {
                 .putInt(KEY_SYNC_INTERVAL_MINUTES, DEFAULT_SYNC_INTERVAL_MINUTES)
                 .putString(KEY_TIME_ZONE_ID, DEFAULT_TIME_ZONE_ID)
                 .remove(KEY_FORCE_LANDSCAPE)
-                .putBoolean(KEY_WEATHER_ENABLED, DEFAULT_WEATHER_ENABLED)
-                .putBoolean(KEY_WEATHER_DETAILED, DEFAULT_WEATHER_DETAILED)
-                .putBoolean(KEY_WEATHER_ICON_FILL, DEFAULT_WEATHER_ICON_FILL)
-                .putBoolean(KEY_WEATHER_ICON_DYNAMIC_COLOR, DEFAULT_WEATHER_ICON_DYNAMIC_COLOR)
-                .putInt(KEY_WEATHER_INTERVAL_MINUTES, DEFAULT_WEATHER_INTERVAL_MINUTES)
-                .putString(KEY_WEATHER_LOCATION_MODE, DEFAULT_WEATHER_LOCATION_MODE)
-                .remove(KEY_WEATHER_LOCATION_ID)
-                .remove(KEY_WEATHER_PROVINCE)
-                .remove(KEY_WEATHER_CITY)
-                .remove(KEY_WEATHER_DISTRICT)
-                .remove(KEY_WEATHER_LATITUDE)
-                .remove(KEY_WEATHER_LONGITUDE)
-                .apply();
+                .commit();
     }
 
     private static float clampScale(float scale) {

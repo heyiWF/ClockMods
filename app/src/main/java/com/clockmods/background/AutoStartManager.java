@@ -1,5 +1,6 @@
 package com.clockmods.background;
 
+import android.annotation.SuppressLint;
 import android.app.Activity;
 import android.content.ComponentName;
 import android.content.Context;
@@ -7,6 +8,8 @@ import android.content.ContextWrapper;
 import android.content.Intent;
 import android.content.pm.PackageManager;
 import android.os.Build;
+
+import com.clockmods.platform.ApiCompat;
 import android.provider.Settings;
 
 /**
@@ -19,12 +22,14 @@ import android.provider.Settings;
  * Turning the toggle off disables the alias and the device falls back to its normal launcher.
  *
  * <p>Uses framework APIs only (no AppCompat/Material) so it compiles for every flavor, including
- * the API-14 {@code compat} build; the API 29 {@link android.app.role.RoleManager} reference is
- * isolated in a nested class that is only loaded on Android 10+.
+ * the API 1 {@code compat} build; the Android 10 role-manager API is reached reflectively so the
+ * class is never linked on older runtimes or older compile SDKs.
  */
 public final class AutoStartManager {
     /** Fully-qualified (namespace-based) name of the HOME alias declared in the manifest. */
     private static final String HOME_ALIAS = "com.clockmods.HomeLauncherAlias";
+    /** Build.VERSION_CODES.Q is not defined by compileSdk 28, so use its numeric value. */
+    private static final int ANDROID_Q = 29;
 
     private AutoStartManager() {
     }
@@ -51,10 +56,10 @@ public final class AutoStartManager {
     public static void requestHomeRole(Context context) {
         try {
             Intent intent = null;
-            if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.Q) {
+            if (ApiCompat.SDK_INT >= ANDROID_Q) {
                 intent = HomeRoleRequester.createRequestIntent(context);
             }
-            if (intent == null && Build.VERSION.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
+            if (intent == null && ApiCompat.SDK_INT >= Build.VERSION_CODES.LOLLIPOP) {
                 intent = new Intent(Settings.ACTION_HOME_SETTINGS);
             }
             if (intent == null) {
@@ -83,20 +88,37 @@ public final class AutoStartManager {
         return null;
     }
 
-    /** Isolates the API 29 {@code RoleManager} reference so it is never loaded on older runtimes. */
+    /**
+     * Reflective access to the Android 10 role manager. The API 29 classes are never linked
+     * on older runtimes, and the code also compiles against compileSdk 28.
+     */
     private static final class HomeRoleRequester {
+        @SuppressLint("WrongConstant") // Context.ROLE_SERVICE was added after compileSdk 28.
         static Intent createRequestIntent(Context context) {
-            if (Build.VERSION.SDK_INT < Build.VERSION_CODES.Q) {
+            if (ApiCompat.SDK_INT < ANDROID_Q) {
                 return null;
             }
-            android.app.role.RoleManager roleManager =
-                    (android.app.role.RoleManager) context.getSystemService(Context.ROLE_SERVICE);
-            if (roleManager == null
-                    || !roleManager.isRoleAvailable(android.app.role.RoleManager.ROLE_HOME)
-                    || roleManager.isRoleHeld(android.app.role.RoleManager.ROLE_HOME)) {
+            try {
+                Object roleManager = context.getSystemService("role");
+                if (roleManager == null) {
+                    return null;
+                }
+                Class<?> type = roleManager.getClass();
+                String roleHome = (String) type.getField("ROLE_HOME").get(null);
+                boolean available = Boolean.TRUE.equals(
+                        type.getMethod("isRoleAvailable", String.class)
+                                .invoke(roleManager, roleHome));
+                boolean held = Boolean.TRUE.equals(
+                        type.getMethod("isRoleHeld", String.class)
+                                .invoke(roleManager, roleHome));
+                if (!available || held) {
+                    return null;
+                }
+                return (Intent) type.getMethod("createRequestRoleIntent", String.class)
+                        .invoke(roleManager, roleHome);
+            } catch (Throwable ignored) {
                 return null;
             }
-            return roleManager.createRequestRoleIntent(android.app.role.RoleManager.ROLE_HOME);
         }
     }
 }

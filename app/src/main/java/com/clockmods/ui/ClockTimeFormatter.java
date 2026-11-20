@@ -3,6 +3,16 @@ package com.clockmods.ui;
 import java.util.Locale;
 
 public final class ClockTimeFormatter {
+    // String.format allocates a Formatter and several buffers per call; the clock calls
+    // this several times on every animation frame. Hours/minutes/seconds are 0..59, so
+    // precompute the strings once instead.
+    private static final String[] TWO_DIGITS = new String[60];
+    static {
+        for (int i = 0; i < TWO_DIGITS.length; i++) {
+            TWO_DIGITS[i] = i < 10 ? "0" + i : Integer.toString(i);
+        }
+    }
+
     private ClockTimeFormatter() {
     }
 
@@ -47,8 +57,10 @@ public final class ClockTimeFormatter {
         return hour < 12 ? "上午" : "下午";
     }
 
-    private static String twoDigits(int value) {
-        return String.format(Locale.CHINA, "%02d", value);
+    static String twoDigits(int value) {
+        return value >= 0 && value < TWO_DIGITS.length
+                ? TWO_DIGITS[value]
+                : String.format(Locale.CHINA, "%02d", value);
     }
 
     public static final class DisplayTime {

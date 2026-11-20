@@ -10,10 +10,8 @@ import android.net.ConnectivityManager;
 import android.net.NetworkInfo;
 import android.net.wifi.WifiManager;
 import android.os.BatteryManager;
-import android.os.Build;
-import android.telephony.PhoneStateListener;
-import android.telephony.SignalStrength;
-import android.telephony.TelephonyManager;
+
+import com.clockmods.platform.ApiCompat;
 import android.util.AttributeSet;
 import android.view.View;
 
@@ -48,20 +46,7 @@ public class StatusBarView extends View {
     private boolean contentAlignedStart;
 
     private boolean receiverRegistered;
-    private TelephonyManager telephonyManager;
-
-    private final PhoneStateListener phoneStateListener = new PhoneStateListener() {
-        @Override
-        public void onSignalStrengthsChanged(SignalStrength strength) {
-            super.onSignalStrengthsChanged(strength);
-            mobileSignalStrength = mobileSignalLevel(strength);
-            if (networkState == NetworkState.MOBILE) {
-                signalStrength = mobileSignalStrength;
-                updateAccessibilityDescription();
-                invalidate();
-            }
-        }
-    };
+    private Object mobileSignalMonitor;
 
     private final BroadcastReceiver batteryReceiver = new BroadcastReceiver() {
         @Override
@@ -143,22 +128,25 @@ public class StatusBarView extends View {
         receiverRegistered = false;
     }
 
-    @SuppressWarnings("deprecation")
     private void registerPhoneStateListener() {
-        telephonyManager = (TelephonyManager) getContext().getSystemService(Context.TELEPHONY_SERVICE);
-        if (telephonyManager == null) return;
-        try {
-            telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_SIGNAL_STRENGTHS);
-        } catch (SecurityException ignored) {
-            telephonyManager = null;
-        }
+        // SignalStrength is API 7; ApiCompat loads the listener only on those devices.
+        mobileSignalMonitor = ApiCompat.startMobileSignalMonitor(getContext(),
+                new ApiCompat.IntCallback() {
+                    @Override
+                    public void onLevel(int level) {
+                        mobileSignalStrength = level;
+                        if (networkState == NetworkState.MOBILE) {
+                            signalStrength = mobileSignalStrength;
+                            updateAccessibilityDescription();
+                            invalidate();
+                        }
+                    }
+                });
     }
 
-    @SuppressWarnings("deprecation")
     private void unregisterPhoneStateListener() {
-        if (telephonyManager == null) return;
-        telephonyManager.listen(phoneStateListener, PhoneStateListener.LISTEN_NONE);
-        telephonyManager = null;
+        ApiCompat.stopMobileSignalMonitor(mobileSignalMonitor);
+        mobileSignalMonitor = null;
     }
 
     private void updateBatteryFromIntent(Intent intent) {
@@ -218,7 +206,8 @@ public class StatusBarView extends View {
                 ? getContext().getString(batteryCharging
                         ? R.string.status_battery_charging : R.string.status_battery, batteryLevel)
                 : getContext().getString(R.string.status_battery_unknown);
-        setContentDescription(getContext().getString(
+        com.clockmods.platform.ApiCompat.setContentDescriptionCompat(this,
+                getContext().getString(
                 R.string.status_network_and_battery, network, battery));
     }
 
@@ -232,9 +221,20 @@ public class StatusBarView extends View {
         if (rssi == INVALID_RSSI) {
             return 0;
         }
-        if (Build.VERSION.SDK_INT >= 30) {
-            return normalizeSignalLevel(
-                    wifiManager.calculateSignalLevel(rssi), wifiManager.getMaxSignalLevel());
+        if (ApiCompat.SDK_INT >= 30) {
+            // The one-argument overload and getMaxSignalLevel() were added in API 30;
+            // reach them reflectively so this source also compiles against SDK 28.
+            try {
+                java.lang.reflect.Method calculate =
+                        WifiManager.class.getMethod("calculateSignalLevel", int.class);
+                java.lang.reflect.Method maximum =
+                        WifiManager.class.getMethod("getMaxSignalLevel");
+                int level = (Integer) calculate.invoke(wifiManager, rssi);
+                int maxLevel = (Integer) maximum.invoke(wifiManager);
+                return normalizeSignalLevel(level, maxLevel);
+            } catch (Throwable ignored) {
+                // Fall back to the API 1 static helper below.
+            }
         }
         return WifiManager.calculateSignalLevel(rssi, 5); // 0..4
     }
@@ -245,21 +245,23 @@ public class StatusBarView extends View {
         return Math.round(clamped * 4f / maxLevel);
     }
 
-    @SuppressWarnings("deprecation")
-    static int mobileSignalLevel(SignalStrength strength) {
+    static int mobileSignalLevel(Object strength) {
         if (strength == null) return 0;
-        if (Build.VERSION.SDK_INT >= 23) {
-            return Math.max(0, Math.min(4, strength.getLevel()));
+        if (ApiCompat.SDK_INT >= 23) {
+            int level = ApiCompat.signalStrengthLevel(strength);
+            if (level >= 0) {
+                return Math.max(0, Math.min(4, level));
+            }
         }
-        if (strength.isGsm()) {
-            int asu = strength.getGsmSignalStrength();
+        if (ApiCompat.signalStrengthIsGsm(strength)) {
+            int asu = ApiCompat.signalStrengthGsmAsu(strength);
             if (asu == 99 || asu <= 2) return 0;
             if (asu >= 20) return 4;
             if (asu >= 13) return 3;
             if (asu >= 8) return 2;
             return 1;
         }
-        int dbm = strength.getCdmaDbm();
+        int dbm = ApiCompat.signalStrengthCdmaDbm(strength);
         if (dbm >= -75) return 4;
         if (dbm >= -85) return 3;
         if (dbm >= -95) return 2;

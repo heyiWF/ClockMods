@@ -81,7 +81,7 @@ public final class ClockTimeText {
 
     /** Draw numeric positions in equal-width slots for proportional typefaces. */
     public static void drawStable(Canvas canvas, String text, float x, float baseline, Paint paint) {
-        if (text == null || text.isEmpty()) return;
+        if (com.clockmods.platform.ApiCompat.isEmpty(text)) return;
         Paint.Align align = paint.getTextAlign();
         float cursor = align == Paint.Align.CENTER ? x - stableWidth(text, paint) / 2f
                 : align == Paint.Align.RIGHT ? x - stableWidth(text, paint) : x;

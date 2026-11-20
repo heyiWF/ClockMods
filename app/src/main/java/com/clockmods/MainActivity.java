@@ -7,50 +7,44 @@ import android.content.Context;
 import android.content.Intent;
 import android.content.IntentFilter;
 import android.net.Uri;
-import android.Manifest;
-import android.content.pm.PackageManager;
-import android.os.Build;
 import android.os.Bundle;
 import android.view.GestureDetector;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.WindowInsets;
-import android.view.WindowInsetsController;
 import android.view.WindowManager;
-import android.view.accessibility.AccessibilityNodeInfo;
 import android.widget.Toast;
-import android.widget.TextView;
 
 import com.clockmods.background.BackgroundRepository;
 import com.clockmods.background.ClockPreferences;
+import com.clockmods.platform.ApiCompat;
 import com.clockmods.platform.ExperienceBridge;
 import com.clockmods.ui.ClockView;
 import com.clockmods.ui.SettingsDialog;
 import com.clockmods.ui.StatusBarView;
-import com.clockmods.weather.WeatherController;
-import com.clockmods.weather.WeatherModels.WeatherState;
 
 import java.io.IOException;
 import java.io.InputStream;
+import java.lang.reflect.Method;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class MainActivity extends Activity {
     private static final int REQUEST_IMAGE = 1001;
-    private static final int REQUEST_LOCATION = 1002;
 
     private SettingsDialog settingsDialog;
     private ClockView clockView;
     private StatusBarView statusBarView;
     private BackgroundRepository backgroundRepository;
-    private View weatherAttribution;
-    private WeatherController weatherController;
-    private boolean locationPermissionRequested;
     private final ExecutorService imageExecutor = Executors.newSingleThreadExecutor();
     private boolean timeReceiverRegistered;
     private final BroadcastReceiver timeReceiver = new BroadcastReceiver() {
         @Override
         public void onReceive(Context context, Intent intent) {
+            // The clock view caches the resolved zone, so a system zone change has to
+            // drop that cache explicitly before the repaint.
+            if (Intent.ACTION_TIMEZONE_CHANGED.equals(intent.getAction())) {
+                clockView.invalidateTimeZone();
+            }
             clockView.invalidate();
         }
     };
@@ -63,7 +57,6 @@ public class MainActivity extends Activity {
     @SuppressLint("ClickableViewAccessibility")
     @Override
     protected void onCreate(Bundle savedInstanceState) {
-        ExperienceBridge.applyThemeFeatures(this);
         super.onCreate(savedInstanceState);
         applyScreenOrientation();
         enableEdgeToEdgeCompat();
@@ -72,21 +65,12 @@ public class MainActivity extends Activity {
 
         clockView = findViewById(R.id.clock_view);
         statusBarView = findViewById(R.id.status_bar_view);
-        weatherAttribution = findViewById(R.id.weather_attribution);
         backgroundRepository = new BackgroundRepository(this);
-        weatherController = new WeatherController(this, new WeatherController.Listener() {
-            @Override public void onWeatherState(WeatherState state) { clockView.setWeatherState(state); }
-        });
         clockView.setBackgroundRepository(backgroundRepository);
         statusBarView.setBackgroundRepository(backgroundRepository);
         applyStatusIconVisibility();
-        applyWeatherEnabled();
-        weatherAttribution.setOnClickListener(new View.OnClickListener() {
-            @Override public void onClick(View view) {
-                startActivity(new Intent(Intent.ACTION_VIEW, Uri.parse("https://www.qweather.com")));
-            }
-        });
-        GestureDetector settingsGestureDetector = new GestureDetector(this,
+
+        GestureDetector settingsGestureDetector = ApiCompat.newGestureDetector(this,
                 new GestureDetector.SimpleOnGestureListener() {
             @Override
             public boolean onDown(MotionEvent event) {
@@ -99,24 +83,21 @@ public class MainActivity extends Activity {
                 return true;
             }
         });
-        clockView.setOnTouchListener((view, event) ->
-                settingsGestureDetector.onTouchEvent(event));
-        clockView.setContentDescription(getString(R.string.open_settings_accessibility));
-        clockView.setAccessibilityDelegate(new View.AccessibilityDelegate() {
+        // Double tap needs API 3; on Android 1.0 the single-tap listener below is the only entry.
+        if (ApiCompat.SDK_INT >= 3) {
+            clockView.setOnTouchListener((view, event) ->
+                    settingsGestureDetector.onTouchEvent(event));
+        }
+        // On API 1-13 the accessibility delegate is unavailable; a plain click
+        // listener keeps the "tap the clock to open settings" entry point alive.
+        clockView.setOnClickListener(view -> showSettings());
+        ApiCompat.setContentDescriptionCompat(
+                clockView, getString(R.string.open_settings_accessibility));
+        // The delegate lives in AccessibilityCompat so Android 1.0 never links API 14 types.
+        ApiCompat.installAccessibilityDelegate(clockView, new Runnable() {
             @Override
-            public void onInitializeAccessibilityNodeInfo(View host, AccessibilityNodeInfo info) {
-                super.onInitializeAccessibilityNodeInfo(host, info);
-                info.setClickable(true);
-                info.addAction(AccessibilityNodeInfo.ACTION_CLICK);
-            }
-
-            @Override
-            public boolean performAccessibilityAction(View host, int action, Bundle arguments) {
-                if (action == AccessibilityNodeInfo.ACTION_CLICK) {
-                    showSettings();
-                    return true;
-                }
-                return super.performAccessibilityAction(host, action, arguments);
+            public void run() {
+                showSettings();
             }
         });
     }
@@ -128,7 +109,6 @@ public class MainActivity extends Activity {
         clockView.start();
         statusBarView.start();
         registerTimeReceiver();
-        startWeatherIfEnabled();
     }
 
     @Override
@@ -136,7 +116,6 @@ public class MainActivity extends Activity {
         clockView.stop();
         statusBarView.stop();
         unregisterTimeReceiver();
-        weatherController.stop();
         super.onPause();
     }
 
@@ -148,7 +127,6 @@ public class MainActivity extends Activity {
             settingsDialog = null;
         }
         imageExecutor.shutdownNow();
-        weatherController.shutdown();
         super.onDestroy();
     }
 
@@ -189,8 +167,6 @@ public class MainActivity extends Activity {
                 clockView.invalidate();
                 applyStatusIconVisibility();
                 statusBarView.invalidate();
-                applyWeatherEnabled();
-                startWeatherIfEnabled();
             }
 
             @Override
@@ -201,7 +177,7 @@ public class MainActivity extends Activity {
 
             @Override
             public void onLanguageChanged() {
-                recreate();
+                ApiCompat.recreate(MainActivity.this);
             }
         });
         settingsDialog.show();
@@ -217,48 +193,6 @@ public class MainActivity extends Activity {
                 backgroundRepository.isShowStatusIcons() ? View.VISIBLE : View.GONE);
     }
 
-    private void applyWeatherEnabled() {
-        boolean enabled = backgroundRepository.isWeatherEnabled();
-        weatherAttribution.setVisibility(enabled ? View.VISIBLE : View.GONE);
-        if (!enabled) {
-            weatherController.stop();
-            clockView.setWeatherState(null);
-        }
-    }
-
-    private void startWeatherIfEnabled() {
-        if (!backgroundRepository.isWeatherEnabled()) return;
-        boolean automatic = ClockPreferences.WEATHER_LOCATION_AUTOMATIC.equals(
-            backgroundRepository.getWeatherLocationMode());
-        if (automatic && Build.VERSION.SDK_INT >= 23
-            && checkSelfPermission(Manifest.permission.ACCESS_COARSE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED
-                && checkSelfPermission(Manifest.permission.ACCESS_FINE_LOCATION)
-                != PackageManager.PERMISSION_GRANTED) {
-            weatherController.stop();
-            if (locationPermissionRequested) {
-                clockView.setWeatherMessage(getString(R.string.weather_permission_denied));
-                return;
-            }
-            locationPermissionRequested = true;
-            requestPermissions(new String[] {Manifest.permission.ACCESS_COARSE_LOCATION,
-                    Manifest.permission.ACCESS_FINE_LOCATION}, REQUEST_LOCATION);
-            clockView.setWeatherMessage(getString(R.string.weather_waiting_permission));
-            return;
-        }
-        weatherController.start(backgroundRepository.getWeatherIntervalMinutes());
-    }
-
-    @Override
-    public void onRequestPermissionsResult(int requestCode, String[] permissions, int[] grantResults) {
-        super.onRequestPermissionsResult(requestCode, permissions, grantResults);
-        if (requestCode != REQUEST_LOCATION) return;
-        boolean granted = false;
-        for (int result : grantResults) if (result == PackageManager.PERMISSION_GRANTED) granted = true;
-        if (granted) weatherController.start(backgroundRepository.getWeatherIntervalMinutes());
-        else clockView.setWeatherMessage(getString(R.string.weather_permission_denied));
-    }
-
     private void launchImagePicker() {
         startActivityForResult(ExperienceBridge.createImagePickerIntent(), REQUEST_IMAGE);
     }
@@ -268,7 +202,9 @@ public class MainActivity extends Activity {
             @Override
             public void run() {
                 boolean success = false;
-                try (InputStream inputStream = getContentResolver().openInputStream(uri)) {
+                InputStream inputStream = null;
+                try {
+                    inputStream = getContentResolver().openInputStream(uri);
                     if (inputStream != null) {
                         int displayLongSide = Math.max(
                             getResources().getDisplayMetrics().widthPixels,
@@ -278,12 +214,14 @@ public class MainActivity extends Activity {
                     }
                 } catch (IOException | SecurityException ignored) {
                     success = false;
+                } finally {
+                    ApiCompat.closeQuietly(inputStream);
                 }
                 final boolean imported = success;
                 runOnUiThread(new Runnable() {
                     @Override
                     public void run() {
-                        if (isFinishing() || (Build.VERSION.SDK_INT >= 17 && isDestroyed())) return;
+                        if (isFinishing() || ApiCompat.isDestroyed(MainActivity.this)) return;
                         Toast.makeText(MainActivity.this,
                                 imported ? R.string.image_saved : R.string.image_error,
                                 Toast.LENGTH_SHORT).show();
@@ -318,10 +256,8 @@ public class MainActivity extends Activity {
     }
 
     private void enableEdgeToEdgeCompat() {
-        if (Build.VERSION.SDK_INT >= 30) {
-            getWindow().setDecorFitsSystemWindows(false);
-        } else if (Build.VERSION.SDK_INT >= 21) {
-            getWindow().getDecorView().setSystemUiVisibility(
+        if (ApiCompat.SDK_INT >= 21 && ApiCompat.hasSystemUiVisibility()) {
+            ApiCompat.setSystemUiVisibility(getWindow().getDecorView(),
                     View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                             | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                             | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN);
@@ -333,30 +269,55 @@ public class MainActivity extends Activity {
             showSystemBars();
             return;
         }
-        View decorView = getWindow().getDecorView();
-        if (Build.VERSION.SDK_INT >= 30) {
-            WindowInsetsController controller = getWindow().getInsetsController();
-            if (controller != null) {
-                controller.setSystemBarsBehavior(WindowInsetsController.BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE);
-                controller.hide(WindowInsets.Type.systemBars());
-            }
+        if (ApiCompat.SDK_INT >= 30 && hideSystemBarsApi30()) {
             return;
         }
-        if (Build.VERSION.SDK_INT >= 19) {
-            hideSystemBarsKitKat(decorView);
-        } else if (Build.VERSION.SDK_INT >= 16) {
-            hideSystemBarsJellyBean(decorView);
+        if (ApiCompat.SDK_INT >= 19) {
+            hideSystemBarsKitKat(getWindow().getDecorView());
+        } else if (ApiCompat.SDK_INT >= 16) {
+            hideSystemBarsJellyBean(getWindow().getDecorView());
         } else {
+            // API 1-15: only FLAG_FULLSCREEN is available; never call
+            // View.setSystemUiVisibility (introduced in API 14).
             getWindow().setFlags(
                     WindowManager.LayoutParams.FLAG_FULLSCREEN,
                     WindowManager.LayoutParams.FLAG_FULLSCREEN);
-            decorView.setSystemUiVisibility(View.SYSTEM_UI_FLAG_LOW_PROFILE);
+        }
+    }
+
+    /**
+     * Reflective {@code WindowInsetsController} access keeps the API 30 class out of
+     * the verifier's field/method resolution on older devices.
+     */
+    @SuppressWarnings("unchecked")
+    private boolean hideSystemBarsApi30() {
+        try {
+            Method getInsetsController = WindowManager.class.getMethod("getInsetsController");
+            Object controller = getInsetsController.invoke(getWindow());
+            if (controller == null) {
+                return false;
+            }
+            Class<?> controllerClass = controller.getClass();
+            Method setBehavior = controllerClass.getMethod(
+                    "setSystemBarsBehavior", int.class);
+            Method hide = controllerClass.getMethod("hide", int.class);
+            Class<?> windowInsetsType = Class.forName("android.view.WindowInsets$Type");
+            int systemBars = ((Number) windowInsetsType.getMethod("systemBars")
+                    .invoke(null)).intValue();
+            int behaviorSwipe = ((Number) controllerClass
+                    .getField("BEHAVIOR_SHOW_TRANSIENT_BARS_BY_SWIPE").get(null)).intValue();
+            setBehavior.invoke(controller, behaviorSwipe);
+            hide.invoke(controller, systemBars);
+            return true;
+        } catch (Throwable ignored) {
+            return false;
         }
     }
 
     @SuppressLint("InlinedApi")
     private static void hideSystemBarsKitKat(View decorView) {
-        decorView.setSystemUiVisibility(
+        if (!ApiCompat.hasSystemUiVisibility()) return;
+        ApiCompat.setSystemUiVisibility(decorView,
                 View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                         | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                         | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
@@ -367,7 +328,8 @@ public class MainActivity extends Activity {
 
     @SuppressLint("InlinedApi")
     private static void hideSystemBarsJellyBean(View decorView) {
-        decorView.setSystemUiVisibility(
+        if (!ApiCompat.hasSystemUiVisibility()) return;
+        ApiCompat.setSystemUiVisibility(decorView,
                 View.SYSTEM_UI_FLAG_LAYOUT_STABLE
                         | View.SYSTEM_UI_FLAG_LAYOUT_HIDE_NAVIGATION
                         | View.SYSTEM_UI_FLAG_LAYOUT_FULLSCREEN
@@ -376,13 +338,31 @@ public class MainActivity extends Activity {
     }
 
     private void showSystemBars() {
-        if (Build.VERSION.SDK_INT >= 30) {
-            WindowInsetsController controller = getWindow().getInsetsController();
-            if (controller != null) {
-                controller.show(WindowInsets.Type.systemBars());
+        if (ApiCompat.SDK_INT >= 30 && showSystemBarsApi30()) {
+            return;
+        }
+        if (ApiCompat.hasSystemUiVisibility()) {
+            ApiCompat.setSystemUiVisibility(getWindow().getDecorView(),
+                    View.SYSTEM_UI_FLAG_VISIBLE);
+        }
+    }
+
+    /** Mirrors {@link #hideSystemBarsApi30()} for the restore path. */
+    @SuppressWarnings("unchecked")
+    private boolean showSystemBarsApi30() {
+        try {
+            Object controller = WindowManager.class.getMethod("getInsetsController")
+                    .invoke(getWindow());
+            if (controller == null) {
+                return false;
             }
-        } else {
-            getWindow().getDecorView().setSystemUiVisibility(View.SYSTEM_UI_FLAG_VISIBLE);
+            Class<?> windowInsetsType = Class.forName("android.view.WindowInsets$Type");
+            int systemBars = ((Number) windowInsetsType.getMethod("systemBars")
+                    .invoke(null)).intValue();
+            controller.getClass().getMethod("show", int.class).invoke(controller, systemBars);
+            return true;
+        } catch (Throwable ignored) {
+            return false;
         }
     }
 }

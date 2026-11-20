@@ -1,5 +1,3 @@
-.qweather.properties
-qweather.properties
 # Gradle local caches and generated build output
 # Includes .gradle/user-home, .gradle/android-user-home and .gradle/api-check.
 .gradle/
@@ -46,6 +44,7 @@ captures/
 *.dex
 *.keystore
 *.jks
+__pycache__/
 
 # Native build outputs
 obj/

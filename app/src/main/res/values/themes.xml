@@ -1,5 +1,9 @@
 <resources>
-    <style name="Theme.ClockMods" parent="android:style/Theme.Holo.NoActionBar">
+    <!--
+        Base theme for API 1-10: Theme.Holo (API 11) does not exist there and
+        would crash on startup. The Holo definition lives in values-v11/.
+    -->
+    <style name="Theme.ClockMods" parent="android:style/Theme.Black.NoTitleBar.Fullscreen">
         <item name="android:windowBackground">@color/clock_default_background</item>
         <item name="android:windowFullscreen">true</item>
         <item name="android:windowContentOverlay">@null</item>

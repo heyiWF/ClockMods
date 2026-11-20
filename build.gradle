@@ -1,3 +1,17 @@
-plugins {
-    id 'com.android.application' version '9.2.1' apply false
+// Keep the Android 1.0 packaging toolchain pinned to AGP 3.6.3 and Gradle 6.1.1.
+buildscript {
+    repositories {
+        google()
+        mavenCentral()
+    }
+    dependencies {
+        classpath 'com.android.tools.build:gradle:3.6.3'
+    }
+}
+
+allprojects {
+    repositories {
+        google()
+        mavenCentral()
+    }
 }

@@ -18,30 +18,26 @@ import android.util.AttributeSet;
 import android.view.View;
 
 import com.clockmods.LocaleManager;
-import com.clockmods.platform.ExperienceBridge;
+import com.clockmods.platform.ApiCompat;
 import com.clockmods.background.BackgroundRepository;
 import com.clockmods.background.BackgroundDimSchedule;
 import com.clockmods.background.ClockPreferences;
 import com.clockmods.calendar.LunarCalendar;
 import com.clockmods.time.NetworkTimeProvider;
-import com.clockmods.weather.WeatherModels;
-import com.clockmods.weather.WeatherModels.WeatherState;
 
 import java.io.IOException;
 import java.util.Calendar;
-import java.util.Locale;
 import java.util.concurrent.ExecutorService;
 import java.util.concurrent.Executors;
 
 public class ClockView extends View {
     private static final long MILLIS_PER_SECOND = 1000L;
     private static final long TIME_TRANSITION_DURATION_MILLIS = 300L;
-    private static final long WEATHER_DETAIL_HOLD_MILLIS = 3000L;
-    private static final long WEATHER_DETAIL_SCROLL_PAUSE_MILLIS = 1000L;
-    private static final long WEATHER_DETAIL_TRANSITION_MILLIS = 200L;
-    private static final long WEATHER_DETAIL_FRAME_DELAY_MILLIS = 16L;
-    private static final float WEATHER_DETAIL_SCROLL_DP_PER_SECOND = 40f;
-    private static final float WEATHER_DETAIL_HORIZONTAL_PADDING_DP = 24f;
+    private static final long SUPPORT_LINE_HOLD_MILLIS = 3000L;
+    private static final long SUPPORT_LINE_SCROLL_PAUSE_MILLIS = 1000L;
+    private static final long SUPPORT_LINE_FRAME_DELAY_MILLIS = 16L;
+    private static final float SUPPORT_LINE_SCROLL_DP_PER_SECOND = 40f;
+    private static final float SUPPORT_LINE_HORIZONTAL_PADDING_DP = 24f;
     private static final float MESSAGE_MARQUEE_GAP_EM = 4f;
     private static final float MESSAGE_EDGE_FADE_FRACTION = 0.08f;
     private static final float SMALL_SECONDS_GAP_SPACE_FRACTION = 0.35f;
@@ -58,7 +54,15 @@ public class ClockView extends View {
     private final Runnable ticker = new Runnable() {
         @Override
         public void run() {
-            invalidate();
+            // Between two ticks only the digits change, and they live inside timeDirty. A full
+            // pass is only needed when something else asked for one (settings, resize, a date
+            // change queued by the last frame) or before the first frame has measured itself.
+            if (timeDirtyValid && !fullRepaintQueued) {
+                invalidate(timeDirty);
+            } else {
+                fullRepaintQueued = false;
+                invalidate();
+            }
             // Schedule the next tick against the same clock source onDraw draws
             // from, so the seconds digit flips exactly on the network-time
             // boundary (not the system-clock boundary) when network time is on.
@@ -107,20 +111,132 @@ public class ClockView extends View {
     private final long[] stackedAt = new long[3];
     private ClockTimeFormatter.DisplayTime displayedTime;
     private ClockTimeFormatter.DisplayTime previousTime;
+    // Last formatted time, valid while the second (and the settings version) is unchanged.
+    private ClockTimeFormatter.DisplayTime formattedTime;
+    private int formattedVersion = -1;
+    private int formattedHour = -1;
+    private int formattedMinute = -1;
+    private int formattedSecond = -1;
     private long timeTransitionStartedAt;
     private float clockShadowRadius;
     private float clockShadowDy;
-    private WeatherState weatherState;
-    // Rotating carousel for the detailed-weather line (feels-like, humidity, …).
-    private final Carousel weatherDetailCarousel = new Carousel();
-    // Rotating carousel for the main supporting line when it hosts weather + a custom
-    // message (or a message alone). Shares the exact timing/scroll logic of the detail line.
+    // Rotating carousel for the main supporting line; it preserves the exact
+    // timing/scroll sequence that the message shared with the former detail line.
     private final Carousel messageCarousel = new Carousel();
     private String customMessage = ClockPreferences.DEFAULT_CUSTOM_MESSAGE;
-    // Weather-icon styling (Pro exposes these; other flavours keep fill + date colour).
-    private boolean weatherIconFill = true;
-    private int weatherIconColor = 0xFFFFFFFF;
-    private final Paint weatherIconPaint = new Paint(Paint.ANTI_ALIAS_FLAG);
+
+    // ---- Render-path caches -------------------------------------------------
+    // Everything below exists purely to keep onDraw allocation-free: the clock
+    // redraws once a second (plus a short digit animation), so any object created
+    // per frame becomes garbage ~30000 times an hour on the devices this build
+    // targets. None of it changes what is drawn.
+    //
+    // Reused Calendar/TimeZone: Calendar.getInstance() allocates a calendar plus its
+    // lazily filled field arrays on every call.
+    private Calendar calendar;
+    private java.util.TimeZone timeZoneValue;
+    // Typefaces are resolved once per (family, bold) change instead of per frame and,
+    // for the supporting line, per character.
+    private Typeface timeTypeface;
+    private Typeface supportingLatinTypeface;
+    private Typeface supportingCjkTypeface;
+    private String typefaceFamily;
+    private boolean typefaceBold;
+    private boolean typefaceResolved;
+    private int fontGeneration;
+    // Scratch char buffers for Canvas.drawText(char[], ...) / Paint.measureText(char[], ...).
+    // The String overloads of both copy the whole string into a fresh char[] per call.
+    private char[] glyphBuffer = new char[64];
+    private char[] previousGlyphBuffer = new char[64];
+    // drawPosText draws a whole run in one native call - one glyph mask instead of one per
+    // character - so the clock batches every string it draws. These two buffers hold the run
+    // being built: the characters actually drawn (the blinking colon is skipped) and their
+    // x/y pairs.
+    private char[] drawnBuffer = new char[64];
+    private float[] positionBuffer = new float[128];
+    // Cached widths of the supporting strings (date, lunar, message), including the
+    // per-character tracking, so the measure pass runs once per text/size/font.
+    private static final int SUPPORT_METRIC_SLOTS = 4;
+    private final String[] metricText = new String[SUPPORT_METRIC_SLOTS];
+    private final float[] metricSize = new float[SUPPORT_METRIC_SLOTS];
+    private final int[] metricFont = new int[SUPPORT_METRIC_SLOTS];
+    private final float[] metricWidth = new float[SUPPORT_METRIC_SLOTS];
+    private final float[][] metricAdvances = new float[SUPPORT_METRIC_SLOTS][];
+    private int metricNext;
+    // Font metrics are obtained into these instances instead of allocating new ones.
+    private final Paint.FontMetrics timeFontMetrics = new Paint.FontMetrics();
+    private final Paint.FontMetrics dateFontMetrics = new Paint.FontMetrics();
+    private final Paint.FontMetrics supportFontMetrics = new Paint.FontMetrics();
+    private final Paint.FontMetrics stackedFontMetrics = new Paint.FontMetrics();
+    private final Rect digitBounds = new Rect();
+    // The marquee edge fade and the message item are rebuilt only when they change.
+    private LinearGradient fadeShader;
+    private float fadeShaderLeft;
+    private float fadeShaderRight;
+    private final int[] fadeColors = {0x00FFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00FFFFFF};
+    private final float[] fadePositions = {0f, 0f, 1f, 1f};
+    private SupportLineItem cachedMessageItem;
+    private float smallSecondsGapSize = -1f;
+    private float smallSecondsGapValue;
+    private int smallSecondsGapGeneration = -1;
+
+    // The date/lunar rows are the only text that never changes between ticks, but they are also
+    // the most expensive to rasterise (CJK glyphs, per-typeface runs, a blurred shadow). The
+    // solver records them here and they are rendered once into a small bitmap that the tick then
+    // blits. The bitmap keeps the exact sub-pixel phase: its origin is floored to whole pixels and
+    // the text is drawn at the same fractional offset inside it.
+    private final String[] supportRowText = new String[2];
+    private final float[] supportRowBaseline = new float[2];
+    private int supportRowCount;
+    private Bitmap supportLayer;
+    private int supportLayerLeft;
+    private int supportLayerTop;
+    private boolean supportLayerValid;
+    /** Refuse to hold more than this for a text layer; fall back to drawing the rows directly. */
+    private static final int SUPPORT_LAYER_MAX_BYTES = 1 << 21;
+
+    // ---- Frame cache, dirty rectangle and window fill ------------------------
+    // The geometry of a frame is solved once and then reused until something that can move a
+    // baseline changes: the view size, a font setting, the character count of the time strings,
+    // the date/lunar text or the message. Digit transitions and the per-second tick then draw
+    // from the cache without touching Paint.measureText, which is the expensive half of a frame.
+    private final ClockFrameCache frame = new ClockFrameCache();
+    private static final int FLAG_SHOW_SECONDS = 1;
+    private static final int FLAG_SMALL_SECONDS = 1 << 1;
+    private static final int FLAG_PERIOD = 1 << 2;
+    private static final int FLAG_LUNAR = 1 << 3;
+    private static final int FLAG_DUAL_LINE = 1 << 4;
+    private static final int FLAG_STACKED = 1 << 5;
+    private static final int FLAG_MESSAGE = 1 << 6;
+
+    // Only the time digits change between two ticks, so the tick can invalidate just that
+    // rectangle instead of the whole surface (the background image is then re-sampled for a
+    // fraction of the pixels).
+    private final Rect timeDirty = new Rect();
+    private boolean timeDirtyValid;
+    // Anything outside the time rectangle changed, so one full pass is queued.
+    private boolean fullRepaintQueued;
+    private String lastDateText;
+    private String lastLunarText;
+    private boolean lastDimState;
+    // Colour the window itself is painted with, or MAX_VALUE when the window is not ours to
+    // paint (a non-Activity context). When it matches the background colour the full-surface
+    // fill in onDraw is redundant and is skipped.
+    private int windowBackgroundColor = Integer.MAX_VALUE;
+
+    // ---- Settings snapshot ---------------------------------------------------
+    // Styling a frame used to read about twenty preferences (and re-set four paints) every time,
+    // which on this hardware costs more than drawing the digits. The values only change when the
+    // user applies settings, so they are cached and re-read when ClockPreferences' write counter
+    // moves. Everything below is therefore constant for the lifetime of a frame.
+    private int settingsVersion = -1;
+    private int backgroundColor;
+    private boolean imageMode;
+    private boolean dimBackgroundAlways;
+    private boolean dimBackgroundScheduled;
+    private int dimStartMinutes;
+    private int dimEndMinutes;
+    private String timeZoneId;
 
     public ClockView(Context context) {
         this(context, null);
@@ -156,38 +272,6 @@ public class ClockView extends View {
     public void setBackgroundRepository(BackgroundRepository repository) {
         backgroundRepository = repository;
         requestBackgroundReload();
-        invalidate();
-    }
-
-    public void setWeatherState(WeatherState state) {
-        weatherState = state;
-        weatherDetailCarousel.setItems(wrapPlain(
-                (state != null && state.data != null && state.data.detail != null)
-                        ? state.data.detail.carouselItems(detailLabels()) : null));
-        invalidate();
-    }
-
-    /** Wraps a list of plain strings as icon-less carousel items. */
-    private static java.util.List<WeatherLineItem> wrapPlain(java.util.List<String> src) {
-        if (src == null) return null;
-        java.util.List<WeatherLineItem> out = new java.util.ArrayList<>(src.size());
-        for (String s : src) out.add(WeatherLineItem.plain(s));
-        return out;
-    }
-
-    /** Localized labels/units for the detailed weather carousel (follows interface language). */
-    private WeatherModels.WeatherDetail.DetailLabels detailLabels() {
-        return new WeatherModels.WeatherDetail.DetailLabels(
-                getContext().getString(com.clockmods.R.string.weather_feels_format),
-                getContext().getString(com.clockmods.R.string.weather_humidity_format),
-                getContext().getString(com.clockmods.R.string.weather_wind_scale_format),
-                getContext().getString(com.clockmods.R.string.weather_precip_format),
-                getContext().getString(com.clockmods.R.string.weather_air_format),
-                getContext().getString(com.clockmods.R.string.weather_warning_suffix));
-    }
-
-    public void setWeatherMessage(String message) {
-        weatherState = WeatherState.of(WeatherModels.Status.IDLE, message);
         invalidate();
     }
 
@@ -228,6 +312,10 @@ public class ClockView extends View {
 
     public void start() {
         handler.removeCallbacks(ticker);
+        // While paused the surface may have been destroyed and recreated, so the rectangle the
+        // last frame measured cannot be trusted: the first tick after a resume repaints fully.
+        timeDirtyValid = false;
+        fullRepaintQueued = false;
         ticker.run();
     }
 
@@ -246,36 +334,298 @@ public class ClockView extends View {
     @Override
     protected void onDraw(Canvas canvas) {
         super.onDraw(canvas);
+        // First, because the window background and the fill colour both come from the snapshot.
+        refreshSettings();
         int width = getWidth();
         int height = getHeight();
-        int backgroundColor = backgroundRepository == null ? 0xFF101418 : backgroundRepository.getCurrentColor();
-        canvas.drawColor(backgroundColor);
-        drawBackgroundImage(canvas, width, height);
+        drawBackground(canvas, width, height);
 
         java.util.TimeZone timeZone = resolveTimeZone();
-        Calendar now = Calendar.getInstance(timeZone);
+        Calendar now = calendar;
+        if (now == null || now.getTimeZone() != timeZone) {
+            now = Calendar.getInstance(timeZone);
+            calendar = now;
+        }
         NetworkTimeProvider timeProvider = networkTimeProvider;
         now.setTimeInMillis(timeProvider == null
             ? System.currentTimeMillis() : timeProvider.currentTimeMillis());
-        if (shouldDimBackground(now)) {
+        boolean dimmed = shouldDimBackground(now);
+        if (dimmed) {
             canvas.drawColor(DIM_BACKGROUND_OVERLAY_COLOR);
         }
 
-        applyTextStyles();
-
-        ClockTimeFormatter.DisplayTime displayTime = ClockTimeFormatter.format(
-            now.get(Calendar.HOUR_OF_DAY), now.get(Calendar.MINUTE), now.get(Calendar.SECOND),
-            showSeconds, blinkColon, smallSeconds, use24Hour, clockUseEnglish);
+        ClockTimeFormatter.DisplayTime displayTime = formatDisplayTime(now);
         String dateText = DateFormatter.format(
                 clockUseEnglish ? datePatternEn : datePatternCn, now, dateLang);
         String lunarText = showLunar ? LunarCalendar.format(now) : "";
 
         // Portrait stacked layout is a fully separate path; landscape is untouched.
-        if (height >= width && portraitStacked) {
-            drawStackedPortrait(canvas, now, dateText, lunarText, width, height);
+        boolean stacked = height >= width && portraitStacked;
+        boolean layoutRecomputed = ensureLayout(displayTime, dateText, lunarText, width, height,
+                stacked);
+        if (stacked) {
+            drawStackedPortrait(canvas, now, width, height);
+        } else {
+            drawPrimary(canvas, displayTime, width, height);
+        }
+        finishFrame(layoutRecomputed, dimmed, dateText, lunarText);
+    }
+
+    /**
+     * Formats the time, reusing the previous result while the same second is on screen. A second
+     * boundary produces a new instance (so the transition can still hold the old one), but the
+     * ~9 frames of a digit transition and every repeated draw inside one second now allocate
+     * nothing and build no strings.
+     */
+    private ClockTimeFormatter.DisplayTime formatDisplayTime(Calendar now) {
+        int hour = now.get(Calendar.HOUR_OF_DAY);
+        int minute = now.get(Calendar.MINUTE);
+        int second = now.get(Calendar.SECOND);
+        ClockTimeFormatter.DisplayTime cached = formattedTime;
+        if (cached != null && formattedVersion == settingsVersion
+                && formattedHour == hour && formattedMinute == minute
+                && formattedSecond == second) {
+            return cached;
+        }
+        ClockTimeFormatter.DisplayTime formatted = ClockTimeFormatter.format(hour, minute, second,
+                showSeconds, blinkColon, smallSeconds, use24Hour, clockUseEnglish);
+        formattedTime = formatted;
+        formattedVersion = settingsVersion;
+        formattedHour = hour;
+        formattedMinute = minute;
+        formattedSecond = second;
+        return formatted;
+    }
+
+    /** Draws the primary (non stacked) layout entirely from the frame cache. */
+    private void drawPrimary(Canvas canvas, ClockTimeFormatter.DisplayTime displayTime,
+            int width, int height) {
+        float centerX = width / 2f;
+        drawAnimatedTime(canvas, displayTime, frame.timeCenterX, frame.timeBaseline);
+        drawSupportLine(canvas, centerX, frame.dateSize);
+        drawSupportingRows(canvas, width, height);
+    }
+
+    /**
+     * Draws the date/lunar rows from the cached layer, falling back to direct text drawing when
+     * the layer cannot be allocated.
+     */
+    private void drawSupportingRows(Canvas canvas, int width, int height) {
+        if (supportRowCount == 0) {
             return;
         }
+        if (ensureSupportLayer(width)) {
+            canvas.drawBitmap(supportLayer, (float) supportLayerLeft, (float) supportLayerTop,
+                    null);
+            return;
+        }
+        for (int row = 0; row < supportRowCount; row++) {
+            applySupportingTypeface(supportRowText[row]);
+            drawSupportingText(canvas, supportRowText[row], width / 2f,
+                    supportRowBaseline[row], Paint.Align.CENTER);
+        }
+    }
 
+    /**
+     * Renders the date/lunar rows into a bitmap once per layout change. The rows are static
+     * between ticks but cost ~2ms of CJK rasterisation per frame, so a tick pays for one blit
+     * instead. Text inside the bitmap is drawn at the same fractional offset the direct path
+     * would use, so the pixels are identical.
+     */
+    private boolean ensureSupportLayer(int width) {
+        if (supportLayerValid) {
+            return supportLayer != null;
+        }
+        supportLayerValid = true;
+        if (supportLayer != null) {
+            supportLayer.recycle();
+            supportLayer = null;
+        }
+        float pad = clockShadowRadius + Math.abs(clockShadowDy) + 2f;
+        float top = Float.MAX_VALUE;
+        float bottom = -Float.MAX_VALUE;
+        float widest = 0f;
+        for (int row = 0; row < supportRowCount; row++) {
+            String text = supportRowText[row];
+            applySupportingTypeface(text);
+            Paint.FontMetrics metrics = supportFontMetrics;
+            datePaint.getFontMetrics(metrics);
+            top = Math.min(top, supportRowBaseline[row] + metrics.ascent);
+            bottom = Math.max(bottom, supportRowBaseline[row] + metrics.descent);
+            widest = Math.max(widest, measureSupportingText(text));
+        }
+        if (top >= bottom || widest <= 0f) {
+            return false;
+        }
+        int left = (int) Math.floor((width - widest) / 2f - pad);
+        int topPixels = (int) Math.floor(top - pad);
+        int right = (int) Math.ceil((width + widest) / 2f + pad);
+        int bottomPixels = (int) Math.ceil(bottom + pad);
+        int layerWidth = right - left;
+        int layerHeight = bottomPixels - topPixels;
+        if (layerWidth <= 0 || layerHeight <= 0
+                || (long) layerWidth * layerHeight * 4 > SUPPORT_LAYER_MAX_BYTES) {
+            return false;
+        }
+        Bitmap bitmap = Bitmap.createBitmap(layerWidth, layerHeight, Bitmap.Config.ARGB_8888);
+        Canvas layerCanvas = new Canvas(bitmap);
+        for (int row = 0; row < supportRowCount; row++) {
+            applySupportingTypeface(supportRowText[row]);
+            drawSupportingText(layerCanvas, supportRowText[row], width / 2f - left,
+                    supportRowBaseline[row] - topPixels, Paint.Align.CENTER);
+        }
+        supportLayer = bitmap;
+        supportLayerLeft = left;
+        supportLayerTop = topPixels;
+        return true;
+    }
+
+    /**
+     * Fills the surface. A solid background is painted by the window itself, so the identical
+     * full-surface fill here is skipped; the framework draws the window background (clipped to
+     * the dirty rectangle on a partial pass) before {@code onDraw} runs.
+     */
+    private void drawBackground(Canvas canvas, int width, int height) {
+        boolean paintedByWindow = false;
+        if (!imageMode) {
+            syncWindowBackground(backgroundColor);
+            paintedByWindow = windowBackgroundColor == backgroundColor;
+        }
+        if (!paintedByWindow) {
+            canvas.drawColor(backgroundColor);
+        }
+        drawBackgroundImage(canvas, width, height);
+    }
+
+    private void syncWindowBackground(int color) {
+        if (windowBackgroundColor == color) {
+            return;
+        }
+        android.content.Context context = getContext();
+        if (!(context instanceof android.app.Activity)) {
+            return;
+        }
+        android.view.Window window = ((android.app.Activity) context).getWindow();
+        if (window == null) {
+            return;
+        }
+        window.setBackgroundDrawable(
+                new android.graphics.drawable.ColorDrawable(color));
+        windowBackgroundColor = color;
+    }
+
+    /**
+     * Re-measures the frame when its key changed. Returns {@code true} when the layout was
+     * recomputed, which also means the time rectangle may have moved or resized.
+     */
+    private boolean ensureLayout(ClockTimeFormatter.DisplayTime displayTime, String dateText,
+            String lunarText, int width, int height, boolean stacked) {
+        String message = backgroundRepository == null
+                ? "" : backgroundRepository.getCustomMessage();
+        if (message == null) {
+            message = "";
+        }
+        int flags = (showSeconds ? FLAG_SHOW_SECONDS : 0)
+                | (smallSeconds ? FLAG_SMALL_SECONDS : 0)
+                | (displayTime.hasPeriod() ? FLAG_PERIOD : 0)
+                | (lunarText.length() > 0 ? FLAG_LUNAR : 0)
+                | (dateLunarDualLine ? FLAG_DUAL_LINE : 0)
+                | (stacked ? FLAG_STACKED : 0)
+                | (message.length() > 0 ? FLAG_MESSAGE : 0);
+        if (frame.matches(width, height, fontGeneration, timeFontScale, dateFontScale, flags,
+                displayTime.mainText.length(), displayTime.secondsText.length(),
+                displayTime.periodText.length(), dateText, lunarText, message)) {
+            applyFrameTextSizes();
+            return false;
+        }
+        frame.storeKey(width, height, fontGeneration, timeFontScale, dateFontScale, flags,
+                displayTime.mainText.length(), displayTime.secondsText.length(),
+                displayTime.periodText.length(), dateText, lunarText, message);
+        supportLayerValid = false;
+        if (stacked) {
+            computeStackedLayout(dateText, lunarText, width, height, message.length() > 0);
+        } else {
+            computePrimaryLayout(displayTime, dateText, lunarText, width, height);
+        }
+        applyFrameTextSizes();
+        return true;
+    }
+
+    /** Applies the cached text sizes to the paints; setters only, no measuring. */
+    private void applyFrameTextSizes() {
+        timePaint.setTextSize(frame.timeSize);
+        secondsPaint.setTextSize(frame.timeSize * 0.6f);
+        periodPaint.setTextSize(frame.timeSize * 0.3f);
+        datePaint.setTextSize(frame.dateSize);
+    }
+
+    /**
+     * Solves the custom-message line: its baseline and the vertical band it occupies. Doing this
+     * in the layout pass is what lets a scrolling message repaint only its own strip instead of
+     * the whole clock (which would re-rasterise the digits 60 times a second).
+     */
+    private void computeSupportGeometry(String message, float baselineAnchor, float timeDescent,
+            float gap) {
+        frame.hasSupportMessage = message != null && message.length() > 0;
+        frame.supportBaseline = 0f;
+        frame.supportTop = 0f;
+        frame.supportBottom = 0f;
+        if (!frame.hasSupportMessage) {
+            return;
+        }
+        applySupportingTypeface(message);
+        Paint.FontMetrics metrics = supportFontMetrics;
+        datePaint.getFontMetrics(metrics);
+        float baseline = baselineAnchor + timeDescent + gap - metrics.ascent;
+        float pad = clockShadowRadius + Math.abs(clockShadowDy)
+                + datePaint.getTextSize() * 0.12f;
+        frame.supportBaseline = baseline;
+        frame.supportTop = baseline + metrics.ascent - pad;
+        frame.supportBottom = baseline + metrics.descent + pad;
+    }
+
+    /** Stores the rectangle the next tick may repaint, clamped to the view. */
+    private void setTimeDirty(float left, float top, float right, float bottom) {
+        int l = Math.max(0, (int) Math.floor(left));
+        int t = Math.max(0, (int) Math.floor(top));
+        int r = Math.min(getWidth(), (int) Math.ceil(right));
+        int b = Math.min(getHeight(), (int) Math.ceil(bottom));
+        if (r <= l || b <= t) {
+            timeDirtyValid = false;
+            return;
+        }
+        timeDirty.set(l, t, r, b);
+        timeDirtyValid = true;
+    }
+
+    /**
+     * Ends a frame. When something outside the time rectangle changed - the date rolled over, the
+     * lunar date changed, the dim overlay turned on, or the layout was re-solved (which can move
+     * and resize the time rectangle) - one full pass is queued so the next tick can go back to
+     * repainting the digits only.
+     */
+    private void finishFrame(boolean layoutRecomputed, boolean dimmed, String dateText,
+            String lunarText) {
+        boolean outsideTimeChanged = layoutRecomputed
+                || dimmed != lastDimState
+                || !ApiCompat.equals(dateText, lastDateText)
+                || !ApiCompat.equals(lunarText, lastLunarText);
+        lastDimState = dimmed;
+        lastDateText = dateText;
+        lastLunarText = lunarText;
+        if (outsideTimeChanged) {
+            fullRepaintQueued = true;
+            postInvalidate();
+        }
+    }
+
+    /**
+     * Solves the primary layout. This is the measurement stage lifted verbatim out of
+     * {@code onDraw}: the arithmetic and the order of the calls are unchanged, they simply run
+     * once per key instead of once per frame.
+     */
+    private void computePrimaryLayout(ClockTimeFormatter.DisplayTime displayTime, String dateText,
+            String lunarText, int width, int height) {
         String fullDate = lunarText.length() == 0 ? dateText : dateText + " " + lunarText;
 
         // Portrait always stacks the date and lunar lines; landscape shares a single line
@@ -321,121 +671,113 @@ public class ClockView extends View {
         float timeCenterX = centerX + ClockLayoutCalculator.calculateMainCenterOffset(
             leftAccessoryWidth * timeSize, rightAccessoryWidth * timeSize);
         float centerY = height / 2f;
-        Paint.FontMetrics timeMetrics = timePaint.getFontMetrics();
-        Paint.FontMetrics dateMetrics = datePaint.getFontMetrics();
+        Paint.FontMetrics timeMetrics = timeFontMetrics;
+        timePaint.getFontMetrics(timeMetrics);
+        Paint.FontMetrics dateMetrics = dateFontMetrics;
+        datePaint.getFontMetrics(dateMetrics);
         float timeBaseline = centerY - (timeMetrics.ascent + timeMetrics.descent) / 2f;
         boolean portrait = height >= width;
         float gapFactor = portrait ? 0.9f : 0.35f;
         float gap = Math.min(height * .025f, dateSize * gapFactor);
         float dateBaseline = timeBaseline + timeMetrics.ascent - gap - dateMetrics.descent;
-        // Portrait stacks date/lunar and weather/detail as two rows each, so give those
-        // rows more breathing room than a plain line (landscape keeps the tight default).
-        float weatherDetailScale = portrait ? 1.35f : 1f;                        // 天气↔详细 行距倍数（竖屏更宽）
-        // 日期↔农历 的基线间距与 天气↔详细 完全一致：同字号、同公式、同倍数。
+        // Portrait gives the supporting (message) line more breathing room; landscape
+        // keeps the tight default. The date/lunar gap uses the very same scale/formula.
+        float supportLineScale = portrait ? 1.35f : 1f;
         float lunarRowGap = (dateMetrics.descent - dateMetrics.ascent + dateMetrics.descent)
-                * weatherDetailScale;
+                * supportLineScale;
 
-        drawAnimatedTime(canvas, displayTime, timeCenterX, timeBaseline);
-        drawWeather(canvas, centerX, timeBaseline, dateSize, timeMetrics, gap, weatherDetailScale);
-        if (lunarText.length() == 0) {
-            applySupportingTypeface(dateText);
-            drawSupportingText(canvas, dateText, centerX, dateBaseline, Paint.Align.CENTER);
-            return;
-        }
-
-        if (singleDateLine) {
-            applySupportingTypeface(fullDate);
-            drawSupportingText(canvas, fullDate, centerX, dateBaseline, Paint.Align.CENTER);
+        frame.dateText = dateText;
+        frame.lunarText = lunarText;
+        frame.hasLunar = lunarText.length() > 0;
+        frame.timeSize = timeSize;
+        frame.dateSize = dateSize;
+        frame.timeCenterX = timeCenterX;
+        frame.timeBaseline = timeBaseline;
+        frame.timeAscent = timeMetrics.ascent;
+        frame.timeDescent = timeMetrics.descent;
+        // Widths at the final size, which is what the draw calls were measuring per frame.
+        frame.mainWidth = stableTextWidth(displayTime.mainText, timePaint);
+        frame.secondsWidth = displayTime.hasSmallSeconds()
+                ? stableTextWidth(displayTime.secondsText, secondsPaint) : 0f;
+        frame.periodWidth = displayTime.hasPeriod()
+                ? periodPaint.measureText(displayTime.periodText) : 0f;
+        frame.gapWidth = smallSecondsGapWidth();
+        if (!frame.hasLunar || singleDateLine) {
+            supportRowCount = 1;
+            supportRowText[0] = fullDate;
+            supportRowBaseline[0] = dateBaseline;
         } else {
-            // Portrait, two date lines: the lunar row (nearest the time) keeps the full
-            // gap above the time — matching the weather gap below it — and the Gregorian
-            // date sits one (wider) row-gap above the lunar row.
-            applySupportingTypeface(lunarText);
-            drawSupportingText(canvas, lunarText, centerX, dateBaseline, Paint.Align.CENTER);
-            applySupportingTypeface(dateText);
-            drawSupportingText(canvas, dateText, centerX, dateBaseline - lunarRowGap,
-                Paint.Align.CENTER);
+            // Portrait, two date lines: the lunar row (nearest the time) keeps the full gap above
+            // the time — matching the message gap below it — and the Gregorian date sits one
+            // (wider) row-gap above the lunar row.
+            supportRowCount = 2;
+            supportRowText[0] = lunarText;
+            supportRowBaseline[0] = dateBaseline;
+            supportRowText[1] = dateText;
+            supportRowBaseline[1] = dateBaseline - lunarRowGap;
         }
+        frame.secondsBaseline = bottomAlignedBaseline(timeBaseline, timePaint, secondsPaint);
+        frame.periodBaseline = bottomAlignedBaseline(timeBaseline, timePaint, periodPaint);
+        computeSupportGeometry(frame.messageText, timeBaseline, frame.timeDescent, gap);
+
+        // Rectangle the digit transition and the per-second tick can touch. The extra margin
+        // covers the shadow and the slide transition (0.24 em).
+        float extra = Math.max(clockShadowRadius + clockShadowDy, timeSize * 0.45f);
+        float halfWidth = frame.mainWidth / 2f + frame.gapWidth + extra;
+        setTimeDirty(timeCenterX - halfWidth - frame.periodWidth,
+                timeBaseline + frame.timeAscent - extra,
+                timeCenterX + halfWidth + frame.secondsWidth,
+                timeBaseline + frame.timeDescent + extra);
     }
 
     /**
-     * Portrait "stacked" layout: the clock is drawn as large digits on separate
-     * lines — hours, minutes and (optionally) seconds, top to bottom, with no colon.
-     * The user's digit-change transition is preserved. Date, lunar date and weather
-     * are still shown above/below the time block. Only entered when the view is
-     * portrait and the stacked option is enabled; landscape uses the normal path.
+     * Solves the portrait "stacked" layout: the clock is drawn as large digits on separate
+     * lines - hours, minutes and (optionally) seconds, top to bottom, with no colon. Supporting
+     * text sizes and block heights are computed first, so the digits can be capped to always
+     * leave room for them. Runs only when the frame key changes.
      */
-    private void drawStackedPortrait(Canvas canvas, Calendar now, String dateText,
-            String lunarText, int width, int height) {
+    private void computeStackedLayout(String dateText, String lunarText, int width, int height,
+            boolean hasMessage) {
         int lines = showSeconds ? 3 : 2;
-        // Detailed weather adds a second (carousel) line under the main weather line;
-        // reserve room for it so both lines sit near the bottom with a wider gap.
-        boolean weatherTwoLines = backgroundRepository != null
-                && backgroundRepository.isWeatherEnabled()
-                && backgroundRepository.isWeatherDetailed();
-        int hour = now.get(Calendar.HOUR_OF_DAY);
-        int displayHour = use24Hour ? hour : hour % 12;
-        if (!use24Hour && displayHour == 0) {
-            displayHour = 12;
-        }
-        String hoursText = String.format(Locale.CHINA, "%02d", displayHour);
-        String minutesText = String.format(Locale.CHINA, "%02d", now.get(Calendar.MINUTE));
-        String secondsText = String.format(Locale.CHINA, "%02d", now.get(Calendar.SECOND));
 
-        float centerX = width / 2f;
-
-        // Supporting text (date/lunar/weather) sizes and block heights are computed
-        // first, so the digits can be capped to always leave room for them.
         datePaint.setTextSize(1f);
         String widestDate = lunarText.length() == 0 ? dateText : longerOf(dateText, lunarText);
         applySupportingTypeface(widestDate);
         float dateSize = ClockLayoutCalculator.calculateWidthBasedTextSize(
                 width, height, measureSupportingText(widestDate), dateFontScale, 0.08f, 0.92f);
         datePaint.setTextSize(dateSize);
-        Paint.FontMetrics dateMetrics = datePaint.getFontMetrics();
+        Paint.FontMetrics dateMetrics = stackedFontMetrics;
+        datePaint.getFontMetrics(dateMetrics);
         float dateLineHeight = dateMetrics.descent - dateMetrics.ascent;
         float lunarGap = dateLineHeight * 1.5f;       // wider date <-> lunar row spacing
-        float detailGapScale = 1.35f;                 // wider weather <-> detail row spacing
         boolean hasLunar = lunarText.length() > 0;
-        // The bottom supporting line is shown when weather is enabled or a custom message
-        // is set; the two-line (with detail carousel) variant only applies to weather.
-        boolean hasMessage = backgroundRepository != null
-                && backgroundRepository.getCustomMessage().length() > 0;
-        boolean weatherShown = (backgroundRepository != null
-                && backgroundRepository.isWeatherEnabled()) || hasMessage;
         float dateBlockHeight = hasLunar ? (lunarGap + dateLineHeight) : dateLineHeight;
-        float weatherBlockHeight = !weatherShown ? 0f
-                : (weatherTwoLines
-                    ? (dateLineHeight + dateMetrics.descent) * detailGapScale + dateLineHeight
-                    : dateLineHeight);
+        float messageBlockHeight = hasMessage ? dateLineHeight : 0f;
 
         float topSafe = height * 0.06f;
         float bottomSafe = height * 0.94f;
         float avail = bottomSafe - topSafe;
-        // Date/weather stay a small fixed distance from the digits; they only spread
+        // Date/message stay a small fixed distance from the digits; they only spread
         // toward the edges when the time font grows, and never past the safe margins.
         float desiredGap = dateLineHeight * 1.6f;
         float minGap = dateLineHeight * 0.25f;
 
         // A two-digit group fills the requested width fraction, capped by a per-line
-        // height fraction, then further capped so date + gaps + digits + weather never
-        // exceed the usable height.
+        // height fraction, then further capped so date + gaps + digits + message fit.
         timePaint.setTextSize(1f);
         float digitPairWidth = stableTextWidth("00", timePaint);
-        float heightFraction = lines == 3
-                ? (weatherTwoLines ? 0.13f : 0.18f)
-                : (weatherTwoLines ? 0.20f : 0.28f);
+        float heightFraction = lines == 3 ? 0.18f : 0.28f;
         float lineSize = ClockLayoutCalculator.calculateWidthBasedTextSize(
                 width, height, digitPairWidth, timeFontScale, heightFraction, 0.66f);
-        // blockHeight ≈ blockFactor * lineSize; cap lineSize so the whole column fits.
+        // blockHeight ~ blockFactor * lineSize; cap lineSize so the whole column fits.
         float blockFactor = (lines - 1) * 1.06f + 0.72f;
-        float weatherReserve = weatherShown ? (weatherBlockHeight + minGap) : 0f;
-        float maxBlockHeight = avail - dateBlockHeight - minGap - weatherReserve;
+        float messageReserve = hasMessage ? (messageBlockHeight + minGap) : 0f;
+        float maxBlockHeight = avail - dateBlockHeight - minGap - messageReserve;
         if (timeFontScale <= 1f) {
             lineSize = Math.min(lineSize, maxBlockHeight / blockFactor);
         }
         timePaint.setTextSize(lineSize);
-        Rect digitBounds = new Rect();
+        Rect digitBounds = this.digitBounds;
         timePaint.getTextBounds("0", 0, 1, digitBounds);
         float digitHeight = digitBounds.bottom - digitBounds.top;
         float lineAdvance = lineSize * 1.06f;
@@ -444,25 +786,66 @@ public class ClockView extends View {
         // Equal gap above and below the digits (symmetric). It equals desiredGap when
         // there is spare room, and shrinks toward minGap as the digits grow; the whole
         // content column is then centered vertically within the safe area.
-        float fitGap = ((weatherShown ? avail : (avail - weatherBlockHeight))
-                - dateBlockHeight - blockHeight - weatherBlockHeight) / 2f;
+        float fitGap = ((hasMessage ? avail : (avail - messageBlockHeight))
+                - dateBlockHeight - blockHeight - messageBlockHeight) / 2f;
         float gap = Math.max(minGap, Math.min(desiredGap, fitGap));
         float contentHeight = dateBlockHeight + gap + blockHeight
-                + (weatherShown ? gap + weatherBlockHeight : 0f);
+                + (hasMessage ? gap + messageBlockHeight : 0f);
         float contentTop = Math.max(topSafe, topSafe + (avail - contentHeight) / 2f);
 
         float blockTop = contentTop + dateBlockHeight + gap;
         float firstBaseline = blockTop - digitBounds.top;
         float blockBottom = blockTop + blockHeight;
 
+        frame.dateText = dateText;
+        frame.lunarText = lunarText;
+        frame.hasLunar = hasLunar;
+        frame.hasMessage = hasMessage;
+        frame.lines = lines;
+        frame.timeSize = lineSize;
+        frame.dateSize = dateSize;
+        frame.lineAdvance = lineAdvance;
+        frame.firstBaseline = firstBaseline;
+        // Date block bottom sits 'gap' above the hours; the lunar row one row-gap below it.
+        frame.stackedDateBaseline = (blockTop - gap - dateBlockHeight) - dateMetrics.ascent;
+        frame.stackedGap = gap;
+        computeSupportGeometry(frame.messageText, blockBottom + frame.stackedGap, 0f, 0f);
+        supportRowCount = hasLunar ? 2 : 1;
+        supportRowText[0] = dateText;
+        supportRowBaseline[0] = frame.stackedDateBaseline;
+        if (hasLunar) {
+            supportRowText[1] = lunarText;
+            supportRowBaseline[1] = frame.stackedDateBaseline + lunarGap;
+        }
+        frame.mainWidth = stableTextWidth("00", timePaint);
+
+        float extra = Math.max(clockShadowRadius + clockShadowDy, lineSize * 0.45f);
+        float halfWidth = frame.mainWidth / 2f + extra;
+        setTimeDirty(width / 2f - halfWidth, firstBaseline + digitBounds.top - extra,
+                width / 2f + halfWidth,
+                firstBaseline + (lines - 1) * lineAdvance + digitBounds.bottom + extra);
+    }
+
+    /** Draws the stacked layout from the frame cache. */
+    private void drawStackedPortrait(Canvas canvas, Calendar now, int width, int height) {
+        int hour = now.get(Calendar.HOUR_OF_DAY);
+        int displayHour = use24Hour ? hour : hour % 12;
+        if (!use24Hour && displayHour == 0) {
+            displayHour = 12;
+        }
+        String hoursText = ClockTimeFormatter.twoDigits(displayHour);
+        String minutesText = ClockTimeFormatter.twoDigits(now.get(Calendar.MINUTE));
+        String secondsText = ClockTimeFormatter.twoDigits(now.get(Calendar.SECOND));
+        float centerX = width / 2f;
+
         long uptime = SystemClock.uptimeMillis();
         boolean animating = false;
-        animating |= drawStackedLine(canvas, 0, hoursText, centerX, firstBaseline, uptime);
+        animating |= drawStackedLine(canvas, 0, hoursText, centerX, frame.firstBaseline, uptime);
         animating |= drawStackedLine(canvas, 1, minutesText, centerX,
-                firstBaseline + lineAdvance, uptime);
-        if (lines == 3) {
+                frame.firstBaseline + frame.lineAdvance, uptime);
+        if (frame.lines == 3) {
             animating |= drawStackedLine(canvas, 2, secondsText, centerX,
-                    firstBaseline + 2f * lineAdvance, uptime);
+                    frame.firstBaseline + 2f * frame.lineAdvance, uptime);
         } else {
             // Drop stale seconds state so re-enabling seconds starts clean.
             stackedText[2] = null;
@@ -472,20 +855,11 @@ public class ClockView extends View {
             postInvalidateDelayed(16L);
         }
 
-        // Date (and lunar): the block bottom sits 'gap' above the hours.
-        float dateBaseline = (blockTop - gap - dateBlockHeight) - dateMetrics.ascent;
-        applySupportingTypeface(dateText);
-        drawSupportingText(canvas, dateText, centerX, dateBaseline, Paint.Align.CENTER);
-        if (hasLunar) {
-            applySupportingTypeface(lunarText);
-            drawSupportingText(canvas, lunarText, centerX, dateBaseline + lunarGap,
-                    Paint.Align.CENTER);
-        }
+        drawSupportingRows(canvas, width, height);
 
-        // Weather: first row's top sits 'gap' below the seconds (symmetric with date).
-        if (weatherShown) {
-            drawWeather(canvas, centerX, blockBottom + gap, dateSize, new Paint.FontMetrics(),
-                    0f, detailGapScale);
+        // Custom message: its top sits 'gap' below the seconds (symmetric with date).
+        if (frame.hasMessage) {
+            drawSupportLine(canvas, centerX, frame.dateSize);
         }
     }
 
@@ -524,152 +898,66 @@ public class ClockView extends View {
         return false;
     }
 
-        private void drawWeather(Canvas canvas, float centerX, float timeBaseline,
-            float dateSize, Paint.FontMetrics timeMetrics, float gap, float detailGapScale) {
+    /**
+     * Draws the supporting line, which now hosts the custom message only. The marquee
+     * timing, fade and carousel sequencing are unchanged from the previous combined
+     * message line so rendering behaves exactly as before.
+     */
+    private void drawSupportLine(Canvas canvas, float centerX, float dateSize) {
         if (backgroundRepository == null) return;
-        boolean weatherEnabled = backgroundRepository.isWeatherEnabled();
-        boolean hasMessage = customMessage != null && customMessage.length() > 0;
-
-        // The main supporting line hosts, in priority order: the weather summary
-        // (location + icon + condition); a custom message; or both, rotating through a
-        // carousel. The weather summary always keeps its icon, and the line is always drawn
-        // at the user's chosen size — overflow scrolls horizontally instead of shrinking.
-        WeatherLineItem weatherItem = null;
-        if (weatherEnabled && weatherState != null) {
-            if (weatherState.data != null) {
-                String leftText = WeatherModels.locationText(
-                        weatherState.data.city, weatherState.data.district);
-                String rightText = weatherState.data.text + " " + weatherState.data.temperature + "℃";
-                WeatherIcon icon = WeatherIcon.load(getContext(), weatherState.data.icon, weatherIconFill);
-                weatherItem = icon != null
-                        ? WeatherLineItem.weather(leftText, rightText, icon)
-                        : WeatherLineItem.plain(leftText + "  " + rightText);
-            } else if (weatherState.message != null && weatherState.message.length() > 0) {
-                weatherItem = WeatherLineItem.plain(weatherState.message);
-            }
-        }
-
-        if (!weatherEnabled && !hasMessage) return;
+        if (!frame.hasSupportMessage || ApiCompat.isEmpty(customMessage)) return;
 
         float originalSize = datePaint.getTextSize();
         Typeface originalTypeface = datePaint.getTypeface();
 
-        // Build the main-line carousel items: the weather summary (with icon) and/or message.
-        java.util.List<WeatherLineItem> mainItems = new java.util.ArrayList<>();
-        if (weatherItem != null) mainItems.add(weatherItem);
-        if (hasMessage) {
-            mainItems.add(WeatherLineItem.message(customMessage, weatherItem == null));
+        SupportLineItem messageItem = cachedMessageItem;
+        if (messageItem == null || !ApiCompat.equals(messageItem.text, customMessage)) {
+            messageItem = SupportLineItem.message(customMessage, true);
+            cachedMessageItem = messageItem;
         }
-        if (mainItems.isEmpty()) {
-            datePaint.setTextSize(originalSize);
-            datePaint.setTypeface(originalTypeface);
-            return;
-        }
-
-        // Fixed size (never shrinks); overflow is handled by per-item marquee scrolling.
         datePaint.setTextSize(dateSize);
-        applySupportingTypeface(mainItems.get(0).text);
-        Paint.FontMetrics weatherMetrics = datePaint.getFontMetrics();
-        float baseline = timeBaseline + timeMetrics.descent + gap - weatherMetrics.ascent;
+        applySupportingTypeface(messageItem.text);
+        Paint.FontMetrics supportMetrics = supportFontMetrics;
+        datePaint.getFontMetrics(supportMetrics);
 
-        if (mainItems.size() == 1) {
-            // Single item: center it, marquee-scrolling in place when it overflows the width.
-            WeatherLineItem only = mainItems.get(0);
-            drawWeatherDetailItem(canvas, only, null, centerX, baseline,
-                weatherMetrics, 0f, mainCarouselElapsed(only));
-            if (only.continuousMarquee || itemWidth(only) > weatherDetailAvailableWidth()) {
-                postInvalidateDelayed(WEATHER_DETAIL_FRAME_DELAY_MILLIS);
-            }
-        } else {
-            // Weather + message rotate through the line with the detail-line animation.
-            if (!mainItems.equals(messageCarousel.items)) messageCarousel.setItems(mainItems);
-            drawCarousel(canvas, messageCarousel, centerX, baseline, weatherMetrics);
+        drawSupportLineItem(canvas, messageItem, null, centerX, frame.supportBaseline,
+                supportMetrics, 0f, mainCarouselElapsed(messageItem));
+        if (messageItem.continuousMarquee
+                || itemWidth(messageItem) > supportLineAvailableWidth()) {
+            // Only the message band scrolls, so only the message band is invalidated.
+            postInvalidateDelayed(SUPPORT_LINE_FRAME_DELAY_MILLIS, 0,
+                    (int) Math.floor(frame.supportTop), getWidth(),
+                    (int) Math.ceil(frame.supportBottom));
         }
-
-        drawWeatherDetail(canvas, centerX, baseline, weatherMetrics, detailGapScale);
         datePaint.setTextSize(originalSize);
         datePaint.setTypeface(originalTypeface);
     }
 
-    /** Horizontal width an item occupies, reserving icon + gaps for weather-summary items. */
-    private float itemWidth(WeatherLineItem item) {
-        if (!item.hasIcon()) return measureSupportingText(item.text);
-        float ts = datePaint.getTextSize();
-        float iconSize = ts * 0.95f;
-        float iconGap = ts * 0.25f;
-        return measureSupportingText(item.left) + measureSupportingText(item.right)
-            + iconSize + iconGap * 2f;
+    /** Horizontal width an item occupies. */
+    private float itemWidth(SupportLineItem item) {
+        return measureSupportingText(item.text);
     }
 
-    /**
-     * Draws a weather-summary item as one horizontal run [location][icon][condition],
-     * centered, marquee-scrolling as a whole when it overflows the available width. Mirrors
-     * {@link #drawScrollingWeatherText} so both overflow behaviours stay identical.
-     */
-    private void drawScrollingWeatherSummary(Canvas canvas, WeatherLineItem item,
+    /** Dispatches an item to the continuous marquee or one-shot scrolling renderer. */
+    private void drawSupportLineContent(Canvas canvas, SupportLineItem item,
             float centerX, float baseline, Paint.FontMetrics metrics, long elapsed) {
-        float ts = datePaint.getTextSize();
-        float iconSize = ts * 0.95f;
-        float iconGap = ts * 0.25f;
-        float leftWidth = measureSupportingText(item.left);
-        float rightWidth = measureSupportingText(item.right);
-        float total = leftWidth + rightWidth + iconSize + iconGap * 2f;
-        float available = weatherDetailAvailableWidth();
-        boolean clip = total > available;
-        float startX;
-        if (clip) {
-            float overflow = total - available;
-            float speed = WEATHER_DETAIL_SCROLL_DP_PER_SECOND
-                * getResources().getDisplayMetrics().density;
-            long scrollMillis = (long) Math.ceil(overflow / speed * 1000f);
-            float progress = Math.max(0f, Math.min(1f,
-                (elapsed - WEATHER_DETAIL_SCROLL_PAUSE_MILLIS) / (float) scrollMillis));
-            float clipLeft = centerX - available / 2f;
-            canvas.save();
-            canvas.clipRect(clipLeft, 0f, clipLeft + available, getHeight());
-            startX = clipLeft - overflow * progress;
-        } else {
-            startX = centerX - total / 2f;
-        }
-        float cursor = startX;
-        drawSupportingText(canvas, item.left, cursor, baseline, Paint.Align.LEFT);
-        cursor += leftWidth + iconGap;
-        float iconTop = baseline + (metrics.ascent + metrics.descent) / 2f - iconSize / 2f;
-        weatherIconPaint.setColor(weatherIconColor);
-        weatherIconPaint.setAlpha(datePaint.getAlpha());
-        item.icon.draw(canvas, cursor, iconTop, iconSize, weatherIconPaint);
-        cursor += iconSize + iconGap;
-        drawSupportingText(canvas, item.right, cursor, baseline, Paint.Align.LEFT);
-        if (clip) canvas.restore();
-    }
-
-    /** Dispatches an item to the icon-aware summary renderer or the plain-text renderer. */
-    private void drawWeatherLineContent(Canvas canvas, WeatherLineItem item,
-            float centerX, float baseline, Paint.FontMetrics metrics, long elapsed) {
-        if (item.hasIcon()) {
-            drawScrollingWeatherSummary(canvas, item, centerX, baseline, metrics, elapsed);
-        } else if (item.continuousMarquee) {
+        if (item.continuousMarquee) {
             drawLoopingMessage(canvas, item.text, centerX, baseline, metrics, elapsed);
-        } else if (item.message) {
-            drawScrollingMessage(canvas, item.text, centerX, baseline, metrics, elapsed);
         } else {
-            drawScrollingWeatherText(canvas, item.text, centerX, baseline, elapsed);
+            drawScrollingMessage(canvas, item.text, centerX, baseline, metrics, elapsed);
         }
     }
 
-    /** Elapsed time within the single-item scroll cycle for the main carousel. */
-    private long mainCarouselElapsed(WeatherLineItem item) {
+    /** Elapsed time within the single-item scroll cycle for the supporting line. */
+    private long mainCarouselElapsed(SupportLineItem item) {
         long now = SystemClock.uptimeMillis();
-        if (messageCarousel.cycleStartedAt == 0L
-                || messageCarousel.items == null
-                || messageCarousel.items.size() != 1
-                || !item.equals(messageCarousel.items.get(0))) {
-            messageCarousel.setItems(java.util.Collections.singletonList(item));
+        if (messageCarousel.cycleStartedAt == 0L || !item.equals(messageCarousel.item)) {
+            messageCarousel.item = item;
             messageCarousel.cycleStartedAt = now;
         }
         long elapsed = now - messageCarousel.cycleStartedAt;
         if (item.continuousMarquee) return elapsed;
-        long duration = weatherDetailDisplayDuration(item);
+        long duration = supportLineDisplayDuration(item);
         if (elapsed >= duration) {
             messageCarousel.cycleStartedAt = now;
             elapsed = 0L;
@@ -677,110 +965,36 @@ public class ClockView extends View {
         return elapsed;
     }
 
-
-    private void drawWeatherDetail(Canvas canvas, float centerX, float weatherBaseline,
-            Paint.FontMetrics weatherMetrics, float detailGapScale) {
-        if (backgroundRepository == null || !backgroundRepository.isWeatherDetailed()) return;
-        if (weatherDetailCarousel.isEmpty()) return;
-        float detailBaseline = weatherBaseline + (weatherMetrics.descent
-            - weatherMetrics.ascent + weatherMetrics.descent) * detailGapScale;
-        drawCarousel(canvas, weatherDetailCarousel, centerX, detailBaseline, weatherMetrics);
-    }
-
-    /**
-     * Drives one {@link Carousel} at {@code baseline}: holds each item, scrolls it
-     * horizontally when it overflows the available width, then transitions to the next.
-     * Used by both the detailed-weather line and the main weather/message line so their
-     * animation and scrolling behaviour stay identical.
-     */
-    private void drawCarousel(Canvas canvas, Carousel carousel, float centerX,
-            float baseline, Paint.FontMetrics metrics) {
-        if (carousel.isEmpty()) return;
-        long now = SystemClock.uptimeMillis();
-        if (carousel.cycleStartedAt == 0L) carousel.cycleStartedAt = now;
-
-        int currentIndex = Math.min(carousel.index, carousel.items.size() - 1);
-        WeatherLineItem currentItem = carousel.items.get(currentIndex);
-        long elapsed = now - carousel.cycleStartedAt;
-        long displayDuration = weatherDetailDisplayDuration(currentItem);
-
-        if (carousel.items.size() == 1) {
-            if (!currentItem.continuousMarquee && elapsed >= displayDuration) {
-                carousel.cycleStartedAt = now;
-                elapsed = 0L;
-            }
-            drawWeatherDetailItem(canvas, currentItem, null, centerX,
-                baseline, metrics, 0f, elapsed);
-            if (currentItem.continuousMarquee
-                    || itemWidth(currentItem) > weatherDetailAvailableWidth()) {
-                postInvalidateDelayed(WEATHER_DETAIL_FRAME_DELAY_MILLIS);
-            }
-            return;
-        }
-
-        long fadeOutEnd = displayDuration + WEATHER_DETAIL_TRANSITION_MILLIS;
-        long fadeInEnd = fadeOutEnd + WEATHER_DETAIL_TRANSITION_MILLIS;
-
-        int nextIndex = (carousel.index + 1) % carousel.items.size();
-        WeatherLineItem nextItem = carousel.items.get(nextIndex);
-
-        if (elapsed < displayDuration) {
-            drawWeatherDetailItem(canvas, currentItem, null, centerX,
-                baseline, metrics, 0f, elapsed);
-        } else if (elapsed < fadeOutEnd) {
-            float progress = (float) (elapsed - displayDuration)
-                / WEATHER_DETAIL_TRANSITION_MILLIS;
-            drawWeatherDetailItem(canvas, currentItem, nextItem, centerX,
-                baseline, metrics, progress * 0.5f, displayDuration);
-        } else if (elapsed < fadeInEnd) {
-            float progress = (float) (elapsed - fadeOutEnd)
-                / WEATHER_DETAIL_TRANSITION_MILLIS;
-            drawWeatherDetailItem(canvas, currentItem, nextItem, centerX,
-                baseline, metrics, 0.5f + progress * 0.5f, 0L);
-        } else {
-            carousel.index = nextIndex;
-            carousel.cycleStartedAt = now;
-            drawWeatherDetailItem(canvas, nextItem, null, centerX,
-                baseline, metrics, 0f, 0L);
-        }
-
-        postInvalidateDelayed(WEATHER_DETAIL_FRAME_DELAY_MILLIS);
-    }
-
     /**
      * Draws the carousel line. {@code progress} runs across the whole transition where
-     * {@code [0, 0.5)} fades out {@code current} and {@code [0.5, 1]} brings in {@code next};
-     * outside a transition it is 0 and only {@code current} is drawn at full strength.
+     * {@code [0, 0.5)} fades out {@code current} and {@code [0.5, 1]} brings in {@code next}.
      */
-    private void drawWeatherDetailItem(Canvas canvas, WeatherLineItem current, WeatherLineItem next,
-            float centerX, float baseline, Paint.FontMetrics metrics, float progress,
-            long itemElapsed) {
+    private void drawSupportLineItem(Canvas canvas, SupportLineItem current,
+            SupportLineItem next, float centerX, float baseline, Paint.FontMetrics metrics,
+            float progress, long itemElapsed) {
         boolean transitioning = next != null;
-        boolean useTimeTransition =
-            com.clockmods.BuildConfig.WEATHER_DETAIL_USES_TIME_TRANSITION;
         if (!transitioning) {
-            drawWeatherDetailLine(canvas, current, centerX, baseline, metrics, 255,
+            drawSupportLineItemLine(canvas, current, centerX, baseline, metrics, 255,
                 ClockPreferences.TRANSITION_FADE, 0f, itemElapsed);
             return;
         }
-        String transition = useTimeTransition ? timeTransition : ClockPreferences.TRANSITION_FADE;
+        String transition = ClockPreferences.TRANSITION_FADE;
         if (progress < 0.5f) {
             float outProgress = progress / 0.5f;
-            drawWeatherDetailLine(canvas, current, centerX, baseline, metrics,
+            drawSupportLineItemLine(canvas, current, centerX, baseline, metrics,
                 Math.round(255f * (1f - outProgress)), transition, outProgress, itemElapsed);
         } else {
             float inProgress = (progress - 0.5f) / 0.5f;
-            drawWeatherDetailLine(canvas, next, centerX, baseline, metrics,
+            drawSupportLineItemLine(canvas, next, centerX, baseline, metrics,
                 Math.round(255f * inProgress), transition, -(1f - inProgress), itemElapsed);
         }
     }
 
     /**
      * Renders one carousel line honouring the transition style. {@code phase} encodes the
-     * spatial offset for motion styles: negative means leaving (old item), positive means
-     * entering (new item), 0 means settled.
+     * spatial offset for motion styles: negative means leaving, positive entering, 0 settled.
      */
-    private void drawWeatherDetailLine(Canvas canvas, WeatherLineItem item, float centerX,
+    private void drawSupportLineItemLine(Canvas canvas, SupportLineItem item, float centerX,
             float baseline, Paint.FontMetrics metrics, int alpha, String transition, float phase,
             long itemElapsed) {
         if (item == null || item.text.length() == 0) return;
@@ -794,7 +1008,7 @@ public class ClockView extends View {
             canvas.save();
             canvas.translate(0f, direction * distance * phase);
             datePaint.setAlpha(Math.round(clampedAlpha / 255f * originalAlpha));
-            drawWeatherLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
+            drawSupportLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
             canvas.restore();
         } else if (ClockPreferences.TRANSITION_SCALE.equals(transition)) {
             float scale = 1f - 0.12f * Math.abs(phase);
@@ -802,7 +1016,7 @@ public class ClockView extends View {
             canvas.save();
             canvas.scale(scale, scale, centerX, pivotY);
             datePaint.setAlpha(Math.round(clampedAlpha / 255f * originalAlpha));
-            drawWeatherLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
+            drawSupportLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
             canvas.restore();
         } else if (ClockPreferences.TRANSITION_FLIP.equals(transition)) {
             float scaleY = Math.max(0.05f, 1f - Math.abs(phase));
@@ -810,82 +1024,51 @@ public class ClockView extends View {
             canvas.save();
             canvas.scale(1f, scaleY, centerX, pivotY);
             datePaint.setAlpha(originalAlpha);
-            drawWeatherLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
+            drawSupportLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
             canvas.restore();
         } else {
             datePaint.setAlpha(Math.round(clampedAlpha / 255f * originalAlpha));
-            drawWeatherLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
+            drawSupportLineContent(canvas, item, centerX, baseline, metrics, itemElapsed);
         }
         datePaint.setAlpha(originalAlpha);
     }
 
-    private long weatherDetailDisplayDuration(WeatherLineItem item) {
+    private long supportLineDisplayDuration(SupportLineItem item) {
         if (item.continuousMarquee) {
-            float speed = WEATHER_DETAIL_SCROLL_DP_PER_SECOND
+            float speed = SUPPORT_LINE_SCROLL_DP_PER_SECOND
                     * getResources().getDisplayMetrics().density;
             float cycleDistance = itemWidth(item) + datePaint.getTextSize()
                     * MESSAGE_MARQUEE_GAP_EM;
             long cycleMillis = (long) Math.ceil(cycleDistance / speed * 1000f);
-            return Math.max(WEATHER_DETAIL_HOLD_MILLIS, cycleMillis);
+            return Math.max(SUPPORT_LINE_HOLD_MILLIS, cycleMillis);
         }
-        if (item.message) {
-            float available = weatherDetailAvailableWidth();
-            float distance = oneShotMarqueeDistance(itemWidth(item), available,
-                    messageEdgeFadeWidth(available));
-            if (distance <= 0f) return WEATHER_DETAIL_HOLD_MILLIS;
-            float speed = WEATHER_DETAIL_SCROLL_DP_PER_SECOND
-                    * getResources().getDisplayMetrics().density;
-            long scrollMillis = (long) Math.ceil(distance / speed * 1000f);
-            return Math.max(WEATHER_DETAIL_HOLD_MILLIS,
-                    WEATHER_DETAIL_SCROLL_PAUSE_MILLIS * 2L + scrollMillis);
-        }
-        float overflow = itemWidth(item) - weatherDetailAvailableWidth();
-        if (overflow <= 0f) return WEATHER_DETAIL_HOLD_MILLIS;
-        float speed = WEATHER_DETAIL_SCROLL_DP_PER_SECOND
+        float available = supportLineAvailableWidth();
+        float distance = oneShotMarqueeDistance(itemWidth(item), available,
+                messageEdgeFadeWidth(available));
+        if (distance <= 0f) return SUPPORT_LINE_HOLD_MILLIS;
+        float speed = SUPPORT_LINE_SCROLL_DP_PER_SECOND
                 * getResources().getDisplayMetrics().density;
-        long scrollMillis = (long) Math.ceil(overflow / speed * 1000f);
-        return Math.max(WEATHER_DETAIL_HOLD_MILLIS,
-                WEATHER_DETAIL_SCROLL_PAUSE_MILLIS * 2L + scrollMillis);
+        long scrollMillis = (long) Math.ceil(distance / speed * 1000f);
+        return Math.max(SUPPORT_LINE_HOLD_MILLIS,
+                SUPPORT_LINE_SCROLL_PAUSE_MILLIS * 2L + scrollMillis);
     }
 
-    private float weatherDetailAvailableWidth() {
-        float padding = WEATHER_DETAIL_HORIZONTAL_PADDING_DP
+    private float supportLineAvailableWidth() {
+        float padding = SUPPORT_LINE_HORIZONTAL_PADDING_DP
                 * getResources().getDisplayMetrics().density;
         return Math.max(1f, getWidth() - padding * 2f);
-    }
-
-    private void drawScrollingWeatherText(Canvas canvas, String text, float centerX,
-            float baseline, long elapsed) {
-        float textWidth = measureSupportingText(text);
-        float availableWidth = weatherDetailAvailableWidth();
-        if (textWidth <= availableWidth) {
-            drawSupportingText(canvas, text, centerX, baseline, Paint.Align.CENTER);
-            return;
-        }
-
-        float left = centerX - availableWidth / 2f;
-        float overflow = textWidth - availableWidth;
-        float speed = WEATHER_DETAIL_SCROLL_DP_PER_SECOND
-                * getResources().getDisplayMetrics().density;
-        long scrollMillis = (long) Math.ceil(overflow / speed * 1000f);
-        float progress = Math.max(0f, Math.min(1f,
-                (elapsed - WEATHER_DETAIL_SCROLL_PAUSE_MILLIS) / (float) scrollMillis));
-        canvas.save();
-        canvas.clipRect(left, 0f, left + availableWidth, getHeight());
-        drawSupportingText(canvas, text, left - overflow * progress, baseline, Paint.Align.LEFT);
-        canvas.restore();
     }
 
     private void drawLoopingMessage(Canvas canvas, String text, float centerX, float baseline,
             Paint.FontMetrics metrics, long elapsed) {
         float textWidth = measureSupportingText(text);
         if (textWidth <= 0f) return;
-        float available = weatherDetailAvailableWidth();
+        float available = supportLineAvailableWidth();
         float left = centerX - available / 2f;
         float right = left + available;
         float gap = datePaint.getTextSize() * MESSAGE_MARQUEE_GAP_EM;
         float cycleDistance = textWidth + gap;
-        float speed = WEATHER_DETAIL_SCROLL_DP_PER_SECOND
+        float speed = SUPPORT_LINE_SCROLL_DP_PER_SECOND
                 * getResources().getDisplayMetrics().density;
         float offset = loopingMarqueeOffset(elapsed, cycleDistance, speed);
         float top = Math.max(0f, baseline + metrics.ascent - datePaint.getTextSize() * 0.12f);
@@ -907,7 +1090,7 @@ public class ClockView extends View {
             Paint.FontMetrics metrics, long elapsed) {
         float textWidth = measureSupportingText(text);
         if (textWidth <= 0f) return;
-        float available = weatherDetailAvailableWidth();
+        float available = supportLineAvailableWidth();
         float fadeWidth = messageEdgeFadeWidth(available);
         float distance = oneShotMarqueeDistance(textWidth, available, fadeWidth);
         if (distance <= 0f) {
@@ -917,9 +1100,9 @@ public class ClockView extends View {
 
         float left = centerX - available / 2f;
         float right = left + available;
-        float speed = WEATHER_DETAIL_SCROLL_DP_PER_SECOND
+        float speed = SUPPORT_LINE_SCROLL_DP_PER_SECOND
                 * getResources().getDisplayMetrics().density;
-        float offset = oneShotMarqueeOffset(elapsed, WEATHER_DETAIL_SCROLL_PAUSE_MILLIS,
+        float offset = oneShotMarqueeOffset(elapsed, SUPPORT_LINE_SCROLL_PAUSE_MILLIS,
                 distance, speed);
         float top = Math.max(0f, baseline + metrics.ascent - datePaint.getTextSize() * 0.12f);
         float bottom = Math.min(getHeight(), baseline + metrics.descent
@@ -939,12 +1122,17 @@ public class ClockView extends View {
 
     private void drawMessageEdgeFade(Canvas canvas, float left, float right,
             float top, float bottom) {
-        float edgeFraction = Math.min(0.25f, Math.max(0.01f,
-                MESSAGE_EDGE_FADE_FRACTION));
-        marqueeFadePaint.setShader(new LinearGradient(left, 0f, right, 0f,
-                new int[] {0x00FFFFFF, 0xFFFFFFFF, 0xFFFFFFFF, 0x00FFFFFF},
-                new float[] {0f, edgeFraction, 1f - edgeFraction, 1f},
-                Shader.TileMode.CLAMP));
+        if (fadeShader == null || fadeShaderLeft != left || fadeShaderRight != right) {
+            float edgeFraction = Math.min(0.25f, Math.max(0.01f,
+                    MESSAGE_EDGE_FADE_FRACTION));
+            fadePositions[1] = edgeFraction;
+            fadePositions[2] = 1f - edgeFraction;
+            fadeShader = new LinearGradient(left, 0f, right, 0f, fadeColors, fadePositions,
+                    Shader.TileMode.CLAMP);
+            fadeShaderLeft = left;
+            fadeShaderRight = right;
+        }
+        marqueeFadePaint.setShader(fadeShader);
         canvas.drawRect(left, top, right, bottom, marqueeFadePaint);
         marqueeFadePaint.setShader(null);
     }
@@ -973,19 +1161,51 @@ public class ClockView extends View {
 
     private float measureSupportingText(String text) {
         if (text == null || text.length() == 0) return 0f;
-        Typeface originalTypeface = datePaint.getTypeface();
+        return metricWidth[supportMetrics(text)];
+    }
+
+    /**
+     * Measures a supporting string (date, lunar date or custom message) once per
+     * (text, size, font) and caches both the total width and the per-character advances.
+     * A single frame measures the same string three or four times — to size the font, to
+     * centre it and again while drawing — and each pass would otherwise re-enter
+     * {@code measureText} for every character.
+     */
+    private int supportMetrics(String text) {
+        float size = datePaint.getTextSize();
+        for (int slot = 0; slot < SUPPORT_METRIC_SLOTS; slot++) {
+            if (metricAdvances[slot] != null
+                    && metricFont[slot] == fontGeneration
+                    && metricSize[slot] == size
+                    && ApiCompat.equals(text, metricText[slot])) {
+                return slot;
+            }
+        }
+        int length = text.length();
+        char[] glyphs = glyphs(text);
+        float[] advances = new float[length];
+        float spacing = size * SUPPORTING_TEXT_LETTER_SPACING;
         float width = 0f;
-        float spacing = datePaint.getTextSize() * SUPPORTING_TEXT_LETTER_SPACING;
-        for (int start = 0; start < text.length();) {
+        Typeface originalTypeface = datePaint.getTypeface();
+        for (int start = 0; start < length;) {
             int codePoint = text.codePointAt(start);
             int end = start + Character.charCount(codePoint);
             datePaint.setTypeface(supportingTypefaceFor(codePoint));
-            width += datePaint.measureText(text, start, end);
-            if (hasSupportingTrackingAt(text, end)) width += spacing;
+            float advance = datePaint.measureText(glyphs, start, end - start);
+            if (hasSupportingTrackingAt(text, end)) advance += spacing;
+            advances[start] = advance;
+            width += advance;
             start = end;
         }
         datePaint.setTypeface(originalTypeface);
-        return width;
+        int slot = metricNext;
+        metricNext = (metricNext + 1) % SUPPORT_METRIC_SLOTS;
+        metricText[slot] = text;
+        metricSize[slot] = size;
+        metricFont[slot] = fontGeneration;
+        metricWidth[slot] = width;
+        metricAdvances[slot] = advances;
+        return slot;
     }
 
     /** Keeps a pangu U+0020 space at its font-defined width instead of widening it further. */
@@ -1004,120 +1224,145 @@ public class ClockView extends View {
     }
 
     /**
-     * Rotating-line carousel state: which item is showing and when its cycle began.
-     * Two instances drive the detailed-weather line and the main weather/message line,
-     * sharing the identical timing, transition and horizontal-scroll behaviour.
+     * Carousel state for the supporting line: the item currently shown and when its
+     * cycle began. Only one line is ever displayed, so no list is kept.
      */
     private static final class Carousel {
-        java.util.List<WeatherLineItem> items;
-        int index;
+        SupportLineItem item;
         long cycleStartedAt;
-
-        void setItems(java.util.List<WeatherLineItem> newItems) {
-            if (java.util.Objects.equals(items, newItems)) return;
-            // Keep the current position when the refreshed list still covers it, so a data
-            // update does not jump the rotating line back to its first entry.
-            if (items == null || newItems == null || index >= newItems.size()) {
-                index = 0;
-                cycleStartedAt = 0L;
-            }
-            items = newItems;
-        }
-
-        boolean isEmpty() {
-            return items == null || items.isEmpty();
-        }
     }
 
     /**
-     * One item on a rotating supporting line. A plain item carries only {@link #text}; a
-     * weather-summary item additionally splits into {@link #left} (location) and {@link #right}
-     * (condition + temperature) around a {@link #icon}. {@link #equals}/{@link #hashCode} let
-     * {@code List.equals} detect when the carousel contents actually change.
+     * One item on the rotating supporting line. Only the custom message is represented
+     * now; {@link #equals}/{@link #hashCode} let a text change restart the cycle.
      */
-    private static final class WeatherLineItem {
+    private static final class SupportLineItem {
         final String text;
-        final String left;
-        final String right;
-        final WeatherIcon icon;
         final boolean message;
         final boolean continuousMarquee;
 
-        private WeatherLineItem(String text, String left, String right, WeatherIcon icon,
-                boolean message, boolean continuousMarquee) {
+        private SupportLineItem(String text, boolean message, boolean continuousMarquee) {
             this.text = text;
-            this.left = left;
-            this.right = right;
-            this.icon = icon;
             this.message = message;
             this.continuousMarquee = continuousMarquee;
         }
 
-        static WeatherLineItem plain(String text) {
-            return new WeatherLineItem(text, null, null, null, false, false);
-        }
-
-        static WeatherLineItem message(String text, boolean continuousMarquee) {
-            return new WeatherLineItem(text, null, null, null, true, continuousMarquee);
-        }
-
-        static WeatherLineItem weather(String left, String right, WeatherIcon icon) {
-            return new WeatherLineItem(left + "  " + right, left, right, icon, false, false);
-        }
-
-        boolean hasIcon() {
-            return icon != null;
+        static SupportLineItem message(String text, boolean continuousMarquee) {
+            return new SupportLineItem(text, true, continuousMarquee);
         }
 
         @Override public boolean equals(Object o) {
             if (this == o) return true;
-            if (!(o instanceof WeatherLineItem)) return false;
-            WeatherLineItem other = (WeatherLineItem) o;
-            // WeatherIcon is cached per (code, style) so equal items share the same instance.
-            return text.equals(other.text) && icon == other.icon
+            if (!(o instanceof SupportLineItem)) return false;
+            SupportLineItem other = (SupportLineItem) o;
+            return ApiCompat.equals(text, other.text)
                     && message == other.message
                     && continuousMarquee == other.continuousMarquee;
         }
 
         @Override public int hashCode() {
-            int hash = text.hashCode() * 31 + (icon == null ? 0 : System.identityHashCode(icon));
+            int hash = text == null ? 0 : text.hashCode() * 31;
             hash = hash * 31 + (message ? 1 : 0);
             return hash * 31 + (continuousMarquee ? 1 : 0);
         }
     }
 
+    /**
+     * Draws supporting text (date, lunar date, custom message). Characters are positioned from the
+     * advances cached in {@link #supportMetrics}, and consecutive characters that share a typeface
+     * are emitted as one {@code drawPosText} run - so a mixed CJK/Latin date costs a handful of
+     * native calls instead of one per character.
+     */
     private void drawSupportingText(Canvas canvas, String text, float x, float baseline,
             Paint.Align align) {
         if (text == null || text.length() == 0) return;
-        float width = measureSupportingText(text);
+        int slot = supportMetrics(text);
+        char[] glyphs = glyphs(text);
+        float width = metricWidth[slot];
+        float[] advances = metricAdvances[slot];
+        float[] positions = positions(text.length());
         float cursor = align == Paint.Align.CENTER ? x - width / 2f
             : align == Paint.Align.RIGHT ? x - width : x;
         Paint.Align originalAlign = datePaint.getTextAlign();
         Typeface originalTypeface = datePaint.getTypeface();
         datePaint.setTextAlign(Paint.Align.LEFT);
-        float spacing = datePaint.getTextSize() * SUPPORTING_TEXT_LETTER_SPACING;
+        int runStart = 0;
+        int runLength = 0;
+        Typeface runTypeface = null;
         for (int start = 0; start < text.length();) {
             int codePoint = text.codePointAt(start);
             int end = start + Character.charCount(codePoint);
-            datePaint.setTypeface(supportingTypefaceFor(codePoint));
-            canvas.drawText(text, start, end, cursor, baseline, datePaint);
-            cursor += datePaint.measureText(text, start, end);
-            if (hasSupportingTrackingAt(text, end)) cursor += spacing;
+            Typeface typeface = supportingTypefaceFor(codePoint);
+            if (end - start > 1) {
+                // A surrogate pair cannot go through the char-indexed batch without being split,
+                // so it is flushed and drawn on its own.
+                if (runLength > 0) {
+                    datePaint.setTypeface(runTypeface);
+                    canvas.drawPosText(glyphs, runStart, runLength, positions, datePaint);
+                    runLength = 0;
+                }
+                datePaint.setTypeface(typeface);
+                canvas.drawText(glyphs, start, end - start, cursor, baseline, datePaint);
+                cursor += advances[start];
+                start = end;
+                continue;
+            }
+            if (runLength > 0 && typeface != runTypeface) {
+                datePaint.setTypeface(runTypeface);
+                canvas.drawPosText(glyphs, runStart, runLength, positions, datePaint);
+                runLength = 0;
+            }
+            if (runLength == 0) {
+                runStart = start;
+                runTypeface = typeface;
+            }
+            positions[runLength * 2] = cursor;
+            positions[runLength * 2 + 1] = baseline;
+            runLength++;
+            cursor += advances[start];
             start = end;
+        }
+        if (runLength > 0) {
+            datePaint.setTypeface(runTypeface);
+            canvas.drawPosText(glyphs, runStart, runLength, positions, datePaint);
         }
         datePaint.setTypeface(originalTypeface);
         datePaint.setTextAlign(originalAlign);
     }
 
     private Typeface supportingTypefaceFor(int codePoint) {
-        return ClockTypefaceResolver.resolveSupportingForCodePoint(
-            getContext(), backgroundRepository.getFontFamily(), boldText, codePoint);
+        boolean chinese = ClockTypefaceResolver.isChinese(codePoint);
+        Typeface resolved = chinese ? supportingCjkTypeface : supportingLatinTypeface;
+        // Only reachable before the first refreshSettings (no repository yet).
+        return resolved != null ? resolved : Typeface.DEFAULT;
     }
 
-    private void applyTextStyles() {
+    /**
+     * Reads the style preferences into the snapshot, but only when one of them was written since
+     * the last frame. Re-styling four paints and re-reading twenty values per second was the single
+     * most expensive part of a frame; both now happen once per settings change.
+     */
+    private void refreshSettings() {
         if (backgroundRepository == null) {
             return;
         }
+        int version = ClockPreferences.writeVersion();
+        if (version == settingsVersion) {
+            return;
+        }
+        boolean firstRead = settingsVersion == -1;
+        settingsVersion = version;
+
+        backgroundColor = backgroundRepository.getCurrentColor();
+        imageMode = ClockPreferences.MODE_IMAGE.equals(backgroundRepository.getBackgroundMode());
+        dimBackgroundAlways = backgroundRepository.isDimBackground();
+        dimBackgroundScheduled = backgroundRepository.isScheduleDimBackground();
+        dimStartMinutes = backgroundRepository.getDimStartMinutes();
+        dimEndMinutes = backgroundRepository.getDimEndMinutes();
+        timeZoneId = backgroundRepository.getTimeZoneId();
+        // The zone object is resolved lazily by resolveTimeZone() on the next draw.
+        timeZoneValue = null;
+
         timeFontScale = backgroundRepository.getTimeFontScale();
         dateFontScale = backgroundRepository.getDateFontScale();
         timePaint.setColor(backgroundRepository.getTimeColor());
@@ -1129,12 +1374,24 @@ public class ClockView extends View {
         timeTransition = backgroundRepository.getTimeTransition();
         boldText = backgroundRepository.isBoldText();
         String fontFamily = backgroundRepository.getFontFamily();
-        Typeface timeTypeface = ClockTypefaceResolver.resolveTime(getContext(), fontFamily, boldText);
+        // Resolve the faces once per (family, bold) change rather than on every frame and,
+        // for the supporting line, for every single character.
+        if (!typefaceResolved || boldText != typefaceBold
+                || !ApiCompat.equals(fontFamily, typefaceFamily)) {
+            typefaceFamily = fontFamily;
+            typefaceBold = boldText;
+            timeTypeface = ClockTypefaceResolver.resolveTime(getContext(), fontFamily, boldText);
+            supportingLatinTypeface =
+                ClockTypefaceResolver.resolveSupporting(getContext(), fontFamily, boldText, false);
+            supportingCjkTypeface =
+                ClockTypefaceResolver.resolveSupporting(getContext(), fontFamily, boldText, true);
+            typefaceResolved = true;
+            fontGeneration++;
+        }
         timePaint.setTypeface(timeTypeface);
         secondsPaint.setTypeface(timeTypeface);
         periodPaint.setTypeface(timeTypeface);
-        datePaint.setTypeface(ClockTypefaceResolver.resolveSupporting(
-            getContext(), fontFamily, boldText, true));
+        datePaint.setTypeface(supportingCjkTypeface);
         showSeconds = backgroundRepository.isShowSeconds();
         showLunar = backgroundRepository.isShowLunar();
         smallSeconds = backgroundRepository.isSmallSeconds();
@@ -1142,15 +1399,6 @@ public class ClockView extends View {
         clockUseEnglish = backgroundRepository.isClockUseEnglish();
         dateLang = LocaleManager.dateLang(backgroundRepository.getClockLanguage());
         customMessage = backgroundRepository.getCustomMessage();
-        // Weather-icon style/colour are Pro-only options; other flavours keep the solid fill
-        // style and follow the date text colour (their historical behaviour).
-        boolean proIcons = "pro".equals(com.clockmods.BuildConfig.FLAVOR);
-        weatherIconFill = !proIcons || backgroundRepository.isWeatherIconFill();
-        weatherIconColor = proIcons
-                ? (backgroundRepository.isWeatherIconDynamicColor()
-                        ? ExperienceBridge.resolveAccentColor(getContext(), 0xFFFFFFFF)
-                        : 0xFFFFFFFF)
-                : backgroundRepository.getDateColor();
         datePatternCn = backgroundRepository.getDatePatternCn();
         datePatternEn = backgroundRepository.getDatePatternEn();
         portraitStacked = backgroundRepository.isPortraitStacked();
@@ -1160,11 +1408,17 @@ public class ClockView extends View {
             timeProvider.setEnabled(backgroundRepository.isUseNetworkTime());
             timeProvider.setSyncIntervalMinutes(backgroundRepository.getSyncIntervalMinutes());
         }
+        // A colour, language or size change can alter what is drawn without moving any cached
+        // geometry, so the next pass repaints the whole surface instead of the digit rectangle.
+        supportLayerValid = false;
+        if (!firstRead) {
+            fullRepaintQueued = true;
+            postInvalidate();
+        }
     }
 
     private void applySupportingTypeface(String text) {
-        datePaint.setTypeface(ClockTypefaceResolver.resolveSupporting(
-                getContext(), backgroundRepository.getFontFamily(), boldText, containsChinese(text)));
+        datePaint.setTypeface(containsChinese(text) ? supportingCjkTypeface : supportingLatinTypeface);
     }
 
     static boolean containsChinese(String text) {
@@ -1185,31 +1439,37 @@ public class ClockView extends View {
     }
 
     private java.util.TimeZone resolveTimeZone() {
-        if (backgroundRepository == null) {
-            return java.util.TimeZone.getDefault();
+        if (timeZoneValue == null) {
+            String zoneId = timeZoneId == null ? ClockPreferences.TIME_ZONE_FOLLOW_SYSTEM : timeZoneId;
+            timeZoneValue = zoneId.length() == 0
+                    ? java.util.TimeZone.getDefault()
+                    : java.util.TimeZone.getTimeZone(zoneId);
         }
-        String zoneId = backgroundRepository.getTimeZoneId();
-        if (zoneId == null || zoneId.length() == 0) {
-            return java.util.TimeZone.getDefault();
-        }
-        return java.util.TimeZone.getTimeZone(zoneId);
+        return timeZoneValue;
+    }
+
+    /**
+     * Drops the cached time zone so the next frame re-reads the device zone. Called when
+     * the system reports a time-zone change; while the clock follows the system zone the
+     * cached value would otherwise stay stale.
+     */
+    public void invalidateTimeZone() {
+        timeZoneValue = null;
+        invalidate();
     }
 
     private boolean shouldDimBackground(Calendar now) {
-        if (backgroundRepository == null
-                || !ClockPreferences.MODE_IMAGE.equals(backgroundRepository.getBackgroundMode())) {
+        if (backgroundRepository == null || !imageMode) {
             return false;
         }
-        if (backgroundRepository.isDimBackground()) {
+        if (dimBackgroundAlways) {
             return true;
         }
-        if (!backgroundRepository.isScheduleDimBackground()) {
+        if (!dimBackgroundScheduled) {
             return false;
         }
         int currentMinutes = now.get(Calendar.HOUR_OF_DAY) * 60 + now.get(Calendar.MINUTE);
-        return BackgroundDimSchedule.isActive(currentMinutes,
-                backgroundRepository.getDimStartMinutes(),
-                backgroundRepository.getDimEndMinutes());
+        return BackgroundDimSchedule.isActive(currentMinutes, dimStartMinutes, dimEndMinutes);
     }
 
     private static String longerOf(String a, String b) {
@@ -1274,7 +1534,15 @@ public class ClockView extends View {
         drawConfiguredTimeTransition(canvas, previousTime, displayedTime,
             centerX, mainBaseline, progress);
         if (progress < 1f) {
-            postInvalidateDelayed(16L);
+            // The digit transition is a short fade/slide; ~30 fps is visually smooth here and
+            // halves the number of onDraw passes on the slow devices this compat build targets.
+            // It only moves the digits, so the same rectangle the ticker uses is enough.
+            if (timeDirtyValid) {
+                postInvalidateDelayed(33L, timeDirty.left, timeDirty.top, timeDirty.right,
+                        timeDirty.bottom);
+            } else {
+                postInvalidateDelayed(33L);
+            }
         } else {
             previousTime = null;
         }
@@ -1306,24 +1574,22 @@ public class ClockView extends View {
             return;
         }
 
-        float mainWidth = stableTextWidth(newTime.mainText, timePaint);
-        float gapWidth = smallSecondsGapWidth();
+        float mainWidth = frame.mainWidth;
+        float gapWidth = frame.gapWidth;
         drawTextTransition(canvas, oldTime.mainText, newTime.mainText,
             centerX, mainBaseline, timePaint, progress,
             oldTime.colonVisible, newTime.colonVisible);
         if (newTime.hasPeriod()) {
-            float periodWidth = periodPaint.measureText(newTime.periodText);
+            float periodWidth = frame.periodWidth;
             drawTextTransition(canvas, oldTime.periodText, newTime.periodText,
                     centerX - mainWidth / 2f - gapWidth - periodWidth / 2f,
-                bottomAlignedBaseline(mainBaseline, timePaint, periodPaint),
-                periodPaint, progress, true, true);
+                frame.periodBaseline, periodPaint, progress, true, true);
         }
         if (newTime.hasSmallSeconds()) {
-            float secondsWidth = stableTextWidth(newTime.secondsText, secondsPaint);
+            float secondsWidth = frame.secondsWidth;
             drawTextTransition(canvas, oldTime.secondsText, newTime.secondsText,
                     centerX + mainWidth / 2f + gapWidth + secondsWidth / 2f,
-                bottomAlignedBaseline(mainBaseline, timePaint, secondsPaint),
-                secondsPaint, progress, true, true);
+                frame.secondsBaseline, secondsPaint, progress, true, true);
         }
     }
 
@@ -1332,33 +1598,38 @@ public class ClockView extends View {
             boolean oldColonsVisible, boolean newColonsVisible) {
         int originalAlpha = paint.getAlpha();
         float digitWidth = widestDigitWidth(paint);
-        float cursor = centerX - stableTextWidth(newText, paint, digitWidth) / 2f;
+        // Pull both strings into the reusable char buffers: Canvas.drawText(String, int, int,
+        // ...) copies the whole string into a fresh char[] per call, and this loop runs per
+        // character on every animation frame.
+        char[] current = glyphs(newText);
+        char[] previous = previousGlyphs(oldText);
+        float cursor = centerX - stableTimeWidth(newText, paint, digitWidth) / 2f;
         for (int index = 0; index < newText.length(); index++) {
-            String newCharacter = newText.substring(index, index + 1);
-            String oldCharacter = oldText.substring(index, index + 1);
+            char newCharacter = current[index];
+            char oldCharacter = previous[index];
             float characterWidth = Math.max(
-                stableCharacterWidth(newCharacter, paint, digitWidth),
-                stableCharacterWidth(oldCharacter, paint, digitWidth));
+                stableCharacterWidth(current, index, paint, digitWidth),
+                stableCharacterWidth(previous, index, paint, digitWidth));
             float characterCenter = cursor + characterWidth / 2f;
-            boolean colonVisibilityChanged = ":".equals(newCharacter)
+            boolean colonVisibilityChanged = newCharacter == ':'
                     && oldColonsVisible != newColonsVisible;
-            if (newCharacter.equals(oldCharacter) && !colonVisibilityChanged) {
-                if (":".equals(newCharacter) && !newColonsVisible) {
+            if (newCharacter == oldCharacter && !colonVisibilityChanged) {
+                if (newCharacter == ':' && !newColonsVisible) {
                     cursor += characterWidth;
                     continue;
                 }
                 setClockTextAlpha(paint, 255);
-                canvas.drawText(newCharacter, characterCenter,
+                canvas.drawText(current, index, 1, characterCenter,
                     alignedCharacterBaseline(newCharacter, baseline, paint), paint);
             } else if (colonVisibilityChanged) {
                 int colonAlpha = newColonsVisible
                         ? Math.round(255f * progress)
                         : Math.round(255f * (1f - progress));
                 setClockTextAlpha(paint, colonAlpha);
-                canvas.drawText(newCharacter, characterCenter,
+                canvas.drawText(current, index, 1, characterCenter,
                         alignedCharacterBaseline(newCharacter, baseline, paint), paint);
             } else {
-                drawChangedCharacterTransition(canvas, oldCharacter, newCharacter,
+                drawChangedCharacterTransition(canvas, previous, current, index,
                     characterCenter, baseline, paint, progress);
             }
             cursor += characterWidth;
@@ -1366,57 +1637,57 @@ public class ClockView extends View {
         setClockTextAlpha(paint, originalAlpha);
     }
 
-            private void drawChangedCharacterTransition(Canvas canvas, String oldCharacter,
-                String newCharacter, float centerX, float baseline, Paint paint, float progress) {
-            float pivotY = baseline - paint.getTextSize() / 2f;
-            if (ClockPreferences.TRANSITION_SLIDE_UP.equals(timeTransition)
+    private void drawChangedCharacterTransition(Canvas canvas, char[] previous, char[] current,
+            int index, float centerX, float baseline, Paint paint, float progress) {
+        float pivotY = baseline - paint.getTextSize() / 2f;
+        if (ClockPreferences.TRANSITION_SLIDE_UP.equals(timeTransition)
                 || ClockPreferences.TRANSITION_SLIDE_DOWN.equals(timeTransition)) {
-                float direction = ClockPreferences.TRANSITION_SLIDE_UP.equals(timeTransition) ? -1f : 1f;
-                float distance = paint.getTextSize() * 0.24f;
-                drawTransformedCharacter(canvas, oldCharacter, centerX, baseline, paint,
-                    Math.round(255f * (1f - progress)), 1f,
-                    direction * distance * progress, pivotY);
-                drawTransformedCharacter(canvas, newCharacter, centerX, baseline, paint,
-                    Math.round(255f * progress), 1f,
-                    -direction * distance * (1f - progress), pivotY);
-                return;
-            }
-            if (ClockPreferences.TRANSITION_SCALE.equals(timeTransition)) {
-                drawTransformedCharacter(canvas, oldCharacter, centerX, baseline, paint,
-                    Math.round(255f * (1f - progress)), 1f + 0.08f * progress, 0f, pivotY);
-                drawTransformedCharacter(canvas, newCharacter, centerX, baseline, paint,
-                    Math.round(255f * progress), 0.88f + 0.12f * progress, 0f, pivotY);
-                return;
-            }
-            if (ClockPreferences.TRANSITION_FLIP.equals(timeTransition)) {
-                if (progress < 0.5f) {
-                drawTransformedCharacter(canvas, oldCharacter, centerX, baseline, paint,
+            float direction = ClockPreferences.TRANSITION_SLIDE_UP.equals(timeTransition) ? -1f : 1f;
+            float distance = paint.getTextSize() * 0.24f;
+            drawTransformedCharacter(canvas, previous, index, centerX, baseline, paint,
+                Math.round(255f * (1f - progress)), 1f,
+                direction * distance * progress, pivotY);
+            drawTransformedCharacter(canvas, current, index, centerX, baseline, paint,
+                Math.round(255f * progress), 1f,
+                -direction * distance * (1f - progress), pivotY);
+            return;
+        }
+        if (ClockPreferences.TRANSITION_SCALE.equals(timeTransition)) {
+            drawTransformedCharacter(canvas, previous, index, centerX, baseline, paint,
+                Math.round(255f * (1f - progress)), 1f + 0.08f * progress, 0f, pivotY);
+            drawTransformedCharacter(canvas, current, index, centerX, baseline, paint,
+                Math.round(255f * progress), 0.88f + 0.12f * progress, 0f, pivotY);
+            return;
+        }
+        if (ClockPreferences.TRANSITION_FLIP.equals(timeTransition)) {
+            if (progress < 0.5f) {
+                drawTransformedCharacter(canvas, previous, index, centerX, baseline, paint,
                     255, Math.max(0.05f, 1f - progress * 2f), 0f, pivotY);
-                } else {
-                drawTransformedCharacter(canvas, newCharacter, centerX, baseline, paint,
+            } else {
+                drawTransformedCharacter(canvas, current, index, centerX, baseline, paint,
                     255, Math.max(0.05f, (progress - 0.5f) * 2f), 0f, pivotY);
-                }
-                return;
             }
-            setClockTextAlpha(paint, Math.round(255f * (1f - progress)));
-            canvas.drawText(oldCharacter, centerX,
-                alignedCharacterBaseline(oldCharacter, baseline, paint), paint);
-            setClockTextAlpha(paint, Math.round(255f * progress));
-            canvas.drawText(newCharacter, centerX,
-                alignedCharacterBaseline(newCharacter, baseline, paint), paint);
-            }
+            return;
+        }
+        setClockTextAlpha(paint, Math.round(255f * (1f - progress)));
+        canvas.drawText(previous, index, 1, centerX,
+            alignedCharacterBaseline(previous[index], baseline, paint), paint);
+        setClockTextAlpha(paint, Math.round(255f * progress));
+        canvas.drawText(current, index, 1, centerX,
+            alignedCharacterBaseline(current[index], baseline, paint), paint);
+    }
 
-            private void drawTransformedCharacter(Canvas canvas, String character,
-                float centerX, float baseline, Paint paint, int alpha, float scaleY,
-                float translateY, float pivotY) {
-            setClockTextAlpha(paint, alpha);
-            canvas.save();
-            canvas.translate(0f, translateY);
-            canvas.scale(1f, scaleY, centerX, pivotY);
-            canvas.drawText(character, centerX,
-                alignedCharacterBaseline(character, baseline, paint), paint);
-            canvas.restore();
-            }
+    private void drawTransformedCharacter(Canvas canvas, char[] text, int index,
+            float centerX, float baseline, Paint paint, int alpha, float scaleY,
+            float translateY, float pivotY) {
+        setClockTextAlpha(paint, alpha);
+        canvas.save();
+        canvas.translate(0f, translateY);
+        canvas.scale(1f, scaleY, centerX, pivotY);
+        canvas.drawText(text, index, 1, centerX,
+            alignedCharacterBaseline(text[index], baseline, paint), paint);
+        canvas.restore();
+    }
 
     private void drawTime(Canvas canvas, ClockTimeFormatter.DisplayTime displayTime,
             float centerX, float mainBaseline, int alpha) {
@@ -1435,21 +1706,21 @@ public class ClockView extends View {
             return;
         }
 
-        float mainWidth = stableTextWidth(displayTime.mainText, timePaint);
-        float gapWidth = smallSecondsGapWidth();
+        float mainWidth = frame.mainWidth;
+        float gapWidth = frame.gapWidth;
         drawMainTimeText(canvas, displayTime.mainText, centerX, mainBaseline,
             displayTime.colonVisible);
         if (displayTime.hasPeriod()) {
-            float periodWidth = periodPaint.measureText(displayTime.periodText);
+            float periodWidth = frame.periodWidth;
             canvas.drawText(displayTime.periodText,
                 centerX - mainWidth / 2f - gapWidth - periodWidth / 2f,
-                bottomAlignedBaseline(mainBaseline, timePaint, periodPaint), periodPaint);
+                frame.periodBaseline, periodPaint);
         }
         if (displayTime.hasSmallSeconds()) {
-            float secondsWidth = stableTextWidth(displayTime.secondsText, secondsPaint);
+            float secondsWidth = frame.secondsWidth;
             drawStableText(canvas, displayTime.secondsText,
                 centerX + mainWidth / 2f + gapWidth + secondsWidth / 2f,
-                bottomAlignedBaseline(mainBaseline, timePaint, secondsPaint), secondsPaint);
+                frame.secondsBaseline, secondsPaint);
         }
         setClockTextAlpha(timePaint, oldTimeAlpha);
         setClockTextAlpha(secondsPaint, oldSecondsAlpha);
@@ -1459,47 +1730,122 @@ public class ClockView extends View {
     private void drawMainTimeText(Canvas canvas, String text, float centerX, float baseline,
             boolean colonsVisible) {
         float digitWidth = widestDigitWidth(timePaint);
-        float cursor = centerX - stableTextWidth(text, timePaint, digitWidth) / 2f;
+        char[] source = glyphs(text);
+        char[] drawn = drawnChars(text.length());
+        float[] positions = positions(text.length());
+        float cursor = centerX - stableTimeWidth(text, timePaint, digitWidth) / 2f;
+        int count = 0;
         for (int index = 0; index < text.length(); index++) {
-            String character = text.substring(index, index + 1);
-            float characterWidth = stableCharacterWidth(character, timePaint, digitWidth);
-            if (colonsVisible || !":".equals(character)) {
-                canvas.drawText(character, cursor + characterWidth / 2f,
-                    alignedCharacterBaseline(character, baseline, timePaint), timePaint);
+            char character = source[index];
+            if (colonsVisible || character != ':') {
+                drawn[count] = character;
+                positions[count * 2] = cursor;
+                positions[count * 2 + 1] = alignedCharacterBaseline(character, baseline, timePaint);
+                count++;
             }
-            cursor += characterWidth;
+            cursor += stableCharacterWidth(source, index, timePaint, digitWidth);
         }
+        if (count == 0) {
+            return;
+        }
+        // drawPosText treats each position as the glyph origin, which is the left edge of the
+        // advance - exactly where the old per-character centred draw started.
+        Paint.Align originalAlign = timePaint.getTextAlign();
+        timePaint.setTextAlign(Paint.Align.LEFT);
+        canvas.drawPosText(drawn, 0, count, positions, timePaint);
+        timePaint.setTextAlign(originalAlign);
     }
 
-    private static void drawStableText(Canvas canvas, String text, float centerX,
+    private void drawStableText(Canvas canvas, String text, float centerX,
             float baseline, Paint paint) {
         float digitWidth = widestDigitWidth(paint);
-        float cursor = centerX - stableTextWidth(text, paint, digitWidth) / 2f;
+        char[] glyphs = glyphs(text);
+        float[] positions = positions(text.length());
+        float cursor = centerX - stableTimeWidth(text, paint, digitWidth) / 2f;
         for (int index = 0; index < text.length(); index++) {
-            String character = text.substring(index, index + 1);
-            float characterWidth = stableCharacterWidth(character, paint, digitWidth);
-            canvas.drawText(character, cursor + characterWidth / 2f, baseline, paint);
-            cursor += characterWidth;
+            positions[index * 2] = cursor;
+            positions[index * 2 + 1] = baseline;
+            cursor += stableCharacterWidth(glyphs, index, paint, digitWidth);
         }
+        Paint.Align originalAlign = paint.getTextAlign();
+        paint.setTextAlign(Paint.Align.LEFT);
+        canvas.drawPosText(glyphs, 0, text.length(), positions, paint);
+        paint.setTextAlign(originalAlign);
     }
 
-    private static float stableTextWidth(String text, Paint paint) {
-        return ClockTextLayout.stableTextWidth(text, paint);
+    /**
+     * Copies {@code text} into the shared glyph buffer so the native
+     * {@code drawText(char[], int, int, ...)} / {@code measureText(char[], int, int)}
+     * overloads can be used — the String overloads of both allocate a char[] per call.
+     */
+    private char[] drawnChars(int length) {
+        if (drawnBuffer.length < length) {
+            drawnBuffer = new char[Math.max(length, drawnBuffer.length * 2)];
+        }
+        return drawnBuffer;
     }
 
-    private static float stableTextWidth(String text, Paint paint, float digitWidth) {
-        return ClockTextLayout.stableTextWidth(text, paint, digitWidth);
+    private float[] positions(int characters) {
+        int needed = characters * 2;
+        if (positionBuffer.length < needed) {
+            positionBuffer = new float[Math.max(needed, positionBuffer.length * 2)];
+        }
+        return positionBuffer;
     }
 
-    private static float stableCharacterWidth(String character, Paint paint, float digitWidth) {
-        return ClockTextLayout.stableCharacterWidth(character, paint, digitWidth);
+    private char[] glyphs(String text) {
+        return copyInto(glyphBuffer, text, true);
+    }
+
+    private char[] previousGlyphs(String text) {
+        return copyInto(previousGlyphBuffer, text, false);
+    }
+
+    private char[] copyInto(char[] buffer, String text, boolean primary) {
+        int length = text.length();
+        if (buffer.length < length) {
+            buffer = new char[Math.max(length, buffer.length * 2)];
+            if (primary) {
+                glyphBuffer = buffer;
+            } else {
+                previousGlyphBuffer = buffer;
+            }
+        }
+        text.getChars(0, length, buffer, 0);
+        return buffer;
+    }
+
+    private float stableTextWidth(String text, Paint paint) {
+        return stableTimeWidth(text, paint, widestDigitWidth(paint));
+    }
+
+    /** Width of a time string in which every digit occupies the widest digit width. */
+    private float stableTimeWidth(String text, Paint paint, float digitWidth) {
+        char[] glyphs = glyphs(text);
+        float width = 0f;
+        for (int index = 0; index < text.length(); index++) {
+            width += stableCharacterWidth(glyphs, index, paint, digitWidth);
+        }
+        return width;
+    }
+
+    private static float stableCharacterWidth(char[] text, int index, Paint paint,
+            float digitWidth) {
+        char character = text[index];
+        if (character >= '0' && character <= '9') {
+            return digitWidth;
+        }
+        if (character == ':') {
+            return ClockTextLayout.colonWidth(paint);
+        }
+        return paint.measureText(text, index, 1);
     }
 
     private static float widestDigitWidth(Paint paint) {
         return ClockTextLayout.widestDigitWidth(paint);
     }
 
-    private float alignedCharacterBaseline(String character, float baseline, Paint paint) {
+    private float alignedCharacterBaseline(char character, float baseline, Paint paint) {
         return paint == timePaint
                 ? ClockTextLayout.alignedCharacterBaseline(character, baseline, paint) : baseline;
     }
@@ -1516,7 +1862,13 @@ public class ClockView extends View {
     }
 
     private float smallSecondsGapWidth() {
-        return timePaint.measureText(" ") * SMALL_SECONDS_GAP_SPACE_FRACTION;
+        float size = timePaint.getTextSize();
+        if (size != smallSecondsGapSize || smallSecondsGapGeneration != fontGeneration) {
+            smallSecondsGapSize = size;
+            smallSecondsGapGeneration = fontGeneration;
+            smallSecondsGapValue = timePaint.measureText(" ") * SMALL_SECONDS_GAP_SPACE_FRACTION;
+        }
+        return smallSecondsGapValue;
     }
 
     private void drawBackgroundImage(Canvas canvas, int width, int height) {
@@ -1571,6 +1923,11 @@ public class ClockView extends View {
         if (backgroundBitmap != null && !backgroundBitmap.isRecycled()) {
             backgroundBitmap.recycle();
         }
+        if (supportLayer != null && !supportLayer.isRecycled()) {
+            supportLayer.recycle();
+        }
+        supportLayer = null;
+        supportLayerValid = false;
         super.onDetachedFromWindow();
     }
 }

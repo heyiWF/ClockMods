@@ -5,9 +5,8 @@ import android.graphics.Bitmap;
 import android.graphics.BitmapFactory;
 import android.graphics.Matrix;
 
-import androidx.exifinterface.media.ExifInterface;
-
 import com.clockmods.R;
+import com.clockmods.platform.ExifOrientationCompat;
 
 import java.io.File;
 import java.io.FileInputStream;
@@ -270,22 +269,6 @@ public class BackgroundRepository {
         preferences.setCustomMessage(message);
     }
 
-    public boolean isWeatherIconFill() {
-        return preferences.isWeatherIconFill();
-    }
-
-    public void setWeatherIconFill(boolean fill) {
-        preferences.setWeatherIconFill(fill);
-    }
-
-    public boolean isWeatherIconDynamicColor() {
-        return preferences.isWeatherIconDynamicColor();
-    }
-
-    public void setWeatherIconDynamicColor(boolean dynamicColor) {
-        preferences.setWeatherIconDynamicColor(dynamicColor);
-    }
-
     public String getDatePatternCn() {
         return preferences.getDatePatternCn();
     }
@@ -353,28 +336,6 @@ public class BackgroundRepository {
 
     public void setTimeZoneId(String timeZoneId) {
         preferences.setTimeZoneId(timeZoneId);
-    }
-
-    public boolean isWeatherEnabled() { return preferences.isWeatherEnabled(); }
-    public void setWeatherEnabled(boolean enabled) { preferences.setWeatherEnabled(enabled); }
-    public boolean isWeatherDetailed() { return preferences.isWeatherDetailed(); }
-    public void setWeatherDetailed(boolean detailed) { preferences.setWeatherDetailed(detailed); }
-    public int getWeatherIntervalMinutes() { return preferences.getWeatherIntervalMinutes(); }
-    public void setWeatherIntervalMinutes(int minutes) { preferences.setWeatherIntervalMinutes(minutes); }
-    public String getWeatherLocationMode() { return preferences.getWeatherLocationMode(); }
-    public void setWeatherLocationMode(String mode) { preferences.setWeatherLocationMode(mode); }
-    public String getWeatherLocationId() { return preferences.getWeatherLocationId(); }
-    public String getWeatherProvince() { return preferences.getWeatherProvince(); }
-    public String getWeatherCity() { return preferences.getWeatherCity(); }
-    public String getWeatherDistrict() { return preferences.getWeatherDistrict(); }
-    public double getWeatherLatitude() { return preferences.getWeatherLatitude(); }
-    public double getWeatherLongitude() { return preferences.getWeatherLongitude(); }
-    public void setManualWeatherLocation(String locationId, String province, String city, String district) {
-        preferences.setManualWeatherLocation(locationId, province, city, district);
-    }
-    public void setManualWeatherLocation(String locationId, String province, String city,
-            String district, double latitude, double longitude) {
-        preferences.setManualWeatherLocation(locationId, province, city, district, latitude, longitude);
     }
 
     /** Restores all user-configurable settings to their defaults. */
@@ -552,21 +513,6 @@ public class BackgroundRepository {
     }
 
     private static int readRotation(String path) {
-        try {
-            ExifInterface exif = new ExifInterface(path);
-            int orientation = exif.getAttributeInt(ExifInterface.TAG_ORIENTATION, ExifInterface.ORIENTATION_NORMAL);
-            if (orientation == ExifInterface.ORIENTATION_ROTATE_90) {
-                return 90;
-            }
-            if (orientation == ExifInterface.ORIENTATION_ROTATE_180) {
-                return 180;
-            }
-            if (orientation == ExifInterface.ORIENTATION_ROTATE_270) {
-                return 270;
-            }
-        } catch (IOException ignored) {
-            return 0;
-        }
-        return 0;
+        return ExifOrientationCompat.readOrientationDegrees(path);
     }
 }

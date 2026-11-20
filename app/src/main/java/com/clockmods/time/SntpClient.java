@@ -61,8 +61,10 @@ class SntpClient {
             long requestTime = System.currentTimeMillis();
             long requestTicks = SystemClock.elapsedRealtime();
             writeTimeStamp(buffer, TRANSMIT_TIME_OFFSET, requestTime);
-            byte[] requestTimestamp = java.util.Arrays.copyOfRange(buffer,
-                    TRANSMIT_TIME_OFFSET, TRANSMIT_TIME_OFFSET + 8);
+            // Arrays.copyOfRange is API 9; copy manually for Android 1.0.
+            byte[] requestTimestamp = new byte[8];
+            System.arraycopy(buffer, TRANSMIT_TIME_OFFSET, requestTimestamp, 0,
+                    requestTimestamp.length);
 
             socket.send(request);
 

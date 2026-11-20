@@ -2,21 +2,13 @@ package com.clockmods.background;
 
 import android.content.Context;
 
-import com.clockmods.BuildConfig;
 import com.clockmods.R;
 
 import java.util.ArrayList;
 import java.util.Collections;
 import java.util.List;
 
-/**
- * Central, data-driven registry of the clock font families.
- *
- * <p>The base families (system, Roboto, Google Sans Display) are available in every
- * flavor. The extra families bundled in the Pro flavor's assets are only
- * exposed when {@link BuildConfig#PRO_FONTS} is set, so the compat and modern
- * flavors neither list nor try to load fonts they do not ship.
- */
+/** Registry of the font families bundled with the Nano clock. */
 public final class FontCatalog {
 
     /** A single selectable font family. */
@@ -52,24 +44,6 @@ public final class FontCatalog {
                 "fonts/Roboto-Regular.ttf", "fonts/Roboto-Bold.ttf"));
         options.add(new FontOption(ClockPreferences.FONT_GOOGLE_SANS_DISPLAY, "Google Sans Display",
             "fonts/GoogleSansDisplay-Regular.ttf", "fonts/GoogleSansDisplay-Bold.ttf"));
-        if (BuildConfig.PRO_FONTS) {
-            options.add(new FontOption(ClockPreferences.FONT_GOOGLE_SANS_TEXT, "Google Sans Text",
-                "fonts/GoogleSansText-Regular.ttf", "fonts/GoogleSansText-Bold.ttf"));
-            options.add(new FontOption(ClockPreferences.FONT_SF_PRO_DISPLAY, "SF Pro Display",
-                    "fonts/SFProDisplay-Regular.otf", "fonts/SFProDisplay-Bold.otf"));
-            options.add(new FontOption(ClockPreferences.FONT_SF_PRO_ROUNDED, "SF Pro Rounded",
-                    "fonts/SFProRounded-Regular.otf", "fonts/SFProRounded-Bold.otf"));
-            options.add(new FontOption(ClockPreferences.FONT_INTER, "Inter",
-                    "fonts/Inter-Regular.ttf", "fonts/Inter-Bold.ttf"));
-            options.add(new FontOption(ClockPreferences.FONT_LATO, "Lato",
-                    "fonts/Lato-Regular.ttf", "fonts/Lato-Bold.ttf"));
-            options.add(new FontOption(ClockPreferences.FONT_LORA, "Lora",
-                    "fonts/Lora-Regular.ttf", "fonts/Lora-Bold.ttf"));
-            options.add(new FontOption(ClockPreferences.FONT_NOTO_SANS, "Noto Sans",
-                    "fonts/NotoSans-Regular.ttf", "fonts/NotoSans-Bold.ttf"));
-            options.add(new FontOption(ClockPreferences.FONT_BITCOUNT, "Bitcount Grid Double",
-                    "fonts/BitcountGridDouble-Regular.ttf", "fonts/BitcountGridDouble-Bold.ttf"));
-        }
         return Collections.unmodifiableList(options);
     }
 

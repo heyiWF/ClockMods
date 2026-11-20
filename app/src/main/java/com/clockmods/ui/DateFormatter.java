@@ -2,7 +2,6 @@ package com.clockmods.ui;
 
 import java.util.Calendar;
 import java.util.GregorianCalendar;
-import java.util.Locale;
 import java.util.TimeZone;
 
 /**
@@ -36,6 +35,21 @@ public final class DateFormatter {
 
     /** Upper bound on a user-supplied pattern, guarding against pathological input. */
     public static final int MAX_PATTERN_LENGTH = 200;
+
+    // Only date fields are recognized in patterns, so the rendered text is constant
+    // between midnights. Reuse the last result instead of reformatting every tick.
+    private static final int VALID_CACHE_SLOTS = 4;
+    private static final String[] validPatterns = new String[VALID_CACHE_SLOTS];
+    private static final boolean[] validResults = new boolean[VALID_CACHE_SLOTS];
+    private static int validNext;
+
+    private static String cachedPattern;
+    private static Lang cachedLang;
+    private static int cachedYear = Integer.MIN_VALUE;
+    private static int cachedMonth;
+    private static int cachedDay;
+    private static int cachedWeekday;
+    private static String cachedText;
 
     private static final String[] CN_DIGITS = {"零", "一", "二", "三", "四", "五", "六", "七", "八", "九"};
     private static final String[] CN_UNITS = {"", "一", "二", "三", "四", "五", "六", "七", "八", "九"};
@@ -148,9 +162,25 @@ public final class DateFormatter {
         if (pattern == null) {
             return "";
         }
+        int year = cal.get(Calendar.YEAR);
+        int month = cal.get(Calendar.MONTH);
+        int day = cal.get(Calendar.DAY_OF_MONTH);
+        int weekday = cal.get(Calendar.DAY_OF_WEEK);
+        if (pattern.equals(cachedPattern) && lang == cachedLang && year == cachedYear
+                && month == cachedMonth && day == cachedDay && weekday == cachedWeekday) {
+            return cachedText;
+        }
         StringBuilder out = new StringBuilder(pattern.length() + 16);
         appendFormatted(out, pattern, cal, lang);
-        return TextSpacing.pangu(out.toString());
+        String text = TextSpacing.pangu(out.toString());
+        cachedPattern = pattern;
+        cachedLang = lang;
+        cachedYear = year;
+        cachedMonth = month;
+        cachedDay = day;
+        cachedWeekday = weekday;
+        cachedText = text;
+        return text;
     }
 
     /**
@@ -159,7 +189,28 @@ public final class DateFormatter {
      *         meaningful rather than pure literal text).
      */
     public static boolean isValidPattern(String pattern) {
-        if (pattern == null || pattern.length() == 0 || pattern.length() > MAX_PATTERN_LENGTH) {
+        if (pattern == null) {
+            return false;
+        }
+        // Validation renders the pattern against a fresh sample calendar, which allocates a
+        // calendar, a time zone and a buffer. The clock asks for it on every frame (once per
+        // active pattern), so the last few answers are remembered.
+        for (int slot = 0; slot < VALID_CACHE_SLOTS; slot++) {
+            String cached = validPatterns[slot];
+            if (cached == pattern || (cached != null && cached.equals(pattern))) {
+                return validResults[slot];
+            }
+        }
+        boolean valid = computeIsValidPattern(pattern);
+        int slot = validNext;
+        validNext = (validNext + 1) % VALID_CACHE_SLOTS;
+        validPatterns[slot] = pattern;
+        validResults[slot] = valid;
+        return valid;
+    }
+
+    private static boolean computeIsValidPattern(String pattern) {
+        if (pattern.length() == 0 || pattern.length() > MAX_PATTERN_LENGTH) {
             return false;
         }
         boolean quoted = false;
@@ -270,12 +321,24 @@ public final class DateFormatter {
         return c == 'y' || c == 'Y' || c == 'M' || c == 'd' || c == 'D' || c == 'E';
     }
 
+    private static final String[] TWO_DIGITS = new String[100];
+    static {
+        for (int i = 0; i < TWO_DIGITS.length; i++) {
+            TWO_DIGITS[i] = i < 10 ? "0" + i : Integer.toString(i);
+        }
+    }
+
+    private static String twoDigits(int value) {
+        return value >= 0 && value < TWO_DIGITS.length
+                ? TWO_DIGITS[value] : String.format(java.util.Locale.US, "%02d", value);
+    }
+
     private static void appendToken(StringBuilder out, char letter, int run,
             int year, int month, int day, int dayOfWeek, Lang lang) {
         switch (letter) {
             case 'y':
                 out.append(run == 2
-                        ? String.format(Locale.US, "%02d", Math.floorMod(year, 100))
+                        ? twoDigits(Math.floorMod(year, 100))
                         : Integer.toString(year));
                 break;
             case 'Y':
@@ -292,7 +355,7 @@ public final class DateFormatter {
                     if (run == 1) {
                         out.append(Integer.toString(month));
                     } else if (run == 2) {
-                        out.append(String.format(Locale.US, "%02d", month));
+                        out.append(twoDigits(month));
                     } else if (run == 3) {
                         out.append(EN_MONTH_SHORT[month - 1]);
                     } else {
@@ -302,7 +365,7 @@ public final class DateFormatter {
                     if (run == 1) {
                         out.append(Integer.toString(month));
                     } else if (run == 2) {
-                        out.append(String.format(Locale.US, "%02d", month));
+                        out.append(twoDigits(month));
                     } else {
                         out.append(chineseCardinal(month));
                     }
@@ -311,7 +374,7 @@ public final class DateFormatter {
             case 'd':
                 out.append(run == 1
                         ? Integer.toString(day)
-                        : String.format(Locale.US, "%02d", day));
+                        : twoDigits(day));
                 break;
             case 'D':
                 // Chinese-numeral day token; degrades to an Arabic day in English for the same reason.

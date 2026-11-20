@@ -1,66 +1,39 @@
 <resources>
-    <string name="pro_navigation">Pro 功能导航</string>
-    <string name="pro_page_clock">时钟</string>
-    <string name="pro_page_calendar">月历</string>
-    <string name="pro_page_pomodoro">番茄钟</string>
-    <string name="pro_page_alarm">闹钟</string>
-    <string name="pro_page_countdown">倒计时</string>
-    <string name="pro_page_stopwatch">秒表</string>
-    <string name="pro_feature_in_progress">功能正在接入</string>
-    <string name="calendar_previous_month">上个月</string>
-    <string name="calendar_next_month">下个月</string>
-    <string name="calendar_today">今天</string>
-    <string name="calendar_jump_title">跳转到</string>
-    <string name="calendar_day_accessibility">%1$d 日，农历 %2$s</string>
-    <string name="calendar_day_today_accessibility">今天，%1$d 日，农历 %2$s</string>
-    <string name="calendar_feels_like">体感温度</string>
-    <string name="calendar_weather_disabled">天气显示已关闭</string>
-    <string name="calendar_forecast_loading">天气预报加载中</string>
-    <string name="calendar_forecast_unavailable">暂无天气预报</string>
-    <string name="calendar_selected_date">%1$s  %2$s</string>
-    <string name="calendar_day_status_off">休</string>
-    <string name="calendar_day_status_work">班</string>
-    <string name="pro_time_transition">数字切换动效</string>
-    <string name="timer_start">开始</string>
-    <string name="timer_pause">暂停</string>
-    <string name="timer_reset">重置</string>
-    <string name="timer_skip">跳过</string>
-    <string name="timer_minutes">%1$d 分钟</string>
-    <string name="timer_custom">自定义</string>
-    <string name="timer_custom_title">设置倒计时</string>
-    <string name="timer_hours">小时</string>
-    <string name="timer_minutes_unit">分钟</string>
-    <string name="timer_seconds">秒</string>
-    <string name="timer_custom_zero">倒计时时间必须大于 00:00:00</string>
-    <string name="pomodoro_focus">专注</string>
-    <string name="pomodoro_short_break">短休息</string>
-    <string name="pomodoro_long_break">长休息</string>
-    <string name="stopwatch_lap">计次</string>
-    <string name="stopwatch_lap_value">第 %1$d 圈  %2$s</string>
-    <string name="alarm_enabled">启用每日闹钟</string>
-    <string name="alarm_choose_time">选择闹钟时间</string>
-    <string name="alarm_disabled">闹钟已关闭</string>
-    <string name="alarm_next_trigger">下次响铃：%1$s</string>
-    <string name="alarm_channel">闹钟</string>
-    <string name="alarm_ringing">闹钟正在响铃</string>
-    <string name="alarm_open_to_dismiss">打开 ClockMods Pro 停止闹钟</string>
-    <string name="alarm_dismiss">停止闹钟</string>
-    <string name="pro_hourly_chime">整点视觉报时</string>
-    <string name="pro_half_hour_chime">半点视觉报时</string>
-    <string name="pro_hourly_chime_quiet">启用勿扰时段</string>
-    <string name="pro_quiet_start">开始 %1$s</string>
-    <string name="pro_quiet_end">结束 %1$s</string>
-    <string name="timer_channel">计时提醒</string>
-    <string name="pomodoro_complete">番茄钟阶段完成</string>
-    <string name="countdown_complete">倒计时结束</string>
-    <string name="timer_complete_open">打开 ClockMods Pro 查看</string>
-    <string-array name="pro_time_transitions">
-        <item>淡变</item>
-        <item>上滑</item>
-        <item>下滑</item>
-        <item>缩放</item>
-        <item>翻页</item>
-    </string-array>
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
+
     <string name="background_settings">设置</string>
     <string name="open_settings_accessibility">打开设置</string>
     <string name="solid_color">纯色</string>
@@ -76,11 +49,9 @@
     <string name="image_saved">背景图片已更新</string>
     <string name="image_error">无法读取所选图片</string>
     <string name="select_image_first">请先选择一张图片</string>
-    <string name="use_color">使用此颜色</string>
-    <string name="use_color_value">选择颜色 %1$s</string>
-    <string name="background_color_picker">背景颜色</string>
-    <string name="time_color_picker">时间文字颜色</string>
-    <string name="date_color_picker">日期文字颜色</string>
+
+
+
     <string name="advanced">高级</string>
     <string name="background_settings_group">背景</string>
     <string name="font_settings_group">字体</string>
@@ -115,7 +86,7 @@
     <string name="status_battery_unknown">电量未知</string>
     <string name="status_network_and_battery">%1$s，%2$s</string>
     <string name="display_settings_group">显示</string>
-    <string name="calendar_settings_group">月历</string>
+
     <string name="time_settings_group">时间</string>
     <string name="use_24_hour">使用 24 小时制</string>
     <string name="use_network_time">使用网络时间</string>
@@ -137,77 +108,28 @@
     <string name="select_region">选择地区</string>
     <string name="clock_language_settings_group">界面语言</string>
     <string name="clock_use_english">使用英文界面</string>
-    <string name="clock_language_simplified">简体中文</string>
-    <string name="clock_language_traditional">繁體中文</string>
-    <string name="clock_language_english">English</string>
-    <string name="date_format_settings_group">日期格式</string>
-    <string name="date_format_date_label">日期</string>
-    <string name="date_format_weekday_label">星期</string>
-    <string name="date_format_custom">自定义…</string>
-    <string name="date_format_custom_hint">输入格式，如 yyyy年M月d日 EEEE</string>
-    <string name="date_format_custom_invalid">格式无效，请检查</string>
-    <string name="date_format_preview">预览：%1$s</string>
-    <string name="date_format_help_button">格式说明</string>
-    <string name="date_format_help_title">自定义日期格式</string>
-    <string name="date_format_help_body_cn">"在自定义框输入格式，字段会替换为对应日期，其余字符原样显示。\n\n【年】\nyyyy：四位数字年，如 2026\nyy：两位数字年，如 26\nYYY：中文年（〇），如 二〇二六\nYYYY：中文年（零），如 二零二六\n\n【月】\nM：数字月，如 8\nMM：两位数字月，如 08\nMMM 或 MMMM：中文月，如 八\n\n【日】\nd：数字日，如 7\ndd：两位数字日，如 07\nDD：中文日，如 七\n\n【星期】\nEEEE：完整，如 星期五\nE：简写，如 周五\n\n用单引号包住的文字原样显示（'' 表示一个单引号）。最长 200 字符。"</string>
-    <string name="date_format_help_body_en">"Type a pattern in the box. Field tokens are replaced with the date; other characters appear as-is.\n\n[Year]\nyyyy: 4-digit year, e.g. 2026\nyy: 2-digit year, e.g. 26\n\n[Month]\nM: month number, e.g. 8\nMM: 2-digit month, e.g. 08\nMMM: short name, e.g. Aug\nMMMM: full name, e.g. August\n\n[Day]\nd: day number, e.g. 7\ndd: 2-digit day, e.g. 07\n\n[Weekday]\nEEEE: full, e.g. Friday\nE: short, e.g. Fri\n\nText in single quotes is literal ('' = one quote). Chinese-numeral tokens (YYY, DD) fall back to Arabic numbers here. Max 200 characters."</string>
-    <string name="custom_message_settings_group">自定义留言</string>
-    <string name="custom_message_hint">输入要显示在天气行的留言（留空则不显示）</string>
-    <string name="weather_settings_group">天气</string>
-    <string name="show_weather">显示实时天气</string>
-    <string name="show_detailed_weather">显示详细天气信息</string>
-    <string name="weather_icon_fill">填充天气图标</string>
-    <string name="weather_icon_fill_desc">使用实心填充风格，关闭则用线条风格</string>
-    <string name="weather_icon_dynamic_color">主题色天气图标</string>
-    <string name="weather_icon_dynamic_color_desc">用 Material 3 动态主题色着色，关闭则为白色</string>
-    <string name="calendar_week_start">一周开始于</string>
-    <string name="calendar_week_start_sunday">周日</string>
-    <string name="calendar_week_start_monday">周一</string>
-    <string name="calendar_highlight_weekends">月历高亮周末</string>
-    <string name="weather_update_interval">更新频率</string>
-    <string name="weather_location">天气位置</string>
-    <string name="weather_location_automatic">自动定位</string>
-    <string name="weather_location_manual">手动指定</string>
-    <string name="weather_choose_location">选择天气位置</string>
-    <string name="weather_location_not_selected">请选择省、市、区县</string>
-    <string name="weather_location_list_error">无法读取天气位置列表</string>
-    <string name="weather_interval_10min">每 10 分钟</string>
-    <string name="weather_interval_30min">每 30 分钟</string>
-    <string name="weather_interval_1hour">每小时</string>
-    <string name="weather_interval_3hour">每 3 小时</string>
-    <string name="weather_interval_6hour">每 6 小时</string>
-    <string name="weather_interval_12hour">每 12 小时</string>
-    <string name="weather_attribution">天气服务由和风天气驱动</string>
-    <string name="weather_attribution_prefix">天气服务由</string>
-    <string name="weather_attribution_brand">和风天气 驱动</string>
 
-    <!-- Weather status & detail labels (extracted from Java for localization) -->
-    <string name="weather_fetching">正在获取天气…</string>
-    <string name="weather_permission_denied">未授予定位权限</string>
-    <string name="weather_waiting_permission">等待定位权限…</string>
-    <string name="weather_location_unavailable">无法获取当前位置</string>
-    <string name="weather_not_configured">天气服务未配置</string>
-    <string name="weather_fetch_failed">天气获取失败：%1$s</string>
-    <string name="weather_fetch_failed_placeholder">天气获取失败</string>
-    <string name="forecast_fetching">正在获取天气预报…</string>
-    <string name="forecast_fetch_failed">天气预报获取失败：%1$s</string>
-    <string name="weather_feels_format">体感 %1$s℃</string>
-    <string name="weather_temperature_format">%1$s℃</string>
-    <string name="weather_temperature_range_format">%1$s - %2$s℃</string>
-    <string name="weather_humidity_format">湿度 %1$s%%</string>
-    <string name="weather_wind_scale_format">%1$s 级</string>
-    <string name="weather_precip_format">降水 %1$s mm</string>
-    <string name="weather_air_format">空气 %1$s</string>
-    <string name="weather_warning_suffix">预警</string>
+
+    <string name="date_format_settings_group">日期格式</string>
+
+
+
+    <string name="date_format_preview">预览：%1$s</string>
+
+
+
+    <string name="custom_message_settings_group">自定义留言</string>
+    <string name="custom_message_hint">留空则不显示</string>
+    <string name="custom_message_desc">显示在时钟下方的辅助行</string>
+
+
+
 
     <!-- Calendar labels (extracted from Java; lunar/almanac content stays Chinese) -->
-    <string name="calendar_month_short">%1$d 月</string>
-    <string name="calendar_day_rest">，休息日</string>
-    <string name="calendar_day_makeup">，调休上班</string>
-    <string name="calendar_today_prefix">今天，</string>
-    <string name="calendar_selected_suffix">，已选择</string>
-    <string name="calendar_suitable_prefix">"宜 "</string>
-    <string name="calendar_avoid_prefix">"忌 "</string>
+
+
+
+
 
     <string-array name="region_names">
         <item>跟随系统</item>
@@ -252,11 +174,6 @@
         <item>四</item>
         <item>五</item>
         <item>六</item>
-    </string-array>
-    <string-array name="forecast_day_labels">
-        <item>今天</item>
-        <item>明天</item>
-        <item>后天</item>
     </string-array>
     <string name="font_size_overflow_warning">已关闭布局保护，文字可能重叠或超出屏幕。</string>
 </resources>

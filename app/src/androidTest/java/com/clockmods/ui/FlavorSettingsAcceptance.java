@@ -5,9 +5,15 @@ import android.app.Instrumentation;
 import android.content.Context;
 import android.content.Intent;
 import android.content.SharedPreferences;
+import android.content.res.Configuration;
 import android.graphics.Bitmap;
 import android.os.Bundle;
 import android.os.SystemClock;
+import android.view.View;
+import android.view.ViewGroup;
+import android.widget.CheckBox;
+import android.widget.SeekBar;
+import android.widget.Switch;
 import com.clockmods.background.ClockPreferences;
 import java.io.File;
 import java.io.FileOutputStream;
@@ -54,11 +60,11 @@ public final class FlavorSettingsAcceptance extends Instrumentation {
                 setter.invoke(settings,!saved); check((Boolean)getter.invoke(settings)!=saved,setter.getName()+" persists");
                 setter.invoke(settings,saved);
             }
-            String component=context.getPackageName().endsWith(".pro")?"com.clockmods.pro.ProMainActivity":"com.clockmods.MainActivity";
+            String component="com.clockmods.MainActivity";
             for(String locale:new String[]{"zh-Hans","zh-Hant","en"}) for(int orientation:new int[]{1,2}) {
                 this.orientation=orientation;
                 preferences.edit().putString("clock_language",locale).putInt("screen_orientation",orientation)
-                        .putBoolean("weather_enabled",false).putBoolean("use_network_time",false)
+                        .putBoolean("use_network_time",false)
                         .putBoolean("hourly_visual_chime",false).putBoolean("show_status_icons",true)
                         .putFloat("status_icon_scale",1.5f).putFloat("date_font_scale",1.5f)
                         .putString("custom_message","Long settings verification message: every character must remain readable through the final word.")
@@ -71,7 +77,7 @@ public final class FlavorSettingsAcceptance extends Instrumentation {
                     final Throwable[] failure = {null};
                     runOnMainSync(() -> { try { checkFontSizeWarnings(current); }
                         catch (Throwable error) { failure[0] = error; } });
-                    if (failure[0] != null) throw new AssertionError("font size controls", failure[0]);
+                    if (failure[0] != null) throw new AssertionError("font size controls: " + failure[0], failure[0]);
                     removeMonitor(monitor);
                     runOnMainSync(current::finish);
                     activity = null;
@@ -94,7 +100,7 @@ public final class FlavorSettingsAcceptance extends Instrumentation {
                 removeMonitor(monitor);
                 final Activity current=activity; final Throwable[] failure={null};
                 runOnMainSync(()-> {try {checkFontSizeWarnings(current); Method method=current.getClass().getDeclaredMethod("showSettings"); method.setAccessible(true); method.invoke(current);} catch(Throwable e){failure[0]=e;}});
-                if(failure[0]!=null) throw new AssertionError("settings dialog opens",failure[0]);
+                if(failure[0]!=null) throw new AssertionError("settings dialog opens: " + failure[0],failure[0]);
                 SystemClock.sleep(300); save(new File(directory,locale+"-"+orientation+"-settings.png"));
                 check(getUiAutomation().getRootInActiveWindow()!=null,"settings accessibility tree");
                 runOnMainSync(current::finish); activity=null;
@@ -122,6 +128,15 @@ public final class FlavorSettingsAcceptance extends Instrumentation {
     private void checkFontSizeWarnings(Activity activity) throws Exception {
         SettingsDialog dialog = new SettingsDialog(activity,
                 new com.clockmods.background.BackgroundRepository(activity), null);
+        int labelGap = Math.round(10 * activity.getResources().getDisplayMetrics().density);
+        check(checkCheckboxRows(dialog.getWindow().getDecorView(), labelGap) >= 3,
+                "settings include checkbox rows");
+        View status = settingsControl(dialog, "statusIconsSwitch");
+        boolean landscape = activity.getResources().getConfiguration().orientation
+                == Configuration.ORIENTATION_LANDSCAPE;
+        View sameColumn = settingsControl(dialog, landscape ? "use24HourSwitch" : "boldTextSwitch");
+        check(status.getParent().getParent() == sameColumn.getParent().getParent(),
+                "status card follows the configured orientation");
         java.lang.reflect.Field warningsField = SettingsDialog.class.getDeclaredField("fontSizeWarnings");
         warningsField.setAccessible(true);
         Map<?, ?> warnings = (Map<?, ?>) warningsField.get(dialog);
@@ -130,36 +145,47 @@ public final class FlavorSettingsAcceptance extends Instrumentation {
             java.lang.reflect.Field valueField = SettingsDialog.class.getDeclaredField(prefix + "SizeValue");
             barField.setAccessible(true);
             valueField.setAccessible(true);
-            Object bar = barField.get(dialog);
+            SeekBar bar = (SeekBar) barField.get(dialog);
             android.widget.TextView warning = (android.widget.TextView) warnings.get(valueField.get(dialog));
             for (int percent : new int[]{100, 101, Math.round(ClockPreferences.MAX_FONT_SCALE * 100), 100, 50}) {
-                if (bar instanceof android.widget.SeekBar) {
-                    ((android.widget.SeekBar) bar).setProgress(percent - Math.round(ClockPreferences.MIN_FONT_SCALE * 100));
-                } else {
-                    bar.getClass().getMethod("setValue", float.class).invoke(bar, (float) percent);
-                }
+                bar.setProgress(percent - Math.round(ClockPreferences.MIN_FONT_SCALE * 100));
                 check(warning.getVisibility() == (percent > 100 ? android.view.View.VISIBLE : android.view.View.GONE),
                         prefix + " warning follows " + percent + "%");
                 check(warning.getText().length() > 0, "localized overflow warning");
                 android.view.ViewGroup container = (android.view.ViewGroup) warning.getParent();
-                check(container.indexOfChild(warning) == 1, "warning follows slider row");
+                check(bar.getParent() == container
+                                && container.indexOfChild(warning) == container.indexOfChild(bar) + 1,
+                        "warning follows slider row");
             }
-        }
-        if (activity.getPackageName().endsWith(".pro")) {
-            ClockPreferences settings = new ClockPreferences(activity);
-            settings.setDatePatternCn("yyyy/MM/dd");
-            settings.setDateFormatState(false,"yyyy/MM/dd","",false,"");
-            for (String name : new String[]{"proCoreIndexCn","proCustomTextCn","pendingDatePatternCn"}) {
-                java.lang.reflect.Field field = SettingsDialog.class.getDeclaredField(name);
-                field.setAccessible(true);
-                if (name.equals("proCoreIndexCn")) field.setInt(dialog, DateFormatter.dateCores(DateFormatter.Lang.CHINESE).length);
-                else field.set(dialog,name.equals("proCustomTextCn") ? "yyyy 'unfinished" : "dd-MM-yyyy");
-            }
-            Method persist = SettingsDialog.class.getDeclaredMethod("persistProDateState",boolean.class);
-            persist.setAccessible(true);persist.invoke(dialog,false);
-            check("yyyy/MM/dd".equals(settings.getDatePatternCn()) && !settings.isDateCustomEnabled(false), "invalid final draft preserves previous format and mode");
         }
         dialog.dismiss();
+    }
+
+    private int checkCheckboxRows(View view, int labelGap) {
+        if (view instanceof Switch) {
+            throw new AssertionError("settings contain a duplicate switch control");
+        }
+        if (view instanceof CheckBox) {
+            CheckBox checkbox = (CheckBox) view;
+            check(checkbox.getPaddingLeft() == labelGap
+                            && checkbox.getCompoundPaddingLeft() > labelGap,
+                    "checkbox label has a gap after the indicator");
+            return 1;
+        }
+        int count = 0;
+        if (view instanceof ViewGroup) {
+            ViewGroup group = (ViewGroup) view;
+            for (int i = 0; i < group.getChildCount(); i++) {
+                count += checkCheckboxRows(group.getChildAt(i), labelGap);
+            }
+        }
+        return count;
+    }
+
+    private static View settingsControl(SettingsDialog dialog, String name) throws Exception {
+        java.lang.reflect.Field field = SettingsDialog.class.getDeclaredField(name);
+        field.setAccessible(true);
+        return (View) field.get(dialog);
     }
 
     private void save(File file)throws Exception {

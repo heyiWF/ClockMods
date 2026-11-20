@@ -2,7 +2,7 @@
 
 <img src="docs/media/app-icon-playstore.png" alt="ClockMods" width="120" />
 
-# ClockMods
+# ClockMods Nano
 
 **让闲置手机，再次成为每天用得上的时钟。**
 
@@ -10,17 +10,7 @@
 
 </div>
 
-ClockMods 是一款可定制的 Android 全屏时钟。把手机放在书桌、床头或客厅，时间、公历和农历便能清楚地呈现在眼前。旧设备也能找到合适的版本，继续陪伴日常生活。
-
-## 为你的设备，选一个合适的版本
-
-| 版本 | 支持系统 | 适合这样的你 |
-| --- | --- | --- |
-| ClockMods Lite · 兼容版 | Android 4.0 及以上 | 想让旧手机稳定显示时间，保留熟悉、简洁的设置方式 |
-| ClockMods · 现代版 | Android 6.0 及以上 | 喜欢现代设置界面，希望轻松调整字体、背景和显示信息 |
-| ClockMods Pro · 专业版 | Android 12 及以上 | 希望在时钟之外，一并查看月历、设置提醒和管理计时 |
-
-三个版本可在满足系统要求的设备上同时安装。经典系列以兼容性与日常使用为主，持续进行问题修复和安全维护。
+ClockMods Nano 是一款可定制的 Android 全屏时钟，最低支持到 Android 1.0（API 1）。把手机放在书桌、床头或客厅，时间、公历和农历便能清楚地呈现在眼前，让旧设备继续陪伴日常生活。
 
 ## 远一点，也能看清时间
 
@@ -32,67 +22,51 @@ ClockMods 是一款可定制的 Android 全屏时钟。把手机放在书桌、�
 
 选一张本机照片作为背景，或者用简单的纯色衬托时间。立即压暗和定时压暗让显示亮度随作息变化，跨过午夜也能按设定运行。
 
-现代版与专业版在 Android 12 及以上支持系统动态取色。专业版还提供多种数字切换动效，让时间变化更自然。
+## 日期、地区与一句想看见的话
 
-## 日期、天气与一句想看见的话
+公历、星期和中国农历可离线查看。你可以放上一句自定义留言，文字过长时会自动滚动展示。网络校时可以按需开启，地区时区可自由选择；基础时钟和离线日期不依赖网络。
 
-公历、星期和中国农历可离线查看。启用天气后，可以轮播温度、体感、湿度、风力等信息，也能放上一句自定义留言；文字过长时会滚动展示。
-
-天气支持手动选择城市或自动定位，需要联网及有效的天气服务配置。网络校时可以按需开启，基础时钟和离线日期不依赖天气服务。
-
-## 专业版，让常用工具就在手边
-
-| 工具 | 用来做什么 |
-| --- | --- |
-| 月历 | 浏览月份、选择日期，查看农历、节气、节日与传统宜忌 |
-| 番茄钟 | 为工作与休息安排一段专注时间 |
-| 闹钟 | 设置定时提醒，按设备权限提供响铃、振动与全屏提示 |
-| 倒计时 | 为一件事设定时长，到点提醒 |
-| 秒表 | 连续计时与记录计次 |
-
-月历支持已收录年份的休 / 班标记，横屏还可结合天气与预报展示。整点视觉报时与勿扰时段，让提醒更贴合作息。传统宜忌作为民俗历法内容提供，调休安排以已收录的数据为准。
-
-### 专业版工具演示
-
-以下两段录屏更新于 2026-11-10，来自本分支最新构建。
-
-https://github.com/user-attachments/assets/88ca7c32-851a-40c1-94db-cb2c30606550
-
-[下载工具演示视频](docs/media/pro-features-overview.mp4)
-
-### 中文视觉报时演示
-
-12 小时制的中文报时动画预览，主动触发下一整点的视觉效果，无音轨。
-
-https://github.com/user-attachments/assets/714dace3-ffd4-47db-b358-f9ab2ad05e62
-
-[下载报时演示视频](docs/media/pro-chime-12h-zh.mp4)
+状态栏可显示网络信号与电量图标，开机可设为默认桌面自动进入时钟。设置面板随横竖屏自动适配。
 
 ## 开始使用
 
-1. 下载适合设备系统的版本并安装。
-2. **双击时钟区域**打开设置，调整样式和功能，点击“应用”保存。
-3. 将设备横放或竖放，按需要开启常亮、压暗和天气。
-4. 专业版可左右滑动切换工具页；使用提醒时按系统提示授予相应权限。
+1. 下载并安装 `app-debug-api1-signed.apk`（Android 1.0 / API 1 及以上）。
+2. **双击时钟区域**打开设置（Android 1.0 和 1.1 上单击），调整样式和功能，点击“应用”保存。
+3. 将设备横放或竖放，按需要开启常亮、压暗和自定义留言。
 
 ## 下载体验
-[![Build APK](https://github.com/heyiWF/ClockMods/actions/workflows/build-apk.yml/badge.svg?branch=main)](https://github.com/heyiWF/ClockMods/actions/workflows/build-apk.yml?query=branch%3Amain)
 
-打开 [安装包下载页面](https://github.com/heyiWF/ClockMods/actions/workflows/build-apk.yml?query=branch%3Amain)，选择一次成功的构建，在 **Artifacts** 中下载 `clockmods-apks-main-运行序号`。解压后选择兼容版、现代版或专业版的 APK 安装。
+[![Build APK](https://github.com/heyiWF/ClockMods/actions/workflows/build-apk.yml/badge.svg?branch=nano)](https://github.com/heyiWF/ClockMods/actions/workflows/build-apk.yml?query=branch%3Anano)
 
-目前提供开发预览版 APK。
+在成功构建的 **Artifacts** 中下载并解压 APK。[Nano 构建列表](https://github.com/heyiWF/ClockMods/actions/workflows/build-apk.yml?query=branch%3Anano)
+
+Nano 使用独立的包名 `com.clockmods.nano`，可与现有 ClockMods 版本并存。
+
+## 从源码构建
+
+准备 JDK 8、Python 3.8 及以上、Android SDK Platform 28 和 Build Tools 28.0.3。将 `JAVA_HOME` 指向 JDK 8，将 `ANDROID_HOME` 指向 Android SDK。
+
+```sh
+./gradlew testDebugUnitTest lintDebug assembleDebug
+python3 tools/api1/package_api1.py --build-tools "$ANDROID_HOME/build-tools/28.0.3"
+```
+
+在 Windows 上可用 `gradlew.bat` 和 `python` 执行同样的命令，PowerShell 中 SDK 环境变量写作 `$env:ANDROID_HOME`。如果使用自定义调试密钥目录，可用 `--keystore` 指定 Gradle 的调试密钥。
+
+最终 APK 位于 `app/build/outputs/apk/debug/app-debug-api1-signed.apk`。打包脚本将应用资源的字符串池转换为 Android 1.0 可读取的 UTF-16，并重新对齐、签名和验证 APK。
+
+如需检查应用对 Android 框架成员的引用，用 `./gradlew compileReleaseJavaWithJavac` 编译后，执行 `python3 tools/api1/api1_check.py /path/to/android-1.0/android.jar`。
 
 ## 本地使用，按需联网
 
 设置与选取的背景图片保存在设备上，打开应用即可使用和调整。
 
-仅自动定位天气需要位置权限，也可以手动选城市。天气和校时会连接对应服务；闹钟提醒的呈现方式受 Android 权限与后台策略影响。
+应用不申请任何位置权限，也不请求天气服务；仅网络校时会按需连接 NTP 服务。
+
 ## 更多
 
 - [反馈问题与建议](https://github.com/heyiWF/ClockMods/issues)
-- [开发与配置参考](docs/product-development-guide.md)
-- 其他版本：[Android 经典系列](https://github.com/heyiWF/ClockMods/tree/main) · [Ultimate](https://github.com/heyiWF/ClockMods/tree/ultimate) · [Ultimate Compose](https://github.com/heyiWF/ClockMods/tree/ultimate-compose) · [Web](https://github.com/heyiWF/ClockMods/tree/web) · [Web Legacy](https://github.com/heyiWF/ClockMods/tree/web-legacy)
 
 ## 许可与致谢
 
-项目采用 [MIT 许可证](LICENSE)。天气数据来自 [QWeather](https://www.qweather.com)，[QWeather Icons](https://icons.qweather.com) 图标采用 CC BY 4.0；农历引擎 [tyme4j](https://github.com/6tail/tyme4j) 与节假日数据 [holiday-cn](https://github.com/NateScarlet/holiday-cn) 采用 MIT。字体及其他资源以各自随附许可为准。
+项目采用 [MIT 许可证](LICENSE)。农历引擎 [tyme4j](https://github.com/6tail/tyme4j) 采用 MIT。字体及其他资源以各自随附许可为准。

@@ -3,7 +3,8 @@ package com.clockmods;
 import android.annotation.SuppressLint;
 import android.content.Context;
 import android.content.res.Configuration;
-import android.os.Build;
+
+import com.clockmods.platform.ApiCompat;
 
 import com.clockmods.background.ClockPreferences;
 import com.clockmods.ui.DateFormatter;
@@ -60,11 +61,22 @@ public final class LocaleManager {
         Locale.setDefault(locale);
 
         Configuration configuration = new Configuration(context.getResources().getConfiguration());
-        if (Build.VERSION.SDK_INT >= Build.VERSION_CODES.JELLY_BEAN_MR1) {
-            configuration.setLocale(locale);
-            return context.createConfigurationContext(configuration);
+        if (ApiCompat.SDK_INT >= 17) {
+            // Configuration.setLocale / Context.createConfigurationContext are API 17; reach them
+            // reflectively so Android 1.0 does not reject this class at verification time.
+            try {
+                Configuration.class.getMethod("setLocale", Locale.class).invoke(configuration, locale);
+                Object wrapped = Context.class
+                        .getMethod("createConfigurationContext", Configuration.class)
+                        .invoke(context, configuration);
+                if (wrapped instanceof Context) {
+                    return (Context) wrapped;
+                }
+            } catch (Throwable ignored) {
+                // Fall through to the in-place configuration update below.
+            }
         }
-        // API 14-16 fallback: update the shared configuration in place.
+        // API 1-16 fallback: update the shared configuration in place.
         configuration.locale = locale;
         context.getResources().updateConfiguration(configuration,
                 context.getResources().getDisplayMetrics());

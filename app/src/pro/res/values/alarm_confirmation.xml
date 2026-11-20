@@ -1,4 +1,0 @@
-<resources>
-    <string name="alarm_set_in">闹钟将在 %1$s 后响起。</string>
-    <string name="alarm_within_minute">闹钟将在 1 分钟内响起。</string>
-</resources>

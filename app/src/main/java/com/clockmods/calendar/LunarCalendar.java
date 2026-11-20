@@ -23,16 +23,31 @@ public final class LunarCalendar {
     private static final String[] DAY_PREFIX = {"初", "十", "廿", "三"};
     private static final String[] DAY_NUMBERS = {"一", "二", "三", "四", "五", "六", "七", "八", "九", "十"};
 
+    // The clock redraws every second, but the lunar label only changes at midnight. The
+    // tyme4j conversion allocates heavily, so keep the last computed label keyed by date.
+    private static int cachedYear = Integer.MIN_VALUE;
+    private static int cachedMonth;
+    private static int cachedDay;
+    private static String cachedText;
+
     private LunarCalendar() {
     }
 
     public static String format(Calendar calendar) {
-        LunarDate lunarDate = fromSolar(calendar);
-        if (lunarDate == null) {
-            return "";
+        int year = calendar.get(Calendar.YEAR);
+        int month = calendar.get(Calendar.MONTH);
+        int day = calendar.get(Calendar.DAY_OF_MONTH);
+        if (year == cachedYear && month == cachedMonth && day == cachedDay) {
+            return cachedText;
         }
-        return stemZodiacYear(lunarDate.year, true)
+        LunarDate lunarDate = fromSolar(calendar);
+        String text = lunarDate == null ? "" : stemZodiacYear(lunarDate.year, true)
                 + formatMonth(lunarDate.month, lunarDate.leap) + formatDay(lunarDate.day);
+        cachedYear = year;
+        cachedMonth = month;
+        cachedDay = day;
+        cachedText = text;
+        return text;
     }
 
     public static String formatNatural(Calendar calendar) {

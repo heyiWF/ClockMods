@@ -8,12 +8,11 @@ import android.graphics.Paint;
 import android.graphics.RectF;
 import android.graphics.Shader;
 import android.util.AttributeSet;
-import android.os.Bundle;
-import android.os.Build;
+
+import com.clockmods.platform.ApiCompat;
 import android.view.KeyEvent;
 import android.view.MotionEvent;
 import android.view.View;
-import android.view.accessibility.AccessibilityNodeInfo;
 
 public class ColorPickerView extends View {
     public interface OnColorChangedListener {
@@ -132,40 +131,31 @@ public class ColorPickerView extends View {
         return true;
     }
 
-    @Override
-    public void onInitializeAccessibilityNodeInfo(AccessibilityNodeInfo info) {
-        super.onInitializeAccessibilityNodeInfo(info);
-        info.setClassName(android.widget.SeekBar.class.getName());
-        if (Build.VERSION.SDK_INT >= 19) {
-            info.setRangeInfo(AccessibilityNodeInfo.RangeInfo.obtain(
-                AccessibilityNodeInfo.RangeInfo.RANGE_TYPE_FLOAT, 0f, 360f, hsv[0]));
+    /**
+     * Creates a picker. On API 14+ the {@code ColorPickerViewA11y} subclass supplies the
+     * accessibility node info overrides; Android 1.0 must never link those API 14 types, so it
+     * gets the plain view. The subclass is resolved reflectively to keep it out of this class's
+     * verifier graph.
+     */
+    public static ColorPickerView create(Context context) {
+        if (ApiCompat.SDK_INT >= 14) {
+            try {
+                Object view = Class.forName("com.clockmods.ui.ColorPickerViewA11y")
+                        .getConstructor(Context.class)
+                        .newInstance(context);
+                if (view instanceof ColorPickerView) {
+                    return (ColorPickerView) view;
+                }
+            } catch (Throwable ignored) {
+                // Fall back to the plain picker.
+            }
         }
-        info.addAction(AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD);
-        info.addAction(AccessibilityNodeInfo.ACTION_SCROLL_FORWARD);
-        if (Build.VERSION.SDK_INT >= 24) {
-            info.addAction(AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS);
-        }
+        return new ColorPickerView(context);
     }
 
-    @Override
-    public boolean performAccessibilityAction(int action, Bundle arguments) {
-        if (Build.VERSION.SDK_INT >= 24
-            && action == AccessibilityNodeInfo.AccessibilityAction.ACTION_SET_PROGRESS.getId()
-            && arguments != null) {
-            float hue = arguments.getFloat(
-                    AccessibilityNodeInfo.ACTION_ARGUMENT_PROGRESS_VALUE, hsv[0]);
-            setHue(hue);
-            return true;
-        }
-        if (action == AccessibilityNodeInfo.ACTION_SCROLL_BACKWARD) {
-            setHue(hsv[0] - 5f);
-            return true;
-        }
-        if (action == AccessibilityNodeInfo.ACTION_SCROLL_FORWARD) {
-            setHue(hsv[0] + 5f);
-            return true;
-        }
-        return super.performAccessibilityAction(action, arguments);
+    /** Current hue in degrees (0-360), used by the accessibility subclass. */
+    public float getHue() {
+        return hsv[0];
     }
 
     @Override
@@ -196,22 +186,31 @@ public class ColorPickerView extends View {
         }
     }
 
-    private void setHue(float hue) {
+    protected void setHue(float hue) {
         hsv[0] = (hue % 360f + 360f) % 360f;
         rebuildSaturationGradient();
         invalidate();
         updateAccessibilityDescription();
         if (listener != null) listener.onColorChanged(getColor());
-        sendAccessibilityEvent(android.view.accessibility.AccessibilityEvent.TYPE_VIEW_SELECTED);
+        ApiCompat.sendAccessibilityEventCompat(this,
+                android.view.accessibility.AccessibilityEvent.TYPE_VIEW_SELECTED);
     }
 
     private void updateAccessibilityDescription() {
-        String value = String.format(java.util.Locale.ROOT, "#%06X", getColor() & 0xFFFFFF);
-        if (Build.VERSION.SDK_INT >= 30) {
-            setContentDescription(accessibilityLabel);
-            setStateDescription(value);
+        String value = String.format(java.util.Locale.US, "#%06X", getColor() & 0xFFFFFF);
+        if (ApiCompat.SDK_INT >= 30) {
+            com.clockmods.platform.ApiCompat.setContentDescriptionCompat(
+                    this, accessibilityLabel);
+            // View.setStateDescription(CharSequence) requires API 30 / compileSdk 30.
+            try {
+                android.view.View.class.getMethod("setStateDescription", CharSequence.class)
+                        .invoke(this, (CharSequence) value);
+            } catch (Throwable ignored) {
+                // Older platforms use the combined content description below.
+            }
         } else if (accessibilityLabel != null) {
-            setContentDescription(accessibilityLabel + "，" + value);
+            com.clockmods.platform.ApiCompat.setContentDescriptionCompat(
+                    this, accessibilityLabel + "，" + value);
         }
     }
 

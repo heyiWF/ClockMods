@@ -13,6 +13,8 @@ import android.widget.CompoundButton;
 import android.widget.EditText;
 import android.widget.TextView;
 
+import com.clockmods.platform.ApiCompat;
+
 import java.util.Map;
 import java.util.WeakHashMap;
 
@@ -40,8 +42,7 @@ public final class ButtonTextSizer {
                 BASE_TEXT_SIZES.put(view, size);
             }
             if (!LISTENERS_INSTALLED.containsKey(view)) {
-                view.addOnLayoutChangeListener((changed, left, top, right, bottom,
-                        oldLeft, oldTop, oldRight, oldBottom) -> fit(changed));
+                ApiCompat.onLayoutReady(view, () -> fit(view));
                 view.addTextChangedListener(new TextWatcher() {
                     @Override public void beforeTextChanged(CharSequence s, int start,
                             int count, int after) {
