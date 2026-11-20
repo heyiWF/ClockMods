@@ -11,14 +11,14 @@ export interface NativeAlert {
 }
 let queue: Promise<unknown> = Promise.resolve();
 /** Preserve start/pause/reset ordering even if IPC calls resolve out of order. */
-export function nativeUpdate(
+export function nativeUpdate<T = void>(
   command: string,
   args: Record<string, unknown>,
-): void {
-  if (!isDesktop()) return;
-  queue = queue
+): Promise<T | undefined> {
+  if (!isDesktop()) return Promise.resolve(undefined);
+  const update = queue
     .catch(() => {})
-    .then(() => invoke(command, args))
+    .then(() => invoke<T>(command, args))
     .catch((error) => {
       const message =
         command === "keep_awake"
@@ -30,7 +30,10 @@ export function nativeUpdate(
             : "提醒未能保存，请检查应用数据目录是否可写。";
       console.error("Desktop command failed", command, error);
       toast(message);
+      return undefined;
     });
+  queue = update;
+  return update;
 }
 export function syncTimer(kind: string, deadline: number | null): void {
   if (deadline !== null && deadline <= Date.now()) return;
@@ -40,8 +43,8 @@ export function syncAlarm(
   hour: number,
   minute: number,
   enabled: boolean,
-): void {
-  nativeUpdate("schedule_alarm", { hour, minute, enabled });
+): Promise<number | null | undefined> {
+  return nativeUpdate<number | null>("schedule_alarm", { hour, minute, enabled });
 }
 export async function installNativeAlerts(): Promise<() => Promise<void>> {
   if (!isDesktop()) return async () => {};

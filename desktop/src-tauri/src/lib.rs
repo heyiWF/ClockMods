@@ -83,7 +83,7 @@ fn schedule_alarm(
     hour: u32,
     minute: u32,
     enabled: bool,
-) -> Result<(), String> {
+) -> Result<Option<i64>, String> {
     let alarm = if enabled {
         Some(DailyAlarm {
             hour,
@@ -103,7 +103,7 @@ fn schedule_alarm(
             {
                 s.alarm = alarm;
             }
-            Ok(())
+            Ok(s.alarm.as_ref().map(|a| a.next))
         })
 }
 #[tauri::command]

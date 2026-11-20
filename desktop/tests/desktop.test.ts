@@ -14,6 +14,7 @@ import {
   WIDGET_THEMES,
   type WidgetConfig,
 } from "../src/desktop/widgets";
+import { AlarmPage } from "../src/pages/alarm";
 import { TimerPage } from "../src/pages/timer";
 const widget: WidgetConfig = {
   id: "widget-test",
@@ -59,6 +60,26 @@ describe("desktop integration", () => {
       expect.any(Number),
       null,
     ]);
+  });
+  it("confirms a user-enabled alarm with the deadline saved by the native scheduler", async () => {
+    vi.spyOn(HTMLCanvasElement.prototype, "getContext").mockReturnValue(null);
+    document.body.insertAdjacentHTML("beforeend", '<div id="alarm-layer"></div>');
+    const page = new AlarmPage(document.querySelector("#timer")!);
+    await vi.waitFor(() => expect(ipc.invoke).toHaveBeenCalledTimes(1));
+    expect(document.querySelector("#alarm-confirmation")).toBeNull();
+
+    const toggle = document.querySelector<HTMLInputElement>(".alarm-toggle input")!;
+    ipc.invoke.mockResolvedValueOnce(Date.now() + 35_000);
+    toggle.click();
+    await vi.waitFor(() => {
+      expect(document.querySelector("#alarm-confirmation")?.textContent).toContain("1 分钟内");
+    });
+    document.querySelector("#alarm-confirmation")!.remove();
+    toggle.click();
+    page.start();
+    await vi.waitFor(() => expect(ipc.invoke).toHaveBeenCalledTimes(3));
+    expect(document.querySelector("#alarm-confirmation")).toBeNull();
+    vi.restoreAllMocks();
   });
   it("uses the bounded native HTTPS bridge for the desktop response", async () => {
     ipc.invoke.mockResolvedValue({

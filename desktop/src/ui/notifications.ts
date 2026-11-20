@@ -14,7 +14,13 @@ export function notificationsAllowed(): boolean {
 
 /** Asks once; safe to call from a user gesture only. */
 export async function requestNotificationPermission(): Promise<boolean> {
-  if (isDesktop()) return await isPermissionGranted() || await requestPermission() === 'granted';
+  if (isDesktop()) {
+    try {
+      return await isPermissionGranted() || await requestPermission() === 'granted';
+    } catch {
+      return false;
+    }
+  }
   if (!('Notification' in window)) return false;
   if (Notification.permission === 'granted') return true;
   if (Notification.permission === 'denied') return false;

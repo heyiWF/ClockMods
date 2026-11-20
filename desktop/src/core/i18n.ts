@@ -20,6 +20,11 @@ export type { ArrayKey, MessageKey };
 /** Web-only copy, plus overrides where the Android wording named Android APIs. */
 const WEB_MESSAGES: Record<string, Record<string, string>> = {
   'zh-Hans': {
+    alarm_set_in: '闹钟将在 %1$s 后响起。',
+    alarm_within_minute: '闹钟将在 1 分钟内响起。',
+    alarm_duration_day: '%1$d 天',
+    alarm_duration_hour: '%1$d 小时',
+    alarm_duration_minute: '%1$d 分钟',
     fullscreen_enter: '进入全屏',
     fullscreen_exit: '退出全屏',
     fullscreen_unavailable: '无法切换全屏，请检查宿主或浏览器权限',
@@ -66,6 +71,11 @@ const WEB_MESSAGES: Record<string, Record<string, string>> = {
     stopwatch_no_laps: '暂无计次',
   },
   'zh-Hant': {
+    alarm_set_in: '鬧鐘將在 %1$s 後響起。',
+    alarm_within_minute: '鬧鐘將在 1 分鐘內響起。',
+    alarm_duration_day: '%1$d 天',
+    alarm_duration_hour: '%1$d 小時',
+    alarm_duration_minute: '%1$d 分鐘',
     fullscreen_enter: '進入全螢幕',
     fullscreen_exit: '退出全螢幕',
     fullscreen_unavailable: '無法切換全螢幕，請檢查宿主或瀏覽器權限',
@@ -111,6 +121,11 @@ const WEB_MESSAGES: Record<string, Record<string, string>> = {
     stopwatch_no_laps: '尚無計次',
   },
   en: {
+    alarm_set_in: 'Alarm set for %1$s from now.',
+    alarm_within_minute: 'Alarm set for less than a minute from now.',
+    alarm_duration_day: '%1$d day',
+    alarm_duration_hour: '%1$d hr',
+    alarm_duration_minute: '%1$d min',
     fullscreen_enter: 'Enter fullscreen',
     fullscreen_exit: 'Exit fullscreen',
     fullscreen_unavailable: 'Fullscreen is unavailable. Check your host or browser permissions.',

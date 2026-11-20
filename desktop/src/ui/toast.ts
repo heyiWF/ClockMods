@@ -4,10 +4,14 @@ import { pangu } from '../format/text-spacing';
 
 const DURATION_MS = 2200;
 
-export function toast(message: string): void {
+export function toast(message: string, id?: string): void {
   const root = document.getElementById('toast-root');
   if (!root) return;
   const element = document.createElement('div');
+  if (id) {
+    document.getElementById(id)?.remove();
+    element.id = id;
+  }
   element.className = 'toast';
   element.textContent = pangu(message);
   root.appendChild(element);
