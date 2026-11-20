@@ -1,0 +1,186 @@
+package com.clockmods.pro.alarm;
+
+import android.app.*;
+import android.content.*;
+import android.os.*;
+import android.view.KeyEvent;
+import com.clockmods.pro.timer.*;
+import java.io.FileOutputStream;
+
+/** Isolated device checks; never clear data in the user's installed app. */
+public final class RingingAcceptance extends Instrumentation {
+    private Context context;
+    private int checks;
+    private String mode;
+    @Override public void onCreate(Bundle args) { super.onCreate(args); mode = args.getString("mode", "logic"); start(); }
+    private void check(boolean value, String message) { checks++; if (!value) throw new AssertionError(message); }
+    private void await(long id) {
+        long end = SystemClock.uptimeMillis() + 6000;
+        while (new AlarmStore(context).ringingId() != id && SystemClock.uptimeMillis() < end) SystemClock.sleep(50);
+        check(new AlarmStore(context).ringingId() == id, "active occurrence " + id);
+    }
+    private void command(long id, String action) { context.startService(AlarmDelivery.command(context, id, action)); }
+    @Override public void onStart() {
+        Bundle result = new Bundle(); context = getTargetContext();
+        try {
+            check(context.getPackageName().contains("ringingaudit"), "isolated audit app required");
+            runOnMainSync(() -> context.stopService(new Intent(context, AlarmRingingService.class)));
+            SystemClock.sleep(150);
+            AlarmStore clean = new AlarmStore(context);
+            for (AlarmSpec old : clean.all()) { AlarmScheduler.cancel(context, old.id); clean.delete(old.id); }
+            for (AlarmSpec old : clean.timerAlerts()) { AlarmScheduler.cancel(context, old.id); clean.delete(old.id); }
+            clean.clearRings();
+            if ("compat".equals(mode)) { compatibilityGesture(); return; }
+            if ("editor".equals(mode)) { captureEditor(); return; }
+            if (!"logic".equals(mode)) { scheduleLocked(); return; }
+            AlarmStore store = new AlarmStore(context);
+            AlarmPreferences.settings(context).edit().putBoolean(AlarmPreferences.RANDOM, true).commit();
+            AlarmSpec first = new AlarmSpec(); first.enabled = false; first.ringtone = "silent"; first.vibrate = false;
+            store.save(first); store.rememberRing(first.id);
+            boolean swapped = AlarmPreferences.swapped(context, first.id);
+            store.rememberRing(first.id);
+            check(swapped == AlarmPreferences.swapped(context, first.id), "duplicate delivery keeps button order");
+            Notification notice = AlarmDelivery.notification(context, first, 1);
+            check(notice.fullScreenIntent != null, "native full-screen pending intent attached");
+            check(notice.visibility == Notification.VISIBILITY_PUBLIC, "lock-screen notification visibility");
+            check(notice.actions.length == 2, "two accessible notification actions");
+            check(notice.actions[0].title.toString().equals(context.getString(swapped ? com.clockmods.R.string.alarm_dismiss : com.clockmods.R.string.alarm_snooze)), "notification follows saved button order");
+            runOnMainSync(() -> AlarmDelivery.ring(context, first)); await(first.id);
+            AlarmRingingActivity screen = (AlarmRingingActivity) startActivitySync(new Intent(context, AlarmRingingActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            SystemClock.sleep(300);
+            AlarmPreferences.settings(context).edit().putBoolean(AlarmPreferences.VOLUME, true).commit();
+            runOnMainSync(() -> screen.onKeyDown(KeyEvent.KEYCODE_VOLUME_DOWN, new KeyEvent(KeyEvent.ACTION_DOWN, KeyEvent.KEYCODE_VOLUME_DOWN)));
+            await(0);
+            check(store.find(first.id).snoozeAt > System.currentTimeMillis(), "volume key schedules snooze");
+            AlarmScheduler.cancel(context, first.id);
+            check(store.pendingRings().isEmpty(), "snooze removes active occurrence");
+            AlarmPreferences.settings(context).edit().putBoolean(AlarmPreferences.POWER, true).commit();
+            runOnMainSync(() -> AlarmDelivery.ring(context, store.find(first.id))); await(first.id);
+            SystemClock.sleep(700);
+            getUiAutomation().executeShellCommand("input keyevent 223").close();
+            await(0);
+            check(store.find(first.id).snoozeAt > System.currentTimeMillis(), "system sleep event snoozes while ringing");
+            AlarmPreferences.settings(context).edit().putBoolean(AlarmPreferences.POWER, false).commit();
+            getUiAutomation().executeShellCommand("input keyevent 224").close();
+            AlarmScheduler.cancel(context, first.id);
+            int originalCount = store.all().size();
+            SharedPreferences timers = context.getSharedPreferences("pro_timers", 0);
+            timers.edit().putBoolean("countdown_running", true).putLong("countdown_deadline", System.currentTimeMillis() - 1).commit();
+            runOnMainSync(() -> { TimerReceiver.complete(context, "countdown"); TimerReceiver.complete(context, "countdown"); });
+            SystemClock.sleep(700);
+            long countdown = store.ringingId(); check(countdown < 0, "countdown rings through shared service");
+            check(store.all().size() == originalCount && store.timerAlerts().size() == 1, "timer alert is isolated and completion is idempotent");
+            timers.edit().putBoolean("pomodoro_running", true).putLong("pomodoro_deadline", System.currentTimeMillis() - 1).putInt("pomodoro_phase", 0).commit();
+            runOnMainSync(() -> { TimerReceiver.complete(context, "pomodoro"); TimerReceiver.complete(context, "pomodoro"); });
+            SystemClock.sleep(400);
+            check(store.pendingRings().size() == 2 && timers.getInt("pomodoro_phase", -1) == 1, "Pomodoro advances once and queues independently");
+            command(countdown, AlarmDelivery.SNOOZE); SystemClock.sleep(500);
+            long pomodoro = store.ringingId(); check(pomodoro < 0 && pomodoro != countdown, "next timer becomes active");
+            check(store.find(countdown).snoozeAt > System.currentTimeMillis(), "timer snooze persists separately");
+            AlarmScheduler.cancel(context, countdown); store.delete(countdown);
+            command(pomodoro, AlarmDelivery.STOP); await(0);
+            check(store.timerAlerts().isEmpty(), "dismiss removes temporary timer records");
+            result.putString("stream", "PASS " + checks + " ringing checks\n"); finish(Activity.RESULT_OK, result);
+        } catch (Throwable error) { result.putString("stream", android.util.Log.getStackTraceString(error)); finish(Activity.RESULT_CANCELED, result); }
+    }
+    private void shell(String command) throws Exception {
+        try (ParcelFileDescriptor descriptor = getUiAutomation().executeShellCommand(command);
+             java.io.FileInputStream stream = new java.io.FileInputStream(descriptor.getFileDescriptor())) {
+            byte[] buffer = new byte[1024]; while (stream.read(buffer) >= 0) { }
+        }
+    }
+    private void compatibilityGesture() throws Exception {
+        com.clockmods.ultimate.navigation.CompatBackGesture.setEnabled(context, true);
+        int savedCount = new AlarmStore(context).all().size();
+        AlarmSpec draft = new AlarmSpec(); draft.repeat = AlarmSpec.Repeat.ALTERNATING;
+        Activity parent = startActivitySync(new Intent(context, AlarmEditorActivity.class).putExtra(AlarmUi.DRAFT, draft.toJson().toString()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        SystemClock.sleep(1000);
+        ActivityMonitor monitor = addMonitor(AlarmDatesActivity.class.getName(), null, false);
+        runOnMainSync(() -> { try { parent.startActivity(new Intent(context, AlarmDatesActivity.class).putExtra(AlarmUi.DRAFT, draft.toJson().toString()).putExtra(AlarmUi.MODE, "extra")); }
+            catch (Exception error) { throw new IllegalStateException(error); } });
+        Activity child = monitor.waitForActivityWithTimeout(4000); check(child != null, "child activity launched"); removeMonitor(monitor);
+        SystemClock.sleep(1200);
+        android.view.ViewGroup content = child.findViewById(android.R.id.content);
+        android.view.ViewGroup wrapper = (android.view.ViewGroup) content.getChildAt(0);
+        check(wrapper.getClass().getSimpleName().equals("EdgeLayout"), "opt-in edge recognizer installed");
+        check(wrapper.getSystemGestureExclusionRects().size() == 2, "two bounded edge regions");
+        android.graphics.Rect region = wrapper.getSystemGestureExclusionRects().get(0);
+        check(region.height() <= Math.ceil(200 * context.getResources().getDisplayMetrics().density), "200dp exclusion limit respected");
+        int[] location = new int[2]; wrapper.getLocationOnScreen(location);
+        int y = location[1] + wrapper.getHeight() / 2, x = location[0] + 4, width = wrapper.getWidth();
+        shell("input motionevent DOWN " + x + " " + y);
+        shell("input motionevent MOVE " + (x + width / 4) + " " + y);
+        SystemClock.sleep(150);
+        check(wrapper.getChildAt(1).getTranslationX() > 0, "real left edge drag drives preview");
+        screenshot("compat-left-preview");
+        shell("input motionevent MOVE " + (x + 2) + " " + y);
+        SystemClock.sleep(200); shell("input motionevent UP " + (x + 2) + " " + y);
+        SystemClock.sleep(350);
+        check(!child.isFinishing() && Math.abs(wrapper.getChildAt(1).getTranslationX()) < 1, "cancel restores page without navigation");
+        int right = location[0] + width - 4;
+        shell("input motionevent DOWN " + right + " " + y);
+        shell("input motionevent MOVE " + (right - width / 2) + " " + y);
+        SystemClock.sleep(150);
+        check(wrapper.getChildAt(1).getTranslationX() < 0, "real right edge drag drives preview");
+        screenshot("compat-right-preview");
+        shell("input motionevent UP " + (right - width / 2) + " " + y);
+        SystemClock.sleep(600); check(child.isFinishing() || child.isDestroyed(), "release commits one activity back");
+        check(new AlarmStore(context).all().size() == savedCount, "compatibility Back does not save editor drafts");
+        com.clockmods.ultimate.navigation.CompatBackGesture.setEnabled(context, false);
+        SystemClock.sleep(250);
+        android.view.View parentRoot = ((android.view.ViewGroup) parent.findViewById(android.R.id.content)).getChildAt(0);
+        check(parentRoot.getSystemGestureExclusionRects().isEmpty(), "disable restores system gesture ownership");
+        runOnMainSync(parent::finish);
+        Bundle result = new Bundle(); result.putString("stream", "PASS " + checks + " real-touch compatibility Back checks\n"); finish(Activity.RESULT_OK, result);
+    }
+    private void captureEditor() throws Exception {
+        context.getSharedPreferences("clock_prefs", 0).edit().putString("clock_language", "zh").commit();
+        AlarmSpec draft = new AlarmSpec(); draft.repeat = AlarmSpec.Repeat.ALTERNATING;
+        Activity activity = startActivitySync(new Intent(context, AlarmEditorActivity.class).putExtra(AlarmUi.DRAFT, draft.toJson().toString()).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        SystemClock.sleep(1500); screenshot("alternating-editor");
+        android.view.accessibility.AccessibilityNodeInfo root = getUiAutomation().getRootInActiveWindow();
+        String label = com.clockmods.LocaleManager.wrap(context).getString(com.clockmods.R.string.alarm_repeat);
+        java.util.List<android.view.accessibility.AccessibilityNodeInfo> choices = root.findAccessibilityNodeInfosByText(label);
+        for (int i = 0; choices.isEmpty() && i < 15; i++) {
+            SystemClock.sleep(300); root = getUiAutomation().getRootInActiveWindow();
+            choices = root.findAccessibilityNodeInfosByText("重复");
+            if (choices.isEmpty()) choices = root.findAccessibilityNodeInfosByText("Repeat");
+        }
+        check(!choices.isEmpty(), "repeat control accessible");
+        android.view.accessibility.AccessibilityNodeInfo choice = choices.get(0);
+        android.graphics.Rect rect = new android.graphics.Rect(); choice.getBoundsInScreen(rect);
+        getUiAutomation().executeShellCommand("input tap " + rect.centerX() + " " + rect.centerY()).close();
+        SystemClock.sleep(2500); screenshot("repeat-dialog");
+        runOnMainSync(activity::finish);
+        Bundle result = new Bundle(); result.putString("stream", "Captured alternating editor and repeat dialog\n"); finish(Activity.RESULT_OK, result);
+    }
+    private void screenshot(String name) throws Exception {
+        java.io.File dir = new java.io.File(context.getExternalFilesDir(null), "ringing-audit"); dir.mkdirs();
+        try (FileOutputStream out = new FileOutputStream(new java.io.File(dir, name + ".png"))) {
+            getUiAutomation().takeScreenshot().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out);
+        }
+    }
+    private void scheduleLocked() throws Exception {
+        AlarmStore store = new AlarmStore(context);
+        AlarmPreferences.settings(context).edit().putBoolean(AlarmPreferences.VOLUME, true).putBoolean(AlarmPreferences.POWER, false).commit();
+        long when = System.currentTimeMillis() + 7000;
+        if ("alarm".equals(mode)) {
+            AlarmSpec alarm = new AlarmSpec(); alarm.enabled = false; alarm.snoozeAt = when; alarm.label = "Lock-screen alarm test"; store.save(alarm); AlarmScheduler.schedule(context, alarm);
+        } else {
+            String prefix = mode + "_";
+            context.getSharedPreferences("pro_timers", 0).edit().putBoolean(prefix + "running", true).putLong(prefix + "deadline", when).commit();
+            TimerScheduler.schedule(context, mode, when);
+        }
+        // Shell drives actual sleep outside this test; this does not directly launch the ringing UI.
+        SystemClock.sleep(13000);
+        check(store.ringingId() != 0, "scheduled " + mode + " delivered while asleep");
+        android.view.accessibility.AccessibilityNodeInfo root = getUiAutomation().getRootInActiveWindow();
+        boolean visible = root != null && !root.findAccessibilityNodeInfosByText(com.clockmods.LocaleManager.wrap(context).getString(com.clockmods.R.string.alarm_snooze)).isEmpty();
+        java.io.File dir = new java.io.File(context.getExternalFilesDir(null), "ringing-audit"); dir.mkdirs();
+        try (FileOutputStream out = new FileOutputStream(new java.io.File(dir, mode + ".png"))) {
+            getUiAutomation().takeScreenshot().compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out);
+        }
+        Bundle result = new Bundle(); result.putString("stream", "Scheduled " + mode + ": ringing=true, fullScreenVisible=" + visible + ", keyguardLocked=" + context.getSystemService(KeyguardManager.class).isKeyguardLocked() + "\n");
+        finish(Activity.RESULT_OK, result);
+    }
+}

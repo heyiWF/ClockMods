@@ -27,7 +27,7 @@ The layout follows available dp width and height, including spacious high-resolu
 
 Material buttons tighten their corners while pressed and return to pills on release. Running timers use a yellow Pause button with dark text. Starting the stopwatch expands its secondary controls, and new lap rows slide in. Countdown digits roll only when changed, while separators retain font-measured alignment. Disabling system animations should apply final states immediately.
 
-New editor, date and shift activities inherit system predictive Back. Dialogs handle their own preview and cancellation. No HyperOS-specific animation is applied. Cancelling a gesture restores the current surface without applying its draft.
+New editor, date and shift activities inherit system predictive Back. Dialogs handle their own preview and cancellation. When native cross-activity previews are unavailable, enable the compatible swipe preview in System settings. Cancelling a gesture restores the current surface without applying its draft.
 
 ## Validation
 
@@ -44,3 +44,25 @@ Application callback tests do not establish system edge-gesture acceptance. Veri
 - [Android RingtoneManager](https://developer.android.com/reference/android/media/RingtoneManager)
 
 Interactions reference Google Clock; implementation uses each branch's own UI architecture and the application's calendar data.
+
+## Alternating weeks and alert controls (2026-11)
+
+Repeat choices have larger text, descriptions, scrollable content and a minimum 80 dp row height. Alternating weeks start on the Monday of the selected anchor week, with a choice of long or short week first. Defaults are Monday–Saturday and Monday–Friday workdays; customize either set, including midweek rest days. Choose workday or complementary rest-day alarms. The recurrence does not apply before the anchor week, and continuous week arithmetic does not reset at month/year boundaries. Public holidays do not override this company schedule; use extra/excluded dates for adjustments, leave and overtime. Exclusions win.
+
+Settings → Alarms and chimes provides three opt-in controls: shuffle alert buttons, volume-key snooze and snooze when the power key turns the screen off. The random order is persisted once per occurrence, survives recreation/recovery and matches notification actions. Volume keys work when delivered to the full-screen activity, including over keyguard; the system may intercept them.
+
+Android never delivers the power key to ordinary apps. During ringing only, the service can observe the public ACTION_SCREEN_OFF sleep broadcast. Automatic sleep may also snooze; pressing power while already asleep is not guaranteed to snooze. No global key interception, accessibility service, overlay, device administrator or hidden API is used.
+
+Countdown and Pomodoro completion share the alarm foreground service, queue, full-screen activity and snooze/stop controls, with default alarm sound, vibration and a five-minute snooze. Pomodoro advances phase once; snoozing only repeats the completion alert. Temporary alerts are stored separately from user alarms. The first foreground notification includes its full-screen intent and requests immediate display; a placeholder update must not consume the opportunity. A separate ringing task prevents lock-screen access to settings behind it.
+
+## Platform and manufacturer limits
+
+Exact alarm access, notifications, Android 14+ full-screen access and a high-importance notification channel remain user-controlled. Android decides full-screen delivery while locked/asleep and usually shows a banner while the device is in use. Restricted inexact/boot delivery falls back to the notification/full-screen entry instead of bypassing foreground-service restrictions.
+
+HyperOS/MIUI and ColorOS/OnePlus/realme get conditional guidance. Settings links use public Android Intents with an app-details fallback. Xiaomi documents additional lock-screen and background-pop-up controls; their state cannot be inferred from the brand. No verified public OPPO replacement API for third-party alarm full-screen delivery or predictive back was found. Private components, reflection and forced Activity launches are not used.
+
+Native/AndroidX predictive Back remains primary. Ordinary Back works without gesture progress, but apps cannot reconstruct system-withheld progress, home or cross-task previews. Callback tests do not establish ROM gesture support.
+
+Sources: [AOSP full-screen limits](https://source.android.com/docs/core/permissions/fsi-limits), [notification full-screen intents](https://developer.android.com/reference/android/app/Notification.Builder#setFullScreenIntent(android.app.PendingIntent,boolean)), [PendingIntent background-launch delegation](https://developer.android.com/guide/components/activities/secure-bal), [power key](https://developer.android.com/reference/android/view/KeyEvent#KEYCODE_POWER), [sleep broadcast](https://developer.android.com/reference/android/content/Intent#ACTION_SCREEN_OFF), [Xiaomi Android 14 guidance](https://dev.mi.com/xiaomihyperos/documentation/detail?pId=1718), [Xiaomi extra permissions](https://www.mi.com/my/support/faq/details/KA-497760/), [OPPO Android 15 guidance](https://open.oppomobile.com/bbs/forum.php?mod=viewthread&tid=6274).
+
+RingingAcceptance uses a separate ringingaudit package to check full-screen notification construction, stable button order, volume snooze, timer queues, duplicate delivery and temporary-record cleanup. Modes alarm/countdown/pomodoro schedule real system delivery without directly launching the alert activity; use shell sleep to observe full-screen behavior. Instrumentation accessibility inspection is test-only; the product declares no accessibility service.

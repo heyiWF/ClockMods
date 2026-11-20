@@ -1,0 +1,5 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="compat_back_title">兼容跨页面侧滑预览</string>
+    <string name="compat_back_summary">原生预测返回不可用时开启。从左右边缘中部向内滑动，预览上一应用内页面；松手返回，滑回取消。默认关闭；不接管返回桌面、弹窗、键盘或已有页面内返回操作。开启后重新进入页面生效</string>
+</resources>

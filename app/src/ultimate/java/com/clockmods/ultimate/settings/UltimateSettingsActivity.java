@@ -2337,6 +2337,24 @@ public class UltimateSettingsActivity extends AppCompatActivity {
 
     private View chimePage() {
         LinearLayout body = pageBody(0);
+        addSectionLabel(body, R.string.alarm_settings);
+        String[] alarmKeys = {com.clockmods.pro.alarm.AlarmPreferences.RANDOM, com.clockmods.pro.alarm.AlarmPreferences.VOLUME, com.clockmods.pro.alarm.AlarmPreferences.POWER};
+        int[] alarmTitles = {R.string.alarm_random_buttons, R.string.alarm_volume_snooze, R.string.alarm_power_snooze};
+        int[] alarmSummaries = {R.string.alarm_random_buttons_summary, R.string.alarm_volume_snooze_summary, R.string.alarm_power_snooze_summary};
+        for (int i = 0; i < alarmKeys.length; i++) {
+            String key = alarmKeys[i];
+            addSwitch(body, alarmTitles[i], alarmSummaries[i], com.clockmods.pro.alarm.AlarmPreferences.enabled(this, key), value ->
+                    com.clockmods.pro.alarm.AlarmPreferences.settings(this).edit().putBoolean(key, value).apply());
+        }
+        body.addView(label(R.string.alarm_access_summary, 14, false));
+        int[] accessTitles = {R.string.alarm_access_exact, R.string.alarm_access_fullscreen, R.string.alarm_access_notifications, R.string.alarm_access_app};
+        for (int i = 0; i < accessTitles.length; i++) {
+            final int kind = i;
+            addActionRow(body, accessTitles[i], "", R.drawable.ultimate_ic_chevron_right, () -> com.clockmods.pro.alarm.AlarmAccess.settings(this, kind));
+        }
+        int manufacturerHelp = com.clockmods.pro.alarm.AlarmAccess.manufacturerHelp();
+        if (manufacturerHelp != 0) body.addView(label(manufacturerHelp, 14, false));
+        body.addView(label(R.string.alarm_rom_help, 14, false));
         addSectionLabel(body, R.string.ultimate_chime_cues_section);
         addSwitch(body, R.string.ultimate_hourly_chime,
                 R.string.ultimate_hourly_chime_summary, repository.isHourlyChimeEnabled(), value -> {
@@ -2484,6 +2502,9 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                         markChanged("show_chinese_calendar");
                     });
         }
+        addSwitch(body, R.string.compat_back_title, R.string.compat_back_summary,
+                com.clockmods.ultimate.navigation.CompatBackGesture.enabled(this),
+                value -> com.clockmods.ultimate.navigation.CompatBackGesture.setEnabled(this, value));
         addSwitch(body, R.string.ultimate_auto_start,
                 R.string.ultimate_auto_start_summary, repository.isAutoStart(), value -> {
                     repository.setAutoStart(value);
