@@ -20,13 +20,14 @@ import com.clockmods.ui.ClockTimeText;
 /** The visible controls always address the currently ringing occurrence, including queued alarms. */
 public final class AlarmRingingActivity extends AppCompatActivity {
     private SharedPreferences preferences;
-    private TextView clock, title;
+    private TextView clock, title, phase;
     private long activeId;
+    private boolean timer;
     private LinearLayout controls;
-    private MaterialButton snooze, dismiss;
+    private MaterialButton snooze, dismiss, next;
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable tick = new Runnable() { public void run() {
-        if (clock != null) clock.setText(ClockTimeText.align(android.text.format.DateFormat.getTimeFormat(AlarmRingingActivity.this).format(new java.util.Date())));
+        if (clock != null && !timer) clock.setText(ClockTimeText.align(android.text.format.DateFormat.getTimeFormat(AlarmRingingActivity.this).format(new java.util.Date())));
         handler.postDelayed(this, 1000);
     }};
     private final SharedPreferences.OnSharedPreferenceChangeListener listener = (prefs, key) -> { if ("ringing_id".equals(key)) refresh(); };
@@ -47,15 +48,25 @@ public final class AlarmRingingActivity extends AppCompatActivity {
         androidx.appcompat.widget.AppCompatTextView time = new androidx.appcompat.widget.AppCompatTextView(this);
         androidx.core.widget.TextViewCompat.setAutoSizeTextTypeUniformWithConfiguration(time, 32, 96, 1, android.util.TypedValue.COMPLEX_UNIT_SP);
         time.setSingleLine(true); clock = time; clock.setGravity(Gravity.CENTER);
-        root.addView(clock, new LinearLayout.LayoutParams(-1, 0, 1));
+        LinearLayout face = new LinearLayout(this);
+        face.setOrientation(LinearLayout.VERTICAL);
+        face.setGravity(Gravity.CENTER);
+        phase = new TextView(this);
+        phase.setTextSize(24);
+        phase.setGravity(Gravity.CENTER);
+        face.addView(phase);
+        face.addView(clock, new LinearLayout.LayoutParams(-1, -2));
+        root.addView(face, new LinearLayout.LayoutParams(-1, 0, 1));
         controls = new LinearLayout(this); controls.setGravity(Gravity.CENTER);
         snooze = new MaterialButton(this, null, com.google.android.material.R.attr.materialButtonTonalStyle);
         snooze.setText(R.string.alarm_snooze); snooze.setIconResource(R.drawable.alarm_ic_snooze);
         snooze.setOnClickListener(v -> command(AlarmDelivery.SNOOZE));
         dismiss = new MaterialButton(this); dismiss.setText(R.string.alarm_dismiss);
         dismiss.setOnClickListener(v -> command(AlarmDelivery.STOP));
+        next = new MaterialButton(this); next.setText(R.string.pomodoro_next);
+        next.setOnClickListener(v -> command(AlarmDelivery.NEXT));
         int width = Math.round(Math.min(520, getResources().getConfiguration().screenWidthDp - 48) * getResources().getDisplayMetrics().density);
-        for (MaterialButton button : new MaterialButton[]{snooze, dismiss}) {
+        for (MaterialButton button : new MaterialButton[]{snooze, dismiss, next}) {
             button.setTextSize(20); button.setInsetTop(0); button.setInsetBottom(0);
             LinearLayout.LayoutParams params = new LinearLayout.LayoutParams(0, gap * 3, 1); params.setMargins(gap / 6, 0, gap / 6, 0);
             controls.addView(button, params);
@@ -73,12 +84,25 @@ public final class AlarmRingingActivity extends AppCompatActivity {
         AlarmSpec alarm = store.find(activeId);
         if (alarm == null) { finish(); return; }
         controls.removeAllViews();
+        timer = alarm.isTimer();
+        title.setText(timer ? getString(alarm.countdown ? R.string.pro_page_countdown : R.string.pro_page_pomodoro)
+                : AlarmDelivery.title(this, alarm));
+        phase.setVisibility(timer && !alarm.countdown && alarm.timerDuration > 0 ? android.view.View.VISIBLE : android.view.View.GONE);
+        if (timer) {
+            phase.setText(AlarmDelivery.phaseLabel(alarm));
+            clock.setText(alarm.timerDuration > 0 ? ClockTimeText.align(AlarmDelivery.duration(alarm)) : alarm.label);
+        }
+        dismiss.setText(AlarmDelivery.stopLabel(alarm));
+        if (timer) {
+            controls.addView(dismiss);
+            if (!alarm.countdown && alarm.completedDeadline != 0) controls.addView(next);
+            return;
+        }
         boolean swapped = AlarmPreferences.swapped(this, activeId);
         controls.addView(swapped ? dismiss : snooze); controls.addView(swapped ? snooze : dismiss);
-        title.setText(alarm.label.isEmpty() ? getString(R.string.alarm_ringing) : alarm.label);
     }
     private boolean volumeSnooze(int key) {
-        return (key == android.view.KeyEvent.KEYCODE_VOLUME_UP || key == android.view.KeyEvent.KEYCODE_VOLUME_DOWN
+        return !timer && (key == android.view.KeyEvent.KEYCODE_VOLUME_UP || key == android.view.KeyEvent.KEYCODE_VOLUME_DOWN
                 || key == android.view.KeyEvent.KEYCODE_VOLUME_MUTE) && AlarmPreferences.enabled(this, AlarmPreferences.VOLUME);
     }
     @Override public boolean onKeyDown(int key, android.view.KeyEvent event) {

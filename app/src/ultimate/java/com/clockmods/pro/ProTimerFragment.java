@@ -221,7 +221,8 @@ public final class ProTimerFragment extends Fragment {
 
     private void refresh() {
         if (display == null) return;
-        if (running && !preferences.getBoolean(prefix() + "running", false)) restore();
+        if (running != preferences.getBoolean(prefix() + "running", false)
+                || deadlineMillis != preferences.getLong(prefix() + "deadline", 0L)) restore();
         if (running) {
             remainingMillis = Math.max(0L, deadlineMillis - System.currentTimeMillis());
             if (remainingMillis == 0L) {
@@ -262,7 +263,9 @@ public final class ProTimerFragment extends Fragment {
     }
 
     private void persist() {
-        preferences.edit().putLong(prefix() + "duration", durationMillis)
+        SharedPreferences.Editor editor = preferences.edit();
+        if (pomodoro) editor.remove(com.clockmods.pro.timer.TimerCompletion.PENDING_PHASE);
+        editor.putLong(prefix() + "duration", durationMillis)
                 .putLong(prefix() + "remaining", remainingMillis)
                 .putLong(prefix() + "deadline", deadlineMillis)
                 .putBoolean(prefix() + "running", running)

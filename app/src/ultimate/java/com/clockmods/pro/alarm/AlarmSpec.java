@@ -11,6 +11,10 @@ import java.util.TreeSet;
 public final class AlarmSpec {
     public enum Repeat { ONCE, WEEKLY, HOLIDAYS, WORKDAYS, SHIFT, ALTERNATING }
     public long id;
+    public boolean countdown;
+    public long timerDuration, completedDeadline;
+    public int completedPhase;
+    public boolean isTimer() { return id < 0; }
     public int hour = 7, minute = 30;
     public boolean enabled = true, vibrate = true;
     public String label = "", ringtone = "default";
@@ -41,6 +45,10 @@ public final class AlarmSpec {
         hour = clamp(json.optInt("hour", 7), 0, 23); minute = clamp(json.optInt("minute", 30), 0, 59);
         enabled = json.optBoolean("enabled", true); vibrate = json.optBoolean("vibrate", true);
         label = json.optString("label", ""); ringtone = json.optString("ringtone", "default");
+        timerDuration = json.optLong("timerDuration");
+        completedPhase = json.optInt("completedPhase");
+        completedDeadline = json.optLong("completedDeadline");
+        countdown = id < 0 && (json.has("countdown") ? json.getBoolean("countdown") : legacyCountdown(label));
         try { repeat = Repeat.valueOf(json.optString("repeat", "ONCE")); } catch (Exception ignored) { repeat = Repeat.ONCE; }
         weekdays = json.optInt("weekdays", 31) & 127;
         onceDate = date(json.optString("onceDate"), LocalDate.now());
@@ -70,10 +78,17 @@ public final class AlarmSpec {
                 .put("snoozeMinutes", snoozeMinutes).put("snoozeAt", snoozeAt)
                 .put("scheduledAt", scheduledAt).put("lastFiredAt", lastFiredAt);
         JSONArray cycle = new JSONArray(), extra = new JSONArray(), excluded = new JSONArray();
+        if (id < 0) out.put("countdown", countdown).put("timerDuration", timerDuration)
+                .put("completedPhase", completedPhase).put("completedDeadline", completedDeadline);
         for (int value : cycleMinutes) cycle.put(value);
         for (LocalDate value : extraDates) extra.put(value.toString());
         for (LocalDate value : excludedDates) excluded.put(value.toString());
         return out.put("cycleMinutes", cycle).put("extraDates", extra).put("excludedDates", excluded);
+    }
+    // Older releases persisted only the localized completion title for temporary timer alerts.
+    private static boolean legacyCountdown(String label) {
+        return "倒计时结束".equals(label) || "倒數計時結束".equals(label) || "Timer finished".equals(label)
+                || "タイマーが終了しました".equals(label) || "타이머 완료".equals(label);
     }
     private static int clamp(int value, int min, int max) { return Math.max(min, Math.min(max, value)); }
     private static LocalDate date(String value, LocalDate fallback) {

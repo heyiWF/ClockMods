@@ -201,4 +201,12 @@
     <string name="calendar_avoid_prefix">"忌："</string>
     <string name="font_size_overflow_warning">レイアウト保護はオフです。文字が重なったり画面外にはみ出したりする場合があります。</string>
     <string name="font_size_auto">自動</string>
+    <string name="countdown_ringing_hint">時間になりました。タイマーを停止してください。</string>
+    <string name="countdown_dismiss">タイマーを停止</string>
+    <string name="pomodoro_ringing_hint">ポモドーロのフェーズが終了しました。</string>
+    <string name="pomodoro_dismiss">計測を停止</string>
+    <string name="alarm_named_ringing">アラーム「%1$s」が鳴っています</string>
+    <string name="countdown_finished_duration">%1$s のタイマーが終了しました</string>
+    <string name="pomodoro_finished_duration">%1$s %2$s の計測が終了しました</string>
+    <string name="pomodoro_next">次のフェーズ</string>
 </resources>

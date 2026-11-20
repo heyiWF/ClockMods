@@ -264,4 +264,12 @@
     </string-array>
     <string name="font_size_overflow_warning">已關閉版面保護，文字可能重疊或超出螢幕。</string>
     <string name="font_size_auto">自動</string>
+    <string name="countdown_ringing_hint">倒數計時已到，請結束響鈴。</string>
+    <string name="countdown_dismiss">結束倒數計時</string>
+    <string name="pomodoro_ringing_hint">本階段已完成，請結束響鈴。</string>
+    <string name="pomodoro_dismiss">停止計時</string>
+    <string name="alarm_named_ringing">鬧鐘「%1$s」正在響鈴</string>
+    <string name="countdown_finished_duration">%1$s 倒數計時已結束</string>
+    <string name="pomodoro_finished_duration">%1$s %2$s 計時結束</string>
+    <string name="pomodoro_next">下一階段</string>
 </resources>

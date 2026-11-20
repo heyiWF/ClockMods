@@ -264,4 +264,12 @@
     </string-array>
     <string name="font_size_overflow_warning">Layout protection is off. Text may overlap or extend beyond the screen.</string>
     <string name="font_size_auto">Auto</string>
+    <string name="countdown_ringing_hint">Time is up. Stop the timer to silence the alert.</string>
+    <string name="countdown_dismiss">Stop timer</string>
+    <string name="pomodoro_ringing_hint">The Pomodoro phase is complete.</string>
+    <string name="pomodoro_dismiss">Stop timer</string>
+    <string name="alarm_named_ringing">Alarm “%1$s” is ringing</string>
+    <string name="countdown_finished_duration">%1$s countdown finished</string>
+    <string name="pomodoro_finished_duration">%1$s %2$s timer finished</string>
+    <string name="pomodoro_next">Next phase</string>
 </resources>
