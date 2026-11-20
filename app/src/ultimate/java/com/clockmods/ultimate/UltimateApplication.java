@@ -18,7 +18,6 @@ public final class UltimateApplication extends Application {
     @Override
     public void onCreate() {
         super.onCreate();
-        com.clockmods.ultimate.navigation.CompatBackGesture.initialize(this);
         com.clockmods.pro.timer.TimingLiveUpdates.initialize(this);
         com.clockmods.background.UserFontStore.initialize(this);
         UltimateEmbeddingRules.install(this);

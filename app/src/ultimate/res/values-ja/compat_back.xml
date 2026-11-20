@@ -1,5 +1,0 @@
-<?xml version="1.0" encoding="utf-8"?>
-<resources>
-    <string name="compat_back_title">互換の画面間スワイププレビュー</string>
-    <string name="compat_back_summary">標準の予測型「戻る」が使えない場合に有効にします。左右端の中央から内側へスワイプして前のアプリ内画面を表示し、離すと戻り、引き戻すとキャンセルします。初期状態はオフです。ホーム、ダイアログ、キーボード、画面内の戻るは変更しません。有効化後に画面を開き直してください。</string>
-</resources>

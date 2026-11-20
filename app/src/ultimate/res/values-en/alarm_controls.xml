@@ -2,11 +2,11 @@
 <resources>
     <string name="alarm_settings">Alarms and timer alerts</string>
     <string name="alarm_random_buttons">Shuffle alert buttons</string>
-    <string name="alarm_random_buttons_summary">Randomize Snooze and Stop for each occurrence; keep their positions stable while it rings.</string>
+    <string name="alarm_random_buttons_summary">Randomize the order of Snooze and Stop each time an alert rings.</string>
     <string name="alarm_volume_snooze">Volume keys snooze</string>
-    <string name="alarm_volume_snooze_summary">Snooze when the full-screen alert receives a volume key, including over the lock screen. Unavailable if the system intercepts the key.</string>
+    <string name="alarm_volume_snooze_summary">Press a volume key during a full-screen alert to snooze.</string>
     <string name="alarm_power_snooze">Snooze when the power key turns the screen off</string>
-    <string name="alarm_power_snooze_summary">Snooze when the device goes to sleep during ringing. Android does not deliver power-key events; automatic sleep may also trigger this. Pressing power on an already sleeping device is not guaranteed to snooze.</string>
+    <string name="alarm_power_snooze_summary">Turn off the screen while the alert is ringing to snooze.</string>
     <string name="alarm_access_summary">Alarms, countdowns and Pomodoro share these settings. Allow notifications, exact alarms and full-screen alerts, and keep the alert channel at high importance. While using the phone, Android may show a banner instead.</string>
     <string name="alarm_access_notifications">Notifications and alert importance</string>
     <string name="alarm_access_exact">Exact alarm access</string>
@@ -14,5 +14,4 @@
     <string name="alarm_access_app">System app settings</string>
     <string name="alarm_rom_xiaomi">HyperOS / MIUI: if lock-screen alerts are blocked, check Show on Lock screen, background pop-up windows, autostart and background battery limits in system app settings. Names vary by OS version.</string>
     <string name="alarm_rom_oppo">ColorOS / OnePlus / realme: if alerts are delayed or hidden on the lock screen, check lock-screen notifications, background activity and autostart in system app settings. Options depend on the OS version.</string>
-    <string name="alarm_rom_help">Android full-screen notifications and back gestures take priority. If the OS does not supply predictive back progress, ordinary Back remains available but a gesture preview cannot be guaranteed.</string>
 </resources>

@@ -57,5 +57,3 @@ now inherit the application opt-in again; no vendor workaround is needed. The ge
 seekable timeline cancellation fix and its regression tests remain.
 
 Alarm editing, multi-date selection and shift-cycle editing use system-owned activity Back. Returning without Apply discards that page’s draft. Native time/date dialogs install dialog-window cancellation handling; the system ringtone picker owns its own Back transition.
-
-When native cross-activity previews are unavailable, enable the compatible swipe preview in System settings. Drag inward from the middle of either edge. The app shows an in-memory snapshot of the preceding activity in the same task. Slide back to cancel or pass the threshold and release to return. Native navigation is the default. Secure windows, ringing alerts, multi-window, the keyboard and active in-page Back handlers are excluded.

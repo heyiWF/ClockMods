@@ -2354,7 +2354,6 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         }
         int manufacturerHelp = com.clockmods.pro.alarm.AlarmAccess.manufacturerHelp();
         if (manufacturerHelp != 0) body.addView(label(manufacturerHelp, 14, false));
-        body.addView(label(R.string.alarm_rom_help, 14, false));
         addSectionLabel(body, R.string.ultimate_chime_cues_section);
         addSwitch(body, R.string.ultimate_hourly_chime,
                 R.string.ultimate_hourly_chime_summary, repository.isHourlyChimeEnabled(), value -> {
@@ -2502,9 +2501,6 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                         markChanged("show_chinese_calendar");
                     });
         }
-        addSwitch(body, R.string.compat_back_title, R.string.compat_back_summary,
-                com.clockmods.ultimate.navigation.CompatBackGesture.enabled(this),
-                value -> com.clockmods.ultimate.navigation.CompatBackGesture.setEnabled(this, value));
         addSwitch(body, R.string.ultimate_auto_start,
                 R.string.ultimate_auto_start_summary, repository.isAutoStart(), value -> {
                     repository.setAutoStart(value);

@@ -2,11 +2,11 @@
 <resources>
     <string name="alarm_settings">アラームとタイマー通知</string>
     <string name="alarm_random_buttons">通知ボタンの位置をランダムにする</string>
-    <string name="alarm_random_buttons_summary">鳴るたびにスヌーズと停止の位置を決め、鳴っている間は固定します。</string>
+    <string name="alarm_random_buttons_summary">鳴るたびにスヌーズと停止の位置をランダムに決めます。</string>
     <string name="alarm_volume_snooze">音量キーでスヌーズ</string>
-    <string name="alarm_volume_snooze_summary">全画面通知が音量キーを受け取ったときにスヌーズします。ロック画面でも有効ですが、システムがキーを処理する場合は動作しません。</string>
+    <string name="alarm_volume_snooze_summary">全画面で鳴っているときに音量キーを押すとスヌーズします。</string>
     <string name="alarm_power_snooze">電源キーで画面を消すとスヌーズ</string>
-    <string name="alarm_power_snooze_summary">鳴っている間に端末がスリープするとスヌーズします。電源キーのイベントはアプリに届かず、自動スリープでも動作する場合があります。すでにスリープ中の場合は保証されません。</string>
+    <string name="alarm_power_snooze_summary">鳴っている間に画面を消すとスヌーズします。</string>
     <string name="alarm_access_summary">アラーム、カウントダウン、ポモドーロで共通です。通知、正確なアラーム、全画面通知を許可し、通知の重要度を高くしてください。端末使用中はバナーになる場合があります。</string>
     <string name="alarm_access_notifications">通知と重要度</string>
     <string name="alarm_access_exact">正確なアラームの許可</string>
@@ -14,5 +14,4 @@
     <string name="alarm_access_app">システムのアプリ設定</string>
     <string name="alarm_rom_xiaomi">HyperOS / MIUI：通知が阻止される場合は、ロック画面表示、バックグラウンドのポップアップ、自動起動、電池制限を確認してください。名称はOSによって異なります。</string>
     <string name="alarm_rom_oppo">ColorOS / OnePlus / realme：通知が遅延・非表示になる場合は、ロック画面通知、バックグラウンド動作、自動起動を確認してください。項目はOSによって異なります。</string>
-    <string name="alarm_rom_help">Android標準の全画面通知と戻るジェスチャーを優先します。OSが予測型「戻る」の進行状況を提供しない場合、通常の戻るは使えますがプレビューは保証されません。</string>
 </resources>

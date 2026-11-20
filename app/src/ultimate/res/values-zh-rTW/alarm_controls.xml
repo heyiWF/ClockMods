@@ -2,11 +2,11 @@
 <resources>
     <string name="alarm_settings">鬧鐘與到時提醒</string>
     <string name="alarm_random_buttons">隨機交換提醒按鈕</string>
-    <string name="alarm_random_buttons_summary">每次響鈴隨機排列「稍後提醒」和「停止鬧鐘」；本次響鈴中保持不變</string>
+    <string name="alarm_random_buttons_summary">每次響鈴隨機排列「稍後提醒」和「停止鬧鐘」</string>
     <string name="alarm_volume_snooze">音量鍵稍後提醒</string>
-    <string name="alarm_volume_snooze_summary">全螢幕提醒頁收到音量鍵時稍後提醒，包括顯示於鎖定畫面時。系統攔截按鍵時無法生效</string>
+    <string name="alarm_volume_snooze_summary">在全螢幕響鈴提醒時按下音量鍵以稍後提醒</string>
     <string name="alarm_power_snooze">電源鍵關閉螢幕時稍後提醒</string>
-    <string name="alarm_power_snooze_summary">響鈴期間裝置進入休眠時稍後提醒。系統不向應用程式提供電源鍵事件，自動休眠也可能觸發；螢幕已關閉時再次按鍵無法保證生效</string>
+    <string name="alarm_power_snooze_summary">響鈴期間關閉螢幕以稍後提醒</string>
     <string name="alarm_access_summary">鬧鐘、倒數計時和番茄鐘共用這些設定。請允許通知、精確鬧鐘與全螢幕提醒，並將提醒通知設為高優先級。使用手機時系統可能只顯示橫幅</string>
     <string name="alarm_access_notifications">通知與提醒優先級</string>
     <string name="alarm_access_exact">精確鬧鐘權限</string>
@@ -14,5 +14,4 @@
     <string name="alarm_access_app">系統應用程式設定</string>
     <string name="alarm_rom_xiaomi">HyperOS／MIUI：若鎖定畫面提醒仍被攔截，請檢查鎖定畫面顯示、背景彈出視窗、自動啟動及背景電量限制。名稱依系統版本而異</string>
     <string name="alarm_rom_oppo">ColorOS／一加／realme：若提醒延遲或鎖定畫面未顯示，請檢查通知的鎖定畫面顯示、允許背景活動和自動啟動設定。選項依系統版本而異</string>
-    <string name="alarm_rom_help">應用程式優先使用 Android 原生全螢幕通知和返回手勢。系統未提供預測返回進度時仍可正常返回，但無法保證手勢預覽</string>
 </resources>
