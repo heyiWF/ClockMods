@@ -15,8 +15,8 @@
     <string name="ultimate_category_calendar_style">月历样式</string>
     <string name="ultimate_category_calendar_style_summary">月历页的版式与配色</string>
     <string name="ultimate_calendar_style_title">月历样式</string>
-    <string name="ultimate_category_chime">报时</string>
-    <string name="ultimate_category_chime_summary">整点、半点提示与勿扰时段</string>
+    <string name="ultimate_category_chime">闹钟与报时</string>
+    <string name="ultimate_category_chime_summary">响铃操作、锁屏提醒与整点提示</string>
     <string name="ultimate_category_system">系统与语言</string>
     <string name="ultimate_category_system_summary">屏幕方向、时钟语言与开机启动</string>
     <string name="ultimate_settings_selected_state">已选择</string>
@@ -217,7 +217,7 @@
     <string name="alarm_notification_access_required">通知权限已关闭；闹钟响铃时将无法显示停止入口。</string>
     <string name="alarm_grant_notification_access">开启通知权限</string>
 
-    <string name="ultimate_chime_title">报时</string>
+    <string name="ultimate_chime_title">闹钟与报时</string>
     <string name="ultimate_chime_cues_section">时间提示</string>
     <string name="ultimate_hourly_chime">整点视觉提示</string>
     <string name="ultimate_hourly_chime_summary">每逢整点显示一次提示</string>

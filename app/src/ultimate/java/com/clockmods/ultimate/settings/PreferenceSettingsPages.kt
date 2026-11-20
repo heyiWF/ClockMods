@@ -1360,6 +1360,24 @@ internal fun ChimeSettingsPage(modifier: Modifier, generation: Int) {
     var editingTime by rememberSaveable { mutableStateOf<ChimeTime?>(null) }
 
     SettingsColumn(modifier) {
+        SettingSection(R.string.alarm_settings) {
+            val keys = listOf(com.clockmods.pro.alarm.AlarmPreferences.RANDOM, com.clockmods.pro.alarm.AlarmPreferences.VOLUME, com.clockmods.pro.alarm.AlarmPreferences.POWER)
+            val titles = listOf(R.string.alarm_random_buttons, R.string.alarm_volume_snooze, R.string.alarm_power_snooze)
+            val summaries = listOf(R.string.alarm_random_buttons_summary, R.string.alarm_volume_snooze_summary, R.string.alarm_power_snooze_summary)
+            keys.forEachIndexed { index, key ->
+                var checked by remember(generation) { mutableStateOf(com.clockmods.pro.alarm.AlarmPreferences.enabled(context, key)) }
+                SettingSwitch(stringResource(titles[index]), checked, stringResource(summaries[index])) { value ->
+                    checked = value; com.clockmods.pro.alarm.AlarmPreferences.settings(context).edit().putBoolean(key, value).apply()
+                }
+            }
+            Text(stringResource(R.string.alarm_access_summary), style = MaterialTheme.typography.bodyMedium)
+            listOf(R.string.alarm_access_exact, R.string.alarm_access_fullscreen, R.string.alarm_access_notifications, R.string.alarm_access_app).forEachIndexed { kind, title ->
+                SettingAction(stringResource(title)) { com.clockmods.pro.alarm.AlarmAccess.settings(context, kind) }
+            }
+            val manufacturerHelp = com.clockmods.pro.alarm.AlarmAccess.manufacturerHelp()
+            if (manufacturerHelp != 0) Text(stringResource(manufacturerHelp), style = MaterialTheme.typography.bodyMedium)
+            Text(stringResource(R.string.alarm_rom_help), style = MaterialTheme.typography.bodyMedium)
+        }
         SettingSection(R.string.ultimate_chime_cues_section) {
             SettingSwitch(
                 stringResource(R.string.ultimate_hourly_chime),
@@ -1568,6 +1586,10 @@ internal fun SystemSettingsPage(
                     chineseCalendar = it
                     preferences.setChineseCalendarEnabled(it)
                 }
+            }
+            var compatBack by remember(generation) { mutableStateOf(com.clockmods.ultimate.navigation.CompatBackGesture.enabled(context)) }
+            SettingSwitch(stringResource(R.string.compat_back_title), compatBack, stringResource(R.string.compat_back_summary)) {
+                compatBack = it; com.clockmods.ultimate.navigation.CompatBackGesture.setEnabled(context, it)
             }
             SettingSwitch(
                 stringResource(R.string.ultimate_auto_start),

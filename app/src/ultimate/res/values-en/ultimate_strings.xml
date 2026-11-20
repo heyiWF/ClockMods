@@ -15,8 +15,8 @@
     <string name="ultimate_category_calendar_style">Calendar style</string>
     <string name="ultimate_category_calendar_style_summary">Layout and palette of the calendar page</string>
     <string name="ultimate_calendar_style_title">Calendar style</string>
-    <string name="ultimate_category_chime">Time cues</string>
-    <string name="ultimate_category_chime_summary">Hourly and half-hour cues with quiet hours</string>
+    <string name="ultimate_category_chime">Alarms and chimes</string>
+    <string name="ultimate_category_chime_summary">Ringing controls, lock-screen alerts and hourly cues</string>
     <string name="ultimate_category_system">System &amp; language</string>
     <string name="ultimate_category_system_summary">Screen orientation, clock language, and startup behavior</string>
     <string name="ultimate_settings_selected_state">Selected</string>
@@ -217,7 +217,7 @@
     <string name="alarm_notification_access_required">Notifications are disabled, so the ringing alarm cannot show a stop button.</string>
     <string name="alarm_grant_notification_access">Enable notifications</string>
 
-    <string name="ultimate_chime_title">Time cues</string>
+    <string name="ultimate_chime_title">Alarms and chimes</string>
     <string name="ultimate_chime_cues_section">Time cues</string>
     <string name="ultimate_hourly_chime">Hourly visual cue</string>
     <string name="ultimate_hourly_chime_summary">Show a cue at the start of every hour</string>
