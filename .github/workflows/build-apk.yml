@@ -24,18 +24,24 @@ jobs:
       - name: Checkout
         uses: actions/checkout@v7
 
-      # The project supports API 1 and is pinned to the JDK 8 + Gradle 6.1.1 +
-      # AGP 3.6.3 + SDK 28 toolchain (app/build.gradle).
-      - name: Set up JDK 8
+      - name: Set up JDK 21 for SDK Manager
         uses: actions/setup-java@v6
         with:
           distribution: temurin
-          java-version: '8'
+          java-version: '21'
 
       - name: Set up Android SDK
         uses: android-actions/setup-android@v4
         with:
           packages: 'platforms;android-28 build-tools;28.0.3'
+
+      # The project supports API 1 and is pinned to the JDK 8 + Gradle 6.1.1 +
+      # AGP 3.6.3 + SDK 28 toolchain (app/build.gradle).
+      - name: Set up JDK 8 for Gradle
+        uses: actions/setup-java@v6
+        with:
+          distribution: temurin
+          java-version: '8'
 
       - name: Set up Gradle
         uses: gradle/actions/setup-gradle@v6
