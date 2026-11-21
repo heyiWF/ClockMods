@@ -209,4 +209,12 @@
     <string name="countdown_finished_duration">%1$s のタイマーが終了しました</string>
     <string name="pomodoro_finished_duration">%1$s %2$s の計測が終了しました</string>
     <string name="pomodoro_next">次のフェーズ</string>
+    <string name="pomodoro_edit_sequence">サイクルを編集</string>
+    <string name="pomodoro_add_step">フェーズを追加</string>
+    <string name="pomodoro_remove_step">フェーズを削除</string>
+    <string name="pomodoro_drag">ドラッグして並べ替え</string>
+    <string name="pomodoro_duration">フェーズの長さ</string>
+    <string name="timing_keep_screen_on">計測中は画面をオンにする</string>
+    <string name="timing_keep_screen_on_summary">表示中のポモドーロ、タイマー、ストップウォッチが動作している間、画面をオンにします</string>
+    <string name="timing_tools_section">計測ツール</string>
 </resources>

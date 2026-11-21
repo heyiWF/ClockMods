@@ -2459,6 +2459,14 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         setViewTreeEnabled(periodRow, enabledSwitch.isChecked());
         setViewTreeEnabled(amplitudeRow, enabledSwitch.isChecked());
         setSwitchPreferenceEnabled(autoDimSwitch, enabledSwitch.isChecked());
+        addSectionLabel(body, R.string.timing_tools_section);
+        android.content.SharedPreferences screenSettings = com.clockmods.pro.timer.TimingScreenOn.settings(this);
+        String timingKey = com.clockmods.pro.timer.TimingScreenOn.KEY;
+        addSwitch(body, R.string.timing_keep_screen_on, R.string.timing_keep_screen_on_summary,
+                screenSettings.getBoolean(timingKey, false), value -> {
+                    screenSettings.edit().putBoolean(timingKey, value).apply();
+                    markChanged(timingKey);
+                });
         addSectionLabel(body, R.string.ultimate_orientation_section);
         int orientation = repository.getScreenOrientation();
         int orientationPosition = orientation == ClockPreferences.ORIENTATION_PORTRAIT ? 1

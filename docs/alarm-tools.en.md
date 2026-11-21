@@ -23,6 +23,8 @@ Simultaneous alarms queue independently and can be dismissed or snoozed separate
 
 ## Layout and motion
 
+Enable “Keep screen on while timing” in Settings → System & language → Timing tools to keep the display awake while viewing a running Pomodoro, countdown or stopwatch. Pausing, reaching the end, switching to an idle page or leaving the app releases the display. The setting is off by default.
+
 The layout follows available dp width and height, including spacious high-resolution, low-density windows and compact windows. Portrait stacks content; wide landscape uses two panes with a maximum content width. Stopwatch records show lap and total times, preserving records and elapsed time across activity recreation.
 
 Material buttons tighten their corners while pressed and return to pills on release. Running timers use a yellow Pause button with dark text. Starting the stopwatch expands its secondary controls, and new lap rows slide in. Countdown digits roll only when changed, while separators retain font-measured alignment. Disabling system animations should apply final states immediately.
@@ -52,6 +54,8 @@ Repeat choices have larger text, descriptions, scrollable content and a minimum 
 Settings → Alarms and chimes provides three opt-in controls: shuffle alert buttons, volume-key snooze and snooze when the power key turns the screen off. The random order is persisted once per occurrence, survives recreation/recovery and matches notification actions. Volume keys work when delivered to the full-screen activity, including over keyguard; the system may intercept them.
 
 Android never delivers the power key to ordinary apps. During ringing only, the service can observe the public ACTION_SCREEN_OFF sleep broadcast. Automatic sleep may also snooze; pressing power while already asleep is not guaranteed to snooze. No global key interception, accessibility service, overlay, device administrator or hidden API is used.
+
+The default Pomodoro cycle is Focus 25 min, Short break 5 min, Focus 25 min and Long break 15 min. Edit cycle lets you reorder, add and remove phases. A cycle contains 2–15 steps. Labels may repeat freely and each duration wheel spans 3–60 minutes. Changing a phase type sets its duration to 25 minutes for Focus, 5 for Short break or 15 for Long break. Selecting the same type preserves its current duration. Apply saves the sequence and returns to its first step with its full duration. Tap Start to begin timing. Reset on the timer stops it at the first step of the saved cycle. Reset in the editor restores the default draft. Next phase after the last step starts the first one.
 
 Countdown and Pomodoro completion share the foreground service, queue, default sound and vibration. Countdown alerts offer only Stop timer. Pomodoro advances phase once and shows the completed phase and duration, with Stop timer and Next phase actions. Snoozing an alarm posts an ongoing notification with its next ringing date and time. Stop alarm cancels that snooze and preserves the recurring schedule. Temporary alerts are stored separately from user alarms. The first foreground notification includes its full-screen intent and requests immediate display; a placeholder update must not consume the opportunity. A separate ringing task prevents lock-screen access to settings behind it.
 

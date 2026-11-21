@@ -56,6 +56,7 @@ public abstract class ProMainActivity extends AppCompatActivity {
             R.drawable.ic_schedule_filled, R.drawable.ic_alarm_filled,
             R.drawable.ic_hourglass, R.drawable.ic_timer
     };
+    private com.clockmods.pro.timer.TimingScreenOn timingScreenOn;
     private ViewPager2 pager;
     private BottomNavigationView navigation;
     private GestureDetector chromeGestureDetector;
@@ -86,7 +87,7 @@ public abstract class ProMainActivity extends AppCompatActivity {
         getWindow().setBackgroundDrawable(new ColorDrawable(surfaceColor()));
         applyScreenOrientation();
         enableEdgeToEdge();
-        getWindow().addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON);
+        timingScreenOn = new com.clockmods.pro.timer.TimingScreenOn(this);
         setContentView(R.layout.activity_pro);
 
         pager = findViewById(R.id.pro_pager);
@@ -105,6 +106,7 @@ public abstract class ProMainActivity extends AppCompatActivity {
                 ProPage.CLOCK.ordinal());
         }
         if (savedInstanceState == null) selectedPage = timingDestination(getIntent(), selectedPage);
+        timingScreenOn.select(ProPage.values()[selectedPage].name().toLowerCase(java.util.Locale.ROOT));
         pager.setCurrentItem(selectedPage, false);
         ProFontApplier.apply(navigation);
         ButtonTextSizer.applyAllTextToTree(navigation);
@@ -123,6 +125,7 @@ public abstract class ProMainActivity extends AppCompatActivity {
             @Override public void onPageSelected(int position) {
                 dispatchCalendarDestinationChange(selectedPage, position);
                 selectedPage = position;
+                timingScreenOn.select(ProPage.values()[position].name().toLowerCase(java.util.Locale.ROOT));
                 navigation.setSelectedItemId(NAVIGATION_IDS[position]);
                 updateNavigationIcons();
                 updateChromeForPage();
@@ -225,12 +228,14 @@ public abstract class ProMainActivity extends AppCompatActivity {
 
     @Override protected void onResume() {
         super.onResume();
+        timingScreenOn.resume();
         hourlyChimeController.start();
         if (antiBurnController != null) antiBurnController.start();
         updateChromeForPage();
     }
 
     @Override protected void onPause() {
+        timingScreenOn.pause();
         hourlyChimeController.stop();
         if (antiBurnController != null) antiBurnController.stop();
         super.onPause();

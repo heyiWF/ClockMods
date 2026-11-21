@@ -26,6 +26,8 @@ import com.google.android.material.button.MaterialButton;
 import com.clockmods.ui.ButtonTextSizer;
 import com.clockmods.ui.ClockTimeText;
 import com.clockmods.pro.timer.TimerScheduler;
+import com.clockmods.pro.timer.PomodoroSequence;
+import com.clockmods.pro.timer.SequenceEditorView;
 
 import java.util.Locale;
 
@@ -49,6 +51,9 @@ public final class ProTimerFragment extends Fragment {
     private long deadlineMillis;
     private boolean running;
     private int pomodoroPhase;
+    private java.util.List<PomodoroSequence.Step> sequence;
+    private AlertDialog sequenceDialog;
+    private SequenceEditorView sequenceEditor;
 
     static ProTimerFragment newPomodoroInstance() { return newInstance(MODE_POMODORO); }
     static ProTimerFragment newCountdownInstance() { return newInstance(MODE_COUNTDOWN); }
@@ -87,11 +92,20 @@ public final class ProTimerFragment extends Fragment {
         ButtonTextSizer.applyToTree(root);
         restore();
         refresh();
+        if (pomodoro && savedInstanceState != null && savedInstanceState.containsKey("sequence_draft"))
+            root.post(() -> { if (isAdded() && display != null) editSequence(savedInstanceState.getString("sequence_draft")); });
         return root;
     }
 
     private void setupPresets(ChipGroup container) {
-        int[] minutes = pomodoro ? new int[] {5, 15, 25} : new int[] {5, 10, 30, 60};
+        if (pomodoro) {
+            Chip edit = new Chip(requireContext());
+            edit.setText(R.string.pomodoro_edit_sequence);
+            edit.setOnClickListener(v -> editSequence(PomodoroSequence.encode(sequence)));
+            container.addView(edit);
+            return;
+        }
+        int[] minutes = {5, 10, 30, 60};
         for (int value : minutes) {
             Chip chip = new Chip(requireContext());
             chip.setText(getString(R.string.timer_minutes, value));
@@ -106,6 +120,39 @@ public final class ProTimerFragment extends Fragment {
             custom.setOnClickListener(view -> showCustomDurationDialog());
             container.addView(custom);
         }
+    }
+
+    private int[] materialColors(int... attributes) {
+        int[] colors = new int[attributes.length];
+        for (int i = 0; i < attributes.length; i++)
+            colors[i] = com.google.android.material.color.MaterialColors.getColor(requireView(), attributes[i]);
+        return colors;
+    }
+
+    private void editSequence(String draft) {
+        int[] fills = materialColors(com.google.android.material.R.attr.colorPrimaryContainer,
+                com.google.android.material.R.attr.colorSecondaryContainer, com.google.android.material.R.attr.colorTertiaryContainer);
+        int[] inks = materialColors(com.google.android.material.R.attr.colorOnPrimaryContainer,
+                com.google.android.material.R.attr.colorOnSecondaryContainer, com.google.android.material.R.attr.colorOnTertiaryContainer);
+        sequenceEditor = new SequenceEditorView(requireContext(), draft, fills, inks, ignored -> {},
+                () -> sequenceDialog.cancel(), steps -> {
+                    PomodoroSequence.apply(requireContext(), steps);
+                    restore();
+                    refresh();
+                    sequenceDialog.dismiss();
+                });
+        android.widget.FrameLayout content = new android.widget.FrameLayout(requireContext());
+        content.setPadding(dp(20), dp(12), dp(20), dp(20));
+        content.addView(sequenceEditor, new android.widget.FrameLayout.LayoutParams(-1, -2));
+        sequenceDialog = new com.clockmods.ultimate.navigation.PredictiveAlertDialogBuilder(requireContext())
+                .setTitle(R.string.pomodoro_edit_sequence).setView(content).create();
+        sequenceDialog.setOnDismissListener(dialog -> { sequenceDialog = null; sequenceEditor = null; });
+        sequenceDialog.show();
+    }
+
+    @Override public void onSaveInstanceState(@NonNull Bundle state) {
+        super.onSaveInstanceState(state);
+        if (sequenceEditor != null) state.putString("sequence_draft", PomodoroSequence.encode(sequenceEditor.steps()));
     }
 
     private int dp(int value) {
@@ -201,7 +248,7 @@ public final class ProTimerFragment extends Fragment {
         TimerScheduler.cancel(requireContext(), prefixMode());
         if (pomodoro) {
             pomodoroPhase = 0;
-            durationMillis = 25 * 60_000L;
+            durationMillis = sequence.get(0).duration();
         }
         remainingMillis = durationMillis;
         persist();
@@ -209,9 +256,8 @@ public final class ProTimerFragment extends Fragment {
     }
 
     private void advancePomodoro() {
-        pomodoroPhase = (pomodoroPhase + 1) % 3;
-        durationMillis = pomodoroPhase == 0 ? 25 * 60_000L
-                : pomodoroPhase == 1 ? 5 * 60_000L : 15 * 60_000L;
+        pomodoroPhase = (pomodoroPhase + 1) % sequence.size();
+        durationMillis = sequence.get(pomodoroPhase).duration();
         remainingMillis = durationMillis;
         running = false;
         TimerScheduler.cancel(requireContext(), prefixMode());
@@ -245,21 +291,20 @@ public final class ProTimerFragment extends Fragment {
     }
 
     private String phaseLabel() {
-        return getString(pomodoroPhase == 0 ? R.string.pomodoro_focus
-                : pomodoroPhase == 1 ? R.string.pomodoro_short_break
-                : R.string.pomodoro_long_break);
+        return getString(com.clockmods.pro.timer.TimerCompletion.phaseLabel(sequence.get(pomodoroPhase).label));
     }
 
     private String prefix() { return pomodoro ? "pomodoro_" : "countdown_"; }
     private String prefixMode() { return pomodoro ? "pomodoro" : "countdown"; }
 
     private void restore() {
+        if (pomodoro) sequence = PomodoroSequence.load(preferences);
+        pomodoroPhase = pomodoro ? PomodoroSequence.index(preferences, sequence) : 0;
         durationMillis = preferences.getLong(prefix() + "duration",
-                pomodoro ? 25 * 60_000L : 10 * 60_000L);
+                pomodoro ? sequence.get(pomodoroPhase).duration() : 10 * 60_000L);
         remainingMillis = preferences.getLong(prefix() + "remaining", durationMillis);
         deadlineMillis = preferences.getLong(prefix() + "deadline", 0L);
         running = preferences.getBoolean(prefix() + "running", false);
-        pomodoroPhase = preferences.getInt(prefix() + "phase", 0);
     }
 
     private void persist() {
@@ -272,7 +317,7 @@ public final class ProTimerFragment extends Fragment {
                 .putInt(prefix() + "phase", pomodoroPhase).apply();
     }
 
-    @Override public void onDestroyView() { rollingTime.dispose(); display = null; super.onDestroyView(); }
+    @Override public void onDestroyView() { if (sequenceDialog != null) sequenceDialog.dismiss(); rollingTime.dispose(); display = null; super.onDestroyView(); }
 
     @Override public void onResume() { super.onResume(); restore(); handler.post(ticker); }
     @Override public void onPause() { handler.removeCallbacks(ticker); super.onPause(); }

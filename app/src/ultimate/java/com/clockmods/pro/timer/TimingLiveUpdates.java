@@ -65,9 +65,11 @@ public final class TimingLiveUpdates {
             manager(context).cancel(id);
             return;
         }
-        int phase = p.getInt(prefix + "phase", 0);
-        int text = !pomodoro ? R.string.timing_running : phase == 0 ? R.string.pomodoro_focus
-                : phase == 1 ? R.string.pomodoro_short_break : R.string.pomodoro_long_break;
+        int text = R.string.timing_running;
+        if (pomodoro) {
+            java.util.List<PomodoroSequence.Step> steps = PomodoroSequence.load(p);
+            text = TimerCompletion.phaseLabel(steps.get(PomodoroSequence.index(p, steps)).label);
+        }
         post(context, id, pomodoro ? "pomodoro" : "countdown",
                 pomodoro ? R.string.pro_page_pomodoro : R.string.pro_page_countdown,
                 text, deadline, true, remaining);

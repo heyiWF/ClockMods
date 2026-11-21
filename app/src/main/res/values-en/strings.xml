@@ -272,4 +272,12 @@
     <string name="countdown_finished_duration">%1$s countdown finished</string>
     <string name="pomodoro_finished_duration">%1$s %2$s timer finished</string>
     <string name="pomodoro_next">Next phase</string>
+    <string name="pomodoro_edit_sequence">Edit cycle</string>
+    <string name="pomodoro_add_step">Add phase</string>
+    <string name="pomodoro_remove_step">Remove phase</string>
+    <string name="pomodoro_drag">Drag to reorder</string>
+    <string name="pomodoro_duration">Phase duration</string>
+    <string name="timing_keep_screen_on">Keep screen on while timing</string>
+    <string name="timing_keep_screen_on_summary">Keep the screen on while the visible Pomodoro, countdown, or stopwatch is running</string>
+    <string name="timing_tools_section">Timing tools</string>
 </resources>

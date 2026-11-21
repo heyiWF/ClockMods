@@ -30,6 +30,18 @@ public final class RingingAcceptance extends Instrumentation {
             for (AlarmSpec old : clean.all()) { AlarmScheduler.cancel(context, old.id); clean.delete(old.id); }
             for (AlarmSpec old : clean.timerAlerts()) { AlarmScheduler.cancel(context, old.id); clean.delete(old.id); }
             clean.clearRings();
+            if ("screen".equals(mode)) {
+                new SequenceAcceptance(this).checkScreenOn();
+                result.putString("stream", "PASS timing screen-on window checks\n");
+                finish(Activity.RESULT_OK, result);
+                return;
+            }
+            if ("sequence".equals(mode)) {
+                new SequenceAcceptance(this).run();
+                result.putString("stream", "PASS Pomodoro sequence editor and cycle checks\n");
+                finish(Activity.RESULT_OK, result);
+                return;
+            }
             if ("confirmation".equals(mode)) { confirmSchedule(); return; }
             if ("editor".equals(mode)) { captureEditor(); return; }
             if (!"logic".equals(mode)) { scheduleLocked(); return; }
@@ -41,10 +53,18 @@ public final class RingingAcceptance extends Instrumentation {
             store.rememberRing(first.id);
             check(swapped == AlarmPreferences.swapped(context, first.id), "duplicate delivery keeps button order");
             Notification notice = AlarmDelivery.notification(context, first, 1);
+            Context alertLocale = com.clockmods.LocaleManager.wrap(context);
+            check(alertLocale.getString(com.clockmods.R.string.alarm_ringing).contentEquals(
+                    notice.extras.getCharSequence(Notification.EXTRA_TITLE)), "unnamed alarm title");
+            AlarmSpec named = new AlarmSpec(first);
+            named.label = "Morning run";
+            check(alertLocale.getString(com.clockmods.R.string.alarm_named_ringing, named.label).contentEquals(
+                    AlarmDelivery.notification(context, named, 1).extras.getCharSequence(Notification.EXTRA_TITLE)),
+                    "named alarm title includes its name and ringing status");
             check(notice.fullScreenIntent != null, "native full-screen pending intent attached");
             check(notice.visibility == Notification.VISIBILITY_PUBLIC, "lock-screen notification visibility");
             check(notice.actions.length == 2, "two accessible notification actions");
-            check(notice.actions[0].title.toString().equals(context.getString(swapped ? com.clockmods.R.string.alarm_dismiss : com.clockmods.R.string.alarm_snooze)), "notification follows saved button order");
+            check(notice.actions[0].title.toString().equals(com.clockmods.LocaleManager.wrap(context).getString(swapped ? com.clockmods.R.string.alarm_dismiss : com.clockmods.R.string.alarm_snooze)), "notification follows saved button order");
             runOnMainSync(() -> AlarmDelivery.ring(context, first)); await(first.id);
             AlarmRingingActivity screen = (AlarmRingingActivity) startActivitySync(new Intent(context, AlarmRingingActivity.class).addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
             SystemClock.sleep(300);
