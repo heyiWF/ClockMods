@@ -114,6 +114,7 @@ dependencies {
     debugImplementation("androidx.compose.ui:ui-test-manifest")
     androidTestImplementation("androidx.compose.ui:ui-test-junit4")
 
+    implementation("androidx.recyclerview:recyclerview:1.3.1")
     implementation("androidx.work:work-runtime:2.11.2")
     implementation("androidx.exifinterface:exifinterface:1.3.7")
     implementation("cn.6tail:tyme4j:1.5.1")

@@ -1,5 +1,10 @@
 package com.clockmods.ultimate.compose
 
+import androidx.compose.foundation.layout.size
+import androidx.compose.ui.graphics.drawscope.withTransform
+import androidx.compose.ui.graphics.drawscope.clipPath
+import androidx.compose.ui.semantics.semantics
+import androidx.compose.ui.semantics.contentDescription
 import android.app.Activity
 import android.content.res.Configuration
 import android.os.SystemClock
@@ -77,8 +82,7 @@ private enum class Destination(
     CLOCK(R.string.pro_page_clock, filledIconRes = R.drawable.ic_nest_clock_farsight_digital_filled,
         outlinedIconRes = R.drawable.ic_nest_clock_farsight_digital),
     CALENDAR(R.string.pro_page_calendar, Icons.Filled.CalendarMonth, Icons.Outlined.CalendarMonth),
-    POMODORO(R.string.pro_page_pomodoro, outlinedIcon = Icons.Outlined.AccessTime,
-        filledIconRes = R.drawable.ic_schedule_filled),
+    POMODORO(R.string.pro_page_pomodoro, outlinedIcon = Icons.Outlined.AccessTime),
     ALARM(R.string.pro_page_alarm, outlinedIcon = Icons.Outlined.Alarm,
         filledIconRes = R.drawable.ic_alarm_filled),
     COUNTDOWN(R.string.pro_page_countdown, Icons.Filled.HourglassBottom, Icons.Outlined.HourglassEmpty),
@@ -90,12 +94,14 @@ private enum class Destination(
 @Composable
 fun UltimateApp(
     refreshGeneration: Int,
+    onDestinationChanged: (String) -> Unit = {},
     requestedDestination: String? = null,
     navigationRequestGeneration: Int = 0,
     onOpenSettings: () -> Unit,
     onOpenCalendarSettings: () -> Unit = onOpenSettings,
 ) {
     var destination by rememberSaveable { mutableStateOf(Destination.CLOCK) }
+    androidx.compose.runtime.SideEffect { onDestinationChanged(destination.name.lowercase(java.util.Locale.ROOT)) }
     var chromeVisible by rememberSaveable { mutableStateOf(false) }
     LaunchedEffect(navigationRequestGeneration) {
         destination = when (requestedDestination) {
@@ -155,7 +161,8 @@ fun UltimateApp(
                             val description = stringResource(item.labelRes)
                             val selected = destination == item
                             val vector = if (selected) item.filledIcon else item.outlinedIcon
-                            if (vector != null) Icon(vector, contentDescription = description)
+                            if (selected && item == Destination.POMODORO) FilledPomodoroDial(description)
+                            else if (vector != null) Icon(vector, contentDescription = description)
                             else Icon(painterResource(requireNotNull(
                                 if (selected) item.filledIconRes else item.outlinedIconRes,
                             )), contentDescription = description)
@@ -214,6 +221,31 @@ fun UltimateApp(
             }
         }
         ChimeHost(refreshGeneration)
+    }
+}
+
+/** Cut out the hands from a native circle so the perimeter has no arc joins. */
+@Composable
+private fun FilledPomodoroDial(description: String) {
+    val color = androidx.compose.material3.LocalContentColor.current
+    val hands = remember {
+        androidx.compose.ui.graphics.Path().apply {
+            moveTo(11f, 7f)
+            lineTo(13f, 7f)
+            lineTo(13f, 11.6f)
+            lineTo(16.7f, 15.3f)
+            lineTo(15.3f, 16.7f)
+            lineTo(11f, 12.4f)
+            close()
+        }
+    }
+    androidx.compose.foundation.Canvas(Modifier.size(24.dp).semantics { contentDescription = description }) {
+        val unit = size.minDimension / 24f
+        withTransform({ scale(unit, unit, androidx.compose.ui.geometry.Offset.Zero) }) {
+            clipPath(hands, androidx.compose.ui.graphics.ClipOp.Difference) {
+                drawCircle(color, radius = 10f, center = androidx.compose.ui.geometry.Offset(12f, 12f))
+            }
+        }
     }
 }
 

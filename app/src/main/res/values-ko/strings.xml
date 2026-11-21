@@ -206,4 +206,12 @@
     <string name="countdown_finished_duration">%1$s 카운트다운 종료</string>
     <string name="pomodoro_finished_duration">%1$s %2$s 타이머 종료</string>
     <string name="pomodoro_next">다음 단계</string>
+    <string name="pomodoro_edit_sequence">순환 순서 편집</string>
+    <string name="pomodoro_add_step">단계 추가</string>
+    <string name="pomodoro_remove_step">단계 삭제</string>
+    <string name="pomodoro_drag">드래그하여 순서 변경</string>
+    <string name="pomodoro_duration">단계 시간</string>
+    <string name="timing_keep_screen_on">측정 중 화면 켜짐 유지</string>
+    <string name="timing_keep_screen_on_summary">현재 보고 있는 뽀모도로, 타이머 또는 스톱워치가 작동하는 동안 화면을 켜 둡니다</string>
+    <string name="timing_tools_section">시간 측정 도구</string>
 </resources>

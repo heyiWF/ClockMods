@@ -66,6 +66,7 @@ import androidx.compose.runtime.rememberUpdatedState
 import androidx.compose.runtime.saveable.rememberSaveable
 import androidx.compose.runtime.setValue
 import kotlinx.coroutines.launch
+import androidx.compose.ui.graphics.toArgb
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.platform.LocalConfiguration
@@ -81,6 +82,9 @@ import com.clockmods.background.ClockPreferences
 import com.clockmods.pro.alarm.AlarmNotifications
 import com.clockmods.pro.alarm.AlarmScheduler
 import com.clockmods.pro.alarm.AlarmStore
+import com.clockmods.pro.timer.PomodoroSequence
+import com.clockmods.pro.timer.SequenceEditorView
+import com.clockmods.pro.timer.TimerCompletion
 import com.clockmods.pro.timer.TimerScheduler
 import java.text.DateFormat
 import java.util.Date
@@ -94,7 +98,11 @@ internal fun TimerScreen(modifier: Modifier, pomodoro: Boolean) {
     }
     val prefix = if (pomodoro) "pomodoro_" else "countdown_"
     val mode = if (pomodoro) "pomodoro" else "countdown"
-    val defaultDuration = if (pomodoro) 25 * 60_000L else 10 * 60_000L
+    var sequence by remember(preferences, pomodoro) {
+        mutableStateOf(if (pomodoro) PomodoroSequence.load(preferences) else emptyList())
+    }
+    val defaultDuration = if (pomodoro) sequence[0].duration() else 10 * 60_000L
+    var sequenceDraft by rememberSaveable { mutableStateOf<String?>(null) }
     var duration by rememberSaveable {
         mutableLongStateOf(preferences.getLong(prefix + "duration", defaultDuration))
     }
@@ -115,7 +123,10 @@ internal fun TimerScreen(modifier: Modifier, pomodoro: Boolean) {
     DisposableEffect(preferences, prefix) {
         fun reload() {
             running = preferences.getBoolean(prefix + "running", false)
-            phase = preferences.getInt(prefix + "phase", 0)
+            if (pomodoro) {
+                sequence = PomodoroSequence.load(preferences)
+                phase = PomodoroSequence.index(preferences, sequence)
+            }
             duration = preferences.getLong(prefix + "duration", defaultDuration)
             remaining = preferences.getLong(prefix + "remaining", duration)
             deadline = preferences.getLong(prefix + "deadline", 0L)
@@ -147,12 +158,8 @@ internal fun TimerScreen(modifier: Modifier, pomodoro: Boolean) {
     }
     fun advancePomodoro() {
         TimerScheduler.cancel(context, mode)
-        phase = (phase + 1) % 3
-        duration = when (phase) {
-            0 -> 25 * 60_000L
-            1 -> 5 * 60_000L
-            else -> 15 * 60_000L
-        }
+        phase = (phase + 1) % sequence.size
+        duration = sequence[phase].duration()
         remaining = duration
         deadline = 0L
         running = false
@@ -181,16 +188,13 @@ internal fun TimerScreen(modifier: Modifier, pomodoro: Boolean) {
         modifier = modifier,
         time = formatDuration(remaining, pomodoro),
         rollDigits = true,
-        phase = if (pomodoro) stringResource(when (phase) {
-            0 -> R.string.pomodoro_focus
-            1 -> R.string.pomodoro_short_break
-            else -> R.string.pomodoro_long_break
-        }) else null,
+        phase = if (pomodoro) stringResource(TimerCompletion.phaseLabel(sequence[phase.coerceIn(sequence.indices)].label)) else null,
         details = {
             FlowRow(Modifier.fillMaxWidth().padding(bottom = 24.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                val presets = if (pomodoro) listOf(5L, 15L, 25L) else listOf(5L, 10L, 30L, 60L)
-                presets.forEach { minutes ->
+                if (pomodoro) FilterChip(selected = false, onClick = { sequenceDraft = PomodoroSequence.encode(sequence) },
+                    label = { Text(stringResource(R.string.pomodoro_edit_sequence)) })
+                else listOf(5L, 10L, 30L, 60L).forEach { minutes ->
                     FilterChip(selected = duration == minutes * 60_000L,
                         onClick = { setDuration(minutes * 60_000L) },
                         label = { Text(stringResource(R.string.timer_minutes, minutes)) })
@@ -225,6 +229,33 @@ internal fun TimerScreen(modifier: Modifier, pomodoro: Boolean) {
                 extraLabel = stringResource(R.string.timer_skip), onExtra = ::advancePomodoro)
         },
     )
+    sequenceDraft?.let { draft ->
+        val dismiss = { sequenceDraft = null }
+        androidx.compose.ui.window.Dialog(onDismissRequest = dismiss,
+            properties = androidx.compose.ui.window.DialogProperties(usePlatformDefaultWidth = false)) {
+            com.clockmods.ultimate.navigation.PredictiveDialogBack(dismiss)
+            val scheme = MaterialTheme.colorScheme
+            androidx.compose.material3.Surface(
+                modifier = Modifier.widthIn(max = 608.dp).fillMaxWidth().padding(horizontal = 24.dp, vertical = 12.dp),
+                shape = MaterialTheme.shapes.extraLarge,
+                color = scheme.surfaceContainerHigh,
+            ) {
+                Column(Modifier.padding(20.dp)) {
+                    Text(stringResource(R.string.pomodoro_edit_sequence), style = MaterialTheme.typography.headlineSmall,
+                        modifier = Modifier.padding(start = 4.dp, bottom = 12.dp))
+                    androidx.compose.ui.viewinterop.AndroidView(
+                        factory = { ctx -> SequenceEditorView(ctx, draft,
+                            intArrayOf(scheme.primaryContainer.toArgb(), scheme.secondaryContainer.toArgb(), scheme.tertiaryContainer.toArgb()),
+                            intArrayOf(scheme.onPrimaryContainer.toArgb(), scheme.onSecondaryContainer.toArgb(), scheme.onTertiaryContainer.toArgb()),
+                            { sequenceDraft = it }, dismiss,
+                            { steps -> PomodoroSequence.apply(ctx, steps); dismiss() },
+                        ) },
+                        modifier = Modifier.fillMaxWidth(),
+                    )
+                }
+            }
+        }
+    }
     if (customDialog) {
         CustomDurationDialog(
             initialMillis = duration,

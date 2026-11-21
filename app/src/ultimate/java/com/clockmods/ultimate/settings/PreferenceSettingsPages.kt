@@ -1526,6 +1526,16 @@ internal fun SystemSettingsPage(
             }
         }
 
+        SettingSection(R.string.timing_tools_section) {
+            val screenSettings = com.clockmods.pro.timer.TimingScreenOn.settings(context)
+            val timingKey = com.clockmods.pro.timer.TimingScreenOn.KEY
+            var keepScreenOn by remember(generation) { mutableStateOf(screenSettings.getBoolean(timingKey, false)) }
+            SettingSwitch(stringResource(R.string.timing_keep_screen_on), keepScreenOn,
+                stringResource(R.string.timing_keep_screen_on_summary)) { enabled ->
+                keepScreenOn = enabled
+                screenSettings.edit().putBoolean(timingKey, enabled).apply()
+            }
+        }
         SettingSection(R.string.ultimate_orientation_section) {
             SettingChoices(
                 options = listOf(

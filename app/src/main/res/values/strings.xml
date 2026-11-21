@@ -267,4 +267,12 @@
     <string name="countdown_finished_duration">%1$s 倒计时已结束</string>
     <string name="pomodoro_finished_duration">%1$s %2$s 计时结束</string>
     <string name="pomodoro_next">下一阶段</string>
+    <string name="pomodoro_edit_sequence">编辑循环序列</string>
+    <string name="pomodoro_add_step">添加阶段</string>
+    <string name="pomodoro_remove_step">删除阶段</string>
+    <string name="pomodoro_drag">拖动排序</string>
+    <string name="pomodoro_duration">阶段时长</string>
+    <string name="timing_keep_screen_on">计时期间屏幕常亮</string>
+    <string name="timing_keep_screen_on_summary">番茄钟、倒计时和秒表进行中保持屏幕常亮</string>
+    <string name="timing_tools_section">计时工具</string>
 </resources>

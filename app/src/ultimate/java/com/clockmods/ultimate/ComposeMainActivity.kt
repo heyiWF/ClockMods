@@ -30,6 +30,7 @@ import com.clockmods.ultimate.settings.ComposeSettingsActivity
  * lifecycle, locale, orientation, and permission hand-offs stay here where the platform owns them.
  */
 open class ComposeMainActivity : ComponentActivity() {
+    private val timingScreenOn by lazy { com.clockmods.pro.timer.TimingScreenOn(this) }
     private val refreshGeneration = mutableIntStateOf(0)
     private val navigationRequestGeneration = mutableIntStateOf(0)
     private val requestedDestination = mutableStateOf<String?>(null)
@@ -76,7 +77,6 @@ open class ComposeMainActivity : ComponentActivity() {
         ) == true
         if (savedInstanceState == null) applyNavigationIntent(intent)
         enableEdgeToEdge()
-        window.addFlags(WindowManager.LayoutParams.FLAG_KEEP_SCREEN_ON)
         applyOrientation()
         appliedLanguage = ClockPreferences(this).getClockLanguage()
 
@@ -84,6 +84,7 @@ open class ComposeMainActivity : ComponentActivity() {
             ClockModsTheme {
                 UltimateApp(
                     refreshGeneration = refreshGeneration.intValue,
+                    onDestinationChanged = timingScreenOn::select,
                     requestedDestination = requestedDestination.value,
                     navigationRequestGeneration = navigationRequestGeneration.intValue,
                     onOpenSettings = {
@@ -125,6 +126,7 @@ open class ComposeMainActivity : ComponentActivity() {
 
     override fun onResume() {
         super.onResume()
+        timingScreenOn.resume()
         AlarmScheduler.rescheduleAll(this)
         TimerScheduler.restoreRunningTimers(this)
         com.clockmods.pro.timer.TimingLiveUpdates.refreshAll(this)
@@ -135,6 +137,11 @@ open class ComposeMainActivity : ComponentActivity() {
         } else {
             refreshGeneration.intValue++
         }
+    }
+
+    override fun onPause() {
+        timingScreenOn.pause()
+        super.onPause()
     }
 
     private fun applyOrientation() {

@@ -53,6 +53,8 @@ public final class AlarmRingingService extends Service {
             if (finished != null && finished.isTimer() && !finished.countdown) {
                 com.clockmods.pro.timer.TimerCompletion.startNext(this, finished.completedDeadline);
                 dismiss(id, false);
+            } else if (activeId == 0) {
+                playNext(false);
             }
         } else if (AlarmDelivery.STOP.equals(intent.getAction()) || AlarmDelivery.SNOOZE.equals(intent.getAction())) {
             dismiss(id, AlarmDelivery.SNOOZE.equals(intent.getAction()));
