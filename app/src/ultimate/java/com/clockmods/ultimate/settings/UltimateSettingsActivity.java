@@ -32,11 +32,13 @@ import android.view.Window;
 import android.view.WindowInsets;
 import android.view.WindowInsetsController;
 import android.view.accessibility.AccessibilityNodeInfo;
+import android.widget.BaseAdapter;
 import android.widget.Button;
 import android.widget.FrameLayout;
 import android.widget.HorizontalScrollView;
 import android.widget.ImageView;
 import android.widget.LinearLayout;
+import android.widget.ListPopupWindow;
 import android.widget.ScrollView;
 import android.widget.TextView;
 import android.widget.Toast;
@@ -2525,21 +2527,17 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                     markChanged("screen_orientation");
                 });
         addSectionLabel(body, R.string.ultimate_language_section, 22);
-        String language = repository.getClockLanguage();
-        int languagePosition = ClockPreferences.LANGUAGE_TRADITIONAL.equals(language) ? 1
-                : ClockPreferences.LANGUAGE_ENGLISH.equals(language) ? 2
-                : ClockPreferences.LANGUAGE_JAPANESE.equals(language) ? 3
-                : ClockPreferences.LANGUAGE_KOREAN.equals(language) ? 4 : 0;
-        addSegmented(body, new int[] {R.string.ultimate_language_simplified,
-                        R.string.ultimate_language_traditional, R.string.ultimate_language_english,
-                        R.string.ultimate_language_japanese, R.string.ultimate_language_korean},
-                languagePosition, value -> {
-                    String selected = value == 1 ? ClockPreferences.LANGUAGE_TRADITIONAL
-                            : value == 2 ? ClockPreferences.LANGUAGE_ENGLISH
-                            : value == 3 ? ClockPreferences.LANGUAGE_JAPANESE
-                            : value == 4 ? ClockPreferences.LANGUAGE_KOREAN
-                            : ClockPreferences.LANGUAGE_SIMPLIFIED;
-                    repository.setClockLanguage(selected);
+        String[] languageValues = {ClockPreferences.LANGUAGE_SIMPLIFIED,
+                ClockPreferences.LANGUAGE_TRADITIONAL, ClockPreferences.LANGUAGE_ENGLISH,
+                ClockPreferences.LANGUAGE_JAPANESE, ClockPreferences.LANGUAGE_KOREAN};
+        String[] languageLabels = {getString(R.string.ultimate_language_simplified),
+                getString(R.string.ultimate_language_traditional),
+                getString(R.string.ultimate_language_english),
+                getString(R.string.ultimate_language_japanese),
+                getString(R.string.ultimate_language_korean)};
+        addDropdownRow(body, R.string.ultimate_language_section, languageLabels,
+                indexOfValue(languageValues, repository.getClockLanguage()), value -> {
+                    repository.setClockLanguage(languageValues[value]);
                     markChanged(CHANGE_SOURCE_CLOCK_LANGUAGE);
                 });
         addActionRow(body, R.string.calendar_import_title, R.string.calendar_import_summary,
@@ -2902,6 +2900,77 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         row.addView(text, new LinearLayout.LayoutParams(0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
         row.setContentDescription(titleValue + ", " + summaryValue);
         row.setOnClickListener(view -> action.run());
+        parent.addView(row, wrapParams());
+        return row;
+    }
+
+    /**
+     * One row that shows the current choice and opens the choices right below it. A row of chips
+     * could not hold every option on narrow portrait screens, where each label was ellipsised.
+     */
+    private View addDropdownRow(LinearLayout parent, int titleRes, String[] options,
+            int selected, IntChange change) {
+        int safeSelected = selected < 0 || selected >= options.length ? 0 : selected;
+        LinearLayout row = new LinearLayout(this);
+        row.setOrientation(LinearLayout.HORIZONTAL);
+        row.setGravity(Gravity.CENTER_VERTICAL);
+        row.setMinimumHeight(dp(64));
+        row.setPaddingRelative(dp(4), dp(12), dp(4), dp(12));
+        row.setFocusable(true);
+        row.setClickable(true);
+        row.setBackgroundResource(selectableItemBackground());
+
+        TextView value = label(options[safeSelected], 16, false);
+        value.setMaxLines(1);
+        value.setEllipsize(android.text.TextUtils.TruncateAt.END);
+        row.addView(value, new LinearLayout.LayoutParams(
+                0, ViewGroup.LayoutParams.WRAP_CONTENT, 1f));
+        ImageView caret = new ImageView(this);
+        caret.setImageResource(R.drawable.expand_more_24);
+        caret.setImageTintList(ColorStateList.valueOf(onSurfaceVariantColor()));
+        caret.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        LinearLayout.LayoutParams caretParams = new LinearLayout.LayoutParams(dp(24), dp(24));
+        caretParams.setMarginStart(dp(12));
+        row.addView(caret, caretParams);
+        row.setContentDescription(getString(titleRes) + ", " + options[safeSelected]);
+
+        ListPopupWindow popup = new ListPopupWindow(this);
+        popup.setModal(true);
+        popup.setAnchorView(row);
+        popup.setInputMethodMode(ListPopupWindow.INPUT_METHOD_NOT_NEEDED);
+        popup.setBackgroundDrawable(roundedRectangle(surfaceContainerColor(), dp(16)));
+        popup.setAdapter(new BaseAdapter() {
+            @Override public int getCount() {
+                return options.length;
+            }
+
+            @Override public Object getItem(int position) {
+                return options[position];
+            }
+
+            @Override public long getItemId(int position) {
+                return position;
+            }
+
+            @Override public View getView(int position, View convertView, ViewGroup viewGroup) {
+                TextView item = new TextView(UltimateSettingsActivity.this);
+                item.setText(options[position]);
+                item.setTextSize(15);
+                item.setTextColor(position == safeSelected ? primaryColor() : onSurfaceColor());
+                item.setTypeface(null, position == safeSelected ? Typeface.BOLD : Typeface.NORMAL);
+                item.setPadding(dp(20), dp(14), dp(20), dp(14));
+                item.setBackgroundResource(selectableItemBackground());
+                return item;
+            }
+        });
+        popup.setOnItemClickListener((parentView, view, position, id) -> {
+            popup.dismiss();
+            if (position != safeSelected) change.apply(position);
+        });
+        row.setOnClickListener(view -> {
+            popup.setWidth(Math.max(row.getWidth(), dp(200)));
+            popup.show();
+        });
         parent.addView(row, wrapParams());
         return row;
     }
@@ -3574,6 +3643,13 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     private static int indexOfValue(int[] values, int value) {
         for (int index = 0; index < values.length; index++) {
             if (values[index] == value) return index;
+        }
+        return 0;
+    }
+
+    private static int indexOfValue(String[] values, String value) {
+        for (int index = 0; index < values.length; index++) {
+            if (values[index].equals(value)) return index;
         }
         return 0;
     }
