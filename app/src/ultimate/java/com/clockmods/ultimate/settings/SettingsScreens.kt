@@ -2,18 +2,12 @@ package com.clockmods.ultimate.settings
 
 import kotlin.math.roundToInt
 
-import com.clockmods.ultimate.navigation.SeekableBackHandler
+import com.clockmods.ultimate.navigation.BackPreviewStack
+import com.clockmods.ultimate.navigation.rememberPageBackPreview
+import androidx.annotation.DrawableRes
 import androidx.annotation.StringRes
-import androidx.compose.animation.AnimatedContent
 import androidx.compose.animation.animateColorAsState
 import androidx.compose.animation.core.animateFloatAsState
-import androidx.compose.animation.core.SeekableTransitionState
-import androidx.compose.animation.core.rememberTransition
-import androidx.compose.animation.fadeIn
-import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
-import androidx.compose.animation.togetherWith
 import androidx.compose.animation.core.tween
 import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.LazyListScope
@@ -38,14 +32,7 @@ import androidx.compose.foundation.shape.CornerSize
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.automirrored.filled.ArrowBack
-import androidx.compose.material.icons.filled.CalendarMonth
-import androidx.compose.material.icons.filled.Cloud
-import androidx.compose.material.icons.filled.Language
-import androidx.compose.material.icons.filled.Notifications
-import androidx.compose.material.icons.filled.Palette
 import androidx.compose.material.icons.filled.Restore
-import androidx.compose.material.icons.filled.Schedule
-import androidx.compose.material.icons.filled.Wallpaper
 import com.clockmods.ultimate.navigation.PredictiveAlertDialog as AlertDialog
 import androidx.compose.material3.Card
 import androidx.compose.material3.CircularProgressIndicator
@@ -64,7 +51,6 @@ import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
 import androidx.compose.material3.TopAppBar
 import androidx.compose.runtime.Composable
-import androidx.compose.runtime.LaunchedEffect
 import androidx.compose.runtime.getValue
 import androidx.compose.runtime.mutableIntStateOf
 import androidx.compose.runtime.mutableStateOf
@@ -74,10 +60,10 @@ import androidx.compose.runtime.setValue
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.alpha
-import androidx.compose.ui.graphics.vector.ImageVector
 import androidx.compose.ui.geometry.Size
 import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
+import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.semantics.Role
 import androidx.compose.ui.semantics.role
@@ -94,42 +80,42 @@ import com.clockmods.ultimate.clock.WorldClockRepository
 internal enum class SettingsPage(
     @StringRes val title: Int,
     @StringRes val summary: Int,
-    val icon: ImageVector,
+    @DrawableRes val icon: Int,
 ) {
     STYLE(
         R.string.ultimate_category_clock_style,
         R.string.ultimate_category_clock_style_summary,
-        Icons.Default.Palette,
+        R.drawable.palette_24,
     ),
     CALENDAR(
         R.string.ultimate_category_calendar,
         R.string.ultimate_category_calendar_summary,
-        Icons.Default.CalendarMonth,
+        R.drawable.today_24,
     ),
     BACKGROUND(
         R.string.ultimate_category_background,
         R.string.ultimate_category_background_summary,
-        Icons.Default.Wallpaper,
+        R.drawable.image_24,
     ),
     TIME_DATE(
         R.string.ultimate_category_time_date,
         R.string.ultimate_category_time_date_summary,
-        Icons.Default.Schedule,
+        R.drawable.schedule_24,
     ),
     WEATHER(
         R.string.ultimate_category_weather,
         R.string.ultimate_category_weather_summary,
-        Icons.Default.Cloud,
+        R.drawable.cloud_24,
     ),
     CHIME(
         R.string.ultimate_category_chime,
         R.string.ultimate_category_chime_summary,
-        Icons.Default.Notifications,
+        R.drawable.alarm_24,
     ),
     SYSTEM(
         R.string.ultimate_category_system,
         R.string.ultimate_category_system_summary,
-        Icons.Default.Language,
+        R.drawable.tune_24,
     ),
 }
 
@@ -144,7 +130,6 @@ private fun pageFromId(pageId: String?): SettingsPage? = when (pageId) {
     else -> null
 }
 
-@OptIn(ExperimentalMaterial3Api::class)
 @Composable
 internal fun SettingsScreen(
     initialPage: String?,
@@ -161,46 +146,10 @@ internal fun SettingsScreen(
     val expanded = UltimateSettingsActivity.isTwoPaneWidth(
         LocalConfiguration.current.screenWidthDp,
     )
-    val closeOnBack = UltimateSettingsActivity.shouldCloseSettingsOnBack(expanded, page != null)
-    val navigationState = remember { SeekableTransitionState(page) }
-    val navigation = rememberTransition(navigationState, label = "settingsNavigation")
-    LaunchedEffect(page) { navigationState.animateTo(page) }
-    // Root/two-pane Back remains a system Activity transition.
-    SeekableBackHandler(!closeOnBack, navigationState, page, null) { page = null }
-
-    Scaffold(
-        topBar = {
-            TopAppBar(
-                title = {
-                    Text(
-                        if (expanded) {
-                            stringResource(R.string.ultimate_settings_pane_title)
-                        } else {
-                            page?.let { stringResource(it.title) }
-                                ?: stringResource(R.string.ultimate_settings_pane_title)
-                        },
-                    )
-                },
-                navigationIcon = {
-                    IconButton(
-                        onClick = {
-                            if (closeOnBack) onDone() else page = null
-                        },
-                    ) {
-                        Icon(
-                            Icons.AutoMirrored.Filled.ArrowBack,
-                            contentDescription = stringResource(
-                                if (closeOnBack) R.string.ultimate_close_settings
-                                else R.string.ultimate_back_to_settings,
-                            ),
-                        )
-                    }
-                },
-            )
-        },
-    ) { padding ->
-        Box(Modifier.fillMaxSize().padding(padding)) {
-            if (expanded) {
+    val homeTitle = stringResource(R.string.ultimate_settings_pane_title)
+    if (expanded) {
+        SettingsPageScaffold(homeTitle, R.string.ultimate_close_settings, onDone) { padding ->
+            Box(Modifier.fillMaxSize().padding(padding)) {
                 Row(Modifier.fillMaxSize()) {
                     SettingsHome(
                         selected = page ?: SettingsPage.STYLE,
@@ -216,36 +165,40 @@ internal fun SettingsScreen(
                         modifier = Modifier.weight(1f),
                     )
                 }
-            } else {
-                navigation.AnimatedContent(
-                    modifier = Modifier.fillMaxSize(),
-                    transitionSpec = {
-                        if (targetState != null) {
-                            (slideInHorizontally(tween(260)) { it } + fadeIn(tween(260)))
-                                .togetherWith(slideOutHorizontally(tween(260)) { -it / 4 } +
-                                    fadeOut(tween(180)))
-                        } else {
-                            (slideInHorizontally(tween(260)) { -it / 4 } + fadeIn(tween(260)))
-                                .togetherWith(slideOutHorizontally(tween(260)) { it } +
-                                    fadeOut(tween(180)))
-                        }
-                    },
-                ) { targetPage ->
-                    if (targetPage == null) {
+            }
+        }
+    } else {
+        // Root Back remains a system Activity transition.
+        BackPreviewStack(
+            preview = rememberPageBackPreview(),
+            page = page,
+            onBack = { page = null },
+            modifier = Modifier.fillMaxSize(),
+            beneath = {
+                SettingsPageScaffold(homeTitle, R.string.ultimate_close_settings, onDone) { padding ->
+                    Box(Modifier.fillMaxSize().padding(padding)) {
                         SettingsHome(
                             selected = null,
                             onSelect = { page = it },
                             onRestore = { confirmRestore = true },
                             modifier = Modifier.fillMaxSize(),
                         )
-                    } else {
-                        SettingsPageContent(
-                            page = targetPage,
-                            generation = generation,
-                            onLanguageChanged = onLanguageChanged,
-                            modifier = Modifier.fillMaxSize(),
-                        )
                     }
+                }
+            },
+        ) { current, back ->
+            SettingsPageScaffold(
+                stringResource(current.title),
+                R.string.ultimate_back_to_settings,
+                back,
+            ) { padding ->
+                Box(Modifier.fillMaxSize().padding(padding)) {
+                    SettingsPageContent(
+                        page = current,
+                        generation = generation,
+                        onLanguageChanged = onLanguageChanged,
+                        modifier = Modifier.fillMaxSize(),
+                    )
                 }
             }
         }
@@ -274,6 +227,33 @@ internal fun SettingsScreen(
             },
         )
     }
+}
+
+/** Each page carries its own top bar, so the whole page travels when Back shrinks it. */
+@OptIn(ExperimentalMaterial3Api::class)
+@Composable
+private fun SettingsPageScaffold(
+    title: String,
+    @StringRes navigationDescription: Int,
+    onNavigate: () -> Unit,
+    content: @Composable (PaddingValues) -> Unit,
+) {
+    Scaffold(
+        topBar = {
+            TopAppBar(
+                title = { Text(title) },
+                navigationIcon = {
+                    IconButton(onClick = onNavigate) {
+                        Icon(
+                            Icons.AutoMirrored.Filled.ArrowBack,
+                            contentDescription = stringResource(navigationDescription),
+                        )
+                    }
+                },
+            )
+        },
+        content = content,
+    )
 }
 
 @Composable
@@ -366,7 +346,7 @@ private fun SettingsNavigationItem(
             horizontalArrangement = Arrangement.spacedBy(14.dp),
         ) {
             Icon(
-                item.icon,
+                painterResource(item.icon),
                 contentDescription = null,
                 tint = supporting,
             )

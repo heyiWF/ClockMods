@@ -5,7 +5,7 @@ Predictive Back requires gesture navigation. Cross-activity and back-to-home pre
 | Destination | Preview owner | Cancellation |
 | --- | --- | --- |
 | Settings root / font library / calendar library / widget configuration | Android window transition | Keep the current activity |
-| Settings detail | Android activity transition (Views), seekable content transition (Compose) | Restore current page and controls |
+| Settings detail | Page card over the settings list (Compose) | Restore the page without replaying its entry |
 | Calendar import action menu | Menu progress | Restore the expanded actions |
 | Setup steps | Previous step beneath the outgoing page | Keep draft choices and current step |
 | Theme delete badge | Badge scale / opacity | Restore edit affordance |
@@ -13,6 +13,12 @@ Predictive Back requires gesture navigation. Cross-activity and back-to-home pre
 | System file/image picker, permission UI, keyboard | Owning system component | Controlled by Android |
 
 Dialog callbacks register in the dialog window and unregister on detach. They dismiss/cancel only on completion; they never invoke a positive button or apply an edit. Application callbacks remain disabled when there is no internal destination to pop.
+
+## Page card (2026-11-26)
+
+Compact settings pages follow Telegram's Back preview. The list beneath never moves; the page on top stays on top, and the gesture only shrinks it toward the edge opposite the swipe: 56dp of travel scales it to 0.90 around a pivot 82dp from that edge, at the height of the touch, clipping 32dp corners, while the list beneath is dimmed. Committing slides the card out (380ms, EaseOutQuint) before the page is cleared; cancelling rewinds the same timeline (320ms) and never replays its entry animation. A new gesture cancels and joins any outstanding recovery first. The page keeps its own top bar, so the whole page travels. Opening a page and the top bar's arrow stay plain slides; the list beneath does not move in either direction. Root, libraries and dialogs keep Android-owned or window-local previews as listed above.
+
+`PageBackPreviewTest` drives the platform's `BackEvent` sequence frame by frame: cancellation only rewinds, a commit slides away and clears the page once, and a new gesture owns the timeline during recovery.
 
 ## Device verification
 
@@ -58,3 +64,7 @@ now inherit the application opt-in again; no vendor workaround is needed. The ge
 seekable timeline cancellation fix and its regression tests remain.
 
 Alarm editing, multi-date selection and shift-cycle editing use system-owned activity Back. Returning without Apply discards that page’s draft. Native time/date dialogs install dialog-window cancellation handling; the system ringtone picker owns its own Back transition.
+
+## Page card verification (2026-11-26)
+
+Built as `-Pclockmods.auditApplicationId=com.clockmods.predictivecompose` and installed on the MuMu emulator (Android 15, 640dp portrait). That emulator again has no attached edge-back handler (`qemu.hw.mainkeys=1`; restarting SystemUI no longer creates a navigation bar), so the preview frames were captured by dispatching the platform's own `BackEvent` sequence into the activity dispatcher, which reaches the same `handleOnBackStarted/Progressed/Cancelled/Invoked` path the platform calls. Left and right edges, cancellation at partial progress and a commit from mid progress all show the list beneath, the shrinking card, the dimmed list, the rewind and the slide away, without a flash, a blank area or a replayed entry animation. `PageBackPreviewTest`, `BackPreviewCancellationTest` and `SettingsBackAcceptance -e mode dispatcher` pass.
