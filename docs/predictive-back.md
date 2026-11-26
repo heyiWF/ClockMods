@@ -5,7 +5,7 @@ Predictive Back requires gesture navigation. Cross-activity and back-to-home pre
 | Destination | Preview owner | Cancellation |
 | --- | --- | --- |
 | Settings root / font library / calendar library / widget configuration | Android window transition | Keep the current activity |
-| Settings detail | Android activity transition (Views), seekable content transition (Compose) | Restore current page and controls |
+| Settings detail | App-drawn page card over the settings window (Views) | Restore the page without restarting it |
 | Calendar import action menu | Menu progress | Restore the expanded actions |
 | Setup steps | Previous step beneath the outgoing page | Keep draft choices and current step |
 | Theme delete badge | Badge scale / opacity | Restore edit affordance |
@@ -13,6 +13,14 @@ Predictive Back requires gesture navigation. Cross-activity and back-to-home pre
 | System file/image picker, permission UI, keyboard | Owning system component | Controlled by Android |
 
 Dialog callbacks register in the dialog window and unregister on detach. They dismiss/cancel only on completion; they never invoke a positive button or apply an edit. Application callbacks remain disabled when there is no internal destination to pop.
+
+## Page card (2026-11-26)
+
+Compact settings pages follow Telegram's Back preview. The settings window beneath stays live and never moves; the page on top stays on top, and the gesture only shrinks it toward the edge opposite the swipe: 56dp of travel scales it to 0.90 around a pivot 82dp from that edge, at the height of the touch, clipping 32dp corners, while the window beneath is dimmed. Committing slides the card out (380ms, EaseOutQuint) and then finishes the page without a second transition; cancelling rewinds the same timeline (320ms). The top bar's arrow, key Back and an embedded page have no gesture preview, so they keep their ordinary exits, and an embedded page disables the callback entirely so Android owns its Back.
+
+`UltimateSubSettingsActivity` declares `windowIsTranslucent` in the manifest: Android keeps the window underneath visible only for activities that are translucent where they are declared, not where `setTheme()` is called. That is also why the sub page has no starting window; on the emulator it gained window focus 43–70ms after the row tap, and the settings window was already there.
+
+`PageCardBack` wraps the content view in the sub page, draws the scrim and animates the page itself; because the sub page registers the callback, Android leaves the whole transition to the app instead of animating the window as well.
 
 ## Device verification
 
@@ -57,3 +65,32 @@ now inherit the application opt-in again; no vendor workaround is needed. The ge
 seekable timeline cancellation fix and its regression tests remain.
 
 Alarm editing, multi-date selection and shift-cycle editing use system-owned activity Back. Returning without Apply discards that page’s draft. Native time/date dialogs install dialog-window cancellation handling; the system ringtone picker owns its own Back transition.
+
+## Page card verification (2026-11-26)
+
+Built as `-Pclockmods.auditApplicationId=com.clockmods.predictivenative` and installed on the MuMu emulator (Android 15, 640dp portrait). That emulator again has no attached edge-back handler (`qemu.hw.mainkeys=1`; restarting SystemUI no longer creates a navigation bar), so the preview frames were captured by dispatching the platform's own `BackEvent` sequence into the sub page's dispatcher, which reaches the same `handleOnBackStarted/Progressed/Cancelled/Invoked` path the platform calls. Left and right edges, cancellation at partial progress and a commit from mid progress show the settings window beneath, the shrinking card, the dimmed list, the rewind and the slide away, then the settings window without a black frame. `SettingsBackAcceptance -e mode dispatcher` (25 checks) passes. The sub page gained window focus 43–70ms after the row tap, so dropping the starting window did not delay it.
+
+## Entry transitions and wizard steps (2026-11-26)
+
+The sub page only animated on its first visit, and later visits cut in. The platform drops the
+theme's window animation once the task has already hosted and closed a translucent activity,
+and vendor builds ignore `ActivityOptions` anyway. The window now opens with no animation at
+all (`android:windowAnimationStyle` plus a zeroed per-launch animation) and the page animates
+itself: it travels 10% of its width while fading in over 300ms on an emphasised decelerate
+curve, and stops immediately if a Back gesture takes over. The list behind stays put, matching
+the card that leaves on Back.
+
+Wizard steps cross-slide: the outgoing step is captured as a snapshot that slides away in the
+direction of travel while the rebuilt step slides in with an emphasised decelerate curve
+(320ms in, 260ms out). The language rebuild, the back gesture and its cancellation still swap
+steps without that slide, because the gesture preview owns the motion there.
+
+Switches that gate other rows (network time, chime cues, quiet hours, anti-burn) used to call
+`showPage()` from their listener, which replaced every view while the switch was still
+animating and read as a flash. They now enable or dim the dependent rows in place, so the
+toggle animation runs to completion and the page keeps its scroll position.
+
+Settings categories and the wizard headings use Material Symbols Outlined vector drawables
+(`palette_24`, `calendar_month_24`, `image_24`, `schedule_24`, `cloud_24`, `today_24`,
+`alarm_24`, `tune_24`, `language_24`). The wizard's own radio dots are drawn 5dp further
+inside their chip without moving the labels.

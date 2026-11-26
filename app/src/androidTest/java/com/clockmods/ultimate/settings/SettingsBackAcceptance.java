@@ -27,9 +27,9 @@ import java.util.List;
  * Run on Android 15+ in a compact portrait window with gesture navigation enabled.
  * Build with -Pclockmods.testRunner=com.clockmods.ultimate.settings.SettingsBackAcceptance,
  * then run am instrument -w against that runner in the audit application's test package.
- * On emulators without an edge gesture handler, -e mode dispatcher tests Compose's
- * in-app progress/cancellation, or -e mode keys tests the native back stack only.
- * These explicit fallback modes do not validate platform cross-activity animations.
+ * On emulators without an edge gesture handler, -e mode dispatcher tests the in-app
+ * progress/cancellation of the settings sub page, or -e mode keys tests the native back
+ * stack only. These explicit fallback modes do not validate platform cross-activity animations.
  */
 public final class SettingsBackAcceptance extends Instrumentation {
     private int checks;
@@ -262,19 +262,27 @@ public final class SettingsBackAcceptance extends Instrumentation {
             String background = activity.getString(R.string.ultimate_category_background);
             String homeLabel = activity.getString(R.string.ultimate_category_clock_style);
             verify(hasText(background) && hasText(homeLabel), "Expected compact settings home");
+            ActivityMonitor detailMonitor = addMonitor(
+                    UltimateSubSettingsActivity.class.getName(), null, false);
             clickText(background);
+            Activity detail = detailMonitor.waitForActivityWithTimeout(10000);
+            removeMonitor(detailMonitor);
             settle();
-            verify(!hasText(homeLabel), "Detail page did not open in compact mode");
+            verify(detail != null, "Detail page did not open in compact mode");
+            verify(!hasText(homeLabel), "Detail page did not cover the settings home");
             if ("keys".equals(mode)) {
                 sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
                 settle();
             } else {
+                // The sub page draws its own preview, so its dispatcher owns Back, not the home's.
+                settingsActivity = detail;
                 gesture(false, true, "left-cancel");
                 verify(!hasText(homeLabel), "Cancelled gesture popped the detail page");
                 gesture(true, true, "right-cancel");
                 verify(!hasText(homeLabel), "Cancelled right-edge gesture popped the detail page");
                 gesture(false, false, "detail-commit");
             }
+            settingsActivity = activity;
             verify(hasText(background) && hasText(homeLabel), "Committed gesture did not return home");
             verifySystemBackAvailable();
             // Every library is a real Activity destination. Leave its back callback disabled

@@ -32,7 +32,8 @@
             android:name=".ultimate.settings.UltimateSubSettingsActivity"
             android:enableOnBackInvokedCallback="true"
             android:exported="false"
-            android:screenOrientation="unspecified" />
+            android:screenOrientation="unspecified"
+            android:theme="@style/Theme.ClockMods.SettingsPage" />
         <activity
             android:name=".ultimate.settings.UltimateSettingsActivity"
             android:enableOnBackInvokedCallback="true"

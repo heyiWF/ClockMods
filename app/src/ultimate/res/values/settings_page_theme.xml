@@ -1,0 +1,19 @@
+<resources>
+    <!-- A sub page shrinks over the page behind it during Back, so that page must stay visible.
+         Android only keeps it for activities that are translucent where they are declared, which
+         is why the manifest applies this theme rather than setTheme(). -->
+    <style name="Theme.ClockMods.SettingsPage" parent="Theme.ClockMods">
+        <item name="android:windowIsTranslucent">true</item>
+        <item name="android:windowBackground">@android:color/transparent</item>
+        <item name="android:backgroundDimEnabled">false</item>
+        <!-- The page animates itself in (`PageCardBack`), so the window must not add a second
+             animation. Declared here as well as per launch because vendor builds do not always
+             honour ActivityOptions. -->
+        <item name="android:windowAnimationStyle">@style/Animation.ClockMods.SettingsPage</item>
+    </style>
+
+    <style name="Animation.ClockMods.SettingsPage" parent="@android:style/Animation.Activity">
+        <item name="android:activityOpenEnterAnimation">@anim/settings_page_still</item>
+        <item name="android:activityOpenExitAnimation">@anim/settings_page_still</item>
+    </style>
+</resources>

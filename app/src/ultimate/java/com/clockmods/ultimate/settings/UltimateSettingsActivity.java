@@ -253,6 +253,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     private int embeddingListenerGeneration;
     private Page currentPage = Page.HOME;
     private Page selectedSubPage = Page.STYLE;
+    private com.clockmods.ultimate.navigation.PageCardBack pageCardBack;
     private boolean settingsChanged;
     private String lastChangeSource = "";
     private long settingsRevisionAtOpen;
@@ -402,6 +403,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         configureEdgeToEdge();
         buildShell();
         showPage(currentPage);
+        if (currentPage != Page.HOME) {
+            pageCardBack = com.clockmods.ultimate.navigation.PageCardBack.install(this);
+            if (pageCardBack != null) pageCardBack.playEnterAnimation();
+        }
         if (savedInstanceState != null && savedInstanceState.getBoolean("theme_store_open")) {
             showThemeStore(savedInstanceState.getBoolean("theme_store_calendar"), savedInstanceState.getInt("theme_store_tab"));
         }
@@ -732,32 +737,32 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         NavigationGroup appearanceGroup = addNavigationGroup(body,
                 R.dimen.ultimate_settings_home_group_gap);
         addCategory(appearanceGroup, Page.STYLE, R.string.ultimate_category_clock_style,
-                R.string.ultimate_category_clock_style_summary, R.drawable.ultimate_ic_palette,
+                R.string.ultimate_category_clock_style_summary, R.drawable.palette_24,
                 () -> openPage(Page.STYLE));
         addCategory(appearanceGroup, Page.CALENDAR_STYLE,
                 R.string.ultimate_category_calendar_style,
-                R.string.ultimate_category_calendar_style_summary, R.drawable.ic_calendar_month,
+                R.string.ultimate_category_calendar_style_summary, R.drawable.calendar_month_24,
                 () -> openPage(Page.CALENDAR_STYLE));
         addCategory(appearanceGroup, Page.BACKGROUND, R.string.ultimate_category_background,
-                R.string.ultimate_category_background_summary, R.drawable.ultimate_ic_wallpaper,
+                R.string.ultimate_category_background_summary, R.drawable.image_24,
                 () -> openPage(Page.BACKGROUND));
 
         NavigationGroup settingsGroup = addNavigationGroup(body,
                 R.dimen.ultimate_settings_home_group_gap);
         addCategory(settingsGroup, Page.TIME_DATE, R.string.ultimate_category_time_date,
-                R.string.ultimate_category_time_date_summary, R.drawable.ultimate_ic_schedule,
+                R.string.ultimate_category_time_date_summary, R.drawable.schedule_24,
                 () -> openPage(Page.TIME_DATE));
         addCategory(settingsGroup, Page.WEATHER, R.string.ultimate_category_weather,
-                R.string.ultimate_category_weather_summary, R.drawable.ultimate_ic_weather,
+                R.string.ultimate_category_weather_summary, R.drawable.cloud_24,
                 () -> openPage(Page.WEATHER));
         addCategory(settingsGroup, Page.CALENDAR, R.string.ultimate_category_calendar,
-                R.string.ultimate_category_calendar_summary, R.drawable.ultimate_ic_calendar,
+                R.string.ultimate_category_calendar_summary, R.drawable.today_24,
                 () -> openPage(Page.CALENDAR));
         addCategory(settingsGroup, Page.CHIME, R.string.ultimate_category_chime,
-                R.string.ultimate_category_chime_summary, R.drawable.ultimate_ic_notifications,
+                R.string.ultimate_category_chime_summary, R.drawable.alarm_24,
                 () -> openPage(Page.CHIME));
         addCategory(settingsGroup, Page.SYSTEM, R.string.ultimate_category_system,
-                R.string.ultimate_category_system_summary, R.drawable.ultimate_ic_language,
+                R.string.ultimate_category_system_summary, R.drawable.tune_24,
                 () -> openPage(Page.SYSTEM));
 
         return scrollable(body);
@@ -770,7 +775,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         if (embedded && page == selectedSubPage) return;
         selectedSubPage = page;
         updateNavigationSelection(embedded ? selectedSubPage : null);
-        subpageLauncher.launch(createSubpageIntent(this, page.id, embedded));
+        // The page animates itself in; the window opens without an animation so the motion is
+        // identical on every ROM, including ones that drop platform activity animations.
+        subpageLauncher.launch(createSubpageIntent(this, page.id, embedded),
+                androidx.core.app.ActivityOptionsCompat.makeCustomAnimation(this, 0, 0));
     }
 
     private boolean isActivityEmbedded() {
@@ -845,6 +853,11 @@ public class UltimateSettingsActivity extends AppCompatActivity {
             embedded = true;
         }
         boolean detailPage = currentPage != Page.HOME;
+        // An embedded sub page sits beside its neighbours rather than over them, so Android owns its Back.
+        if (pageCardBack != null) {
+            pageCardBack.setEnabled(!embedded);
+            if (embedded) pageCardBack.reset();
+        }
         updatePaneAppearance(embedded, detailPage);
         if (!detailPage) {
             setShellTitle(embedded ? R.string.ultimate_settings_pane_title
@@ -2094,11 +2107,14 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                 });
 
         addSectionLabel(body, R.string.ultimate_time_sync_section, 22);
+        final View[] syncRowRef = new View[1];
         addSwitch(body, R.string.ultimate_network_time,
                 R.string.ultimate_network_time_summary, repository.isUseNetworkTime(), value -> {
                     repository.setUseNetworkTime(value);
                     markChanged("network_time");
-                    showPage(Page.TIME_DATE);
+                    // Update the row in place: rebuilding the page here replaced every view while
+                    // the switch was still animating, which read as a flash.
+                    if (syncRowRef[0] != null) setViewTreeEnabled(syncRowRef[0], value);
                 });
         int[] syncMinutes = {30, 60, 360, 1440};
         String[] syncNames = {
@@ -2114,6 +2130,7 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                         indexOfValue(syncMinutes, repository.getSyncIntervalMinutes()), value ->
                                 repository.setSyncIntervalMinutes(syncMinutes[value]),
                         "sync_interval", true));
+        syncRowRef[0] = syncRow;
         setViewTreeEnabled(syncRow, repository.isUseNetworkTime());
         String[] regionNames = getResources().getStringArray(R.array.region_names);
         int regionIndex = RegionTimeZones.indexOfZoneId(repository.getTimeZoneId());
@@ -2355,18 +2372,24 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         int manufacturerHelp = com.clockmods.pro.alarm.AlarmAccess.manufacturerHelp();
         if (manufacturerHelp != 0) body.addView(label(manufacturerHelp, 14, false));
         addSectionLabel(body, R.string.ultimate_chime_cues_section);
+        final View[] animationRowRef = new View[1];
+        Runnable syncChimeRows = () -> {
+            if (animationRowRef[0] == null) return;
+            setViewTreeEnabled(animationRowRef[0], repository.isHourlyChimeEnabled()
+                    || repository.isHalfHourChimeEnabled());
+        };
         addSwitch(body, R.string.ultimate_hourly_chime,
                 R.string.ultimate_hourly_chime_summary, repository.isHourlyChimeEnabled(), value -> {
                     repository.setHourlyChimeEnabled(value);
                     markChanged("hourly_chime");
-                    showPage(Page.CHIME);
+                    syncChimeRows.run();
                 });
         addSwitch(body, R.string.ultimate_half_hour_chime,
                 R.string.ultimate_half_hour_chime_summary,
                 repository.isHalfHourChimeEnabled(), value -> {
                     repository.setHalfHourChimeEnabled(value);
                     markChanged("half_hour_chime");
-                    showPage(Page.CHIME);
+                    syncChimeRows.run();
                 });
 
         String[] animationIds = {ClockPreferences.CHIME_RADIAL,
@@ -2393,16 +2416,22 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                         initialAnimation,
                         index -> repository.setChimeAnimation(animationIds[index]),
                         "chime_animation", true));
-        setViewTreeEnabled(animationRow, repository.isHourlyChimeEnabled()
-                || repository.isHalfHourChimeEnabled());
+        animationRowRef[0] = animationRow;
+        syncChimeRows.run();
 
         addSectionLabel(body, R.string.ultimate_chime_quiet_section, 22);
+        final View[] quietRowRefs = new View[2];
+        Runnable syncQuietRows = () -> {
+            boolean quiet = repository.isHourlyChimeQuietEnabled();
+            if (quietRowRefs[0] != null) setViewTreeEnabled(quietRowRefs[0], quiet);
+            if (quietRowRefs[1] != null) setViewTreeEnabled(quietRowRefs[1], quiet);
+        };
         addSwitch(body, R.string.ultimate_chime_quiet_hours,
                 R.string.ultimate_chime_quiet_hours_summary,
                 repository.isHourlyChimeQuietEnabled(), value -> {
                     repository.setHourlyChimeQuietEnabled(value);
                     markChanged("chime_quiet_hours");
-                    showPage(Page.CHIME);
+                    syncQuietRows.run();
                 });
         View quietStart = addActionRow(body, R.string.ultimate_chime_quiet_start,
                 formatMinutes(repository.getHourlyChimeQuietStart()),
@@ -2420,6 +2449,9 @@ public class UltimateSettingsActivity extends AppCompatActivity {
                         "chime_quiet_end", Page.CHIME));
         setViewTreeEnabled(quietStart, repository.isHourlyChimeQuietEnabled());
         setViewTreeEnabled(quietEnd, repository.isHourlyChimeQuietEnabled());
+        quietRowRefs[0] = quietStart;
+        quietRowRefs[1] = quietEnd;
+        syncQuietRows.run();
         return scrollable(body);
     }
 
@@ -2427,11 +2459,19 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         LinearLayout body = pageBody(0);
         addSectionLabel(body, R.string.ultimate_anti_burn_section, 0);
         AntiBurnPreferences antiBurn = new AntiBurnPreferences(this);
+        final View[] antiBurnRows = new View[2];
+        final MaterialSwitch[] antiBurnAutoDim = new MaterialSwitch[1];
+        Runnable syncAntiBurnRows = () -> {
+            boolean enabled = antiBurn.isEnabled();
+            if (antiBurnRows[0] != null) setViewTreeEnabled(antiBurnRows[0], enabled);
+            if (antiBurnRows[1] != null) setViewTreeEnabled(antiBurnRows[1], enabled);
+            if (antiBurnAutoDim[0] != null) setSwitchPreferenceEnabled(antiBurnAutoDim[0], enabled);
+        };
         MaterialSwitch enabledSwitch = addSwitch(body, R.string.ultimate_anti_burn_enabled,
                 R.string.ultimate_anti_burn_summary, antiBurn.isEnabled(), value -> {
                     antiBurn.setEnabled(value);
                     markChanged("anti_burn_enabled");
-                    showPage(Page.SYSTEM);
+                    syncAntiBurnRows.run();
                 });
         View periodRow = addActionRow(body, R.string.ultimate_anti_burn_period,
                 getString(R.string.ultimate_minutes_value, antiBurn.getPeriodMinutes()),
@@ -2459,6 +2499,10 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         setViewTreeEnabled(periodRow, enabledSwitch.isChecked());
         setViewTreeEnabled(amplitudeRow, enabledSwitch.isChecked());
         setSwitchPreferenceEnabled(autoDimSwitch, enabledSwitch.isChecked());
+        antiBurnRows[0] = periodRow;
+        antiBurnRows[1] = amplitudeRow;
+        antiBurnAutoDim[0] = autoDimSwitch;
+        syncAntiBurnRows.run();
         addSectionLabel(body, R.string.timing_tools_section);
         android.content.SharedPreferences screenSettings = com.clockmods.pro.timer.TimingScreenOn.settings(this);
         String timingKey = com.clockmods.pro.timer.TimingScreenOn.KEY;

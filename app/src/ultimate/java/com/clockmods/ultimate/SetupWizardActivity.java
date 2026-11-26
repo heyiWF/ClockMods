@@ -84,6 +84,13 @@ public final class SetupWizardActivity extends AppCompatActivity {
     private final List<MaterialCardView> styleCards = new ArrayList<>();
     private final List<MaterialRadioButton> styleRadios = new ArrayList<>();
     private TextView choiceHint;
+    /** Emphasised easing: quick off the mark, long settle. */
+    private static final android.view.animation.Interpolator STEP_ENTER =
+            new android.view.animation.PathInterpolator(0.05f, 0.7f, 0.1f, 1f);
+    private static final android.view.animation.Interpolator STEP_EXIT =
+            new android.view.animation.PathInterpolator(0.3f, 0f, 0.8f, 0.15f);
+    /** The outgoing step drawn over the rebuilt content until its slide-out ends. */
+    private ImageView stepSnapshot;
 
     private ClockPreferences preferences;
     private UltimateClockPreferences ultimatePreferences;
@@ -164,6 +171,10 @@ public final class SetupWizardActivity extends AppCompatActivity {
                 frame = null;
             }
             @Override public void handleOnBackStarted(androidx.activity.BackEventCompat event) {
+                clearStepSnapshot();
+                pageHost.animate().cancel();
+                pageHost.setAlpha(1f);
+                pageHost.setTranslationX(0f);
                 clearPreview();
                 captureCurrentStep();
                 originalStep = step;
@@ -357,6 +368,13 @@ public final class SetupWizardActivity extends AppCompatActivity {
     }
 
     private void showStep(int requestedStep) {
+        showStep(requestedStep, false);
+    }
+
+    /** [animate] slides the new step in from the side the user is travelling towards. */
+    private void showStep(int requestedStep, boolean animate) {
+        int direction = Integer.signum(requestedStep - step);
+        ImageView snapshot = animate ? captureStepSnapshot() : null;
         step = Math.max(0, Math.min(STEP_COUNT - 1, requestedStep));
         if (stepBack != null) stepBack.setEnabled(step > 0);
         pageHost.removeAllViews();
@@ -385,10 +403,56 @@ public final class SetupWizardActivity extends AppCompatActivity {
                 ? R.string.setup_wizard_done : R.string.setup_wizard_next));
         updateContinueState();
         pageScroll.scrollTo(0, 0);
+        if (snapshot != null) slideStep(snapshot, direction);
+    }
+
+    /** The outgoing step as it looks right now, including its scroll position. */
+    private ImageView captureStepSnapshot() {
+        if (pageScroll.getWidth() == 0 || pageScroll.getHeight() == 0) return null;
+        clearStepSnapshot();
+        pageHost.animate().cancel();
+        pageHost.setAlpha(1f);
+        pageHost.setTranslationX(0f);
+        android.graphics.Bitmap frame = android.graphics.Bitmap.createBitmap(
+                pageScroll.getWidth(), pageScroll.getHeight(),
+                android.graphics.Bitmap.Config.ARGB_8888);
+        pageScroll.draw(new Canvas(frame));
+        ImageView snapshot = new ImageView(this);
+        snapshot.setBackgroundColor(surfaceColor());
+        snapshot.setImageBitmap(frame);
+        snapshot.setImportantForAccessibility(View.IMPORTANT_FOR_ACCESSIBILITY_NO);
+        snapshot.layout(0, 0, pageScroll.getWidth(), pageScroll.getHeight());
+        return snapshot;
+    }
+
+    private void slideStep(ImageView snapshot, int direction) {
+        int width = pageScroll.getWidth();
+        if (width <= 0 || direction == 0) return;
+        stepSnapshot = snapshot;
+        pageScroll.getOverlay().add(snapshot);
+        pageHost.setAlpha(0f);
+        pageHost.setTranslationX(direction * width * 0.12f);
+        pageHost.animate().alpha(1f).translationX(0f)
+                .setDuration(320).setInterpolator(STEP_ENTER).start();
+        snapshot.animate().translationX(-direction * width * 0.20f).alpha(0f)
+                .setDuration(260).setInterpolator(STEP_EXIT)
+                .withEndAction(() -> clearStepSnapshot(snapshot)).start();
+    }
+
+    private void clearStepSnapshot() {
+        clearStepSnapshot(null);
+    }
+
+    private void clearStepSnapshot(ImageView expected) {
+        ImageView current = stepSnapshot;
+        if (current == null || (expected != null && current != expected)) return;
+        stepSnapshot = null;
+        current.animate().cancel();
+        pageScroll.getOverlay().remove(current);
     }
 
     private void languagePage() {
-        addPageHeading(R.drawable.ultimate_ic_language, R.string.setup_wizard_language_title,
+        addPageHeading(R.drawable.language_24, R.string.setup_wizard_language_title,
                 R.string.setup_wizard_language_summary);
 
         languageGroup = new LanguageChoices(wizardContext);
@@ -418,7 +482,7 @@ public final class SetupWizardActivity extends AppCompatActivity {
     }
 
     private void weatherPage() {
-        addPageHeading(R.drawable.ultimate_ic_weather, R.string.setup_wizard_weather_title,
+        addPageHeading(R.drawable.cloud_24, R.string.setup_wizard_weather_title,
                 R.string.setup_wizard_weather_summary);
 
         LinearLayout weatherRow = listRow(compactLandscape ? 48 : compactHeight ? 56 : 72);
@@ -488,6 +552,15 @@ public final class SetupWizardActivity extends AppCompatActivity {
         button.setMinHeight(dp(compactHeight ? 48 : 64));
         button.setGravity(Gravity.CENTER_VERTICAL);
         button.setPadding(dp(14), dp(8), dp(14), dp(8));
+        // Move the dot in from the chip's edge without moving the label: the dot is shifted inside
+        // its own box, so the chip keeps its width and the text keeps its position.
+        android.graphics.drawable.Drawable dot = button.getButtonDrawable();
+        if (dot != null) {
+            button.setButtonDrawable(new InsetDot(dot, dp(5)));
+            // The replaced drawable has not seen the button's state yet; without this the dot
+            // stays unchecked while the chip already paints its checked background.
+            button.refreshDrawableState();
+        }
         android.graphics.drawable.StateListDrawable states =
                 new android.graphics.drawable.StateListDrawable();
         GradientDrawable selected = rounded(primaryContainerColor(), 18);
@@ -556,7 +629,7 @@ public final class SetupWizardActivity extends AppCompatActivity {
     }
 
     private void stylePage() {
-        addPageHeading(R.drawable.ultimate_ic_palette, R.string.setup_wizard_style_title,
+        addPageHeading(R.drawable.palette_24, R.string.setup_wizard_style_title,
                 R.string.setup_wizard_style_summary);
 
         for (ClockStyle style : UltimateClockStyles.builtIns()) {
@@ -572,7 +645,7 @@ public final class SetupWizardActivity extends AppCompatActivity {
     }
 
     private void calendarStylePage() {
-        addPageHeading(R.drawable.ultimate_ic_palette, R.string.setup_wizard_calendar_style_title,
+        addPageHeading(R.drawable.calendar_month_24, R.string.setup_wizard_calendar_style_title,
                 R.string.setup_wizard_calendar_style_summary);
         for (CalendarStyle style : UltimateCalendarStyles.sharedRegistry().getStyles()) {
             CalendarStyleMetadata metadata = style.getMetadata();
@@ -767,8 +840,7 @@ public final class SetupWizardActivity extends AppCompatActivity {
         if (!canContinueStep(step, selectedLanguage, selectedWeatherEnabled,
                 selectedTemperatureUnit, selectedStyle, selectedCalendarStyle)) return;
         if (step < STEP_COUNT - 1) {
-            step++;
-            showStep(step);
+            showStep(step + 1, true);
         } else {
             applyChoices();
             markCompleted(this);
@@ -830,8 +902,7 @@ public final class SetupWizardActivity extends AppCompatActivity {
     private void finishWithoutChanges() {
         if (step > 0) {
             captureCurrentStep();
-            step--;
-            showStep(step);
+            showStep(step - 1, true);
             return;
         }
         markCompleted(this);
@@ -927,5 +998,56 @@ public final class SetupWizardActivity extends AppCompatActivity {
     private LinearLayout.LayoutParams topMargin(LinearLayout.LayoutParams params, int margin) {
         params.topMargin = margin;
         return params;
+    }
+
+    /** Shifts a compound-button dot to the right inside its own box, leaving the text in place. */
+    private static final class InsetDot extends android.graphics.drawable.Drawable {
+        private final android.graphics.drawable.Drawable dot;
+        private final int dx;
+
+        InsetDot(android.graphics.drawable.Drawable dot, int dx) {
+            this.dot = dot;
+            this.dx = dx;
+        }
+
+        @Override public void draw(Canvas canvas) {
+            android.graphics.Rect bounds = getBounds();
+            dot.setBounds(bounds.left + dx, bounds.top, bounds.right + dx, bounds.bottom);
+            dot.draw(canvas);
+        }
+
+        @Override public void setAlpha(int alpha) {
+            dot.setAlpha(alpha);
+        }
+
+        @Override public void setColorFilter(android.graphics.ColorFilter filter) {
+            dot.setColorFilter(filter);
+        }
+
+        @Override public int getOpacity() {
+            return dot.getOpacity();
+        }
+
+        @Override public int getIntrinsicWidth() {
+            return dot.getIntrinsicWidth();
+        }
+
+        @Override public int getIntrinsicHeight() {
+            return dot.getIntrinsicHeight();
+        }
+
+        @Override public boolean isStateful() {
+            return dot.isStateful();
+        }
+
+        @Override public boolean setState(int[] stateSet) {
+            dot.setState(stateSet);
+            return super.setState(stateSet);
+        }
+
+        @Override public boolean setVisible(boolean visible, boolean restart) {
+            dot.setVisible(visible, restart);
+            return super.setVisible(visible, restart);
+        }
     }
 }
