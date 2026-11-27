@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="alarm_settings">アラームとタイマー通知</string>
+    <string name="alarm_swipe_controls">スワイプでアラームを操作</string>
+    <string name="alarm_swipe_controls_summary">全画面のアラームで中央のアイコンをドラッグして操作します。オフにするとボタンで操作できます。</string>
+    <string name="alarm_swipe_hint">アラームを目的の操作までドラッグして離してください</string>
+    <string name="alarm_swipe_snoozed">%1$d 分後にもう一度通知します</string>
+    <string name="alarm_swipe_stopped">アラームを停止しました</string>
     <string name="alarm_random_buttons">通知ボタンの位置をランダムにする</string>
     <string name="alarm_random_buttons_summary">鳴るたびにスヌーズと停止の位置をランダムに決めます。</string>
     <string name="alarm_volume_snooze">音量キーでスヌーズ</string>

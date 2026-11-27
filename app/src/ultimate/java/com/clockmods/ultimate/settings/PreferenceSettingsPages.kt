@@ -1361,9 +1361,9 @@ internal fun ChimeSettingsPage(modifier: Modifier, generation: Int) {
 
     SettingsColumn(modifier) {
         SettingSection(R.string.alarm_settings) {
-            val keys = listOf(com.clockmods.pro.alarm.AlarmPreferences.RANDOM, com.clockmods.pro.alarm.AlarmPreferences.VOLUME, com.clockmods.pro.alarm.AlarmPreferences.POWER)
-            val titles = listOf(R.string.alarm_random_buttons, R.string.alarm_volume_snooze, R.string.alarm_power_snooze)
-            val summaries = listOf(R.string.alarm_random_buttons_summary, R.string.alarm_volume_snooze_summary, R.string.alarm_power_snooze_summary)
+            val keys = listOf(com.clockmods.pro.alarm.AlarmPreferences.SWIPE, com.clockmods.pro.alarm.AlarmPreferences.RANDOM, com.clockmods.pro.alarm.AlarmPreferences.VOLUME, com.clockmods.pro.alarm.AlarmPreferences.POWER)
+            val titles = listOf(R.string.alarm_swipe_controls, R.string.alarm_random_buttons, R.string.alarm_volume_snooze, R.string.alarm_power_snooze)
+            val summaries = listOf(R.string.alarm_swipe_controls_summary, R.string.alarm_random_buttons_summary, R.string.alarm_volume_snooze_summary, R.string.alarm_power_snooze_summary)
             keys.forEachIndexed { index, key ->
                 var checked by remember(generation) { mutableStateOf(com.clockmods.pro.alarm.AlarmPreferences.enabled(context, key)) }
                 SettingSwitch(stringResource(titles[index]), checked, stringResource(summaries[index])) { value ->

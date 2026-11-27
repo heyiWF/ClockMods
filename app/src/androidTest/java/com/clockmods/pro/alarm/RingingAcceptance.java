@@ -4,6 +4,9 @@ import android.app.*;
 import android.content.*;
 import android.os.*;
 import android.view.KeyEvent;
+import android.graphics.Rect;
+import com.clockmods.R;
+import com.clockmods.ultimate.settings.UltimateSettingsActivity;
 import com.clockmods.pro.timer.*;
 import java.io.FileOutputStream;
 
@@ -30,6 +33,12 @@ public final class RingingAcceptance extends Instrumentation {
             for (AlarmSpec old : clean.all()) { AlarmScheduler.cancel(context, old.id); clean.delete(old.id); }
             for (AlarmSpec old : clean.timerAlerts()) { AlarmScheduler.cancel(context, old.id); clean.delete(old.id); }
             clean.clearRings();
+            if ("swipe".equals(mode)) {
+                checkSwipeControls(clean);
+                result.putString("stream", "PASS full-screen alarm swipe and button controls\n");
+                finish(Activity.RESULT_OK, result);
+                return;
+            }
             if ("screen".equals(mode)) {
                 new SequenceAcceptance(this).checkScreenOn();
                 result.putString("stream", "PASS timing screen-on window checks\n");
@@ -147,6 +156,73 @@ public final class RingingAcceptance extends Instrumentation {
             result.putString("stream", "PASS " + checks + " ringing checks\n"); finish(Activity.RESULT_OK, result);
         } catch (Throwable error) { result.putString("stream", android.util.Log.getStackTraceString(error)); finish(Activity.RESULT_CANCELED, result); }
     }
+    private Rect bounds(String text) {
+        Rect rect = new Rect();
+        awaitText(text).getBoundsInScreen(rect);
+        return rect;
+    }
+
+    private void toggleSwipeSetting(boolean expected) throws Exception {
+        Activity settings = startActivitySync(UltimateSettingsActivity.createSubpageIntent(context, "chime")
+                .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        getUiAutomation().waitForIdle(450, 8000);
+        Rect row = bounds(settings.getString(R.string.alarm_swipe_controls));
+        shell("input tap " + row.centerX() + " " + row.centerY());
+        waitForIdleSync();
+        check(AlarmPreferences.enabled(context, AlarmPreferences.SWIPE) == expected, "settings switch saved");
+        runOnMainSync(settings::finish);
+    }
+
+    private void checkSwipeControls(AlarmStore store) throws Exception {
+        AlarmPreferences.settings(context).edit().remove(AlarmPreferences.SWIPE)
+                .putBoolean(AlarmPreferences.RANDOM, false).commit();
+        toggleSwipeSetting(true);
+        for (int attempt = 0; attempt < 4; attempt++) {
+            AlarmSpec alarm = new AlarmSpec();
+            alarm.enabled = false;
+            alarm.ringtone = "silent";
+            alarm.vibrate = false;
+            store.save(alarm);
+            store.rememberRing(alarm.id);
+            boolean swapped = attempt == 2;
+            context.getSharedPreferences("pro_alarm", 0).edit().putBoolean("ring_swap_" + alarm.id, swapped).commit();
+            runOnMainSync(() -> AlarmDelivery.ring(context, alarm));
+            await(alarm.id);
+            Activity screen = startActivitySync(new Intent(context, AlarmRingingActivity.class)
+                    .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+            getUiAutomation().waitForIdle(450, 8000);
+            Rect snooze = bounds(screen.getString(R.string.alarm_snooze));
+            Rect stop = bounds(screen.getString(R.string.alarm_dismiss));
+            if (attempt == 3) {
+                shell("input tap " + stop.centerX() + " " + stop.centerY());
+            } else {
+                check((stop.centerX() < snooze.centerX()) == swapped, "targets follow the occurrence order");
+                int center = (snooze.centerX() + stop.centerX()) / 2;
+                int y = snooze.centerY();
+                check(Math.abs(stop.centerY() - y) < 2, "icons share a centerline");
+                shell("input tap " + center + " " + y);
+                awaitText(screen.getString(R.string.alarm_swipe_hint));
+                shell("input tap " + stop.centerX() + " " + y);
+                shell("input swipe " + center + " " + y + " " + (center + (stop.centerX() - center) / 3) + " " + y + " 200");
+                check(store.ringingId() == alarm.id, "a tap or partial swipe leaves the alarm ringing");
+                int target = attempt == 0 ? snooze.centerX() : stop.centerX();
+                shell("input swipe " + center + " " + y + " " + target + " " + y + " 250");
+            }
+            await(0);
+            if (attempt < 3) {
+                awaitText(attempt == 0 ? screen.getString(R.string.alarm_swipe_snoozed, alarm.snoozeMinutes)
+                        : screen.getString(R.string.alarm_swipe_stopped));
+                long end = SystemClock.uptimeMillis() + 4000;
+                while (!screen.isFinishing() && SystemClock.uptimeMillis() < end) SystemClock.sleep(50);
+                check(screen.isFinishing(), "confirmation closes after display");
+            }
+            check((store.find(alarm.id).snoozeAt > System.currentTimeMillis()) == (attempt == 0),
+                    "control applied the chosen action");
+            AlarmScheduler.cancel(context, alarm.id);
+            if (attempt == 2) toggleSwipeSetting(false);
+        }
+    }
+
     private Notification notification(String tag, int id) {
         for (android.service.notification.StatusBarNotification item :
                 context.getSystemService(NotificationManager.class).getActiveNotifications()) {

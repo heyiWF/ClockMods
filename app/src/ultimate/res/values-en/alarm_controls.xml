@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="alarm_settings">Alarms and timer alerts</string>
+    <string name="alarm_swipe_controls">Swipe to control alarms</string>
+    <string name="alarm_swipe_controls_summary">Drag the alarm icon on the full-screen alert. Turn off to use buttons.</string>
+    <string name="alarm_swipe_hint">Drag the alarm to an action and release</string>
+    <string name="alarm_swipe_snoozed">Snoozed for %1$d min</string>
+    <string name="alarm_swipe_stopped">Alarm stopped</string>
     <string name="alarm_random_buttons">Shuffle alert buttons</string>
     <string name="alarm_random_buttons_summary">Randomize the order of Snooze and Stop each time an alert rings.</string>
     <string name="alarm_volume_snooze">Volume keys snooze</string>

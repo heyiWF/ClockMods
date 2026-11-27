@@ -11,6 +11,8 @@ import androidx.activity.enableEdgeToEdge
 import androidx.compose.foundation.layout.*
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
+import androidx.compose.ui.graphics.toArgb
+import androidx.compose.ui.viewinterop.AndroidView
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.res.stringResource
@@ -25,10 +27,12 @@ import java.util.Date
 
 class AlarmRingingActivity : ComponentActivity() {
     private var alarm by mutableStateOf<AlarmSpec?>(null)
+    private var showingSwipeResult = false
+    private var swipeControls by mutableStateOf(false)
     private var swapped by mutableStateOf(false)
     private lateinit var preferences: SharedPreferences
     private val listener = SharedPreferences.OnSharedPreferenceChangeListener { _, key ->
-        if (key == "ringing_id") refresh()
+        if (key == "ringing_id" || key == AlarmPreferences.SWIPE) refresh()
     }
     override fun attachBaseContext(base: Context) = super.attachBaseContext(LocaleManager.wrap(base) ?: base)
     override fun onCreate(state: Bundle?) {
@@ -44,6 +48,7 @@ class AlarmRingingActivity : ComponentActivity() {
         }
         preferences = getSharedPreferences("pro_alarm", MODE_PRIVATE)
         preferences.registerOnSharedPreferenceChangeListener(listener)
+        AlarmPreferences.settings(this).registerOnSharedPreferenceChangeListener(listener)
         refresh()
         setContent { ClockModsTheme {
             Surface(Modifier.fillMaxSize()) {
@@ -69,7 +74,21 @@ class AlarmRingingActivity : ComponentActivity() {
                             TimeText(time, fontSize = size.sp, maxLines = 1)
                         }
                     }
-                    Row(Modifier.widthIn(max = 520.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
+                    if (!current.isTimer && swipeControls) {
+                        val colors = MaterialTheme.colorScheme
+                        key(current.id, swapped, colors) {
+                            AndroidView(
+                                modifier = Modifier.widthIn(max = 520.dp).fillMaxWidth(),
+                                factory = { context ->
+                                    AlarmSwipeView(context, swapped, colors.primary.toArgb(), colors.onPrimary.toArgb(),
+                                        colors.onSurface.toArgb(), current.snoozeMinutes, { action ->
+                                        showingSwipeResult = true
+                                        startService(AlarmDelivery.command(context, current.id, action))
+                                    }, { showingSwipeResult = false; refresh() })
+                                }
+                            )
+                        }
+                    } else Row(Modifier.widthIn(max = 520.dp).fillMaxWidth(), horizontalArrangement = Arrangement.spacedBy(12.dp)) {
                         val actions = when {
                             current.isTimer && !current.countdown && current.completedDeadline != 0L -> listOf(AlarmDelivery.STOP, AlarmDelivery.NEXT)
                             current.isTimer -> listOf(AlarmDelivery.STOP)
@@ -94,14 +113,16 @@ class AlarmRingingActivity : ComponentActivity() {
         } }
     }
     private fun refresh() {
+        if (showingSwipeResult) return
         val store = AlarmStore(this)
         val id = store.ringingId().takeIf { it != 0L } ?: store.pendingRings().keys.firstOrNull()
         alarm = id?.let(store::find)
+        swipeControls = AlarmPreferences.enabled(this, AlarmPreferences.SWIPE)
         swapped = id?.let { AlarmPreferences.swapped(this, it) } ?: false
         if (alarm == null) finish()
     }
     private fun volumeSnooze(key: Int): Boolean =
-        alarm?.isTimer == false &&
+        !showingSwipeResult && alarm?.isTimer == false &&
             (key == android.view.KeyEvent.KEYCODE_VOLUME_UP || key == android.view.KeyEvent.KEYCODE_VOLUME_DOWN || key == android.view.KeyEvent.KEYCODE_VOLUME_MUTE) &&
             AlarmPreferences.enabled(this, AlarmPreferences.VOLUME)
     override fun onKeyDown(key: Int, event: android.view.KeyEvent): Boolean {
@@ -111,5 +132,9 @@ class AlarmRingingActivity : ComponentActivity() {
     override fun onKeyUp(key: Int, event: android.view.KeyEvent): Boolean = volumeSnooze(key) || super.onKeyUp(key, event)
     private fun command(action: String) { alarm?.let { startService(AlarmDelivery.command(this, it.id, action)) } }
     override fun onNewIntent(intent: Intent) { super.onNewIntent(intent); setIntent(intent); refresh() }
-    override fun onDestroy() { if (::preferences.isInitialized) preferences.unregisterOnSharedPreferenceChangeListener(listener); super.onDestroy() }
+    override fun onDestroy() {
+        AlarmPreferences.settings(this).unregisterOnSharedPreferenceChangeListener(listener)
+        if (::preferences.isInitialized) preferences.unregisterOnSharedPreferenceChangeListener(listener)
+        super.onDestroy()
+    }
 }
