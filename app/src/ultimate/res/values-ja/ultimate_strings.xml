@@ -201,9 +201,9 @@
     <string name="ultimate_schedule_dialog_delete">削除</string>
     <string name="ultimate_schedule_save">保存</string>
     <string name="ultimate_schedule_limit_reached">1日に%1$d件まで予定を登録できます</string>
-    <string name="alarm_exact_access_required">正確なアラームの権限が無効のため、アラームが遅れる場合があります。</string>
+    <string name="alarm_exact_access_required">時刻どおりに鳴らすため、正確なアラームを許可してください</string>
     <string name="alarm_grant_exact_access">正確なアラームを許可</string>
-    <string name="alarm_full_screen_access_required">全画面アラームの権限が無効のため、ロック画面に表示されない場合があります。</string>
+    <string name="alarm_full_screen_access_required">ロック画面に表示するため、全画面通知を許可してください</string>
     <string name="alarm_grant_full_screen_access">全画面アラームを許可</string>
     <string name="alarm_notification_access_required">通知が無効のため、鳴動中のアラームに停止ボタンを表示できません。</string>
     <string name="alarm_grant_notification_access">通知を有効にする</string>
