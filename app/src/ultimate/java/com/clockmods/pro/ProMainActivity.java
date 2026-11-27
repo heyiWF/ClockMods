@@ -91,6 +91,10 @@ public abstract class ProMainActivity extends AppCompatActivity {
         setContentView(R.layout.activity_pro);
 
         pager = findViewById(R.id.pro_pager);
+        pager.setOnApplyWindowInsetsListener((view, insets) -> {
+            applyPagerInsets(isImmersivePage(), insets);
+            return insets;
+        });
         View contentHost = pager;
         View antiBurnOverlay = findViewById(R.id.pro_anti_burn_overlay);
         antiBurnController = new AntiBurnController(contentHost, antiBurnOverlay,
@@ -265,8 +269,8 @@ public abstract class ProMainActivity extends AppCompatActivity {
         if (navigation == null || pager == null) return;
         boolean immersive = isImmersivePage();
         navigation.setVisibility(immersive ? View.GONE : View.VISIBLE);
-        applyPagerNavigationSpace(immersive);
-        WindowCompat.setDecorFitsSystemWindows(getWindow(), !immersive);
+        applyPagerInsets(immersive, pager.getRootWindowInsets());
+        pager.requestApplyInsets();
         WindowInsetsController controller = getWindow().getInsetsController();
         if (controller != null) {
             int lightBars = WindowInsetsController.APPEARANCE_LIGHT_STATUS_BARS
@@ -284,10 +288,19 @@ public abstract class ProMainActivity extends AppCompatActivity {
                 "ProMainActivity");
     }
 
-    private void applyPagerNavigationSpace(boolean immersive) {
-        pager.setPadding(pager.getPaddingLeft(), pager.getPaddingTop(), pager.getPaddingRight(),
-                immersive ? 0 : getResources().getDimensionPixelSize(
-                        R.dimen.pro_navigation_height));
+    private void applyPagerInsets(boolean immersive, WindowInsets insets) {
+        android.graphics.Insets safe = immersive || insets == null ? android.graphics.Insets.NONE
+                : insets.getInsets(WindowInsets.Type.systemBars() | WindowInsets.Type.displayCutout());
+        int navigationHeight = getResources().getDimensionPixelSize(R.dimen.pro_navigation_height);
+        pager.setPadding(safe.left, safe.top, safe.right, immersive ? 0 : navigationHeight + safe.bottom);
+        if (navigation != null) {
+            android.view.ViewGroup.LayoutParams params = navigation.getLayoutParams();
+            int height = navigationHeight + (insets == null ? 0 : insets.getInsets(WindowInsets.Type.navigationBars()).bottom);
+            if (params.height != height) {
+                params.height = height;
+                navigation.setLayoutParams(params);
+            }
+        }
     }
 
     private boolean isImmersivePage() {
