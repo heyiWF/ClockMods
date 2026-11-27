@@ -37,6 +37,25 @@ public final class SettingsBackAcceptance extends Instrumentation {
     private String mode;
     private String calendarLink;
     private Activity settingsActivity;
+    private final List<Float> firstDetailAlpha = new ArrayList<>();
+    private boolean trackingEntry;
+
+    @Override public void callActivityOnResume(Activity activity) {
+        super.callActivityOnResume(activity);
+        if (!(activity instanceof UltimateSubSettingsActivity) || trackingEntry) return;
+        trackingEntry = true;
+        android.view.ViewGroup content = activity.findViewById(android.R.id.content);
+        android.view.ViewGroup host = (android.view.ViewGroup) content.getChildAt(0);
+        android.view.View page = host.getChildAt(host.getChildCount() - 1);
+        firstDetailAlpha.add(page.getAlpha());
+        page.getViewTreeObserver().addOnPreDrawListener(new android.view.ViewTreeObserver.OnPreDrawListener() {
+            @Override public boolean onPreDraw() {
+                firstDetailAlpha.add(page.getAlpha());
+                if (page.getAlpha() == 1f) page.getViewTreeObserver().removeOnPreDrawListener(this);
+                return true;
+            }
+        });
+    }
 
     @Override public void onCreate(Bundle arguments) {
         super.onCreate(arguments);
@@ -269,6 +288,16 @@ public final class SettingsBackAcceptance extends Instrumentation {
             removeMonitor(detailMonitor);
             settle();
             verify(detail != null, "Detail page did not open in compact mode");
+            List<Float> samples = new ArrayList<>();
+            runOnMainSync(() -> samples.addAll(firstDetailAlpha));
+            verify(samples.size() >= 2 && samples.get(0) == 0f
+                        && samples.get(samples.size() - 1) == 1f,
+                        "Cold detail entry must start transparent and finish opaque: " + samples);
+            float previous = 0f;
+            for (float alpha : samples) {
+                verify(alpha >= previous, "Entry flashed: " + samples);
+                previous = alpha;
+            }
             verify(!hasText(homeLabel), "Detail page did not cover the settings home");
             if ("keys".equals(mode)) {
                 sendKeyDownUpSync(KeyEvent.KEYCODE_BACK);
