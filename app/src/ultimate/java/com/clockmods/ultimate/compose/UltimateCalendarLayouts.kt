@@ -793,11 +793,14 @@ private fun AgendaCard(cell: CalendarCellInfo, theme: ComposeCalendarTheme, typo
             }
             Box(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {
                 if (schedule.isEmpty()) CalendarText(stringResource(R.string.ultimate_schedule_empty), body * 1.08f, theme.secondary, typography)
-                else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState())) {
+                else Column(Modifier.fillMaxSize().verticalScroll(rememberScrollState()),
+                    verticalArrangement = Arrangement.spacedBy(6.dp)) {
                     schedule.forEach { item ->
                         // Keep time and title in separate slots for every source and orientation.
-                        Column(Modifier.fillMaxWidth().heightIn(min = 64.dp).clickable { edit(item) }.padding(vertical = 8.dp),
-                            verticalArrangement = Arrangement.spacedBy(4.dp)) {
+                        Column(Modifier.fillMaxWidth().heightIn(min = 64.dp).clip(RoundedCornerShape(12.dp))
+                            .background(Color(theme.accent).copy(alpha = 0.12f)).clickable { edit(item) }
+                            .padding(horizontal = 12.dp, vertical = 8.dp),
+                            verticalArrangement = Arrangement.spacedBy(4.dp, Alignment.CenterVertically)) {
                             CalendarText(if (item.hasTime()) item.timeLabel() else stringResource(R.string.ultimate_schedule_all_day),
                                 body * 1.08f * .92f, if (item.hasTime()) theme.accent else theme.secondary,
                                 typography, Modifier.fillMaxWidth(), maxLines = 2)
