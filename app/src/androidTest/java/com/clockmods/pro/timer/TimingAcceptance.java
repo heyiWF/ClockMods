@@ -17,9 +17,9 @@ import com.clockmods.ultimate.UltimateMainActivity;
 /** Device regression checks. Run only against a separate audit application ID. */
 public final class TimingAcceptance extends Instrumentation {
     private int checks;
-    private boolean countdownTest;
+    private boolean countdownTest, layoutTest;
     private Activity activity;
-    @Override public void onCreate(Bundle args) { super.onCreate(args); countdownTest = "countdowns".equals(args.getString("mode")); start(); }
+    @Override public void onCreate(Bundle args) { super.onCreate(args); countdownTest = "countdowns".equals(args.getString("mode")); layoutTest = "layout".equals(args.getString("mode")); start(); }
     private void check(boolean value, String message) {
         checks++;
         if (!value) throw new AssertionError(message);
@@ -31,8 +31,9 @@ public final class TimingAcceptance extends Instrumentation {
             getTargetContext().getSharedPreferences("clockmods_onboarding", 0).edit()
                     .putBoolean("completed", true).commit();
             getTargetContext().getSharedPreferences("clock_prefs", 0).edit()
-                    .putString("clock_language", "en").commit();
+                    .putString("clock_language", "en").putInt("screen_orientation", 1).commit();
             if (countdownTest) checkCountdowns();
+            else if (layoutTest) checkToolLayout();
             else { checkNotifications(); checkLaps(); }
             result.putString("stream", "PASS " + checks + " timing checks; SDK " + android.os.Build.VERSION.SDK_INT
                     + "; promoted system UI requires a supporting device.\n");
@@ -54,6 +55,8 @@ public final class TimingAcceptance extends Instrumentation {
                 .putExtra(TimingLiveUpdates.EXTRA_DESTINATION, "countdown").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         try {
             clickWhenReady(activity.getString(R.string.timer_custom));
+            Rect key = controlBounds("1");
+            check(Math.abs(key.width() - key.height()) <= 1, "numeric keys have square bounds for circular surfaces");
             clickWhenReady("1");
             clickWhenReady("3");
             clickWhenReady("0");
@@ -102,6 +105,33 @@ public final class TimingAcceptance extends Instrumentation {
             clickWhenReady(activity.getString(R.string.countdown_delete), "Tea leaves");
             SystemClock.sleep(200);
             check(store.all().size() == 1 && !CountdownTimers.ids(prefs).contains(tea.id), "cross deletes just that timer");
+            clickWhenReady(activity.getString(R.string.countdown_delete));
+            SystemClock.sleep(420);
+            String five = activity.getString(R.string.timer_minutes, 5);
+            int expandedTop = controlBounds(five).top;
+            clickWhenReady(five);
+            SystemClock.sleep(420);
+            CountdownTimers.Timer fresh = store.all().get(0);
+            check(fresh.name(activity).equals(activity.getString(R.string.countdown_untitled, 1))
+                    && !fresh.id.equals(tea.id), "empty list restarts display numbering with a fresh alarm ID");
+            check(expandedTop > controlBounds(five).top + 40, "expanded presets move from center to toolbar");
+            Rect reset = controlBounds(activity.getString(R.string.timer_reset));
+            Rect minute = controlBounds(activity.getString(R.string.countdown_minute));
+            Rect toggle = controlBounds(activity.getString(R.string.timer_pause));
+            float density = context.getResources().getDisplayMetrics().density;
+            AccessibilityNodeInfo card = find(getUiAutomation().getRootInActiveWindow(), activity.getString(R.string.timer_reset), false);
+            while (card != null && find(card, activity.getString(R.string.countdown_delete), false) == null) {
+                card = card.getParent();
+            }
+            check(card != null, "card contains its actions and close control");
+            Rect bounds = new Rect();
+            card.getBoundsInScreen(bounds);
+            check(Math.abs((reset.left + minute.right) / 2f - bounds.exactCenterX()) <= 4 * density,
+                    "three card actions centered as a group: " + reset + " " + minute + " in " + bounds);
+            check(minute.left - toggle.right >= 10 * density, "pause has clearance from add-minute");
+            clickWhenReady(five);
+            check(store.all().get(0).name(activity).equals(activity.getString(R.string.countdown_untitled, 2)),
+                    "second timer uses the next display number");
             runOnMainSync(activity::finish);
             for (CountdownTimers.Timer timer : store.all()) store.remove(timer.id);
             com.clockmods.pro.alarm.AlarmStore alerts = new com.clockmods.pro.alarm.AlarmStore(context);
@@ -129,6 +159,22 @@ public final class TimingAcceptance extends Instrumentation {
                 context.startService(com.clockmods.pro.alarm.AlarmDelivery.command(context, alarm.id, com.clockmods.pro.alarm.AlarmDelivery.STOP));
             }
         }
+    }
+
+    private Rect controlBounds(String text) {
+        long deadline = SystemClock.uptimeMillis() + 6000;
+        AccessibilityNodeInfo node;
+        do {
+            if (android.os.Build.VERSION.SDK_INT >= 33) getUiAutomation().clearCache();
+            node = find(getUiAutomation().getRootInActiveWindow(), text, false);
+            if (node != null) break;
+            SystemClock.sleep(80);
+        } while (SystemClock.uptimeMillis() < deadline);
+        if (node == null) throw new AssertionError("Missing control " + text);
+        while (node.getParent() != null && !node.isClickable()) node = node.getParent();
+        Rect bounds = new Rect();
+        node.getBoundsInScreen(bounds);
+        return bounds;
     }
 
     private AccessibilityNodeInfo awaitEditable() {
@@ -229,6 +275,71 @@ public final class TimingAcceptance extends Instrumentation {
         stopwatch.edit().clear().commit();
         refresh();
     }
+    private void checkToolLayout() {
+        android.content.Context context = getTargetContext();
+        context.getSharedPreferences("pro_stopwatch", 0).edit().clear().commit();
+        activity = startActivitySync(new Intent(context, UltimateMainActivity.class)
+                .putExtra(TimingLiveUpdates.EXTRA_DESTINATION, "stopwatch").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        try {
+            androidx.viewpager2.widget.ViewPager2 pager = activity.findViewById(R.id.pro_pager);
+            for (int position : new int[]{2, 3, 4, 5}) {
+                runOnMainSync(() -> pager.setCurrentItem(position, false));
+                SystemClock.sleep(500);
+                int[] top = new int[2];
+                int[] status = new int[1];
+                runOnMainSync(() -> {
+                    androidx.fragment.app.Fragment fragment = ((androidx.fragment.app.FragmentActivity) activity)
+                            .getSupportFragmentManager().findFragmentByTag("f" + position);
+                    fragment.requireView().getLocationInWindow(top);
+                    status[0] = pager.getRootWindowInsets().getInsetsIgnoringVisibility(android.view.WindowInsets.Type.statusBars()).top;
+                });
+                check(top[1] >= status[0], "page " + position + " clears the status bar: " + top[1] + "/" + status[0]);
+            }
+            clickWhenReady(activity.getString(R.string.timer_start));
+            SystemClock.sleep(350);
+            checkButtonInk();
+            clickWhenReady(activity.getString(R.string.timer_reset));
+            SystemClock.sleep(350);
+            checkButtonInk();
+            clickWhenReady(activity.getString(R.string.timer_start));
+            SystemClock.sleep(350);
+            checkButtonInk();
+            clickWhenReady(activity.getString(R.string.timer_reset));
+        } finally {
+            runOnMainSync(activity::finish);
+        }
+    }
+
+    private void checkButtonInk() {
+        com.google.android.material.button.MaterialButton button = activity.findViewById(R.id.stopwatch_start_pause);
+        int[] xy = new int[2], foreground = new int[1];
+        runOnMainSync(() -> { button.getLocationOnScreen(xy); foreground[0] = button.getCurrentTextColor(); });
+        android.graphics.Bitmap screen = getUiAutomation().takeScreenshot();
+        android.graphics.Bitmap image = android.graphics.Bitmap.createBitmap(screen, xy[0], xy[1],
+                button.getWidth(), button.getHeight());
+        screen.recycle();
+        java.io.File file = new java.io.File(getTargetContext().getExternalFilesDir(null), "stopwatch-control-" + checks + ".png");
+        try (java.io.FileOutputStream out = new java.io.FileOutputStream(file)) {
+            image.compress(android.graphics.Bitmap.CompressFormat.PNG, 100, out);
+        } catch (java.io.IOException error) { throw new AssertionError(error); }
+        int left = image.getWidth(), right = -1;
+        for (int y = image.getHeight() / 4; y < image.getHeight() * 3 / 4; y++) {
+            for (int x = 0; x < image.getWidth(); x++) {
+                int pixel = image.getPixel(x, y);
+                if (Math.abs(android.graphics.Color.red(pixel) - android.graphics.Color.red(foreground[0])) < 12
+                        && Math.abs(android.graphics.Color.green(pixel) - android.graphics.Color.green(foreground[0])) < 12
+                        && Math.abs(android.graphics.Color.blue(pixel) - android.graphics.Color.blue(foreground[0])) < 12) {
+                    left = Math.min(x, left);
+                    right = Math.max(x, right);
+                }
+            }
+        }
+        int tolerance = Math.round(6 * activity.getResources().getDisplayMetrics().density);
+        check(right > left && Math.abs(left + right - image.getWidth()) <= tolerance * 2,
+                "stopwatch text and icon centered: " + left + ".." + right + " of " + image.getWidth());
+        image.recycle();
+    }
+
     private void checkLaps() throws Exception {
         SharedPreferences p = getTargetContext().getSharedPreferences("pro_stopwatch", 0);
         StringBuilder laps = new StringBuilder();
