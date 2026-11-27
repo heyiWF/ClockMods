@@ -407,7 +407,9 @@ public class UltimateSettingsActivity extends AppCompatActivity {
         showPage(currentPage);
         if (currentPage != Page.HOME) {
             pageCardBack = com.clockmods.ultimate.navigation.PageCardBack.install(this);
-            if (pageCardBack != null) pageCardBack.playEnterAnimation();
+            if (pageCardBack != null && savedInstanceState == null && !expectedEmbedded) {
+                pageCardBack.playEnterAnimation();
+            }
         }
         if (savedInstanceState != null && savedInstanceState.getBoolean("theme_store_open")) {
             showThemeStore(savedInstanceState.getBoolean("theme_store_calendar"), savedInstanceState.getInt("theme_store_tab"));

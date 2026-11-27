@@ -61,6 +61,7 @@ public final class PageCardBack extends OnBackPressedCallback {
     private boolean fromLeft = true;
     private boolean finished;
     private ValueAnimator animator;
+    private androidx.core.view.OneShotPreDrawListener pendingEnter;
 
     private PageCardBack(AppCompatActivity activity, View page, View scrim) {
         super(true);
@@ -94,8 +95,7 @@ public final class PageCardBack extends OnBackPressedCallback {
     /** Restores the page, for callers that must take the callback away mid-gesture. */
     public void reset() {
         stop();
-        page.animate().cancel();
-        page.setAlpha(1f);
+        cancelEnter();
         apply(0f);
         scrim.setVisibility(View.GONE);
         scrim.setAlpha(0f);
@@ -106,15 +106,16 @@ public final class PageCardBack extends OnBackPressedCallback {
      * motion is the same on devices whose vendor build drops platform activity animations.
      */
     public void playEnterAnimation() {
-        page.post(() -> {
-            page.animate().cancel();
+        cancelEnter();
+        page.setAlpha(0f);
+        pendingEnter = androidx.core.view.OneShotPreDrawListener.add(page, () -> {
+            pendingEnter = null;
             int width = page.getWidth();
             if (width <= 0) {
                 page.setAlpha(1f);
                 page.setTranslationX(0f);
                 return;
             }
-            page.setAlpha(0f);
             page.setTranslationX(width * ENTER_SHIFT);
             page.animate().alpha(1f).translationX(0f)
                     .setDuration(ENTER_DURATION)
@@ -126,8 +127,7 @@ public final class PageCardBack extends OnBackPressedCallback {
     @Override public void handleOnBackStarted(BackEventCompat event) {
         if (finished) return;
         // A gesture takes over the page's position; stop any entry animation still running.
-        page.animate().cancel();
-        page.setAlpha(1f);
+        cancelEnter();
         stop();
         fromLeft = event.getSwipeEdge() == BackEventCompat.EDGE_LEFT;
         int[] window = new int[2];
@@ -136,6 +136,7 @@ public final class PageCardBack extends OnBackPressedCallback {
         page.getLocationInWindow(pageAt);
         pivotY = Math.max(0f, Math.min(page.getHeight(),
                 event.getTouchY() - window[1] - pageAt[1]));
+        apply(offset);
         scrim.setVisibility(View.VISIBLE);
     }
 
@@ -162,10 +163,9 @@ public final class PageCardBack extends OnBackPressedCallback {
         slide(page.getWidth() + GESTURE_SHIFT_DP * density, 380L, () -> {
             if (Build.VERSION.SDK_INT >= 34) {
                 Api34.closeWithoutTransition(activity);
-            } else {
-                activity.overridePendingTransition(0, 0);
             }
             activity.finish();
+            if (Build.VERSION.SDK_INT < 34) activity.overridePendingTransition(0, 0);
         });
     }
 
@@ -183,11 +183,12 @@ public final class PageCardBack extends OnBackPressedCallback {
         page.setScaleY(scale);
         page.setTranslationX(Math.max(0f, offset - shift));
         page.invalidateOutline();
-        scrim.setAlpha(SCRIM * Math.max(0f, Math.min(0.8f,
-                (page.getWidth() - offset) / page.getWidth())));
+        scrim.setAlpha(SCRIM * shrink * Math.max(0f, Math.min(0.8f,
+                (page.getWidth() - offset) / Math.max(1, page.getWidth()))));
     }
 
     private void slide(float target, long duration, Runnable onEnd) {
+        stop();
         animator = ValueAnimator.ofFloat(offset, target);
         animator.setDuration(duration);
         animator.setInterpolator(EASE_OUT_QUINT);
@@ -198,6 +199,13 @@ public final class PageCardBack extends OnBackPressedCallback {
             @Override public void onAnimationEnd(Animator animation) { if (!cancelled) onEnd.run(); }
         });
         animator.start();
+    }
+
+    private void cancelEnter() {
+        if (pendingEnter != null) pendingEnter.removeListener();
+        pendingEnter = null;
+        page.animate().cancel();
+        page.setAlpha(1f);
     }
 
     private void stop() {
