@@ -29,6 +29,8 @@ public final class AlarmDelivery {
     }
     static String title(Context localized, AlarmSpec alarm) {
         if (alarm != null && alarm.isTimer()) {
+            if (alarm.countdown && !alarm.timerLabel.isEmpty())
+                return localized.getString(R.string.countdown_named_finished, alarm.timerLabel, duration(alarm));
             if (alarm.timerDuration > 0) return alarm.countdown
                     ? localized.getString(R.string.countdown_finished_duration, duration(alarm))
                     : localized.getString(R.string.pomodoro_finished_duration, localized.getString(phaseLabel(alarm)), duration(alarm));
@@ -99,7 +101,11 @@ public final class AlarmDelivery {
         }
     }
     public static void timer(Context context, boolean pomodoro, long duration, int phase, long deadline) {
+        timer(context, pomodoro, duration, phase, deadline, "");
+    }
+    public static void timer(Context context, boolean pomodoro, long duration, int phase, long deadline, String timerLabel) {
         AlarmStore store = new AlarmStore(context); AlarmSpec alert = new AlarmSpec();
+        alert.timerLabel = timerLabel;
         alert.id = -System.currentTimeMillis(); while (store.find(alert.id) != null) alert.id--;
         alert.enabled = false;
         alert.countdown = !pomodoro;

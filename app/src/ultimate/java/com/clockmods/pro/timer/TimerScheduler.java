@@ -27,7 +27,9 @@ public final class TimerScheduler {
 
     public static void restoreRunningTimers(Context context) {
         android.content.SharedPreferences p = context.getSharedPreferences("pro_timers", 0);
-        for (String mode : new String[] {"pomodoro", "countdown"}) {
+        java.util.List<String> modes = CountdownTimers.ids(p);
+        modes.add("pomodoro");
+        for (String mode : modes) {
             if (!p.getBoolean(mode + "_running", false)) continue;
             long deadline = p.getLong(mode + "_deadline", 0);
             if (deadline > System.currentTimeMillis()) schedule(context, mode, deadline);
@@ -38,6 +40,8 @@ public final class TimerScheduler {
 
     private static PendingIntent intent(Context context, String mode) {
         Intent intent = new Intent(context, TimerReceiver.class).putExtra("mode", mode);
+        if (mode != null && mode.startsWith("countdown-"))
+            intent.setData(android.net.Uri.fromParts("clockmods-countdown", mode, null));
         int requestCode = "pomodoro".equals(mode) ? 201 : 202;
         return PendingIntent.getBroadcast(context, requestCode, intent,
                 PendingIntent.FLAG_UPDATE_CURRENT | PendingIntent.FLAG_IMMUTABLE);

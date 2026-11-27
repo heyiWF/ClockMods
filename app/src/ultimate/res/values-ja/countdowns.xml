@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="countdown_new">タイマーを追加</string>
+    <string name="countdown_label">タイマーのラベル</string>
+    <string name="countdown_minute">+1 分</string>
+    <string name="countdown_delete">タイマーを削除</string>
+    <string name="countdown_backspace">一桁削除</string>
+    <string name="countdown_named_finished">%1$s · %2$s のタイマーが終了しました</string>
+    <string name="countdown_untitled">タイマー %1$d</string>
+</resources>

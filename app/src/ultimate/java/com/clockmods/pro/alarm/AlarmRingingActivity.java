@@ -90,6 +90,7 @@ public final class AlarmRingingActivity extends AppCompatActivity {
         timer = alarm.isTimer();
         title.setText(timer ? getString(alarm.countdown ? R.string.pro_page_countdown : R.string.pro_page_pomodoro)
                 : AlarmDelivery.title(this, alarm));
+        if (timer && alarm.countdown && !alarm.timerLabel.isEmpty()) title.setText(alarm.timerLabel);
         phase.setVisibility(timer && !alarm.countdown && alarm.timerDuration > 0 ? android.view.View.VISIBLE : android.view.View.GONE);
         if (timer) {
             phase.setText(AlarmDelivery.phaseLabel(alarm));

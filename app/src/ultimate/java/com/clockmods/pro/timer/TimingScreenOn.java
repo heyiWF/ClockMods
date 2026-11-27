@@ -53,6 +53,7 @@ public final class TimingScreenOn implements SharedPreferences.OnSharedPreferenc
     @Override public void onSharedPreferenceChanged(SharedPreferences source, String key) {
         if (key == null || (source == settings && KEY.equals(key))
                 || (source == stopwatch && "stopwatch".equals(page) && "running".equals(key))
+                || (source == timers && "countdown".equals(page) && key.startsWith("countdown"))
                 || (source == timers && (key.equals(page + "_running") || key.equals(page + "_deadline")))) refresh();
     }
 
@@ -62,7 +63,16 @@ public final class TimingScreenOn implements SharedPreferences.OnSharedPreferenc
         if (resumed && settings.getBoolean(KEY, false)) {
             if ("stopwatch".equals(page)) {
                 keep = stopwatch.getBoolean("running", false);
-            } else if ("pomodoro".equals(page) || "countdown".equals(page)) {
+            } else if ("countdown".equals(page)) {
+                long now = System.currentTimeMillis();
+                long lastDeadline = 0;
+                for (String id : CountdownTimers.ids(timers)) {
+                    if (timers.getBoolean(id + "_running", false))
+                        lastDeadline = Math.max(lastDeadline, timers.getLong(id + "_deadline", 0));
+                }
+                keep = lastDeadline > now;
+                if (keep) handler.postDelayed(atDeadline, lastDeadline - now);
+            } else if ("pomodoro".equals(page)) {
                 long remaining = timers.getLong(page + "_deadline", 0) - System.currentTimeMillis();
                 keep = timers.getBoolean(page + "_running", false) && remaining > 0;
                 if (keep) handler.postDelayed(atDeadline, remaining);
