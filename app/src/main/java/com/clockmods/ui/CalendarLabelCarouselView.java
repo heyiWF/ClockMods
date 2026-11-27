@@ -24,13 +24,11 @@ import java.util.List;
  *
  * <p>Unlike the single footer instance, up to 42 of these are on screen at once, so a settled
  * static label schedules only one wake-up (at its next transition) instead of animating every
- * frame — only labels that actually scroll or transition redraw continuously. Every cell reads
- * the same monotonic timeline so their vertical transitions always share one frame phase.
+ * frame — only labels that actually scroll or transition redraw continuously. Long labels hold their final glyph before moving to the next field.
  */
 public final class CalendarLabelCarouselView extends View {
-    private static final long SCROLL_PAUSE_MS = 1000L;
+    private static final com.clockmods.sdk.style.MarqueeSpec MOTION = com.clockmods.sdk.style.MarqueeSpec.DEFAULT;
     private static final long FRAME_DELAY_MS = 16L;
-    private static final float SCROLL_DP_PER_SECOND = 40f;
     private static final float HORIZONTAL_PADDING_DP = 2f;
     private static final int MAX_STATIC_CHARS = 3;
 
@@ -38,6 +36,8 @@ public final class CalendarLabelCarouselView extends View {
     private final float density;
     private List<String> items = Collections.emptyList();
     private boolean active;
+    private int index;
+    private long shownAt;
     private float preferredTextSize;
 
     public CalendarLabelCarouselView(Context context) { this(context, null); }
@@ -55,6 +55,9 @@ public final class CalendarLabelCarouselView extends View {
     }
 
     public void setItems(List<String> values) {
+        if (items.equals(values)) return;
+        index = 0;
+        shownAt = SystemClock.uptimeMillis();
         items = Collections.unmodifiableList(new ArrayList<>(values));
         setContentDescription(TextUtils.join("，", items));
         invalidate();
@@ -99,7 +102,11 @@ public final class CalendarLabelCarouselView extends View {
     public void setActive(boolean value) {
         if (value == active) return;
         active = value;
-        if (active) invalidate();
+        if (active) {
+            index = 0;
+            shownAt = SystemClock.uptimeMillis();
+            invalidate();
+        }
     }
 
     @Override protected void onDetachedFromWindow() {
@@ -117,26 +124,28 @@ public final class CalendarLabelCarouselView extends View {
             return;
         }
 
-        long elapsed = CalendarCarouselTimeline.elapsedAt(now);
-        int index = CalendarCarouselTimeline.indexAt(now, items.size());
         String current = items.get(index);
-        if (items.size() == 1) {
-            drawItem(canvas, current, 0f, elapsed);
-            if (overflow(current)) postInvalidateDelayed(FRAME_DELAY_MS);
-            return;
+        float distance = overflow(current);
+        long hold = MOTION.holdMillis(distance, density);
+        long elapsed = now - shownAt;
+        if (items.size() > 1 && elapsed >= hold + CalendarCarouselTimeline.TRANSITION_MS) {
+            index = (index + 1) % items.size();
+            shownAt = now;
+            elapsed = 0;
+            current = items.get(index);
+            distance = overflow(current);
+            hold = MOTION.holdMillis(distance, density);
         }
-
-        String next = items.get((index + 1) % items.size());
-        if (elapsed < CalendarCarouselTimeline.HOLD_MS) {
+        if (items.size() == 1 || elapsed < hold) {
             drawItem(canvas, current, 0f, elapsed);
-            // Only a scrolling label needs per-frame redraws; a static one just waits.
-            postInvalidateDelayed(overflow(current) ? FRAME_DELAY_MS
-                    : CalendarCarouselTimeline.HOLD_MS - elapsed);
+            long delay = MOTION.scrollFrameDelay(elapsed, distance, density);
+            if (items.size() > 1) delay = Math.min(delay, hold - elapsed);
+            if (delay != Long.MAX_VALUE) postInvalidateDelayed(delay);
         } else {
-            float progress = (float) (elapsed - CalendarCarouselTimeline.HOLD_MS)
-                    / CalendarCarouselTimeline.TRANSITION_MS;
+            String next = items.get((index + 1) % items.size());
+            float progress = (float) (elapsed - hold) / CalendarCarouselTimeline.TRANSITION_MS;
             float slide = slideDistance();
-            drawItem(canvas, current, -progress * slide, CalendarCarouselTimeline.HOLD_MS);
+            drawItem(canvas, current, -progress * slide, hold);
             drawItem(canvas, next, (1f - progress) * slide, 0L);
             postInvalidateDelayed(FRAME_DELAY_MS);
         }
@@ -167,7 +176,7 @@ public final class CalendarLabelCarouselView extends View {
             float overflow = textWidth - available;
             canvas.clipRect(padding, bandTop, padding + available, bandBottom);
             paint.setTextAlign(Paint.Align.LEFT);
-            canvas.drawText(text, padding - overflow * scrollProgress(itemElapsed, overflow),
+            canvas.drawText(text, padding - MOTION.scrollOffset(itemElapsed, overflow, density),
                     baseline, paint);
         }
         canvas.restore();
@@ -178,18 +187,11 @@ public final class CalendarLabelCarouselView extends View {
         return text.codePointCount(0, text.length()) > MAX_STATIC_CHARS;
     }
 
-    private boolean overflow(String text) {
-        if (!scrollable(text)) return false;
+    private float overflow(String text) {
+        if (!scrollable(text)) return 0f;
         paint.setTextSize(preferredTextSize);
-        float padding = HORIZONTAL_PADDING_DP * density;
-        return paint.measureText(text) > Math.max(1f, getWidth() - padding * 2f);
-    }
-
-    private float scrollProgress(long itemElapsed, float overflow) {
-        if (overflow <= 0f) return 0f;
-        long scrollMs = (long) Math.ceil(overflow / (SCROLL_DP_PER_SECOND * density) * 1000f);
-        if (scrollMs <= 0L) return 1f;
-        return Math.max(0f, Math.min(1f, (itemElapsed - SCROLL_PAUSE_MS) / (float) scrollMs));
+        float available = Math.max(1f, getWidth() - HORIZONTAL_PADDING_DP * density * 2f);
+        return Math.max(0f, paint.measureText(text) - available);
     }
 
     private float slideDistance() {
