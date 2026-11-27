@@ -57,6 +57,7 @@ public final class CalendarImportAcceptance extends Instrumentation {
             byte[] fixture=fixture(today);
             if ("availability".equals(arguments.getString("mode"))) {
                 checkAvailability(fixture, today);
+                checkCellMarquee();
             } else if ("motion".equals(arguments.getString("mode"))) {
                 checkMenuMotion();
             } else {
@@ -198,6 +199,39 @@ public final class CalendarImportAcceptance extends Instrumentation {
         screenshot("subscription-dialog");
         check(click(active.getString(android.R.string.cancel)), "link dialog cancels without import");
     }
+    private void checkCellMarquee() {
+        onUi(() -> {
+            com.clockmods.ui.CalendarLabelCarouselView cell = new com.clockmods.ui.CalendarLabelCarouselView(context);
+            String title = "A long imported event with a distinct ending";
+            cell.setTextSizePx(24f);
+            cell.setItems(Arrays.asList(title, "Next"));
+            cell.layout(0, 0, 80, 40);
+            cell.setActive(true);
+            android.graphics.Paint paint = new android.graphics.Paint(android.graphics.Paint.ANTI_ALIAS_FLAG);
+            paint.setTextSize(24f);
+            float density = context.getResources().getDisplayMetrics().density;
+            float overflow = paint.measureText(title) - (80f - 4f * density);
+            long hold = com.clockmods.ui.CalendarMarqueeTiming.holdMillis(overflow, density);
+            try {
+                java.lang.reflect.Field start = cell.getClass().getDeclaredField("shownAt");
+                start.setAccessible(true);
+                android.graphics.Bitmap head = drawCell(cell, start, 0);
+                android.graphics.Bitmap tail = drawCell(cell, start, hold - 800);
+                check(!head.sameAs(tail), "long event scrolls to a different visible suffix");
+                check(tail.sameAs(drawCell(cell, start, hold - 100)), "suffix holds still before the field changes");
+                check(!tail.sameAs(drawCell(cell, start, hold + 250)), "next field follows the tail pause");
+            } catch (ReflectiveOperationException failure) { throw new AssertionError(failure); }
+        });
+    }
+
+    private static android.graphics.Bitmap drawCell(android.view.View cell, java.lang.reflect.Field start,
+            long elapsed) throws IllegalAccessException {
+        start.setLong(cell, SystemClock.uptimeMillis() - elapsed);
+        android.graphics.Bitmap frame = android.graphics.Bitmap.createBitmap(80, 40, android.graphics.Bitmap.Config.ARGB_8888);
+        cell.draw(new android.graphics.Canvas(frame));
+        return frame;
+    }
+
     private void checkAvailability(byte[] fixture, LocalDate date) throws Exception {
         UserCalendarStore.Source first = store.importStream(new ByteArrayInputStream(fixture), "First.ics");
         byte[] other = new String(fixture, StandardCharsets.UTF_8).replace("Team sync", "Second meeting")

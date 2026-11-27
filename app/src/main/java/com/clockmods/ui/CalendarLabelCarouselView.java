@@ -38,6 +38,7 @@ public final class CalendarLabelCarouselView extends View {
     private boolean active;
     private int index;
     private long shownAt;
+    private boolean sharedPhase;
     private float preferredTextSize;
 
     public CalendarLabelCarouselView(Context context) { this(context, null); }
@@ -56,9 +57,8 @@ public final class CalendarLabelCarouselView extends View {
 
     public void setItems(List<String> values) {
         if (items.equals(values)) return;
-        index = 0;
-        shownAt = SystemClock.uptimeMillis();
         items = Collections.unmodifiableList(new ArrayList<>(values));
+        updateTiming();
         setContentDescription(TextUtils.join("，", items));
         invalidate();
     }
@@ -69,6 +69,7 @@ public final class CalendarLabelCarouselView extends View {
         if (size == preferredTextSize) return;
         preferredTextSize = size;
         paint.setTextSize(size);
+        updateTiming();
         // The view now measures to its own line, so a new size is a new height.
         requestLayout();
         invalidate();
@@ -94,9 +95,27 @@ public final class CalendarLabelCarouselView extends View {
     public void setTypeface(Typeface typeface) {
         if (typeface == paint.getTypeface()) return;
         paint.setTypeface(typeface);
+        updateTiming();
         // A different family has different font metrics, so the measured line can change.
         requestLayout();
         invalidate();
+    }
+
+    @Override protected void onSizeChanged(int width, int height, int oldWidth, int oldHeight) {
+        super.onSizeChanged(width, height, oldWidth, oldHeight);
+        if (width != oldWidth) updateTiming();
+    }
+
+    private void updateTiming() {
+        index = 0;
+        shownAt = SystemClock.uptimeMillis();
+        sharedPhase = items.size() > 1;
+        for (String item : items) {
+            if (MOTION.holdMillis(overflow(item), density) > CalendarCarouselTimeline.HOLD_MS) {
+                sharedPhase = false;
+                break;
+            }
+        }
     }
 
     public void setActive(boolean value) {
@@ -124,10 +143,11 @@ public final class CalendarLabelCarouselView extends View {
             return;
         }
 
+        if (sharedPhase) index = CalendarCarouselTimeline.indexAt(now, items.size());
         String current = items.get(index);
         float distance = overflow(current);
         long hold = MOTION.holdMillis(distance, density);
-        long elapsed = now - shownAt;
+        long elapsed = sharedPhase ? CalendarCarouselTimeline.elapsedAt(now) : now - shownAt;
         if (items.size() > 1 && elapsed >= hold + CalendarCarouselTimeline.TRANSITION_MS) {
             index = (index + 1) % items.size();
             shownAt = now;
@@ -184,7 +204,7 @@ public final class CalendarLabelCarouselView extends View {
 
     /** A label scrolls horizontally only when it is longer than {@link #MAX_STATIC_CHARS}. */
     private boolean scrollable(String text) {
-        return text.codePointCount(0, text.length()) > MAX_STATIC_CHARS;
+        return text != null && text.codePointCount(0, text.length()) > MAX_STATIC_CHARS;
     }
 
     private float overflow(String text) {
