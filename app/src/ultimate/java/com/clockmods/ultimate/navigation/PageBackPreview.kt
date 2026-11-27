@@ -26,6 +26,7 @@ import androidx.compose.ui.draw.drawWithContent
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.graphics.TransformOrigin
 import androidx.compose.ui.graphics.graphicsLayer
+import androidx.compose.ui.input.pointer.pointerInput
 import androidx.compose.ui.layout.boundsInWindow
 import androidx.compose.ui.layout.onGloballyPositioned
 import androidx.compose.ui.platform.LocalDensity
@@ -112,7 +113,14 @@ internal fun <T> BackPreviewStack(
             first = false
             return@LaunchedEffect
         }
-        val target = page ?: return@LaunchedEffect
+        preview.recovery?.cancelAndJoin()
+        if (page == null) {
+            shown = null
+            exiting = false
+            preview.card = false
+            return@LaunchedEffect
+        }
+        val target = page
         // A forward selection owns the timeline, even while the previous page is still leaving.
         exiting = false
         if (shown == target) {
@@ -156,14 +164,16 @@ internal fun <T> BackPreviewStack(
     }
 
     Box(modifier.fillMaxSize().onGloballyPositioned { preview.widthPx = it.size.width.toFloat() }) {
-        val hidden = shown != null
+        val visible = shown.takeIf { page != null }
+        val hidden = visible != null
         Box(
             Modifier.fillMaxSize()
                 .then(if (hidden) Modifier.semantics { hideFromAccessibility() } else Modifier)
                 .drawWithContent { if (!hidden || preview.offset.value > 0f) drawContent() },
         ) { beneath() }
-        if (hidden) Box(Modifier.fillMaxSize().pageBackScrim(preview))
-        shown?.let { current ->
+        // Intercept hit testing over the exposed part of the underlying page during a gesture.
+        if (hidden) Box(Modifier.fillMaxSize().pageBackScrim(preview).pointerInput(Unit) { })
+        visible?.let { current ->
             key(current) {
                 Box(
                     Modifier.fillMaxSize()
@@ -197,6 +207,8 @@ private fun Modifier.pageBackCard(preview: PageBackPreview): Modifier {
 }
 
 private fun Modifier.pageBackScrim(preview: PageBackPreview): Modifier = drawWithContent {
-    val alpha = SCRIM * ((size.width - preview.offset.value) / size.width).coerceIn(0f, 0.8f)
+    if (size.width <= 0f) return@drawWithContent
+    val strength = if (preview.card) (preview.offset.value / preview.shiftPx).coerceIn(0f, 1f) else 1f
+    val alpha = SCRIM * strength * ((size.width - preview.offset.value) / size.width).coerceIn(0f, 0.8f)
     if (alpha > 0f) drawRect(Color.Black.copy(alpha = alpha))
 }

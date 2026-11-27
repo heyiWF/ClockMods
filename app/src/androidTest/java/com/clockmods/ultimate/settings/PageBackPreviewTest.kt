@@ -11,6 +11,8 @@ import androidx.compose.runtime.mutableStateOf
 import androidx.compose.runtime.setValue
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.graphics.Color
+import androidx.compose.ui.platform.testTag
+import androidx.compose.ui.test.onNodeWithTag
 import androidx.compose.ui.test.junit4.createAndroidComposeRule
 import com.clockmods.ultimate.navigation.BackPreviewStack
 import com.clockmods.ultimate.navigation.PageBackPreview
@@ -39,7 +41,7 @@ class PageBackPreviewTest {
                 onBack = { page = null; backs++ },
                 modifier = Modifier.fillMaxSize(),
                 beneath = { Box(Modifier.fillMaxSize().background(Color.DarkGray)) },
-                top = { _, _ -> Box(Modifier.fillMaxSize().background(Color.Blue)) },
+                top = { _, _ -> Box(Modifier.fillMaxSize().background(Color.Blue).testTag("top")) },
             )
         }
         compose.waitForIdle()
@@ -60,6 +62,13 @@ class PageBackPreviewTest {
         }
 
     private fun frame() = compose.mainClock.advanceTimeByFrame()
+
+    @Test fun clearingPageExternallyRemovesItsContent() {
+        showStack()
+        compose.runOnUiThread { page = null }
+        frame()
+        compose.onNodeWithTag("top").assertDoesNotExist()
+    }
 
     @Test fun cancellationOnlyRewinds() {
         showStack()
