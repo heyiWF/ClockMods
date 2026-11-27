@@ -426,7 +426,6 @@ internal fun CalendarScreen(
  * invalidating every label on every display frame.
  */
 private object CalendarCarouselTimeline {
-    const val HOLD_MS = 3_000L
     const val TRANSITION_MS = 200L
 }
 
@@ -458,17 +457,26 @@ internal fun LunarCarouselText(
         }
         (fontSizePx * multiplier).coerceAtLeast(1f)
     }
+    val measure = androidx.compose.ui.text.rememberTextMeasurer()
+    val marquee = LocalCalendarMarquee.current
+    var width by remember { mutableIntStateOf(0) }
+    val holds = remember(distinct, style, measure, width, marquee, density) {
+        distinct.map { label ->
+            val pixels = measure.measure(label, style = style, softWrap = false, maxLines = 1).size.width
+            marquee.holdMillis((pixels - width).coerceAtLeast(0).toFloat(), density.density)
+        }
+    }
     val progress = remember { Animatable(0f) }
     var cycle by remember { mutableIntStateOf(0) }
     var transitioning by remember { mutableStateOf(false) }
     val motionActive = LocalCalendarMotionActive.current
-    LaunchedEffect(distinct, motionActive) {
+    LaunchedEffect(distinct, holds, motionActive) {
         progress.snapTo(0f)
         cycle = 0
         transitioning = false
         if (distinct.size == 1 || !motionActive) return@LaunchedEffect
         while (true) {
-            delay(CalendarCarouselTimeline.HOLD_MS)
+            delay(holds[cycle])
             transitioning = true
             progress.animateTo(1f, tween(CalendarCarouselTimeline.TRANSITION_MS.toInt(), easing = LinearEasing))
             cycle = (cycle + 1) % distinct.size
@@ -482,6 +490,7 @@ internal fun LunarCarouselText(
     val lineStyle = style.copy(lineHeight = with(density) { lineHeight.toSp() })
     Box(
         modifier
+            .onSizeChanged { width = it.width }
             .height(with(density) { lineHeight.toDp() })
             .clipToBounds(),
         contentAlignment = Alignment.Center,
@@ -511,7 +520,7 @@ private fun LunarCarouselLine(
     style: TextStyle,
     modifier: Modifier = Modifier,
 ) {
-    MarqueeText(text, color, style, modifier = modifier.fillMaxWidth(), centerWhenFits = true)
+    MarqueeText(text, color, style, modifier = modifier.fillMaxWidth(), centerWhenFits = true, singlePass = true)
 }
 
 /**
@@ -525,6 +534,7 @@ internal fun MarqueeText(
     style: TextStyle,
     modifier: Modifier = Modifier,
     centerWhenFits: Boolean = false,
+    singlePass: Boolean = false,
 ) {
     val density = LocalDensity.current
     val marquee = LocalCalendarMarquee.current
@@ -535,9 +545,19 @@ internal fun MarqueeText(
     val textSizePx = with(density) { style.fontSize.toPx() }
     val distance = marquee.loopDistance(textWidth.toFloat(), textSizePx, density.density)
     val gapPx = distance - textWidth
+    val travel = (textWidth - containerWidth).coerceAtLeast(0).toFloat()
+    val position = remember(text, style, containerWidth) { Animatable(0f) }
     var elapsed by remember(text, style, containerWidth) { mutableLongStateOf(0L) }
-    LaunchedEffect(text, style, containerWidth, textWidth, overflow, density, marquee, active) {
+    LaunchedEffect(text, style, containerWidth, textWidth, overflow, density, marquee, active, singlePass) {
         elapsed = 0L
+        if (singlePass) {
+            position.snapTo(0f)
+            if (overflow && active) {
+                delay(marquee.pauseMillis)
+                position.animateTo(travel, tween(marquee.scrollMillis(travel, density.density).toInt(), easing = LinearEasing))
+            }
+            return@LaunchedEffect
+        }
         if (!overflow || !active) return@LaunchedEffect
         val start = android.os.SystemClock.uptimeMillis()
         while (true) {
@@ -554,7 +574,8 @@ internal fun MarqueeText(
         contentAlignment = if (centerWhenFits && !overflow) Alignment.Center else Alignment.CenterStart,
     ) {
         Row(Modifier.wrapContentWidth(align = Alignment.Start, unbounded = true).graphicsLayer {
-            translationX = -marquee.loopOffset(elapsed, distance, density.density)
+            translationX = if (singlePass) -position.value
+                else -marquee.loopOffset(elapsed, distance, density.density)
         }) {
             Text(
                 text,
@@ -564,7 +585,7 @@ internal fun MarqueeText(
                 style = style,
                 modifier = Modifier.onSizeChanged { textWidth = it.width },
             )
-            if (overflow) {
+            if (overflow && !singlePass) {
                 Text(
                     text,
                     color = color,
