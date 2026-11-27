@@ -12,11 +12,17 @@ import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.Add
 import androidx.compose.material.icons.filled.Close
 import androidx.compose.material.icons.filled.RestartAlt
+import androidx.compose.animation.AnimatedContent
+import androidx.compose.animation.core.animateFloatAsState
+import androidx.compose.animation.core.tween
+import androidx.compose.animation.togetherWith
+import androidx.compose.animation.expandHorizontally
+import androidx.compose.animation.shrinkHorizontally
+import androidx.compose.ui.layout.layout
+import kotlin.math.roundToInt
 import androidx.compose.animation.Crossfade
 import androidx.compose.animation.fadeIn
 import androidx.compose.animation.fadeOut
-import androidx.compose.animation.slideInHorizontally
-import androidx.compose.animation.slideOutHorizontally
 import androidx.compose.foundation.clickable
 import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
@@ -79,18 +85,17 @@ internal fun CountdownScreen(modifier: Modifier) {
 
     Box(modifier.fillMaxSize(), contentAlignment = Alignment.TopCenter) {
         Column(Modifier.widthIn(max = 680.dp).fillMaxSize().padding(horizontal = 16.dp)) {
-            Row(Modifier.fillMaxWidth().padding(top = 8.dp), verticalAlignment = Alignment.CenterVertically) {
-                Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(end = 8.dp),
-                    horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                    listOf(5, 10, 30, 60).forEach { minutes ->
-                        AssistChip(onClick = { start(minutes * 60_000L, "") },
-                            label = { Text(stringResource(R.string.timer_minutes, minutes)) })
-                    }
-                }
-                Button(onClick = { adding = true }) {
-                    Icon(Icons.Default.Add, null)
-                    Text(stringResource(R.string.timer_custom))
-                }
+            val empty = timers.isEmpty()
+            val expansion = animateFloatAsState(if (empty) 1f else 0f, tween(300), label = "preset position")
+            AnimatedContent(empty, label = "preset layout",
+                transitionSpec = { fadeIn(tween(200)) togetherWith fadeOut(tween(140)) },
+                contentAlignment = Alignment.Center,
+                modifier = Modifier.fillMaxWidth().padding(top = 8.dp).layout { measurable, constraints ->
+                    val header = measurable.measure(constraints.copy(minHeight = 0))
+                    val top = ((constraints.maxHeight - header.height) * expansion.value / 2).roundToInt()
+                    layout(header.width, header.height + top) { header.placeRelative(0, top) }
+                }) { expanded ->
+                CountdownPresets(expanded, onPreset = { start(it * 60_000L, "") }, onCustom = { adding = true })
             }
             LazyColumn(state = list, verticalArrangement = Arrangement.spacedBy(10.dp),
                 contentPadding = PaddingValues(top = 6.dp, bottom = 12.dp)) {
@@ -114,6 +119,42 @@ internal fun CountdownScreen(modifier: Modifier) {
 }
 
 @Composable
+private fun CountdownPresets(expanded: Boolean, onPreset: (Int) -> Unit, onCustom: () -> Unit) {
+    if (expanded) {
+        Column(Modifier.widthIn(max = 320.dp).fillMaxWidth(), horizontalAlignment = Alignment.CenterHorizontally,
+            verticalArrangement = Arrangement.spacedBy(6.dp)) {
+            for (pair in listOf(listOf(5, 10), listOf(30, 60))) {
+                Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                    for (minutes in pair) FilledTonalButton(onClick = { onPreset(minutes) },
+                        modifier = Modifier.weight(1f).heightIn(min = 48.dp)) {
+                        Text(stringResource(R.string.timer_minutes, minutes))
+                    }
+                }
+            }
+            Button(onClick = onCustom) {
+                Icon(Icons.Default.Add, null)
+                Spacer(Modifier.width(8.dp))
+                Text(stringResource(R.string.timer_custom))
+            }
+        }
+    } else {
+        Row(Modifier.fillMaxWidth(), verticalAlignment = Alignment.CenterVertically) {
+            Row(Modifier.weight(1f).horizontalScroll(rememberScrollState()).padding(end = 8.dp),
+                horizontalArrangement = Arrangement.spacedBy(8.dp)) {
+                listOf(5, 10, 30, 60).forEach { minutes ->
+                    AssistChip(onClick = { onPreset(minutes) },
+                        label = { Text(stringResource(R.string.timer_minutes, minutes)) })
+                }
+            }
+            Button(onClick = onCustom) {
+                Icon(Icons.Default.Add, null)
+                Text(stringResource(R.string.timer_custom))
+            }
+        }
+    }
+}
+
+@Composable
 private fun CountdownCard(timer: CountdownTimers.Timer, remaining: Long, store: CountdownTimers, modifier: Modifier, onRename: () -> Unit) {
     Card(modifier.fillMaxWidth()) {
         Column(Modifier.fillMaxWidth().padding(start = 14.dp, end = 14.dp, top = 8.dp, bottom = 12.dp)) {
@@ -130,10 +171,9 @@ private fun CountdownCard(timer: CountdownTimers.Timer, remaining: Long, store: 
                 val size = (maxWidth.value / (time.length * .62f) / LocalDensity.current.fontScale).coerceIn(12f, 52f / LocalDensity.current.fontScale)
                 RollingTime(time, size)
             }
-            Row(verticalAlignment = Alignment.CenterVertically) {
-                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterEnd) {
-                    IconButton(onClick = { store.reset(timer.id) }) { Icon(Icons.Default.RestartAlt, stringResource(R.string.timer_reset)) }
-                }
+            Row(Modifier.align(Alignment.CenterHorizontally), verticalAlignment = Alignment.CenterVertically) {
+                IconButton(onClick = { store.reset(timer.id) }) { Icon(Icons.Default.RestartAlt, stringResource(R.string.timer_reset)) }
+                Spacer(Modifier.width(12.dp))
                 Box(Modifier.size(76.dp), contentAlignment = Alignment.Center) {
                     CircularProgressIndicator(progress = { (remaining.toFloat() / timer.duration.coerceAtLeast(1)).coerceIn(0f, 1f) },
                         modifier = Modifier.size(72.dp), strokeWidth = 4.dp)
@@ -147,13 +187,12 @@ private fun CountdownCard(timer: CountdownTimers.Timer, remaining: Long, store: 
                         }
                     }
                 }
-                Box(Modifier.weight(1f), contentAlignment = Alignment.CenterStart) {
-                    androidx.compose.animation.AnimatedVisibility(timer.running, enter = fadeIn() + slideInHorizontally { -it / 4 },
-                        exit = fadeOut() + slideOutHorizontally { -it / 4 }) {
-                        FilledTonalButton(onClick = { store.addMinute(timer.id) }, enabled = timer.running,
-                            contentPadding = PaddingValues(horizontal = 10.dp)) {
-                            Text(stringResource(R.string.countdown_minute), maxLines = 1)
-                        }
+                androidx.compose.animation.AnimatedVisibility(timer.running,
+                    enter = fadeIn() + expandHorizontally(expandFrom = Alignment.Start),
+                    exit = fadeOut() + shrinkHorizontally(shrinkTowards = Alignment.Start)) {
+                    FilledTonalButton(onClick = { store.addMinute(timer.id) }, enabled = timer.running,
+                        modifier = Modifier.padding(start = 12.dp), contentPadding = PaddingValues(horizontal = 10.dp)) {
+                        Text(stringResource(R.string.countdown_minute), maxLines = 1)
                     }
                 }
             }

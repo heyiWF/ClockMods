@@ -31,7 +31,7 @@ public final class TimingAcceptance extends Instrumentation {
             getTargetContext().getSharedPreferences("clockmods_onboarding", 0).edit()
                     .putBoolean("completed", true).commit();
             getTargetContext().getSharedPreferences("clock_prefs", 0).edit()
-                    .putString("clock_language", "en").commit();
+                    .putString("clock_language", "en").putInt("screen_orientation", 1).commit();
             if (countdownTest) checkCountdowns();
             else { checkNotifications(); checkLaps(); }
             result.putString("stream", "PASS " + checks + " timing checks; SDK " + android.os.Build.VERSION.SDK_INT
@@ -54,6 +54,8 @@ public final class TimingAcceptance extends Instrumentation {
                 .putExtra(TimingLiveUpdates.EXTRA_DESTINATION, "countdown").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
         try {
             clickWhenReady(activity.getString(R.string.timer_custom));
+            Rect key = controlBounds("1");
+            check(Math.abs(key.width() - key.height()) <= 1, "numeric keys have square bounds for circular surfaces");
             clickWhenReady("1");
             clickWhenReady("3");
             clickWhenReady("0");
@@ -102,6 +104,33 @@ public final class TimingAcceptance extends Instrumentation {
             clickWhenReady(activity.getString(R.string.countdown_delete), "Tea leaves");
             SystemClock.sleep(200);
             check(store.all().size() == 1 && !CountdownTimers.ids(prefs).contains(tea.id), "cross deletes just that timer");
+            clickWhenReady(activity.getString(R.string.countdown_delete));
+            SystemClock.sleep(420);
+            String five = activity.getString(R.string.timer_minutes, 5);
+            int expandedTop = controlBounds(five).top;
+            clickWhenReady(five);
+            SystemClock.sleep(420);
+            CountdownTimers.Timer fresh = store.all().get(0);
+            check(fresh.name(activity).equals(activity.getString(R.string.countdown_untitled, 1))
+                    && !fresh.id.equals(tea.id), "empty list restarts display numbering with a fresh alarm ID");
+            check(expandedTop > controlBounds(five).top + 40, "expanded presets move from center to toolbar");
+            Rect reset = controlBounds(activity.getString(R.string.timer_reset));
+            Rect minute = controlBounds(activity.getString(R.string.countdown_minute));
+            Rect toggle = controlBounds(activity.getString(R.string.timer_pause));
+            float density = context.getResources().getDisplayMetrics().density;
+            AccessibilityNodeInfo card = find(getUiAutomation().getRootInActiveWindow(), activity.getString(R.string.timer_reset), false);
+            while (card != null && find(card, activity.getString(R.string.countdown_delete), false) == null) {
+                card = card.getParent();
+            }
+            check(card != null, "card contains its actions and close control");
+            Rect bounds = new Rect();
+            card.getBoundsInScreen(bounds);
+            check(Math.abs((reset.left + minute.right) / 2f - bounds.exactCenterX()) <= 4 * density,
+                    "three card actions centered as a group: " + reset + " " + minute + " in " + bounds);
+            check(minute.left - toggle.right >= 10 * density, "pause has clearance from add-minute");
+            clickWhenReady(five);
+            check(store.all().get(0).name(activity).equals(activity.getString(R.string.countdown_untitled, 2)),
+                    "second timer uses the next display number");
             runOnMainSync(activity::finish);
             for (CountdownTimers.Timer timer : store.all()) store.remove(timer.id);
             com.clockmods.pro.alarm.AlarmStore alerts = new com.clockmods.pro.alarm.AlarmStore(context);
@@ -129,6 +158,22 @@ public final class TimingAcceptance extends Instrumentation {
                 context.startService(com.clockmods.pro.alarm.AlarmDelivery.command(context, alarm.id, com.clockmods.pro.alarm.AlarmDelivery.STOP));
             }
         }
+    }
+
+    private Rect controlBounds(String text) {
+        long deadline = SystemClock.uptimeMillis() + 6000;
+        AccessibilityNodeInfo node;
+        do {
+            if (android.os.Build.VERSION.SDK_INT >= 33) getUiAutomation().clearCache();
+            node = find(getUiAutomation().getRootInActiveWindow(), text, false);
+            if (node != null) break;
+            SystemClock.sleep(80);
+        } while (SystemClock.uptimeMillis() < deadline);
+        if (node == null) throw new AssertionError("Missing control " + text);
+        while (node.getParent() != null && !node.isClickable()) node = node.getParent();
+        Rect bounds = new Rect();
+        node.getBoundsInScreen(bounds);
+        return bounds;
     }
 
     private AccessibilityNodeInfo awaitEditable() {
