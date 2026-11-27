@@ -53,6 +53,9 @@ public final class ProStopwatchFragment extends Fragment {
     private View records;
     private ToolWorkspaceLayout workspace;
     private MaterialButton lapButton, resetButton;
+    private ValueAnimator controlsAnimator;
+    private float sideVisibility;
+    private Boolean showSideControls;
 
     @Nullable
     @Override
@@ -69,6 +72,7 @@ public final class ProStopwatchFragment extends Fragment {
         lapButton = root.findViewById(R.id.stopwatch_lap);
         resetButton = root.findViewById(R.id.stopwatch_reset);
         ToolButtonMotion.install(startPause); ToolButtonMotion.install(resetButton); ToolButtonMotion.install(lapButton);
+        showSideControls = null;
         accumulated = preferences.getLong("accumulated", 0L);
         running = preferences.getBoolean("running", false);
         startedElapsed = preferences.getLong("started_at_realtime", SystemClock.elapsedRealtime());
@@ -206,11 +210,34 @@ public final class ProStopwatchFragment extends Fragment {
         startPause.setText(running ? R.string.timer_pause : R.string.timer_start);
         startPause.setContentDescription(startPause.getText());
         startPause.setIconResource(running ? R.drawable.tool_ic_pause : R.drawable.tool_ic_play);
-        int visibility = running || accumulated > 0 ? View.VISIBLE : View.GONE;
-        if (lapButton.getVisibility() != visibility && startPause.isLaidOut())
-            androidx.transition.TransitionManager.beginDelayedTransition((ViewGroup) startPause.getParent(), new androidx.transition.AutoTransition().setDuration(300));
-        lapButton.setVisibility(visibility);
-        resetButton.setVisibility(running || accumulated > 0 ? View.VISIBLE : View.GONE);
+        boolean show = running || accumulated > 0;
+        if (showSideControls != null && showSideControls == show) return;
+        boolean animate = showSideControls != null && startPause.isLaidOut() && ValueAnimator.areAnimatorsEnabled();
+        showSideControls = show;
+        if (controlsAnimator != null) controlsAnimator.cancel();
+        if (animate) {
+            controlsAnimator = ValueAnimator.ofFloat(sideVisibility, show ? 1f : 0f);
+            controlsAnimator.setDuration(240);
+            controlsAnimator.setInterpolator(new androidx.interpolator.view.animation.FastOutSlowInInterpolator());
+            controlsAnimator.addUpdateListener(frame -> layoutSideControls((float) frame.getAnimatedValue()));
+            controlsAnimator.start();
+        } else layoutSideControls(show ? 1f : 0f);
+    }
+
+    private void layoutSideControls(float fraction) {
+        sideVisibility = fraction;
+        layoutSideControl(resetButton, fraction);
+        layoutSideControl(lapButton, fraction);
+    }
+
+    private void layoutSideControl(MaterialButton button, float fraction) {
+        android.widget.FrameLayout slot = (android.widget.FrameLayout) button.getParent();
+        LinearLayout.LayoutParams params = (LinearLayout.LayoutParams) slot.getLayoutParams();
+        params.width = Math.round(dp(72) * fraction);
+        slot.setLayoutParams(params);
+        slot.setVisibility(fraction == 0f ? View.GONE : View.VISIBLE);
+        button.setAlpha(fraction);
+        button.setEnabled(Boolean.TRUE.equals(showSideControls));
     }
 
     private String format(long millis) {
@@ -231,5 +258,5 @@ public final class ProStopwatchFragment extends Fragment {
 
     @Override public void onResume() { super.onResume(); handler.post(ticker); }
     @Override public void onPause() { handler.removeCallbacks(ticker); persist(); super.onPause(); }
-    @Override public void onDestroyView() { if (lapScrollAnimator != null) lapScrollAnimator.cancel(); display = null; super.onDestroyView(); }
+    @Override public void onDestroyView() { if (lapScrollAnimator != null) lapScrollAnimator.cancel(); if (controlsAnimator != null) controlsAnimator.cancel(); display = null; super.onDestroyView(); }
 }

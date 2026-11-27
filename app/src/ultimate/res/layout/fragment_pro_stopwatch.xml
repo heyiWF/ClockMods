@@ -18,15 +18,17 @@
         <LinearLayout android:id="@+id/stopwatch_laps" android:layout_width="match_parent" android:layout_height="wrap_content" android:orientation="vertical"/>
         </ScrollView></LinearLayout>
         <LinearLayout android:layout_width="match_parent" android:layout_height="wrap_content" android:gravity="center" android:orientation="horizontal">
+        <FrameLayout android:layout_width="72dp" android:layout_height="72dp">
         <com.google.android.material.button.MaterialButton
         android:id="@+id/stopwatch_reset" style="@style/Widget.Material3.Button.TonalButton"
         android:layout_width="64dp" android:layout_height="72dp"
-         android:layout_marginHorizontal="4dp"
+         android:layout_gravity="center"
         android:insetTop="0dp" android:insetBottom="0dp" android:minWidth="0dp"
         android:paddingHorizontal="12dp" app:cornerRadius="36dp"
         android:contentDescription="@string/timer_reset"
         android:textSize="20sp" app:icon="@drawable/tool_ic_reset" app:iconSize="28dp"
         app:iconGravity="textStart" app:iconPadding="0dp" />
+        </FrameLayout>
         <com.google.android.material.button.MaterialButton
         android:id="@+id/stopwatch_start_pause" style="@style/Widget.Material3.Button"
         android:layout_width="0dp" android:layout_height="72dp"
@@ -36,15 +38,17 @@
         android:contentDescription="@string/timer_start" android:text="@string/timer_start"
         android:textSize="20sp" app:icon="@drawable/tool_ic_play" app:iconSize="28dp"
         app:iconGravity="textStart" app:iconPadding="8dp" />
+        <FrameLayout android:layout_width="72dp" android:layout_height="72dp">
         <com.google.android.material.button.MaterialButton
         android:id="@+id/stopwatch_lap" style="@style/Widget.Material3.Button.TonalButton"
         android:layout_width="64dp" android:layout_height="72dp"
-         android:layout_marginHorizontal="4dp"
+         android:layout_gravity="center"
         android:insetTop="0dp" android:insetBottom="0dp" android:minWidth="0dp"
         android:paddingHorizontal="12dp" app:cornerRadius="36dp"
         android:contentDescription="@string/stopwatch_lap"
         android:textSize="20sp" app:icon="@drawable/tool_ic_flag" app:iconSize="28dp"
         app:iconGravity="textStart" app:iconPadding="0dp" />
+        </FrameLayout>
         </LinearLayout>
     </LinearLayout>
 </com.clockmods.pro.ToolWorkspaceLayout>
