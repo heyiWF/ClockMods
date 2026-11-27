@@ -1,6 +1,11 @@
 <?xml version="1.0" encoding="utf-8"?>
 <resources>
     <string name="alarm_settings">闹钟与到时提醒</string>
+    <string name="alarm_swipe_controls">滑动操作闹钟</string>
+    <string name="alarm_swipe_controls_summary">开启后，拖动中央闹钟图标来操作全屏提醒；关闭时使用按钮。</string>
+    <string name="alarm_swipe_hint">将闹钟拖向所选操作后松手</string>
+    <string name="alarm_swipe_snoozed">已稍后提醒 · %1$d 分钟后再次响铃</string>
+    <string name="alarm_swipe_stopped">闹钟已停止</string>
     <string name="alarm_random_buttons">随机交换提醒按钮</string>
     <string name="alarm_random_buttons_summary">每次响铃随机排列“稍后提醒”和“停止闹钟”</string>
     <string name="alarm_volume_snooze">音量键稍后提醒</string>

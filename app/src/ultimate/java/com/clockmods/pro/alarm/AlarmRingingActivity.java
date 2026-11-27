@@ -7,6 +7,7 @@ import android.os.Bundle;
 import android.os.Handler;
 import android.os.Looper;
 import android.view.Gravity;
+import com.google.android.material.color.MaterialColors;
 import android.view.WindowInsets;
 import android.view.WindowManager;
 import com.google.android.material.button.MaterialButton;
@@ -22,7 +23,7 @@ public final class AlarmRingingActivity extends AppCompatActivity {
     private SharedPreferences preferences;
     private TextView clock, title, phase;
     private long activeId;
-    private boolean timer;
+    private boolean timer, showingSwipeResult;
     private LinearLayout controls;
     private MaterialButton snooze, dismiss, next;
     private final Handler handler = new Handler(Looper.getMainLooper());
@@ -30,7 +31,7 @@ public final class AlarmRingingActivity extends AppCompatActivity {
         if (clock != null && !timer) clock.setText(ClockTimeText.align(android.text.format.DateFormat.getTimeFormat(AlarmRingingActivity.this).format(new java.util.Date())));
         handler.postDelayed(this, 1000);
     }};
-    private final SharedPreferences.OnSharedPreferenceChangeListener listener = (prefs, key) -> { if ("ringing_id".equals(key)) refresh(); };
+    private final SharedPreferences.OnSharedPreferenceChangeListener listener = (prefs, key) -> { if ("ringing_id".equals(key) || AlarmPreferences.SWIPE.equals(key)) refresh(); };
     @Override protected void attachBaseContext(Context base) { super.attachBaseContext(LocaleManager.wrap(base)); }
     @Override public void onCreate(Bundle state) {
         com.google.android.material.color.DynamicColors.applyToActivityIfAvailable(this);
@@ -76,9 +77,11 @@ public final class AlarmRingingActivity extends AppCompatActivity {
         clock.setTypeface(com.clockmods.ui.ClockTypefaceResolver.resolve(this, fonts.getRenderFontFamily(), fonts.isBoldText() ? 700 : 400));
         setContentView(root); root.requestApplyInsets();
         preferences = getSharedPreferences("pro_alarm", MODE_PRIVATE); preferences.registerOnSharedPreferenceChangeListener(listener);
+        AlarmPreferences.settings(this).registerOnSharedPreferenceChangeListener(listener);
         refresh(); tick.run();
     }
     private void refresh() {
+        if (showingSwipeResult) return;
         AlarmStore store = new AlarmStore(this); activeId = store.ringingId();
         if (activeId == 0 && !store.pendingRings().isEmpty()) activeId = store.pendingRings().keySet().iterator().next();
         AlarmSpec alarm = store.find(activeId);
@@ -99,10 +102,23 @@ public final class AlarmRingingActivity extends AppCompatActivity {
             return;
         }
         boolean swapped = AlarmPreferences.swapped(this, activeId);
+        if (AlarmPreferences.enabled(this, AlarmPreferences.SWIPE)) {
+            long occurrenceId = activeId;
+            controls.addView(new AlarmSwipeView(this, swapped,
+                    MaterialColors.getColor(controls, androidx.appcompat.R.attr.colorPrimary),
+                    MaterialColors.getColor(controls, com.google.android.material.R.attr.colorOnPrimary),
+                    MaterialColors.getColor(controls, com.google.android.material.R.attr.colorOnSurface),
+                    alarm.snoozeMinutes, action -> {
+                        showingSwipeResult = true;
+                        startService(AlarmDelivery.command(this, occurrenceId, action));
+                    }, () -> { showingSwipeResult = false; refresh(); }),
+                    new LinearLayout.LayoutParams(-1, -2));
+            return;
+        }
         controls.addView(swapped ? dismiss : snooze); controls.addView(swapped ? snooze : dismiss);
     }
     private boolean volumeSnooze(int key) {
-        return !timer && (key == android.view.KeyEvent.KEYCODE_VOLUME_UP || key == android.view.KeyEvent.KEYCODE_VOLUME_DOWN
+        return !showingSwipeResult && !timer && (key == android.view.KeyEvent.KEYCODE_VOLUME_UP || key == android.view.KeyEvent.KEYCODE_VOLUME_DOWN
                 || key == android.view.KeyEvent.KEYCODE_VOLUME_MUTE) && AlarmPreferences.enabled(this, AlarmPreferences.VOLUME);
     }
     @Override public boolean onKeyDown(int key, android.view.KeyEvent event) {
@@ -115,6 +131,7 @@ public final class AlarmRingingActivity extends AppCompatActivity {
     private void command(String action) { startService(AlarmDelivery.command(this, activeId, action)); }
     @Override protected void onNewIntent(Intent intent) { super.onNewIntent(intent); setIntent(intent); refresh(); }
     @Override protected void onDestroy() {
+        AlarmPreferences.settings(this).unregisterOnSharedPreferenceChangeListener(listener);
         handler.removeCallbacks(tick); if (preferences != null) preferences.unregisterOnSharedPreferenceChangeListener(listener); super.onDestroy();
     }
 }

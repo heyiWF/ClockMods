@@ -6,6 +6,7 @@ import android.content.SharedPreferences;
 /** Opt-in controls shared by alarm and timer occurrences. */
 public final class AlarmPreferences {
     public static final String RANDOM = "random_buttons", VOLUME = "volume_snooze", POWER = "screen_off_snooze";
+    public static final String SWIPE = "swipe_controls";
     private AlarmPreferences() {}
     public static SharedPreferences settings(Context context) { return context.getSharedPreferences("alarm_settings", 0); }
     public static boolean enabled(Context context, String key) { return settings(context).getBoolean(key, false); }

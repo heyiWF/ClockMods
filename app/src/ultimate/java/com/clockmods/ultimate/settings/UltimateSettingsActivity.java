@@ -2357,9 +2357,9 @@ public class UltimateSettingsActivity extends AppCompatActivity {
     private View chimePage() {
         LinearLayout body = pageBody(0);
         addSectionLabel(body, R.string.alarm_settings);
-        String[] alarmKeys = {com.clockmods.pro.alarm.AlarmPreferences.RANDOM, com.clockmods.pro.alarm.AlarmPreferences.VOLUME, com.clockmods.pro.alarm.AlarmPreferences.POWER};
-        int[] alarmTitles = {R.string.alarm_random_buttons, R.string.alarm_volume_snooze, R.string.alarm_power_snooze};
-        int[] alarmSummaries = {R.string.alarm_random_buttons_summary, R.string.alarm_volume_snooze_summary, R.string.alarm_power_snooze_summary};
+        String[] alarmKeys = {com.clockmods.pro.alarm.AlarmPreferences.SWIPE, com.clockmods.pro.alarm.AlarmPreferences.RANDOM, com.clockmods.pro.alarm.AlarmPreferences.VOLUME, com.clockmods.pro.alarm.AlarmPreferences.POWER};
+        int[] alarmTitles = {R.string.alarm_swipe_controls, R.string.alarm_random_buttons, R.string.alarm_volume_snooze, R.string.alarm_power_snooze};
+        int[] alarmSummaries = {R.string.alarm_swipe_controls_summary, R.string.alarm_random_buttons_summary, R.string.alarm_volume_snooze_summary, R.string.alarm_power_snooze_summary};
         for (int i = 0; i < alarmKeys.length; i++) {
             String key = alarmKeys[i];
             addSwitch(body, alarmTitles[i], alarmSummaries[i], com.clockmods.pro.alarm.AlarmPreferences.enabled(this, key), value ->
