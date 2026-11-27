@@ -172,7 +172,9 @@ public final class AgendaScheduleView extends LinearLayout {
             row.setTypefaces(regularTypeface);
             row.applyTheme();
             row.applySizing(bodySize);
-            rows.addView(row);
+            LayoutParams params = new LayoutParams(LayoutParams.MATCH_PARENT, LayoutParams.WRAP_CONTENT);
+            if (rows.getChildCount() > 0) params.topMargin = Math.round(6 * getResources().getDisplayMetrics().density);
+            rows.addView(row, params);
         }
     }
 
@@ -205,10 +207,12 @@ public final class AgendaScheduleView extends LinearLayout {
             setOrientation(VERTICAL);
             setBaselineAligned(false);
             setGravity(Gravity.CENTER_VERTICAL);
-            setBackground(selectableBackground(context));
+            setForeground(selectableBackground(context));
+            setClipToOutline(true);
             // A consistent touch target and spacing for all-day, timed and imported events.
             setMinimumHeight(Math.round(density * 64f));
-            setPadding(0, Math.round(density * 8f), 0, Math.round(density * 8f));
+            setPadding(Math.round(density * 12f), Math.round(density * 8f),
+                    Math.round(density * 12f), Math.round(density * 8f));
 
             time = new TextView(context);
             time.setIncludeFontPadding(false);
@@ -240,6 +244,10 @@ public final class AgendaScheduleView extends LinearLayout {
             if (theme == null) return;
             // An untimed row's label is not a time, so it recedes to the secondary colour instead
             // of competing with the real clock times above and below it.
+            android.graphics.drawable.GradientDrawable background = new android.graphics.drawable.GradientDrawable();
+            background.setColor(withAlpha(theme.accent, 0.12f));
+            background.setCornerRadius(12f * getResources().getDisplayMetrics().density);
+            setBackground(background);
             time.setTextColor(item.hasTime() ? theme.accent : withAlpha(theme.secondary, 0.75f));
             title.setTextColor(theme.text);
         }
