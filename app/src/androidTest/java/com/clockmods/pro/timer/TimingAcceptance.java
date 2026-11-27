@@ -17,8 +17,9 @@ import com.clockmods.ultimate.UltimateMainActivity;
 /** Device regression checks. Run only against a separate audit application ID. */
 public final class TimingAcceptance extends Instrumentation {
     private int checks;
+    private boolean countdownTest;
     private Activity activity;
-    @Override public void onCreate(Bundle args) { super.onCreate(args); start(); }
+    @Override public void onCreate(Bundle args) { super.onCreate(args); countdownTest = "countdowns".equals(args.getString("mode")); start(); }
     private void check(boolean value, String message) {
         checks++;
         if (!value) throw new AssertionError(message);
@@ -31,8 +32,8 @@ public final class TimingAcceptance extends Instrumentation {
                     .putBoolean("completed", true).commit();
             getTargetContext().getSharedPreferences("clock_prefs", 0).edit()
                     .putString("clock_language", "en").commit();
-            checkNotifications();
-            checkLaps();
+            if (countdownTest) checkCountdowns();
+            else { checkNotifications(); checkLaps(); }
             result.putString("stream", "PASS " + checks + " timing checks; SDK " + android.os.Build.VERSION.SDK_INT
                     + "; promoted system UI requires a supporting device.\n");
             finish(Activity.RESULT_OK, result);
@@ -40,6 +41,137 @@ public final class TimingAcceptance extends Instrumentation {
             result.putString("stream", android.util.Log.getStackTraceString(error));
             finish(Activity.RESULT_CANCELED, result);
         }
+    }
+    private void checkCountdowns() throws Exception {
+        android.content.Context context = getTargetContext();
+        CountdownTimers store = new CountdownTimers(context);
+        SharedPreferences prefs = store.preferences;
+        long original = System.currentTimeMillis() + 420_000;
+        prefs.edit().clear().putBoolean("countdown_running", true).putLong("countdown_deadline", original)
+                .putLong("countdown_duration", 420_000).commit();
+        getUiAutomation();
+        activity = startActivitySync(new Intent(context, UltimateMainActivity.class)
+                .putExtra(TimingLiveUpdates.EXTRA_DESTINATION, "countdown").addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+        try {
+            clickWhenReady(activity.getString(R.string.timer_custom));
+            clickWhenReady("1");
+            clickWhenReady("3");
+            clickWhenReady("0");
+            AccessibilityNodeInfo field = awaitEditable();
+            Bundle name = new Bundle();
+            name.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "Tea");
+            check(field != null && field.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, name), "entered a timer label");
+            clickWhenReady(activity.getString(R.string.timer_start));
+            SystemClock.sleep(300);
+            CountdownTimers.Timer tea = store.all().get(0);
+            check(store.all().size() == 2 && tea.running && tea.duration == 90_000 && "Tea".equals(tea.label),
+                    "keypad starts a labeled 1:30 timer alongside a legacy timer");
+            clickWhenReady(activity.getString(R.string.countdown_minute), "Tea");
+            SystemClock.sleep(250);
+            check(store.all().get(0).deadline == tea.deadline + 60_000 &&
+                    prefs.getLong("countdown_deadline", 0) == original, "+1 minute changes only the chosen deadline");
+            clickWhenReady(activity.getString(R.string.timer_pause), "Tea");
+            SystemClock.sleep(250);
+            CountdownTimers.Timer paused = store.all().get(0);
+            check(!paused.running && paused.remaining > 140_000 && prefs.getBoolean("countdown_running", false),
+                    "pause saves the extended remainder independently");
+            clickWhenReady(activity.getString(R.string.timer_start), "Tea");
+            clickWhenReady(activity.getString(R.string.timer_minutes, 5));
+            SystemClock.sleep(500);
+            check(store.all().size() == 3 && store.all().get(0).duration == 300_000, "preset adds a parallel timer");
+            refresh();
+            int notifications = 0;
+            boolean named = false;
+            for (StatusBarNotification item : context.getSystemService(NotificationManager.class).getActiveNotifications()) {
+                if (item.getId() != TimingLiveUpdates.COUNTDOWN_ID) continue;
+                notifications++;
+                named |= "Tea".contentEquals(item.getNotification().extras.getCharSequence(Notification.EXTRA_TITLE));
+            }
+            check(notifications == 3 && named, "all three live notifications coexist with the saved label");
+            String preset = store.all().get(0).name(activity);
+            clickWhenReady(activity.getString(R.string.countdown_delete), preset);
+            clickWhenReady("Tea");
+            AccessibilityNodeInfo rename = awaitEditable();
+            name.putCharSequence(AccessibilityNodeInfo.ACTION_ARGUMENT_SET_TEXT_CHARSEQUENCE, "Tea leaves");
+            check(rename != null && rename.performAction(AccessibilityNodeInfo.ACTION_SET_TEXT, name), "label opens its editor");
+            clickWhenReady(activity.getString(R.string.apply));
+            clickWhenReady(activity.getString(R.string.timer_reset), "Tea leaves");
+            SystemClock.sleep(200);
+            check(!prefs.getBoolean(tea.id + "_running", true) && prefs.getLong(tea.id + "_remaining", 0) == 150_000,
+                    "reset restores just the chosen timer");
+            clickWhenReady(activity.getString(R.string.countdown_delete), "Tea leaves");
+            SystemClock.sleep(200);
+            check(store.all().size() == 1 && !CountdownTimers.ids(prefs).contains(tea.id), "cross deletes just that timer");
+            runOnMainSync(activity::finish);
+            for (CountdownTimers.Timer timer : store.all()) store.remove(timer.id);
+            com.clockmods.pro.alarm.AlarmStore alerts = new com.clockmods.pro.alarm.AlarmStore(context);
+            long countBefore = alerts.timerAlerts().size();
+            String first = store.startNew(3500, "One");
+            String second = store.startNew(3500, "Two");
+            TimerScheduler.cancel(context, first);
+            TimerScheduler.cancel(context, second);
+            new TimerRescheduleReceiver().onReceive(context, new Intent(Intent.ACTION_BOOT_COMPLETED));
+            long limit = SystemClock.uptimeMillis() + 12_000;
+            while (alerts.timerAlerts().size() < countBefore + 2 && SystemClock.uptimeMillis() < limit) SystemClock.sleep(100);
+            check(alerts.timerAlerts().size() == countBefore + 2, "both alarms fire after schedule restoration without an open page");
+            TimerReceiver.complete(context, first);
+            TimerReceiver.complete(context, second);
+            int matches = 0;
+            for (com.clockmods.pro.alarm.AlarmSpec alarm : alerts.timerAlerts()) {
+                if ("One".equals(alarm.timerLabel) || "Two".equals(alarm.timerLabel)) matches++;
+            }
+            check(matches == 2 && alerts.timerAlerts().size() == countBefore + 2, "two independent expiries retain labels exactly once");
+        } finally {
+            if (!activity.isFinishing()) runOnMainSync(activity::finish);
+            for (CountdownTimers.Timer timer : store.all()) store.remove(timer.id);
+            com.clockmods.pro.alarm.AlarmStore alerts = new com.clockmods.pro.alarm.AlarmStore(context);
+            for (com.clockmods.pro.alarm.AlarmSpec alarm : alerts.timerAlerts()) {
+                context.startService(com.clockmods.pro.alarm.AlarmDelivery.command(context, alarm.id, com.clockmods.pro.alarm.AlarmDelivery.STOP));
+            }
+        }
+    }
+
+    private AccessibilityNodeInfo awaitEditable() {
+        long deadline = SystemClock.uptimeMillis() + 6000;
+        do {
+            if (android.os.Build.VERSION.SDK_INT >= 33) getUiAutomation().clearCache();
+            AccessibilityNodeInfo field = editable(getUiAutomation().getRootInActiveWindow());
+            if (field != null) return field;
+            SystemClock.sleep(80);
+        } while (SystemClock.uptimeMillis() < deadline);
+        return null;
+    }
+
+    private AccessibilityNodeInfo editable(AccessibilityNodeInfo node) {
+        if (node == null || node.isEditable()) return node;
+        for (int i = 0; i < node.getChildCount(); i++) {
+            AccessibilityNodeInfo found = editable(node.getChild(i));
+            if (found != null) return found;
+        }
+        return null;
+    }
+
+    private void clickWhenReady(String text) { clickWhenReady(text, null); }
+
+    private void clickWhenReady(String text, String timerLabel) {
+        long limit = SystemClock.uptimeMillis() + 6000;
+        do {
+            if (android.os.Build.VERSION.SDK_INT >= 33) getUiAutomation().clearCache();
+            AccessibilityNodeInfo root = getUiAutomation().getRootInActiveWindow();
+            AccessibilityNodeInfo group = timerLabel == null ? root : find(root, timerLabel, false);
+            AccessibilityNodeInfo node = null;
+            while (group != null && node == null) {
+                node = find(group, text, false);
+                group = group.getParent();
+            }
+            while (node != null && !node.isClickable()) node = node.getParent();
+            if (node != null && node.isEnabled() && node.performAction(AccessibilityNodeInfo.ACTION_CLICK)) {
+                SystemClock.sleep(120);
+                return;
+            }
+            SystemClock.sleep(100);
+        } while (SystemClock.uptimeMillis() < limit);
+        throw new AssertionError("Missing countdown control: " + text);
     }
     private Notification notification(int id) {
         for (StatusBarNotification n : getTargetContext().getSystemService(NotificationManager.class).getActiveNotifications())

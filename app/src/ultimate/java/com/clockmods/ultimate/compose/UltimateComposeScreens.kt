@@ -211,9 +211,9 @@ fun UltimateApp(
                                 onToggleChrome = { chromeVisible = !chromeVisible },
                             )
                         Destination.POMODORO ->
-                            TimerScreen(Modifier.padding(padding), pomodoro = true)
+                            PomodoroScreen(Modifier.padding(padding))
                         Destination.COUNTDOWN ->
-                            TimerScreen(Modifier.padding(padding), pomodoro = false)
+                            CountdownScreen(Modifier.padding(padding))
                         Destination.ALARM -> AlarmScreen(Modifier.padding(padding))
                         Destination.STOPWATCH -> StopwatchScreen(Modifier.padding(padding))
                     }

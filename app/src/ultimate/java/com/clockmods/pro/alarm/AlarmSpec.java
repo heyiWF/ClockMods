@@ -12,6 +12,7 @@ public final class AlarmSpec {
     public enum Repeat { ONCE, WEEKLY, HOLIDAYS, WORKDAYS, SHIFT, ALTERNATING }
     public long id;
     public boolean countdown;
+    public String timerLabel = "";
     public long timerDuration, completedDeadline;
     public int completedPhase;
     public boolean isTimer() { return id < 0; }
@@ -45,6 +46,7 @@ public final class AlarmSpec {
         hour = clamp(json.optInt("hour", 7), 0, 23); minute = clamp(json.optInt("minute", 30), 0, 59);
         enabled = json.optBoolean("enabled", true); vibrate = json.optBoolean("vibrate", true);
         label = json.optString("label", ""); ringtone = json.optString("ringtone", "default");
+        timerLabel = json.optString("timerLabel", "");
         timerDuration = json.optLong("timerDuration");
         completedPhase = json.optInt("completedPhase");
         completedDeadline = json.optLong("completedDeadline");
@@ -78,7 +80,7 @@ public final class AlarmSpec {
                 .put("snoozeMinutes", snoozeMinutes).put("snoozeAt", snoozeAt)
                 .put("scheduledAt", scheduledAt).put("lastFiredAt", lastFiredAt);
         JSONArray cycle = new JSONArray(), extra = new JSONArray(), excluded = new JSONArray();
-        if (id < 0) out.put("countdown", countdown).put("timerDuration", timerDuration)
+        if (id < 0) out.put("timerLabel", timerLabel).put("countdown", countdown).put("timerDuration", timerDuration)
                 .put("completedPhase", completedPhase).put("completedDeadline", completedDeadline);
         for (int value : cycleMinutes) cycle.put(value);
         for (LocalDate value : extraDates) extra.put(value.toString());

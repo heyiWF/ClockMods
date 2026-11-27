@@ -174,7 +174,7 @@ internal fun StopwatchLaps(
 }
 
 @Composable
-private fun RollingTime(time: String, size: Float) {
+internal fun RollingTime(time: String, size: Float) {
     Row(Modifier.semantics(mergeDescendants = true) { contentDescription = time },
         verticalAlignment = Alignment.CenterVertically) {
         time.forEach { character ->

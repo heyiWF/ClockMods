@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="countdown_new">타이머 추가</string>
+    <string name="countdown_label">타이머 이름</string>
+    <string name="countdown_minute">+1분</string>
+    <string name="countdown_delete">타이머 삭제</string>
+    <string name="countdown_backspace">한 자리 지우기</string>
+    <string name="countdown_named_finished">%1$s · %2$s 타이머 완료</string>
+    <string name="countdown_untitled">타이머 %1$d</string>
+</resources>

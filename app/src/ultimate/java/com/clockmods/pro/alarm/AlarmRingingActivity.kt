@@ -55,7 +55,8 @@ class AlarmRingingActivity : ComponentActivity() {
                 Column(Modifier.fillMaxSize().safeDrawingPadding().padding(24.dp),
                     horizontalAlignment = Alignment.CenterHorizontally) {
                     val current = alarm ?: return@Column
-                    Text(if (current.isTimer) stringResource(if (current.countdown) R.string.pro_page_countdown else R.string.pro_page_pomodoro)
+                    Text(if (current.isTimer && current.countdown && current.timerLabel.isNotEmpty()) current.timerLabel
+                        else if (current.isTimer) stringResource(if (current.countdown) R.string.pro_page_countdown else R.string.pro_page_pomodoro)
                         else AlarmDelivery.title(this@AlarmRingingActivity, current),
                         style = MaterialTheme.typography.headlineMedium)
                     BoxWithConstraints(Modifier.fillMaxWidth().weight(1f), contentAlignment = Alignment.Center) {

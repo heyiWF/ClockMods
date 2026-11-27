@@ -28,7 +28,6 @@ import androidx.compose.foundation.lazy.LazyColumn
 import androidx.compose.foundation.lazy.itemsIndexed
 import androidx.compose.foundation.lazy.rememberLazyListState
 import androidx.compose.foundation.rememberScrollState
-import androidx.compose.foundation.text.KeyboardOptions
 import androidx.compose.foundation.verticalScroll
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.AccessAlarm
@@ -37,7 +36,6 @@ import androidx.compose.material.icons.filled.Pause
 import androidx.compose.material.icons.filled.PlayArrow
 import androidx.compose.material.icons.filled.RestartAlt
 import androidx.compose.material.icons.filled.SkipNext
-import com.clockmods.ultimate.navigation.PredictiveAlertDialog as AlertDialog
 import androidx.compose.material3.Button
 import androidx.compose.material3.Card
 import androidx.compose.material3.ExperimentalMaterial3Api
@@ -46,7 +44,6 @@ import androidx.compose.material3.FilterChip
 import androidx.compose.material3.Icon
 import androidx.compose.material3.MaterialTheme
 import androidx.compose.material3.OutlinedButton
-import androidx.compose.material3.OutlinedTextField
 import androidx.compose.material3.Switch
 import androidx.compose.material3.Text
 import androidx.compose.material3.TextButton
@@ -73,7 +70,6 @@ import androidx.compose.ui.platform.LocalConfiguration
 import androidx.compose.ui.platform.LocalContext
 import androidx.compose.ui.res.stringResource
 import androidx.compose.ui.text.font.FontWeight
-import androidx.compose.ui.text.input.KeyboardType
 import androidx.compose.ui.text.style.TextAlign
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
@@ -91,17 +87,17 @@ import java.util.Date
 import java.util.Locale
 
 @Composable
-internal fun TimerScreen(modifier: Modifier, pomodoro: Boolean) {
+internal fun PomodoroScreen(modifier: Modifier) {
     val context = LocalContext.current
     val preferences = remember {
         context.getSharedPreferences("pro_timers", Context.MODE_PRIVATE)
     }
-    val prefix = if (pomodoro) "pomodoro_" else "countdown_"
-    val mode = if (pomodoro) "pomodoro" else "countdown"
-    var sequence by remember(preferences, pomodoro) {
-        mutableStateOf(if (pomodoro) PomodoroSequence.load(preferences) else emptyList())
+    val prefix = "pomodoro_"
+    val mode = "pomodoro"
+    var sequence by remember(preferences) {
+        mutableStateOf(PomodoroSequence.load(preferences))
     }
-    val defaultDuration = if (pomodoro) sequence[0].duration() else 10 * 60_000L
+    val defaultDuration = sequence[0].duration()
     var sequenceDraft by rememberSaveable { mutableStateOf<String?>(null) }
     var duration by rememberSaveable {
         mutableLongStateOf(preferences.getLong(prefix + "duration", defaultDuration))
@@ -118,15 +114,12 @@ internal fun TimerScreen(modifier: Modifier, pomodoro: Boolean) {
     var phase by rememberSaveable {
         mutableIntStateOf(preferences.getInt(prefix + "phase", 0))
     }
-    var customDialog by rememberSaveable { mutableStateOf(false) }
 
     DisposableEffect(preferences, prefix) {
         fun reload() {
             running = preferences.getBoolean(prefix + "running", false)
-            if (pomodoro) {
-                sequence = PomodoroSequence.load(preferences)
-                phase = PomodoroSequence.index(preferences, sequence)
-            }
+            sequence = PomodoroSequence.load(preferences)
+            phase = PomodoroSequence.index(preferences, sequence)
             duration = preferences.getLong(prefix + "duration", defaultDuration)
             remaining = preferences.getLong(prefix + "remaining", duration)
             deadline = preferences.getLong(prefix + "deadline", 0L)
@@ -140,21 +133,13 @@ internal fun TimerScreen(modifier: Modifier, pomodoro: Boolean) {
     }
 
     fun persist() {
-        preferences.edit().apply { if (pomodoro) remove(com.clockmods.pro.timer.TimerCompletion.PENDING_PHASE) }
+        preferences.edit().remove(TimerCompletion.PENDING_PHASE)
             .putLong(prefix + "duration", duration)
             .putLong(prefix + "remaining", remaining)
             .putLong(prefix + "deadline", deadline)
             .putBoolean(prefix + "running", running)
             .putInt(prefix + "phase", phase)
             .apply()
-    }
-    fun setDuration(value: Long) {
-        TimerScheduler.cancel(context, mode)
-        running = false
-        duration = value
-        remaining = value
-        deadline = 0L
-        persist()
     }
     fun advancePomodoro() {
         TimerScheduler.cancel(context, mode)
@@ -186,21 +171,14 @@ internal fun TimerScreen(modifier: Modifier, pomodoro: Boolean) {
 
     ToolWorkspace(
         modifier = modifier,
-        time = formatDuration(remaining, pomodoro),
+        time = formatPomodoro(remaining),
         rollDigits = true,
-        phase = if (pomodoro) stringResource(TimerCompletion.phaseLabel(sequence[phase.coerceIn(sequence.indices)].label)) else null,
+        phase = stringResource(TimerCompletion.phaseLabel(sequence[phase.coerceIn(sequence.indices)].label)),
         details = {
             FlowRow(Modifier.fillMaxWidth().padding(bottom = 24.dp),
                 horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                if (pomodoro) FilterChip(selected = false, onClick = { sequenceDraft = PomodoroSequence.encode(sequence) },
+                FilterChip(selected = false, onClick = { sequenceDraft = PomodoroSequence.encode(sequence) },
                     label = { Text(stringResource(R.string.pomodoro_edit_sequence)) })
-                else listOf(5L, 10L, 30L, 60L).forEach { minutes ->
-                    FilterChip(selected = duration == minutes * 60_000L,
-                        onClick = { setDuration(minutes * 60_000L) },
-                        label = { Text(stringResource(R.string.timer_minutes, minutes)) })
-                }
-                if (!pomodoro) FilterChip(selected = false, onClick = { customDialog = true },
-                    label = { Text(stringResource(R.string.timer_custom)) })
             }
         },
         actions = {
@@ -220,12 +198,13 @@ internal fun TimerScreen(modifier: Modifier, pomodoro: Boolean) {
                 onReset = {
                     TimerScheduler.cancel(context, mode)
                     running = false
-                    if (pomodoro) { phase = 0; duration = defaultDuration }
+                    phase = 0
+                    duration = defaultDuration
                     remaining = duration
                     deadline = 0L
                     persist()
                 },
-                extra = if (pomodoro) Icons.Default.SkipNext else null,
+                extra = Icons.Default.SkipNext,
                 extraLabel = stringResource(R.string.timer_skip), onExtra = ::advancePomodoro)
         },
     )
@@ -256,92 +235,6 @@ internal fun TimerScreen(modifier: Modifier, pomodoro: Boolean) {
             }
         }
     }
-    if (customDialog) {
-        CustomDurationDialog(
-            initialMillis = duration,
-            onDismiss = { customDialog = false },
-            onConfirm = {
-                setDuration(it)
-                customDialog = false
-            },
-        )
-    }
-}
-
-@Composable
-private fun CustomDurationDialog(
-    initialMillis: Long,
-    onDismiss: () -> Unit,
-    onConfirm: (Long) -> Unit,
-) {
-    val totalSeconds = (initialMillis / 1000L)
-        .coerceAtMost(99L * 3600L + 59L * 60L + 59L)
-    var hours by rememberSaveable { mutableStateOf((totalSeconds / 3600L).toString()) }
-    var minutes by rememberSaveable { mutableStateOf((totalSeconds / 60L % 60L).toString()) }
-    var seconds by rememberSaveable { mutableStateOf((totalSeconds % 60L).toString()) }
-    val duration = customDurationMillis(
-        hours.toIntOrNull(),
-        minutes.toIntOrNull(),
-        seconds.toIntOrNull(),
-    )
-    AlertDialog(
-        onDismissRequest = onDismiss,
-        title = { Text(stringResource(R.string.timer_custom_title)) },
-        text = {
-            Row(horizontalArrangement = Arrangement.spacedBy(8.dp)) {
-                DurationField(
-                    value = hours,
-                    onValueChange = { hours = it },
-                    label = stringResource(R.string.timer_hours),
-                    modifier = Modifier.weight(1f),
-                )
-                DurationField(
-                    value = minutes,
-                    onValueChange = { minutes = it },
-                    label = stringResource(R.string.timer_minutes_unit),
-                    modifier = Modifier.weight(1f),
-                )
-                DurationField(
-                    value = seconds,
-                    onValueChange = { seconds = it },
-                    label = stringResource(R.string.timer_seconds),
-                    modifier = Modifier.weight(1f),
-                )
-            }
-        },
-        confirmButton = {
-            TextButton(
-                onClick = { onConfirm(duration) },
-                enabled = duration > 0L,
-            ) { Text(stringResource(R.string.apply)) }
-        },
-        dismissButton = {
-            TextButton(onClick = onDismiss) { Text(stringResource(R.string.cancel)) }
-        },
-    )
-}
-
-@Composable
-private fun DurationField(
-    value: String,
-    onValueChange: (String) -> Unit,
-    label: String,
-    modifier: Modifier,
-) {
-    OutlinedTextField(
-        value = value,
-        onValueChange = { onValueChange(it.filter(Char::isDigit).take(2)) },
-        label = { Text(label) },
-        modifier = modifier,
-        keyboardOptions = KeyboardOptions(keyboardType = KeyboardType.Number),
-        singleLine = true,
-    )
-}
-
-internal fun customDurationMillis(hours: Int?, minutes: Int?, seconds: Int?): Long {
-    if (hours == null || minutes == null || seconds == null) return 0L
-    if (hours !in 0..99 || minutes !in 0..59 || seconds !in 0..59) return 0L
-    return (hours * 3600L + minutes * 60L + seconds) * 1000L
 }
 
 @OptIn(ExperimentalMaterial3Api::class)
@@ -463,19 +356,9 @@ internal fun StopwatchScreen(modifier: Modifier) {
     )
 }
 
-private fun formatDuration(millis: Long, pomodoro: Boolean): String {
+private fun formatPomodoro(millis: Long): String {
     val total = (millis + 999L) / 1000L
-    return if (pomodoro) {
-        String.format(Locale.US, "%02d:%02d", total / 60L, total % 60L)
-    } else {
-        String.format(
-            Locale.US,
-            "%02d:%02d:%02d",
-            total / 3600L,
-            total / 60L % 60L,
-            total % 60L,
-        )
-    }
+    return String.format(Locale.US, "%02d:%02d", total / 60L, total % 60L)
 }
 
 internal fun formatStopwatch(millis: Long): String {

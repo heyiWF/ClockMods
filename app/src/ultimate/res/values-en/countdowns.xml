@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="countdown_new">New countdown</string>
+    <string name="countdown_label">Timer label</string>
+    <string name="countdown_minute">+1 min</string>
+    <string name="countdown_delete">Delete timer</string>
+    <string name="countdown_backspace">Backspace</string>
+    <string name="countdown_named_finished">%1$s · %2$s timer finished</string>
+    <string name="countdown_untitled">Timer %1$d</string>
+</resources>

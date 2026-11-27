@@ -41,7 +41,9 @@ class TimerScheduler private constructor() {
         fun restoreRunningTimers(context: Context, nowMillis: Long = System.currentTimeMillis()) {
             val preferences = context.getSharedPreferences(PREFERENCES_NAME, Context.MODE_PRIVATE)
             restoreOne(context, preferences, "pomodoro_", MODE_POMODORO, nowMillis)
-            restoreOne(context, preferences, "countdown_", null, nowMillis)
+            CountdownTimers.ids(preferences).forEach { id ->
+                restoreOne(context, preferences, "${id}_", id, nowMillis)
+            }
             TimingLiveUpdates.refreshAll(context)
         }
 
@@ -63,6 +65,8 @@ class TimerScheduler private constructor() {
 
         private fun intent(context: Context, mode: String?): PendingIntent {
             val intent = Intent(context, TimerReceiver::class.java).putExtra(EXTRA_MODE, mode)
+            if (mode?.startsWith("countdown-") == true)
+                intent.data = android.net.Uri.fromParts("clockmods-countdown", mode, null)
             val requestCode = if (mode == MODE_POMODORO) {
                 POMODORO_REQUEST_CODE
             } else {

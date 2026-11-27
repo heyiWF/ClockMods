@@ -1,0 +1,10 @@
+<?xml version="1.0" encoding="utf-8"?>
+<resources>
+    <string name="countdown_new">新建倒计时</string>
+    <string name="countdown_label">倒计时标签</string>
+    <string name="countdown_minute">+1 分钟</string>
+    <string name="countdown_delete">删除倒计时</string>
+    <string name="countdown_backspace">退格</string>
+    <string name="countdown_named_finished">%1$s · %2$s 倒计时结束</string>
+    <string name="countdown_untitled">倒计时 %1$d</string>
+</resources>

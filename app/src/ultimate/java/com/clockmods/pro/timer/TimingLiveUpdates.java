@@ -41,7 +41,7 @@ public final class TimingLiveUpdates {
 
     public static void refreshAll(Context context) {
         refreshTimer(context, "pomodoro");
-        refreshTimer(context, "countdown");
+        for (String id : CountdownTimers.ids(context.getSharedPreferences("pro_timers", 0))) refreshTimer(context, id);
         SharedPreferences p = context.getSharedPreferences("pro_stopwatch", 0);
         if (!p.getBoolean("running", false)) {
             manager(context).cancel(STOPWATCH_ID);
@@ -50,19 +50,19 @@ public final class TimingLiveUpdates {
         long now = System.currentTimeMillis();
         long elapsed = com.clockmods.ultimate.compose.StopwatchTimebase.INSTANCE.elapsed(p.getLong("accumulated", 0), true, p.getLong("started_at_realtime", 0),
                 p.getLong("started_at_wall", 0), SystemClock.elapsedRealtime(), now);
-        post(context, STOPWATCH_ID, "stopwatch", R.string.pro_page_stopwatch,
+        post(context, null, "", STOPWATCH_ID, "stopwatch", R.string.pro_page_stopwatch,
                 R.string.timing_running, now - elapsed, false, 0);
     }
 
     public static void refreshTimer(Context context, String mode) {
         boolean pomodoro = "pomodoro".equals(mode);
         int id = pomodoro ? POMODORO_ID : COUNTDOWN_ID;
-        String prefix = pomodoro ? "pomodoro_" : "countdown_";
+        String prefix = mode + "_";
         SharedPreferences p = context.getSharedPreferences("pro_timers", 0);
         long deadline = p.getLong(prefix + "deadline", 0);
         long remaining = deadline - System.currentTimeMillis();
         if (!p.getBoolean(prefix + "running", false) || remaining <= 0) {
-            manager(context).cancel(id);
+            cancelTimer(context, mode);
             return;
         }
         int text = R.string.timing_running;
@@ -70,13 +70,17 @@ public final class TimingLiveUpdates {
             java.util.List<PomodoroSequence.Step> steps = PomodoroSequence.load(p);
             text = TimerCompletion.phaseLabel(steps.get(PomodoroSequence.index(p, steps)).label);
         }
-        post(context, id, pomodoro ? "pomodoro" : "countdown",
+        post(context, tag(mode), pomodoro ? "" : p.getString(prefix + "label", ""), id, pomodoro ? "pomodoro" : "countdown",
                 pomodoro ? R.string.pro_page_pomodoro : R.string.pro_page_countdown,
                 text, deadline, true, remaining);
     }
 
     public static void cancelTimer(Context context, String mode) {
-        manager(context).cancel("pomodoro".equals(mode) ? POMODORO_ID : COUNTDOWN_ID);
+        manager(context).cancel(tag(mode), "pomodoro".equals(mode) ? POMODORO_ID : COUNTDOWN_ID);
+    }
+
+    private static String tag(String mode) {
+        return mode != null && mode.startsWith("countdown-") ? mode : null;
     }
 
     public static PendingIntent open(Context context, String destination, int requestCode) {
@@ -91,7 +95,7 @@ public final class TimingLiveUpdates {
         return context.getSystemService(NotificationManager.class);
     }
 
-    private static void post(Context context, int id, String destination, int title, int text,
+    private static void post(Context context, String tag, String label, int id, String destination, int title, int text,
             long when, boolean countdown, long timeout) {
         NotificationManager manager = manager(context);
         if (!manager.areNotificationsEnabled()) return;
@@ -108,7 +112,7 @@ public final class TimingLiveUpdates {
         extras.putBoolean("android.requestPromotedOngoing", true);
         Notification.Builder builder = new Notification.Builder(context, CHANNEL)
                 .setSmallIcon(R.drawable.ic_notification_clock)
-                .setContentTitle(localized.getString(title))
+                .setContentTitle(label.isEmpty() ? localized.getString(title) : label)
                 .setContentText(localized.getString(text))
                 .setContentIntent(open(context, destination, id))
                 .setCategory(countdown ? Notification.CATEGORY_PROGRESS : Notification.CATEGORY_STOPWATCH)
@@ -118,7 +122,7 @@ public final class TimingLiveUpdates {
         // Remove an expired countdown even when an inexact alarm is delayed by Doze.
         if (timeout > 0) builder.setTimeoutAfter(timeout);
         try {
-            manager.notify(id, builder.build());
+            manager.notify(tag, id, builder.build());
         } catch (SecurityException ignored) {
             // Notification permission can be revoked between the check and notify.
         }

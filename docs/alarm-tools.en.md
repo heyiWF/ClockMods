@@ -23,6 +23,8 @@ Simultaneous alarms queue independently and can be dismissed or snoozed separate
 
 ## Layout and motion
 
+Run several countdowns together on the countdown page. Tap a 5, 10, 30 or 60 minute preset to start immediately, or choose Custom to enter a duration and an optional label on the keypad. For example, `130` starts a 1 minute 30 second timer. Each card shows the remaining fraction as a ring, with pause or resume in the center. **+1 min** extends that countdown. Tap the label to rename it, the reset button beside playback to restore its duration, or the cross in the top corner to delete it. Labels appear in both ongoing notifications and completion alerts.
+
 Enable “Keep screen on while timing” in Settings → System & language → Timing tools to keep the display awake while viewing a running Pomodoro, countdown or stopwatch. Pausing, reaching the end, switching to an idle page or leaving the app releases the display. The setting is off by default.
 
 The layout follows available dp width and height, including spacious high-resolution, low-density windows and compact windows. Portrait stacks content; wide landscape uses two panes with a maximum content width. Stopwatch records show lap and total times, preserving records and elapsed time across activity recreation.

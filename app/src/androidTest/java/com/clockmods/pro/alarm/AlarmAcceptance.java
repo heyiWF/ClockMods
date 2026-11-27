@@ -179,13 +179,16 @@ public final class AlarmAcceptance extends Instrumentation {
         SystemClock.sleep(500);
         clickAccessible(context.getString(R.string.timer_minutes, 5));
         SharedPreferences timers = context.getSharedPreferences("pro_timers", 0);
-        check(!timers.getBoolean("countdown_running", true), "preset stops previous countdown");
-        check(timers.getLong("countdown_remaining", 0) == 300000, "preset sets new duration");
-        clickAccessible(context.getString(R.string.timer_start));
-        SystemClock.sleep(500);
+        com.clockmods.pro.timer.CountdownTimers countdowns = new com.clockmods.pro.timer.CountdownTimers(context);
+        String newest = countdowns.all().get(0).id;
+        check(timers.getBoolean("countdown_running", false) && timers.getBoolean(newest + "_running", false),
+                "preset starts a separate countdown");
+        check(timers.getLong(newest + "_duration", 0) == 300000, "preset sets the new duration");
         clickAccessible(context.getString(R.string.timer_pause));
         screenshot("countdown-paused-" + captureLabel);
-        check(!timers.getBoolean("countdown_running", true) && timers.getLong("countdown_remaining", 0) < 300000, "countdown pause retains remaining time");
+        check(!timers.getBoolean(newest + "_running", true) && timers.getBoolean("countdown_running", false),
+                "pausing the preset leaves the original running");
+        countdowns.remove(newest);
         Activity last = main;
         runOnMainSync(last::finish);
         com.clockmods.pro.timer.TimerScheduler.cancel(context, "countdown");
