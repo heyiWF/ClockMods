@@ -72,10 +72,22 @@ public final class CalendarImportModel extends AndroidViewModel {
         });
     }
     public void setSyncEnabled(String id, boolean enabled) {
+        updateSource(id, enabled, true);
+    }
+
+    public void setEnabled(String id, boolean enabled) {
+        updateSource(id, enabled, false);
+    }
+
+    private void updateSource(String id, boolean enabled, boolean sync) {
         if (busy) return; busy=true; state.setValue(1);
         worker.execute(() -> {
             List<Result> next=new ArrayList<>();
-            try { UserCalendarStore.get(getApplication()).setSyncEnabled(id, enabled); }
+            try {
+                UserCalendarStore store = UserCalendarStore.get(getApplication());
+                if (sync) store.setSyncEnabled(id, enabled);
+                else store.setEnabled(id, enabled);
+            }
             catch (Exception failure) { next.add(new Result(R.string.calendar_sync_failed, "")); }
             results=next; busy=false; state.postValue(2);
         });

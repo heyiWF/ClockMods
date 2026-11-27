@@ -32,6 +32,7 @@ public final class UserFontStore {
     private static volatile List<ImportedFile> files = Collections.emptyList();
     private static volatile Map<String, Family> families = Collections.emptyMap();
     private static final Map<String, Typeface> TYPEFACES = new LinkedHashMap<>();
+    private static volatile Map<String, Family> activeFamilies = Collections.emptyMap();
     private static long revision;
 
     public static final class FontException extends IOException {
@@ -173,8 +174,18 @@ public final class UserFontStore {
     }
 
     public static List<ImportedFile> files() { return files; }
-    public static List<Family> families() { return new ArrayList<>(families.values()); }
-    public static Family family(String id) { return families.get(id); }
+    public static List<Family> allFamilies() { return new ArrayList<>(families.values()); }
+    public static List<Family> families() { return new ArrayList<>(activeFamilies.values()); }
+
+    public static synchronized void setEnabled(String id, boolean enabled) {
+        if (!families.containsKey(id) || activeFamilies.containsKey(id) == enabled) return;
+        android.content.SharedPreferences.Editor edit =
+                application.getSharedPreferences("disabled_font_families", 0).edit();
+        if (enabled) edit.remove(id); else edit.putBoolean(id, true);
+        edit.apply();
+        publish(files);
+    }
+    public static Family family(String id) { return activeFamilies.get(id); }
     public static boolean isImported(String id) { return id != null && id.startsWith(PREFIX); }
     public static synchronized long revision() { return revision; }
     public static String familyId(OpenTypeFont face) { return PREFIX + hash(face.identity.getBytes(StandardCharsets.UTF_8)); }
@@ -185,8 +196,11 @@ public final class UserFontStore {
         return false;
     }
     public static synchronized Typeface resolve(String id, int weight) {
-        Family family = families.get(id);
-        if (family == null) return Typeface.DEFAULT;
+        Family family = family(id);
+        return family == null ? Typeface.DEFAULT : resolvePreview(family, weight);
+    }
+    public static synchronized Typeface resolvePreview(Family family, int weight) {
+        String id = family.id;
         String key = id + ":" + weight;
         Typeface cached = TYPEFACES.get(key); if (cached != null) return cached;
         Face face = family.faceFor(weight);
@@ -213,6 +227,14 @@ public final class UserFontStore {
         ordered.sort(Comparator.comparing(f -> f.name));
         Map<String, Family> snapshot = new LinkedHashMap<>(); for (Family family : ordered) snapshot.put(family.id, family);
         files = Collections.unmodifiableList(new ArrayList<>(next)); families = Collections.unmodifiableMap(snapshot);
+        android.content.SharedPreferences disabled =
+                application.getSharedPreferences("disabled_font_families", 0);
+        Map<String, Family> active = new LinkedHashMap<>(snapshot);
+        for (String id : disabled.getAll().keySet()) {
+            active.remove(id);
+            if (!snapshot.containsKey(id)) disabled.edit().remove(id).apply();
+        }
+        activeFamilies = Collections.unmodifiableMap(active);
         TYPEFACES.clear(); revision++;
     }
     private static byte[] readLimited(InputStream input) throws IOException {

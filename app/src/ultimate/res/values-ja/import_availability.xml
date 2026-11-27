@@ -1,0 +1,4 @@
+<resources>
+    <string name="font_import_enabled">このフォントファミリーを有効にする</string>
+    <string name="calendar_import_enabled">このカレンダーを有効にする</string>
+</resources>

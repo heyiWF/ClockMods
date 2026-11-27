@@ -55,7 +55,9 @@ public final class CalendarImportAcceptance extends Instrumentation {
             context.getSharedPreferences("clockmods_onboarding",0).edit().putBoolean("completed",true).commit();
             LocalDate today=LocalDate.now(ZoneOffset.UTC);
             byte[] fixture=fixture(today);
-            if ("motion".equals(arguments.getString("mode"))) {
+            if ("availability".equals(arguments.getString("mode"))) {
+                checkAvailability(fixture, today);
+            } else if ("motion".equals(arguments.getString("mode"))) {
                 checkMenuMotion();
             } else {
             checkNativeScheduleFonts();
@@ -196,6 +198,34 @@ public final class CalendarImportAcceptance extends Instrumentation {
         screenshot("subscription-dialog");
         check(click(active.getString(android.R.string.cancel)), "link dialog cancels without import");
     }
+    private void checkAvailability(byte[] fixture, LocalDate date) throws Exception {
+        UserCalendarStore.Source first = store.importStream(new ByteArrayInputStream(fixture), "First.ics");
+        byte[] other = new String(fixture, StandardCharsets.UTF_8).replace("Team sync", "Second meeting")
+                .getBytes(StandardCharsets.UTF_8);
+        UserCalendarStore.Source second = store.importStream(new ByteArrayInputStream(other), "Second.ics");
+        check(awaitEvents(date, 6).size() == 6, "both imports initially available");
+        launch(new Intent(context, CalendarManagerActivity.class));
+        String toggle = active.getString(R.string.calendar_import_enabled);
+        check(waitText(toggle, true) && click(toggle), "calendar switch accepts a tap");
+        List<UserCalendarStore.Occurrence> visible = awaitEvents(date, 3);
+        check(visible.size() == 3 && visible.stream().allMatch(it -> it.source.id.equals(second.id)),
+                "disabled calendar leaves only the sibling calendar's events");
+        java.lang.reflect.Constructor<UserCalendarStore> constructor = UserCalendarStore.class.getDeclaredConstructor(Context.class);
+        constructor.setAccessible(true);
+        check(constructor.newInstance(context).files().stream().anyMatch(it -> it.id.equals(first.id) && !it.enabled),
+                "disabled calendar remains manageable after reload");
+        check(click(toggle) && awaitEvents(date, 6).size() == 6, "calendar switch restores occurrences");
+        closeScreen();
+        context.getSharedPreferences("clock_prefs", 0).edit().putString("calendar_theme", "calendar.agenda")
+                .putInt("screen_orientation", 1).commit();
+        launch(new Intent().setClassName(context.getPackageName(), "com.clockmods.ultimate.UltimateMainActivity")
+                .putExtra("com.clockmods.ultimate.extra.DESTINATION", "calendar"));
+        selectCalendarPage();
+        check(waitText("Imported all-day", true), "enabled events appear in the agenda");
+        screenshot("agenda-availability");
+        closeScreen();
+    }
+
     private void checkSubscriptions(byte[] fixture) throws Exception {
         byte[] initial=new String(fixture,StandardCharsets.UTF_8).replace("Imported all-day","Subscribed initial").getBytes(StandardCharsets.UTF_8);
         byte[] updated=new String(fixture,StandardCharsets.UTF_8).replace("Imported all-day","Subscribed updated").getBytes(StandardCharsets.UTF_8);

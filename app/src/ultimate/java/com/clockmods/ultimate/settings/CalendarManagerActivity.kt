@@ -202,13 +202,16 @@ private fun CalendarLibrary(revision: Int, model: CalendarImportModel, onBack: (
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
                         Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(file.title, Modifier.semantics { heading() }, style = MaterialTheme.typography.titleLarge)
+                            ImportEnabledSwitch(stringResource(R.string.calendar_import_enabled), file.enabled, !busy) {
+                                model.setEnabled(file.id, it)
+                            }
                             Text(file.name, style = MaterialTheme.typography.bodyLarge)
                             Text(stringResource(R.string.calendar_import_count, file.eventCount,
                                 android.text.format.Formatter.formatShortFileSize(context, file.bytes)),
                                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.onSurfaceVariant)
                             if (store.error(file.id) != null) Text(stringResource(R.string.calendar_import_query_error),
                                 style = MaterialTheme.typography.bodyMedium, color = MaterialTheme.colorScheme.error)
-                            if (file.sourceUrl.isNotEmpty()) {
+                            if (file.enabled && file.sourceUrl.isNotEmpty()) {
                                 CalendarSyncSwitch(file.syncEnabled, enabled = !busy,
                                     onCheckedChange = { model.setSyncEnabled(file.id, it) })
                                 if (file.lastSyncedAt > 0) Text(stringResource(R.string.calendar_sync_last,
@@ -297,6 +300,16 @@ private fun CalendarSyncSwitch(
             Text(stringResource(R.string.calendar_sync_interval), style = MaterialTheme.typography.bodySmall,
                 color = MaterialTheme.colorScheme.onSurfaceVariant)
         }
+        Switch(checked, onCheckedChange = null, enabled = enabled)
+    }
+}
+
+@Composable
+internal fun ImportEnabledSwitch(label: String, checked: Boolean, enabled: Boolean, change: (Boolean) -> Unit) {
+    Row(Modifier.fillMaxWidth().toggleable(checked, enabled = enabled, role = Role.Switch,
+        onValueChange = change).heightIn(min = 48.dp),
+        verticalAlignment = Alignment.CenterVertically, horizontalArrangement = Arrangement.spacedBy(16.dp)) {
+        Text(label, Modifier.weight(1f), style = MaterialTheme.typography.titleSmall)
         Switch(checked, onCheckedChange = null, enabled = enabled)
     }
 }

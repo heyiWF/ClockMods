@@ -57,7 +57,7 @@ class FontManagerActivity : ComponentActivity() {
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
 private fun FontLibrary(revision: Int, model: FontImportModel, onBack: () -> Unit, onImport: () -> Unit) {
-    val families = remember(revision) { UserFontStore.families().toList() }
+    val families = remember(revision) { UserFontStore.allFamilies().toList() }
     // Capture each model publication so Scaffold/LazyColumn slots observe operation changes.
     val busy = model.busy
     val results = model.results.toList()
@@ -117,8 +117,11 @@ private fun FontLibrary(revision: Int, model: FontImportModel, onBack: () -> Uni
                         colors = CardDefaults.cardColors(containerColor = MaterialTheme.colorScheme.surfaceContainerLow)) {
                         Column(Modifier.fillMaxWidth().padding(20.dp), verticalArrangement = Arrangement.spacedBy(12.dp)) {
                             Text(family.name, Modifier.semantics { heading() }, style = MaterialTheme.typography.titleLarge)
+                            ImportEnabledSwitch(stringResource(R.string.font_import_enabled), UserFontStore.family(family.id) != null, !busy) {
+                                model.setEnabled(family.id, it)
+                            }
                             Text("12:34 · Aa · 中文 · 日本語 · 한국어", style = MaterialTheme.typography.headlineSmall,
-                                fontFamily = remember(family.id, revision) { FontFamily(UserFontStore.resolve(family.id, 400)) })
+                                fontFamily = remember(family.id, revision) { FontFamily(UserFontStore.resolvePreview(family, 400)) })
                             family.faces.distinctBy { it.source.id }.forEach { face ->
                                 HorizontalDivider()
                                 Text(face.source.name, style = MaterialTheme.typography.titleMedium)

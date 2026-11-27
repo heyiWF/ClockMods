@@ -1,0 +1,4 @@
+<resources>
+    <string name="font_import_enabled">이 글꼴 모음 사용</string>
+    <string name="calendar_import_enabled">이 캘린더 사용</string>
+</resources>

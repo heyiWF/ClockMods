@@ -1,0 +1,4 @@
+<resources>
+    <string name="font_import_enabled">Enable font family</string>
+    <string name="calendar_import_enabled">Enable calendar</string>
+</resources>
