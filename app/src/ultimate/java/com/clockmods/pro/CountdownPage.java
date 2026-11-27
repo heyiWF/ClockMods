@@ -29,6 +29,11 @@ final class CountdownPage extends LinearLayout {
     private final CountdownTimers store;
     private final LinearLayout list;
     private final ScrollView scroll;
+    private final View topSpace;
+    private final FrameLayout headerArea;
+    private final LinearLayout header;
+    private final LinearLayout expanded;
+    private boolean empty;
     private final Map<String, Row> rows = new LinkedHashMap<>();
     private final Handler handler = new Handler(Looper.getMainLooper());
     private final Runnable reload = this::reload;
@@ -56,9 +61,13 @@ final class CountdownPage extends LinearLayout {
         store = new CountdownTimers(getContext());
         setOrientation(VERTICAL);
         setPadding(dp(16), dp(8), dp(16), 0);
-        LinearLayout header = new LinearLayout(getContext());
+        topSpace = new View(getContext());
+        addView(topSpace, new LayoutParams(1, 0));
+        headerArea = new FrameLayout(getContext());
+        addView(headerArea, new LayoutParams(-1, -2));
+        header = new LinearLayout(getContext());
         header.setGravity(Gravity.CENTER_VERTICAL);
-        addView(header);
+        headerArea.addView(header, new FrameLayout.LayoutParams(-1, -2));
         HorizontalScrollView presets = new HorizontalScrollView(getContext());
         presets.setHorizontalScrollBarEnabled(false);
         header.addView(presets, new LayoutParams(0, -2, 1));
@@ -77,6 +86,31 @@ final class CountdownPage extends LinearLayout {
             params.setMarginEnd(dp(8));
             choices.addView(chip, params);
         }
+        expanded = new LinearLayout(getContext());
+        expanded.setOrientation(VERTICAL);
+        expanded.setGravity(Gravity.CENTER);
+        headerArea.addView(expanded, new FrameLayout.LayoutParams(-1, -2, Gravity.CENTER));
+        for (int[] minutesPair : new int[][]{{5, 10}, {30, 60}}) {
+            LinearLayout pair = new LinearLayout(getContext());
+            pair.setGravity(Gravity.CENTER);
+            expanded.addView(pair, new LayoutParams(-1, -2));
+            for (int minutes : minutesPair) {
+                MaterialButton preset = new MaterialButton(getContext(), null,
+                        com.google.android.material.R.attr.materialButtonTonalStyle);
+                preset.setText(getResources().getString(R.string.timer_minutes, minutes));
+                preset.setOnClickListener(v -> store.startNew(minutes * 60_000L, ""));
+                LayoutParams cell = new LayoutParams(0, -2, 1);
+                cell.setMargins(dp(4), dp(2), dp(4), dp(2));
+                preset.setMinimumHeight(dp(54));
+                pair.addView(preset, cell);
+            }
+        }
+        MaterialButton add = new MaterialButton(getContext());
+        add.setText(R.string.timer_custom);
+        add.setIconResource(R.drawable.ultimate_ic_add);
+        add.setIconGravity(MaterialButton.ICON_GRAVITY_TEXT_START);
+        add.setOnClickListener(v -> edit(null));
+        expanded.addView(add);
         scroll = new ScrollView(getContext());
         list = new LinearLayout(getContext());
         list.setOrientation(VERTICAL);
@@ -87,13 +121,30 @@ final class CountdownPage extends LinearLayout {
         list.setPadding(dp(1), dp(4), dp(1), dp(12));
         scroll.addView(list);
         addView(scroll, new LayoutParams(-1, 0, 1));
-        ProFontApplier.apply(header);
+        setEmpty(store.all().isEmpty(), false);
+        ProFontApplier.apply(headerArea);
     }
 
     @Override protected void onSizeChanged(int w, int h, int oldw, int oldh) {
         super.onSizeChanged(w, h, oldw, oldh);
         int inset = Math.max(dp(16), (w - dp(648)) / 2);
         setPadding(inset, dp(8), inset, 0);
+        int groupInset = Math.max(0, (w - 2 * inset - dp(320)) / 2);
+        expanded.setPadding(groupInset, 0, groupInset, 0);
+    }
+
+    private void setEmpty(boolean value, boolean animate) {
+        if (animate && isLaidOut() && android.animation.ValueAnimator.areAnimatorsEnabled()) {
+            android.transition.TransitionSet motion = new android.transition.TransitionSet();
+            motion.addTransition(new android.transition.ChangeBounds().addTarget(headerArea).addTarget(scroll));
+            motion.addTransition(new android.transition.Fade().addTarget(header).addTarget(expanded));
+            motion.setDuration(300);
+            android.transition.TransitionManager.beginDelayedTransition(this, motion);
+        }
+        empty = value;
+        topSpace.setLayoutParams(new LayoutParams(1, 0, value ? 1f : 0f));
+        header.setVisibility(value ? GONE : VISIBLE);
+        expanded.setVisibility(value ? VISIBLE : GONE);
     }
 
     private void edit(String id) {
@@ -116,7 +167,9 @@ final class CountdownPage extends LinearLayout {
     private void reload() {
         Map<String, Row> next = new LinkedHashMap<>();
         int index = 0;
-        for (CountdownTimers.Timer timer : store.all()) {
+        java.util.List<CountdownTimers.Timer> timers = store.all();
+        if (timers.isEmpty() != empty) setEmpty(timers.isEmpty(), true);
+        for (CountdownTimers.Timer timer : timers) {
             Row row = rows.get(timer.id);
             if (row == null) {
                 row = new Row(timer);
@@ -180,14 +233,14 @@ final class CountdownPage extends LinearLayout {
             digits = new RollingTimeText(time);
 
             LinearLayout actions = new LinearLayout(context);
-            actions.setGravity(Gravity.CENTER_VERTICAL);
-            body.addView(actions);
-            FrameLayout before = new FrameLayout(context);
-            actions.addView(before, new LayoutParams(0, -2, 1));
-            before.addView(iconButton(R.drawable.tool_ic_reset, R.string.timer_reset,
-                    () -> store.reset(timer.id)), new FrameLayout.LayoutParams(dp(48), dp(48), Gravity.END));
+            actions.setGravity(Gravity.CENTER);
+            body.addView(actions, new LayoutParams(-1, -2));
+            actions.addView(iconButton(R.drawable.tool_ic_reset, R.string.timer_reset,
+                    () -> store.reset(timer.id)), new LayoutParams(dp(48), dp(48)));
             FrameLayout dial = new FrameLayout(context);
-            actions.addView(dial, new LayoutParams(dp(76), dp(76)));
+            LayoutParams dialParams = new LayoutParams(dp(76), dp(76));
+            dialParams.setMarginStart(dp(12));
+            actions.addView(dial, dialParams);
             ring.setIndeterminate(false);
             ring.setIndicatorSize(dp(72));
             ring.setIndicatorInset(0);
@@ -202,13 +255,14 @@ final class CountdownPage extends LinearLayout {
             ToolButtonMotion.install(toggle);
             toggle.setOnClickListener(v -> store.toggle(timer.id));
             dial.addView(toggle, new FrameLayout.LayoutParams(dp(56), dp(56), Gravity.CENTER));
-            FrameLayout after = new FrameLayout(context);
-            actions.addView(after, new LayoutParams(0, -2, 1));
+
             minute.setText(R.string.countdown_minute);
             minute.setSingleLine();
             minute.setPadding(dp(10), 0, dp(10), 0);
             minute.setOnClickListener(v -> store.addMinute(timer.id));
-            after.addView(minute, new FrameLayout.LayoutParams(-2, -2, Gravity.START));
+            LayoutParams minuteParams = new LayoutParams(-2, -2);
+            minuteParams.setMarginStart(dp(12));
+            actions.addView(minute, minuteParams);
             ProFontApplier.apply(body);
         }
 
@@ -222,15 +276,17 @@ final class CountdownPage extends LinearLayout {
             minute.setEnabled(timer.running);
             minute.setImportantForAccessibility(timer.running ? IMPORTANT_FOR_ACCESSIBILITY_YES : IMPORTANT_FOR_ACCESSIBILITY_NO);
             if (changed) {
-                minute.setVisibility(VISIBLE);
-                minute.animate().alpha(timer.running ? 1f : 0f).translationX(timer.running ? 0 : -dp(8))
-                        .setDuration(180).withEndAction(() -> minute.setVisibility(timer.running ? VISIBLE : INVISIBLE)).start();
+                android.transition.TransitionSet motion = new android.transition.TransitionSet();
+                motion.addTransition(new android.transition.ChangeBounds());
+                motion.addTransition(new android.transition.Fade().addTarget(minute));
+                motion.setDuration(180);
+                android.transition.TransitionManager.beginDelayedTransition((android.view.ViewGroup) minute.getParent(), motion);
+                minute.setVisibility(timer.running ? VISIBLE : GONE);
                 toggle.setScaleX(0.9f);
                 toggle.setScaleY(0.9f);
                 toggle.animate().scaleX(1).scaleY(1).setDuration(180).start();
             } else if (!bound) {
-                minute.setVisibility(timer.running ? VISIBLE : INVISIBLE);
-                minute.setAlpha(timer.running ? 1f : 0f);
+                minute.setVisibility(timer.running ? VISIBLE : GONE);
             }
             bound = true;
         }

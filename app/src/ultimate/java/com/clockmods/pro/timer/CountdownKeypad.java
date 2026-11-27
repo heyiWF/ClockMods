@@ -49,6 +49,7 @@ public final class CountdownKeypad extends LinearLayout {
         showDigits();
         for (String[] keys : new String[][] {{"1","2","3"},{"4","5","6"},{"7","8","9"},{"00","0","⌫"}}) {
             LinearLayout row = new LinearLayout(context);
+            row.setGravity(Gravity.CENTER);
             addView(row);
             for (String key : keys) {
                 Button button = new Button(context);
@@ -57,11 +58,12 @@ public final class CountdownKeypad extends LinearLayout {
                 button.setTextColor(ink);
                 button.setPadding(0, 0, 0, 0);
                 GradientDrawable shape = new GradientDrawable();
-                shape.setCornerRadius(dp(16));
+                shape.setShape(GradientDrawable.OVAL);
                 shape.setColor(keyColor);
                 button.setBackground(new RippleDrawable(ColorStateList.valueOf((ink & 0xffffff) | 0x25000000), shape, null));
-                LayoutParams cell = new LayoutParams(0, dp(52), 1);
-                cell.setMargins(dp(3), dp(3), dp(3), dp(3));
+                button.setStateListAnimator(null);
+                LayoutParams cell = new LayoutParams(dp(60), dp(60));
+                cell.setMargins(dp(4), dp(3), dp(4), dp(3));
                 row.addView(button, cell);
                 boolean erase = "⌫".equals(key);
                 if (erase) {
@@ -83,6 +85,21 @@ public final class CountdownKeypad extends LinearLayout {
             public void onTextChanged(CharSequence s, int start, int before, int count) { changed.accept(CountdownKeypad.this.digits, s.toString()); }
             public void afterTextChanged(Editable s) {}
         });
+    }
+
+    @Override protected void onMeasure(int widthSpec, int heightSpec) {
+        int available = MeasureSpec.getSize(widthSpec) - getPaddingLeft() - getPaddingRight();
+        int size = Math.max(1, Math.min(dp(60), available / 3 - 2 * dp(4)));
+        for (int i = 0; i < getChildCount(); i++) {
+            if (!(getChildAt(i) instanceof LinearLayout)) continue;
+            LinearLayout row = (LinearLayout) getChildAt(i);
+            for (int k = 0; k < row.getChildCount(); k++) {
+                LayoutParams params = (LayoutParams) row.getChildAt(k).getLayoutParams();
+                params.width = size;
+                params.height = size;
+            }
+        }
+        super.onMeasure(widthSpec, heightSpec);
     }
 
     private int dp(int value) { return Math.round(value * getResources().getDisplayMetrics().density); }
