@@ -154,12 +154,20 @@ public final class CalendarManagerActivity extends AppCompatActivity {
         for (UserCalendarStore.Source source : UserCalendarStore.get(this).files()) {
             LinearLayout group = card(com.google.android.material.R.attr.colorSurfaceContainerLow);
             text(group, source.title, 22, true, false).setAccessibilityHeading(true);
+            com.google.android.material.materialswitch.MaterialSwitch enabled =
+                    new com.google.android.material.materialswitch.MaterialSwitch(this);
+            enabled.setText(R.string.calendar_import_enabled);
+            enabled.setMinHeight(dp(48));
+            enabled.setChecked(source.enabled);
+            enabled.setEnabled(!model.busy);
+            enabled.setOnCheckedChangeListener((button, value) -> model.setEnabled(source.id, value));
+            group.addView(enabled, new LinearLayout.LayoutParams(-1, -2));
             text(group, source.name, 16, false, false);
             text(group, getString(R.string.calendar_import_count, source.eventCount,
                     android.text.format.Formatter.formatShortFileSize(this, source.bytes)), 14, false, true);
             if (UserCalendarStore.get(this).error(source.id) != null)
                 text(group, getString(R.string.calendar_import_query_error), 14, false, true);
-            if (!source.sourceUrl.isEmpty()) {
+            if (source.enabled && !source.sourceUrl.isEmpty()) {
                 com.google.android.material.materialswitch.MaterialSwitch sync = subscriptionSwitch(source.syncEnabled, !model.busy);
                 sync.setOnCheckedChangeListener((button, checked) -> model.setSyncEnabled(source.id, checked));
                 group.addView(sync, new LinearLayout.LayoutParams(-1, -2));

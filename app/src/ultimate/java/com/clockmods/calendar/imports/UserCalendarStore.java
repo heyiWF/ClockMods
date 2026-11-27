@@ -25,15 +25,16 @@ public final class UserCalendarStore {
         public final String id, name, title, sourceUrl;
         public final int eventCount;
         public final long bytes, lastSyncedAt;
-        public final boolean syncEnabled, syncFailed;
+        public final boolean enabled, syncEnabled, syncFailed;
         Source(String id, String name, String title, int count, long bytes,
-                String sourceUrl, boolean syncEnabled, long lastSyncedAt, boolean syncFailed) {
+                String sourceUrl, boolean syncEnabled, long lastSyncedAt, boolean syncFailed, boolean enabled) {
+            this.enabled = enabled;
             this.id=id; this.name=name; this.title=title; this.eventCount=count; this.bytes=bytes;
             this.sourceUrl=sourceUrl; this.syncEnabled=syncEnabled;
             this.lastSyncedAt=lastSyncedAt; this.syncFailed=syncFailed;
         }
         Source withSync(boolean enabled, boolean failed) {
-            return new Source(id,name,title,eventCount,bytes,sourceUrl,enabled,lastSyncedAt,failed);
+            return new Source(id,name,title,eventCount,bytes,sourceUrl,enabled,lastSyncedAt,failed,this.enabled);
         }
     }
     public static final class Occurrence {
@@ -68,7 +69,7 @@ public final class UserCalendarStore {
                 if (!original.isFile() && trash.isFile()) trash.renameTo(original);
                 loaded.add(new Source(id, item.getString("name"), item.optString("title"),
                         item.getInt("count"), original.length(), item.optString("url", ""),
-                        item.optBoolean("sync", false), item.optLong("synced", 0), item.optBoolean("syncFailed", false)));
+                        item.optBoolean("sync", false), item.optLong("synced", 0), item.optBoolean("syncFailed", false), item.optBoolean("enabled", true)));
                 if (!original.isFile()) errors.put(id, "invalid");
             }
             sources=Collections.unmodifiableList(loaded);
@@ -110,7 +111,7 @@ public final class UserCalendarStore {
         String name=originalName==null?"calendar.ics":originalName.replace('\u0000',' ').trim();
         if(name.isEmpty())name="calendar.ics";name=name.substring(0,Math.min(name.length(),240));
         Source result=new Source(id,name,parsed.name.isEmpty()?name:parsed.name,parsed.eventCount,data.length,
-                sourceUrl,syncEnabled,sourceUrl.isEmpty()?0:System.currentTimeMillis(),false);
+                sourceUrl,syncEnabled,sourceUrl.isEmpty()?0:System.currentTimeMillis(),false,true);
         synchronized(this){
             long bytes=data.length;for(Source source:sources){bytes+=source.bytes;if(source.id.equals(id)
                     || (!sourceUrl.isEmpty() && sourceUrl.equals(source.sourceUrl)))throw new CalendarImportException("duplicate");}
@@ -143,6 +144,21 @@ public final class UserCalendarStore {
         CalendarSubscriptionWorker.schedule(context);
         return true;
     }
+    public synchronized void setEnabled(String id, boolean enabled) throws IOException {
+        List<Source> next = new ArrayList<>(sources);
+        for (int i = 0; i < next.size(); i++) {
+            Source source = next.get(i);
+            if (!source.id.equals(id) || source.enabled == enabled) continue;
+            next.set(i, new Source(id, source.name, source.title, source.eventCount, source.bytes,
+                    source.sourceUrl, source.syncEnabled, source.lastSyncedAt, source.syncFailed, enabled));
+            writeCatalog(next);
+            sources = Collections.unmodifiableList(next);
+            invalidate();
+            CalendarSubscriptionWorker.schedule(context);
+            return;
+        }
+    }
+
     public synchronized void setSyncEnabled(String id, boolean enabled) throws IOException {
         List<Source> next = new ArrayList<>(sources);
         for (int i=0;i<next.size();i++) {
@@ -156,7 +172,7 @@ public final class UserCalendarStore {
         }
     }
     public void synchronize(Source expected) throws IOException {
-        if (!expected.syncEnabled || expected.sourceUrl.isEmpty()) return;
+        if (!expected.enabled || !expected.syncEnabled || expected.sourceUrl.isEmpty()) return;
         CalendarLink.Download download = CalendarLink.download(expected.sourceUrl);
         replaceSubscription(expected, download.data);
     }
@@ -167,12 +183,12 @@ public final class UserCalendarStore {
         parsed.between(first,first.plusMonths(1));
         synchronized(this) {
             int index=sources.indexOf(expected);
-            if(index<0 || !expected.syncEnabled) return false;
+            if(index<0 || !expected.enabled || !expected.syncEnabled) return false;
             long bytes=data.length;
             for(Source source:sources) if(source!=expected) bytes+=source.bytes;
             if(bytes>32L*1024*1024) throw new CalendarImportException("limit");
             Source updated=new Source(expected.id,expected.name,parsed.name.isEmpty()?expected.name:parsed.name,
-                    parsed.eventCount,data.length,expected.sourceUrl,true,System.currentTimeMillis(),false);
+                    parsed.eventCount,data.length,expected.sourceUrl,true,System.currentTimeMillis(),false,true);
             List<Source> next=new ArrayList<>(sources);next.set(index,updated);
             AtomicFile target=new AtomicFile(file(expected.id));
             byte[] previous;
@@ -186,7 +202,7 @@ public final class UserCalendarStore {
     }
     public synchronized void syncFailed(Source expected) throws IOException {
         int index=sources.indexOf(expected);
-        if(index<0 || !expected.syncEnabled) return;
+        if(index<0 || !expected.enabled || !expected.syncEnabled) return;
         List<Source> next=new ArrayList<>(sources);next.set(index,expected.withSync(true,true));
         writeCatalog(next);sources=Collections.unmodifiableList(next);changes.postValue(++revision);
     }
@@ -199,7 +215,7 @@ public final class UserCalendarStore {
         FileOutputStream stream=null;
         try {
             JSONArray array=new JSONArray();for(Source source:sources)array.put(new JSONObject().put("id",source.id).put("name",source.name).put("title",source.title).put("count",source.eventCount)
-                    .put("url",source.sourceUrl).put("sync",source.syncEnabled)
+                    .put("enabled",source.enabled).put("url",source.sourceUrl).put("sync",source.syncEnabled)
                     .put("synced",source.lastSyncedAt).put("syncFailed",source.syncFailed));
             byte[] bytes=new JSONObject().put("version",2).put("files",array).toString().getBytes(StandardCharsets.UTF_8);
             stream=catalog.startWrite();stream.write(bytes);catalog.finishWrite(stream);
@@ -221,6 +237,7 @@ public final class UserCalendarStore {
     private void loadMonth(String key,LocalDate first,TimeZone zone,List<Source> snapshot,long version){
         Map<LocalDate,List<Occurrence>> result=new HashMap<>();Map<String,String> failures=new HashMap<>();int count=0;
         for(Source source:snapshot){
+            if (!source.enabled) continue;
             try(InputStream input=new FileInputStream(file(source.id))){
                 List<ImportedEvent> events=ICalendarParser.parse(ICalendarParser.readBytes(input),zone).between(first,first.plusMonths(1));
                 if(count+events.size()>ICalendarParser.MAX_OCCURRENCES)throw new CalendarImportException("limit");count+=events.size();

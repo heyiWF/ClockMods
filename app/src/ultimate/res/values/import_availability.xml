@@ -1,0 +1,4 @@
+<resources>
+    <string name="font_import_enabled">启用此字体族</string>
+    <string name="calendar_import_enabled">启用此日历</string>
+</resources>

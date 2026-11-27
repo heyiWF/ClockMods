@@ -97,11 +97,19 @@ public final class FontManagerActivity extends AppCompatActivity {
             text(empty, getString(R.string.font_import_empty), 22, true, false);
             text(empty, getString(R.string.font_library_empty_hint), 15, false, true);
         }
-        for (UserFontStore.Family family : UserFontStore.families()) {
+        for (UserFontStore.Family family : UserFontStore.allFamilies()) {
             LinearLayout group = card(com.google.android.material.R.attr.colorSurfaceContainerLow);
             text(group, family.name, 22, true, false).setAccessibilityHeading(true);
+            com.google.android.material.materialswitch.MaterialSwitch enabled =
+                    new com.google.android.material.materialswitch.MaterialSwitch(this);
+            enabled.setText(R.string.font_import_enabled);
+            enabled.setMinHeight(dp(48));
+            enabled.setChecked(UserFontStore.family(family.id) != null);
+            enabled.setEnabled(!model.busy);
+            enabled.setOnCheckedChangeListener((button, value) -> model.setEnabled(family.id, value));
+            group.addView(enabled, new LinearLayout.LayoutParams(-1, -2));
             text(group, "12:34 · Aa · 中文 · 日本語 · 한국어", 24, false, false)
-                    .setTypeface(UserFontStore.resolve(family.id, 400));
+                    .setTypeface(UserFontStore.resolvePreview(family, 400));
             java.util.HashSet<String> shown = new java.util.HashSet<>();
             for (UserFontStore.Face face : family.faces) {
                 if (!shown.add(face.source.id)) continue;

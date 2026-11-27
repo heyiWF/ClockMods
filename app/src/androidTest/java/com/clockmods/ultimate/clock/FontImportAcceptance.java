@@ -42,6 +42,17 @@ public final class FontImportAcceptance extends Instrumentation {
         catch (UserFontStore.FontException e) { check(e.reason.equals(expected), "reason " + e.reason + " expected " + expected); }
         finally { input.close(); }
     }
+    private void checkAvailability(ClockPreferences settings, String western, String script) {
+        UserFontStore.setEnabled(western, false);
+        check(UserFontStore.family(western) == null && UserFontStore.family(script) != null,
+                "disabling one family preserves other imported families");
+        check(UserFontStore.allFamilies().stream().anyMatch(it -> it.id.equals(western))
+                && settings.getFontFamily("font.audit.a").equals(ClockPreferences.FONT_SYSTEM),
+                "disabled family stays manageable and selected scope uses its fallback");
+        UserFontStore.setEnabled(western, true);
+        check(settings.getFontFamily("font.audit.a").equals(western), "re-enabling restores the scoped font");
+    }
+
     @Override public void onStart() {
         Context context = getTargetContext(); Bundle result = new Bundle();
         SharedPreferences prefs = context.getSharedPreferences("clock_prefs", 0);
@@ -55,6 +66,27 @@ public final class FontImportAcceptance extends Instrumentation {
         Activity activity = null; int code = Activity.RESULT_OK;
         try {
             ClockPreferences settings = new ClockPreferences(context);
+            if (args != null && "availability".equals(args.getString("mode"))) {
+                settings.setClockLanguage("en");
+                UserFontStore.ImportedFile file;
+                try (InputStream input = context.getAssets().open("fonts/GoogleSansDisplay-Regular.ttf")) {
+                    file = UserFontStore.importStream(context, input, "Availability.ttf");
+                }
+                String family = UserFontStore.familyId(file.faces.get(0));
+                settings.setFontFamily("font.audit.a", family);
+                activity = startActivitySync(new Intent(context, FontManagerActivity.class)
+                        .addFlags(Intent.FLAG_ACTIVITY_NEW_TASK));
+                String toggle = activity.getString(R.string.font_import_enabled);
+                check(clickLabel(toggle), "font switch accepts a tap");
+                long limit = SystemClock.uptimeMillis() + 3000;
+                while (UserFontStore.family(family) != null && SystemClock.uptimeMillis() < limit) SystemClock.sleep(50);
+                check(UserFontStore.family(family) == null && UserFontStore.allFamilies().stream().anyMatch(it -> it.id.equals(family))
+                        && settings.getFontFamily("font.audit.a").equals(ClockPreferences.FONT_SYSTEM), "scope falls back while disabled");
+                check(clickLabel(toggle), "font switch accepts reactivation");
+                limit = SystemClock.uptimeMillis() + 3000;
+                while (UserFontStore.family(family) == null && SystemClock.uptimeMillis() < limit) SystemClock.sleep(50);
+                check(settings.getFontFamily("font.audit.a").equals(family), "scope restores selected family");
+            } else {
             checkLocalizedDates(context);
             settings.setClockLanguage("en");
             checkDocumentImport(context, output);
@@ -94,6 +126,7 @@ public final class FontImportAcceptance extends Instrumentation {
             settings.setScriptFontWeight("font.audit.a", 400);
             check(settings.getScriptFontFamily("font.audit.a").equals(script), "script stored independently");
             check(settings.getFontFamily("font.audit.a").equals(western), "Western stored independently");
+            checkAvailability(settings, western, script);
             check(settings.getFontFamily("font.audit.b").equals(ClockPreferences.FONT_SYSTEM), "other theme Western unaffected");
             check(settings.getScriptFontFamily("font.audit.b").equals(ClockPreferences.FONT_SYSTEM), "other theme script unaffected");
             Paint paint = new Paint(Paint.ANTI_ALIAS_FLAG); paint.setTextSize(64);
@@ -162,6 +195,7 @@ public final class FontImportAcceptance extends Instrumentation {
             checks += ClockLayoutRefinementProbe.fonts(context, output, western, script);
             for (UserFontStore.ImportedFile file : new ArrayList<>(UserFontStore.files())) if (file.faces.get(0).identity.equals(regular.faces.get(0).identity) && !prior.contains(file.id)) UserFontStore.delete(file.id);
             check(settings.getFontFamily("font.audit.a").equals(ClockPreferences.FONT_SYSTEM), "deleted family falls back to system");
+            }
             result.putString("result", "PASS " + checks + " checks");
         } catch (Throwable failure) {
             code=Activity.RESULT_CANCELED; StringWriter text=new StringWriter();failure.printStackTrace(new PrintWriter(text));result.putString("result","FAIL after "+checks+" checks\n"+text);

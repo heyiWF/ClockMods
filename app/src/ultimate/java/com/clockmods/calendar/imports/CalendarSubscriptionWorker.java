@@ -16,7 +16,7 @@ public final class CalendarSubscriptionWorker extends Worker {
         boolean failed=false;
         for(UserCalendarStore.Source source:store.files()) {
             if(isStopped()) return Result.retry();
-            if(!source.syncEnabled || source.sourceUrl.isEmpty()) continue;
+            if(!source.enabled || !source.syncEnabled || source.sourceUrl.isEmpty()) continue;
             try {store.synchronize(source);} catch(java.io.IOException error) {
                 failed=true;
                 try {store.syncFailed(source);} catch(java.io.IOException ignored) { }
@@ -27,7 +27,7 @@ public final class CalendarSubscriptionWorker extends Worker {
     public static void schedule(Context context) {
         boolean enabled=false;
         for(UserCalendarStore.Source source:UserCalendarStore.get(context).files())
-            if(source.syncEnabled && !source.sourceUrl.isEmpty()) {enabled=true;break;}
+            if(source.enabled && source.syncEnabled && !source.sourceUrl.isEmpty()) {enabled=true;break;}
         WorkManager manager=WorkManager.getInstance(context);
         if(!enabled) {manager.cancelUniqueWork(WORK);return;}
         manager.enqueueUniquePeriodicWork(WORK,ExistingPeriodicWorkPolicy.KEEP,

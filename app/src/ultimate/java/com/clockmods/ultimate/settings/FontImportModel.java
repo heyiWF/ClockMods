@@ -41,6 +41,12 @@ public final class FontImportModel extends AndroidViewModel {
             results = next; busy = false; state.postValue(2);
         });
     }
+    public void setEnabled(String id, boolean enabled) {
+        if (busy) return;
+        UserFontStore.setEnabled(id, enabled);
+        state.setValue(2);
+    }
+
     public void delete(String id) {
         if (busy) return; busy = true; state.setValue(1);
         worker.execute(() -> {
