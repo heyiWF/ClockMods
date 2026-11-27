@@ -26,7 +26,10 @@ public final class CountdownTimers {
     }
 
     public static List<String> ids(SharedPreferences preferences) {
-        String saved = preferences.getString(IDS, FIRST);
+        boolean legacy = preferences.contains(FIRST + "_duration") || preferences.contains(FIRST + "_running")
+                || preferences.contains(FIRST + "_remaining") || preferences.contains(FIRST + "_deadline")
+                || preferences.contains(FIRST + "_label");
+        String saved = preferences.getString(IDS, legacy ? FIRST : "");
         return saved.isEmpty() ? new ArrayList<>() : new ArrayList<>(Arrays.asList(saved.split(",")));
     }
 
@@ -34,10 +37,12 @@ public final class CountdownTimers {
         public final String id, label;
         public final long duration, remaining, deadline;
         public final boolean running;
+        private final long displayNumber;
 
         Timer(SharedPreferences prefs, String id) {
             this.id = id;
             String prefix = id + "_";
+            displayNumber = prefs.getLong(prefix + "number", 0L);
             label = prefs.getString(prefix + "label", "");
             duration = prefs.getLong(prefix + "duration", DEFAULT);
             remaining = prefs.getLong(prefix + "remaining", duration);
@@ -46,8 +51,10 @@ public final class CountdownTimers {
         }
 
         public String name(Context context) {
-            long number = FIRST.equals(id) ? 1 : Long.parseLong(id.substring(FIRST.length() + 1));
-            return label.isEmpty() ? context.getString(R.string.countdown_untitled, number) : label;
+            if (!label.isEmpty()) return label;
+            long number = displayNumber;
+            if (number == 0) number = FIRST.equals(id) ? 1 : Long.parseLong(id.substring(FIRST.length() + 1));
+            return context.getString(R.string.countdown_untitled, number);
         }
 
         public long remainingAt(long now) {
@@ -64,14 +71,14 @@ public final class CountdownTimers {
     public String startNew(long duration, String label) {
         if (duration <= 0) throw new IllegalArgumentException("Duration must be positive");
         List<String> ids = ids(preferences);
-        boolean initial = !preferences.contains(IDS) && !preferences.contains(FIRST + "_duration")
-                && !preferences.contains(FIRST + "_running") && !preferences.contains(FIRST + "_remaining")
-                && !preferences.contains(FIRST + "_label");
+        boolean initial = !preferences.contains(IDS) && ids.isEmpty();
         long number = preferences.getLong("countdown_next_number", 2);
         String id = initial ? FIRST : FIRST + "-" + number;
-        if (!initial) ids.add(0, id);
+        long displayNumber = ids.isEmpty() ? 1 : preferences.getLong("countdown_next_label", number);
+        ids.add(0, id);
         long deadline = System.currentTimeMillis() + duration;
         preferences.edit().putLong("countdown_next_number", initial ? number : number + 1)
+                .putLong("countdown_next_label", displayNumber + 1).putLong(id + "_number", displayNumber)
                 .putString(IDS, TextUtils.join(",", ids)).putString(id + "_label", label.trim())
                 .putLong(id + "_duration", duration).putLong(id + "_remaining", duration)
                 .putLong(id + "_deadline", deadline).putBoolean(id + "_running", true).apply();
@@ -124,7 +131,7 @@ public final class CountdownTimers {
         List<String> ids = ids(preferences);
         if (!ids.remove(id)) return;
         preferences.edit().putString(IDS, TextUtils.join(",", ids)).remove(id + "_remaining")
-                .remove(id + "_duration").remove(id + "_label").remove(id + "_deadline")
+                .remove(id + "_duration").remove(id + "_number").remove(id + "_label").remove(id + "_deadline")
                 .remove(id + "_running").apply();
         TimerScheduler.cancel(context, id);
     }
